@@ -218,7 +218,7 @@ export function dontAskAgain(target: HostTarget): void {
 
 /** Copied for a host installed by hand: fetch the matching release and run its own installer. */
 export function manualUpdateCommand(status: ManagedHostStatus, version: string): string {
-  const url = `https://github.com/alwisofwan1/lotus-releases/releases/download/v${version}/lotus-host-linux-${status.arch ?? "x64"}`;
+  const url = `https://github.com/alwisofwan1/lotus/releases/download/v${version}/lotus-host-linux-${status.arch ?? "x64"}`;
   return `curl -fsSLo /tmp/lotus-host ${url} && bash ~/lotus-deploy/install.sh --binary /tmp/lotus-host`;
 }
 

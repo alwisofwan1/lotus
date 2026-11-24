@@ -14,7 +14,7 @@ use crate::no_window::NoWindow;
 use crate::remote_transport::RemoteTransport;
 
 const SCRIPT: &str = include_str!("remote.sh");
-const RELEASES: &str = "https://github.com/alwisofwan1/lotus-releases/releases/download";
+const RELEASES: &str = "https://github.com/alwisofwan1/lotus/releases/download";
 /// `remote.sh download` exits with this when the machine has no way to reach the release.
 const NO_DOWNLOAD: i32 = 3;
 

@@ -28,4 +28,4 @@ export const releases = Object.values(files)
   }))
   .sort((a, b) => newer(a.version, b.version));
 
-export const releaseUrl = (version: string) => `https://github.com/alwisofwan1/lotus-releases/releases/tag/v${version}`;
+export const releaseUrl = (version: string) => `https://github.com/alwisofwan1/lotus/releases/tag/v${version}`;

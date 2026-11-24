@@ -9,7 +9,7 @@ const pickOs = new Function(
 
 describe("download links", () => {
   it("point at the stable latest-release names", () => {
-    const base = "https://github.com/alwisofwan1/lotus-releases/releases";
+    const base = "https://github.com/alwisofwan1/lotus/releases";
     expect(download.mac.href).toBe(`${base}/latest/download/Lotus-macos-arm64.dmg`);
     expect(download.win.href).toBe(`${base}/latest/download/Lotus-windows-x64-setup.exe`);
     expect(download.all.href).toBe(base);

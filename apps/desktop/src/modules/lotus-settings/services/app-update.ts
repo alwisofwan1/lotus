@@ -2,7 +2,7 @@
  * Lotus self-update (plans/app-updates, Phase 2), behaving like bb's desktop updater: check, then
  * download in the background without asking, then offer one "Restart to update".
  *
- * The feed is `latest.json` on the public `alwisofwan1/lotus-releases` repo (tauri.conf.json →
+ * The feed is `latest.json` on the public `alwisofwan1/lotus` repo (tauri.conf.json →
  * plugins.updater), signed with the key in ~/.lotus-dev/updater. Dev builds never check: they would
  * compare against a release they are not, and an install would replace the dev binary.
  */

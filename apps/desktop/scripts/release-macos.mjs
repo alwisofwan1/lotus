@@ -3,6 +3,8 @@
 //
 //   bun scripts/release-macos.mjs 0.2.0              build + sign + write latest.json
 //   bun scripts/release-macos.mjs 0.2.0 --publish    ... then upload to the public feed repo
+//   bun scripts/release-macos.mjs 0.2.0 --publish --legacy-feed   ... also post latest.json to the old feed repo
+//     (bridge: apps from before 0.20 poll alwisofwan1/lotus-releases; once they update they poll this repo).
 //   bun scripts/release-macos.mjs 0.2.0 --publish --no-windows   ... without the Windows CI build
 //     (~50 billed Actions minutes each: Windows counts 2x). Windows users then see an update
 //     error until a release that includes Windows; redo it later via Actions → release windows.
@@ -20,7 +22,9 @@ import { fileURLToPath } from "node:url";
 import { isNewer, notesPath, readNotes } from "./release-notes.mjs";
 import { buildHostRelease } from "./build-host-release.mjs";
 
-const REPO = "alwisofwan1/lotus-releases";
+const REPO = "alwisofwan1/lotus";
+// Old feed repo baked into installed apps before 0.20. Archive it, never delete: those apps poll it.
+const LEGACY_REPO = "alwisofwan1/lotus-releases";
 const projectDir = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const confPath = join(projectDir, "src-tauri", "tauri.conf.json");
 const keyPath = process.env.LOTUS_UPDATER_KEY ?? join(homedir(), ".lotus-dev", "updater", "lotus-updater.key");
@@ -29,8 +33,9 @@ const args = process.argv.slice(2);
 const version = args[0];
 const publish = args.includes("--publish");
 const windows = !args.includes("--no-windows");
+const legacyFeed = args.includes("--legacy-feed");
 
-if (!/^\d+\.\d+\.\d+$/.test(version ?? "")) fail("usage: release-macos.mjs <x.y.z> [--publish] [--no-windows]");
+if (!/^\d+\.\d+\.\d+$/.test(version ?? "")) fail("usage: release-macos.mjs <x.y.z> [--publish] [--legacy-feed] [--no-windows]");
 let release;
 try {
   release = readNotes(version);
@@ -113,13 +118,18 @@ if (!publish) {
 }
 run("gh", ["release", "create", tag, "--repo", REPO, "--title", `Lotus ${version}`, "--notes", body, tarball, `${tarball}.sig`, feedPath, webDmg, ...hostFiles]);
 console.log(`[release] published ${tag} → https://github.com/${REPO}/releases/tag/${tag}`);
+if (legacyFeed) {
+  // Only the feed: its URLs already point at this repo's assets.
+  run("gh", ["release", "create", tag, "--repo", LEGACY_REPO, "--title", `Lotus ${version}`, "--notes", `Releases moved to https://github.com/${REPO}/releases`, feedPath]);
+  console.log(`[release] legacy feed → https://github.com/${LEGACY_REPO}/releases/tag/${tag}`);
+}
 if (!windows) {
-  console.log(`[release] Windows skipped. To build it later: gh workflow run release-windows.yml --repo alwisofwan1/lotus --ref main -f version=${version}`);
+  console.log(`[release] Windows skipped. To build it later: gh workflow run release-windows.yml --repo ${REPO} --ref main -f version=${version}`);
   process.exit(0);
 }
 // Windows builds on a GitHub runner from origin/main (.github/workflows/release-windows.yml): push first.
-run("gh", ["workflow", "run", "release-windows.yml", "--repo", "alwisofwan1/lotus", "--ref", "main", "-f", `version=${version}`]);
-console.log("[release] Windows build dispatched → https://github.com/alwisofwan1/lotus/actions/workflows/release-windows.yml");
+run("gh", ["workflow", "run", "release-windows.yml", "--repo", REPO, "--ref", "main", "-f", `version=${version}`]);
+console.log(`[release] Windows build dispatched → https://github.com/${REPO}/actions/workflows/release-windows.yml`);
 
 function run(command, argv, env = process.env) {
   console.log(`[release] ${command} ${argv.slice(0, 3).join(" ")}…`);

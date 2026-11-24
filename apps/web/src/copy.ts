@@ -150,9 +150,9 @@ export const hero = {
  */
 export const download = {
   header: "Download",
-  mac: { label: "Download for macOS", href: "https://github.com/alwisofwan1/lotus-releases/releases/latest/download/Lotus-macos-arm64.dmg" },
-  win: { label: "Download for Windows", href: "https://github.com/alwisofwan1/lotus-releases/releases/latest/download/Lotus-windows-x64-setup.exe" },
-  all: { label: "All releases", href: "https://github.com/alwisofwan1/lotus-releases/releases" },
+  mac: { label: "Download for macOS", href: "https://github.com/alwisofwan1/lotus/releases/latest/download/Lotus-macos-arm64.dmg" },
+  win: { label: "Download for Windows", href: "https://github.com/alwisofwan1/lotus/releases/latest/download/Lotus-windows-x64-setup.exe" },
+  all: { label: "All releases", href: "https://github.com/alwisofwan1/lotus/releases" },
   /** The builds are not notarized / Authenticode-signed yet, so the OS warns once. The steps
    *  live in `install`: right-click → Open stopped working on macOS 15 (Sequoia). */
   hint: "Apple Silicon Macs and 64-bit Windows. The first launch needs one extra step.",

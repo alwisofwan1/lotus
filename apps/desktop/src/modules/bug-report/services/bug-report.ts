@@ -1,7 +1,7 @@
 import { isTauri, tauriInvoke } from "@/lib/tauri/runtime";
 
 /** Public repo; its issue form (`.github/ISSUE_TEMPLATE/bug.yml`) has the field ids used below. */
-export const ISSUES_NEW_URL = "https://github.com/alwisofwan1/lotus-releases/issues/new";
+export const ISSUES_NEW_URL = "https://github.com/alwisofwan1/lotus/issues/new";
 /** GitHub answers 414 above about 8 KB of URL. */
 export const MAX_URL_LENGTH = 7_500;
 const CRASH_LINES = 25;

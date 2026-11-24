@@ -1,6 +1,6 @@
 //! What the in-app bug report attaches (mockups/bug-report.html): the app version and OS, the
 //! last crash this machine had, and a tail of the session daemon's log — all redacted, because the
-//! report becomes a public GitHub issue on lotus-releases.
+//! report becomes a public GitHub issue on alwisofwan1/lotus.
 //!
 //! A crash is a Rust panic: [`install_panic_hook`] writes it to `<state dir>/crash/<ms>.log`
 //! before the default hook runs. The newest file is "unseen" until the user opens the report

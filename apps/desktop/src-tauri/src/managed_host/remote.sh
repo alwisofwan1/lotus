@@ -116,7 +116,7 @@ status)
 download)
   [ -n "$ARCH" ] || fail "This machine is not Linux x64 or arm64."
   mkdir -p "$D" && chmod 700 "$D"
-  url="https://github.com/alwisofwan1/lotus-releases/releases/download/v$ARG/lotus-host-linux-$ARCH"
+  url="https://github.com/alwisofwan1/lotus/releases/download/v$ARG/lotus-host-linux-$ARCH"
   rm -f "$D/new" "$D/new.sha256"
   if ! { fetch "$url" "$D/new" && fetch "$url.sha256" "$D/new.sha256"; }; then
     rm -f "$D/new" "$D/new.sha256"

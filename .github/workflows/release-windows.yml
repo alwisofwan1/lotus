@@ -1,12 +1,14 @@
 name: release windows
 
 # Windows half of a Lotus release (plans/app-updates). `bun run release:mac <x.y.z> --publish` creates
-# release v<x.y.z> on alwisofwan1/lotus-releases and dispatches this workflow, which builds the NSIS
+# release v<x.y.z> on this repo and dispatches this workflow, which builds the NSIS
 # installer from main, signs it for the updater and adds it + a `windows-x86_64` entry to that
 # release's latest.json. Run it by hand (Actions → release windows) to redo a failed Windows half.
 #
 # Secrets: TAURI_SIGNING_PRIVATE_KEY(_PASSWORD) (same key as macOS), LOTUS_GOOGLE_CLIENT_ID/SECRET,
-# LOTUS_RELEASES_TOKEN (fine-grained PAT, Contents: read & write on alwisofwan1/lotus-releases only).
+# Optional LOTUS_RELEASES_TOKEN (fine-grained PAT, Contents: read & write on alwisofwan1/lotus-releases):
+# when set and that repo has the same release (release:mac --legacy-feed), its latest.json is updated too,
+# so apps from before 0.20, which poll the old repo, get Windows as well. Drop it after the bridge release.
 
 on:
   workflow_dispatch:
@@ -19,6 +21,8 @@ concurrency: release-windows-${{ inputs.version }}
 
 jobs:
   build:
+    permissions:
+      contents: write
     runs-on: windows-latest
     timeout-minutes: 120
     defaults:
@@ -65,10 +69,12 @@ jobs:
       - name: Build installer
         run: bunx tauri build --bundles nsis --config "{\"version\":\"$VERSION\",\"bundle\":{\"createUpdaterArtifacts\":true}}"
 
-      - name: Publish to lotus-releases
+      - name: Publish to release
         env:
-          GH_TOKEN: ${{ secrets.LOTUS_RELEASES_TOKEN }}
-          REPO: alwisofwan1/lotus-releases
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          LEGACY_TOKEN: ${{ secrets.LOTUS_RELEASES_TOKEN }}
+          LEGACY_REPO: alwisofwan1/lotus-releases
         run: |
           set -euo pipefail
           src=$(ls src-tauri/target/release/bundle/nsis/*-setup.exe | head -1)
@@ -83,3 +89,6 @@ jobs:
               f.platforms["windows-x86_64"]={signature:process.env.SIG.trim(),url:process.env.URL};
               fs.writeFileSync(process.env.FEED,JSON.stringify(f,null,2)+"\n");'
           gh release upload "v$VERSION" --repo "$REPO" --clobber "$out" "$out.sig" "$RUNNER_TEMP/latest.json"
+          if [ -n "$LEGACY_TOKEN" ] && GH_TOKEN="$LEGACY_TOKEN" gh release view "v$VERSION" --repo "$LEGACY_REPO" >/dev/null 2>&1; then
+            GH_TOKEN="$LEGACY_TOKEN" gh release upload "v$VERSION" --repo "$LEGACY_REPO" --clobber "$RUNNER_TEMP/latest.json"
+          fi
