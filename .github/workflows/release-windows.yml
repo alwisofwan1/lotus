@@ -89,6 +89,9 @@ jobs:
               f.platforms["windows-x86_64"]={signature:process.env.SIG.trim(),url:process.env.URL};
               fs.writeFileSync(process.env.FEED,JSON.stringify(f,null,2)+"\n");'
           gh release upload "v$VERSION" --repo "$REPO" --clobber "$out" "$out.sig" "$RUNNER_TEMP/latest.json"
-          if [ -n "$LEGACY_TOKEN" ] && GH_TOKEN="$LEGACY_TOKEN" gh release view "v$VERSION" --repo "$LEGACY_REPO" >/dev/null 2>&1; then
+          # The old repo is public, so the default token can see whether the bridge release exists there.
+          if gh release view "v$VERSION" --repo "$LEGACY_REPO" >/dev/null 2>&1; then
+            # Fail loudly: a skipped upload leaves pre-0.20 Windows apps without updates, with no error.
+            [ -n "$LEGACY_TOKEN" ] || { echo "::error::$LEGACY_REPO has v$VERSION but secret LOTUS_RELEASES_TOKEN is not set"; exit 1; }
             GH_TOKEN="$LEGACY_TOKEN" gh release upload "v$VERSION" --repo "$LEGACY_REPO" --clobber "$RUNNER_TEMP/latest.json"
           fi
