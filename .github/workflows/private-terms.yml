@@ -1,0 +1,31 @@
+# Blocks client names and other private identifiers from landing in this public repo.
+# The term list lives in the PRIVATE_TERMS secret, never in the repo (see tools/check-private-terms.sh).
+# Fork PRs get no secrets, so the check skips there; a maintainer push re-checks on main.
+name: private terms
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 50
+      - name: Files
+        env:
+          PRIVATE_TERMS: ${{ secrets.PRIVATE_TERMS }}
+        run: tools/check-private-terms.sh --tree
+      - name: Commit messages
+        env:
+          PRIVATE_TERMS: ${{ secrets.PRIVATE_TERMS }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
+          elif git cat-file -e "$BEFORE" 2>/dev/null; then
+            range="$BEFORE..HEAD"
+          else
+            range="HEAD~1..HEAD"
+          fi
+          tools/check-private-terms.sh --log "$range"

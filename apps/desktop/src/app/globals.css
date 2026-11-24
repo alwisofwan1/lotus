@@ -1,0 +1,4253 @@
+@import "@xterm/xterm/css/xterm.css";
+@import "tailwindcss";
+@import "highlight.js/styles/github-dark.css";
+
+/* xterm.js — fill the container so FitAddon measures the right dimensions */
+.xterm { height: 100%; }
+.xterm.terminal-link-hover { cursor: pointer; }
+.xterm .terminal-inline-suggestion {
+  color: color-mix(in srgb, var(--fg) 24%, transparent);
+}
+.xterm .xterm-viewport {
+  background-color: transparent;
+}
+
+.terminal-inline-suggestion {
+  pointer-events: none;
+  z-index: 8;
+  color: color-mix(in srgb, var(--fg) 24%, transparent);
+  white-space: pre;
+  font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Menlo", "Monaco", monospace;
+  font-size: 11px;
+  line-height: 1.2;
+}
+
+:root {
+  --background: var(--bg);
+  --foreground: var(--fg);
+
+  /* Palette variables. ThemeContext and theme-bootstrap write the theme's values inline; these
+     aliases only show before that, and read the design-system fallbacks (Dark). */
+  --bg:             var(--ds-bg);
+  --bg-sidebar:     var(--ds-canvas);
+  --bg-card:        var(--ds-surface);
+  --bg-elevated:    var(--ds-surface-raised);
+  --fg:             var(--ds-text);
+  --fg-muted:       var(--ds-text-muted);
+  --accent:         var(--ds-accent);
+  --accent-fg:      var(--ds-accent-text);
+  --border:         var(--ds-border);
+  --border-sub:     var(--ds-border-subtle);
+  --scrollbar:      var(--ds-hairline);
+  --text-secondary: var(--ds-text-secondary);
+  --text-muted:     var(--ds-text-muted);
+  --bg-hover:       color-mix(in srgb, var(--ds-text) 7%, transparent);
+}
+
+.brand-mark {
+  display: block;
+}
+
+/* Brand rasters ship in both variants; the theme attribute (set before first paint) shows one.
+   Element + attribute selectors so a caller's display utility (`block`, …) cannot override them,
+   and `display: none` keeps the hidden copy out of the accessibility tree. */
+img[data-brand-variant="light"],
+[data-theme-type="light"] img[data-brand-variant="dark"] { display: none; }
+[data-theme-type="light"] img[data-brand-variant="light"] { display: block; }
+
+/* The wordmark. Raster, and it sits inside a Tauri drag region, so the native image drag has to be
+   off or dragging the title bar picks up a ghost of the word instead of moving the window. */
+.brand-wordmark {
+  display: block;
+  width: auto;
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  /* --font-geist-mono is defined nowhere (geist is not a dependency), so a bare
+     var(--font-geist-mono) here made this declaration invalid-at-computed-value-time — every
+     var(--font-mono, <fallback>) consumer's fallback never fires, font-family becomes `unset`,
+     and the element silently inherits the body sans. Keep the geist hook for if it ever ships,
+     but always resolve to a real monospace stack. */
+  --font-mono: var(--font-geist-mono, "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ── Color-scheme — makes native browser UI (inputs, selects, scrollbars) adapt ── */
+[data-theme-type="dark"]  { color-scheme: dark; }
+[data-theme-type="light"] { color-scheme: light; }
+
+/* ── Liquid Glass material — macOS Tahoe Control Center ──
+   Dark draws its edges in the text ink, Light in the white of its surfaces; the shadows are the
+   palette's own, warm on Light. */
+:root {
+  --glass-border:        color-mix(in srgb, var(--fg) 18%, transparent);
+  --glass-border-hover:  color-mix(in srgb, var(--fg) 28%, transparent);
+  --glass-bg:            color-mix(in srgb, var(--fg) 3%, transparent);
+  --glass-bg-hover:      color-mix(in srgb, var(--fg) 5%, transparent);
+  --glass-shine:         inset 0 0.5px 0 0 color-mix(in srgb, var(--fg) 20%, transparent);
+  --glass-shadow:        var(--ds-shadow-soft);
+  --glass-shadow-hover:  var(--ds-shadow-lift);
+  --glass-blur:          24px;
+  --spring-bounce:       cubic-bezier(0.175, 0.885, 0.32, 2.2);
+  --spring-ease:         cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+[data-theme-type="light"] {
+  --glass-border:        color-mix(in srgb, var(--ds-surface) 60%, transparent);
+  --glass-border-hover:  color-mix(in srgb, var(--ds-surface) 75%, transparent);
+  --glass-bg:            color-mix(in srgb, var(--ds-surface) 50%, transparent);
+  --glass-bg-hover:      color-mix(in srgb, var(--ds-surface) 62%, transparent);
+  --glass-shine:         inset 0 0.5px 0 0 color-mix(in srgb, var(--ds-surface) 70%, transparent);
+  --glass-blur:          20px;
+}
+
+/* ── Light theme overrides — remap Tailwind's white-based utilities to fg-based ──
+   Opacity values are NOT mapped 1:1. Dark text on a light bg requires higher opacity
+   than white text on dark bg to reach equivalent perceived contrast. The scale below
+   boosts all alpha values so the full text hierarchy stays readable:
+
+   Original intent  →  Light-mode equivalent
+   text-white/10-15 →  ghost/decorative (~35% fg)
+   text-white/20-30 →  subtle / section labels (~48% fg)
+   text-white/40-50 →  muted / secondary (~62% fg)
+   text-white/60-70 →  body / interactive (~75% fg)
+   text-white/80    →  near-primary (~88% fg)
+   text-white       →  primary (100% fg)
+*/
+[data-theme-type="light"] .text-white           { color: var(--fg) !important; }
+[data-theme-type="light"] .text-white\/10        { color: color-mix(in srgb, var(--fg) 30%, transparent) !important; }
+[data-theme-type="light"] .text-white\/15        { color: color-mix(in srgb, var(--fg) 35%, transparent) !important; }
+[data-theme-type="light"] .text-white\/20        { color: color-mix(in srgb, var(--fg) 42%, transparent) !important; }
+[data-theme-type="light"] .text-white\/25        { color: color-mix(in srgb, var(--fg) 48%, transparent) !important; }
+[data-theme-type="light"] .text-white\/30        { color: color-mix(in srgb, var(--fg) 52%, transparent) !important; }
+[data-theme-type="light"] .text-white\/40        { color: color-mix(in srgb, var(--fg) 60%, transparent) !important; }
+[data-theme-type="light"] .text-white\/50        { color: color-mix(in srgb, var(--fg) 68%, transparent) !important; }
+[data-theme-type="light"] .text-white\/60        { color: color-mix(in srgb, var(--fg) 75%, transparent) !important; }
+[data-theme-type="light"] .text-white\/70        { color: color-mix(in srgb, var(--fg) 82%, transparent) !important; }
+[data-theme-type="light"] .text-white\/65        { color: color-mix(in srgb, var(--fg) 78%, transparent) !important; }
+[data-theme-type="light"] .text-white\/80        { color: color-mix(in srgb, var(--fg) 88%, transparent) !important; }
+[data-theme-type="light"] .text-white\/90        { color: color-mix(in srgb, var(--fg) 93%, transparent) !important; }
+
+[data-theme-type="light"] .text-white\/35        { color: color-mix(in srgb, var(--fg) 56%, transparent) !important; }
+
+[data-theme-type="light"] .bg-white\/30         { background: color-mix(in srgb, var(--fg) 15%, transparent) !important; }
+[data-theme-type="light"] .bg-white\/3,
+[data-theme-type="light"] .bg-white\/4,
+[data-theme-type="light"] .bg-white\/5,
+[data-theme-type="light"] .bg-white\/6,
+[data-theme-type="light"] .bg-white\/8,
+[data-theme-type="light"] .bg-white\/10,
+[data-theme-type="light"] .bg-white\/12,
+[data-theme-type="light"] .bg-white\/15         { background: var(--bg-hover) !important; }
+[data-theme-type="light"] .bg-white\/\[0\.02\],
+[data-theme-type="light"] .bg-white\/\[0\.03\],
+[data-theme-type="light"] .bg-white\/\[0\.04\],
+[data-theme-type="light"] .bg-white\/\[0\.05\],
+[data-theme-type="light"] .bg-white\/\[0\.06\],
+[data-theme-type="light"] .bg-white\/\[0\.07\],
+[data-theme-type="light"] .bg-white\/\[0\.08\],
+[data-theme-type="light"] .bg-white\/\[0\.12\]  { background: var(--bg-hover) !important; }
+
+[data-theme-type="light"] .border-white\/5,
+[data-theme-type="light"] .border-white\/6,
+[data-theme-type="light"] .border-white\/7,
+[data-theme-type="light"] .border-white\/8,
+[data-theme-type="light"] .border-white\/10,
+[data-theme-type="light"] .border-white\/12,
+[data-theme-type="light"] .border-white\/15,
+[data-theme-type="light"] .border-white\/20     { border-color: var(--border) !important; }
+[data-theme-type="light"] .border-white\/\[0\.06\],
+[data-theme-type="light"] .border-white\/\[0\.12\]  { border-color: var(--border) !important; }
+
+/* ring utilities used for focus states */
+[data-theme-type="light"] .ring-white\/5,
+[data-theme-type="light"] .ring-white\/6,
+[data-theme-type="light"] .ring-white\/8        { --tw-ring-color: var(--border) !important; }
+
+/* Active tab / gradient-bg buttons always keep white text regardless of theme */
+[data-theme-type="light"] button[style*="background"] .text-white,
+[data-theme-type="light"] button[style*="background"] .text-white\/80,
+[data-theme-type="light"] button[style*="linear-gradient"] { color: #ffffff !important; } /* color-literal-ok: white on a saturated fill, as in Dark */
+
+/* Sidebar active item label inherits correctly via --fg var, accent badge stays white */
+[data-theme-type="light"] .bg-violet-500 { color: #ffffff !important; } /* color-literal-ok: white on a saturated fill, as in Dark */
+
+/* Buttons/links with solid accent or gradient backgrounds must keep white text */
+[data-theme-type="light"] .bg-violet-600,
+[data-theme-type="light"] .bg-violet-600:hover,
+[data-theme-type="light"] .bg-blue-600,
+[data-theme-type="light"] .bg-blue-600:hover  { color: #ffffff !important; } /* color-literal-ok: white on a saturated fill, as in Dark */
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* macOS glass: the window is transparent over the native `sidebar` vibrancy material, so the page
+   ground must not paint over it. `!important` beats the body's inline pre-paint colour, which
+   stays for every other platform. Surfaces that need to be solid paint their own ground. */
+html[data-window-glass="true"],
+html[data-window-glass="true"] body {
+  background-color: transparent !important;
+}
+
+/*
+  A surface that is mounted, alive and not on screen.
+
+  Used for the unified workspace shell while another route draws the window. It is deliberately
+  NOT `display: none`: taking a pane out of layout hands its slot in the terminal renderer pool
+  back, and every pane has to re-attach on the way in — 192 ms for two of them when mode switching
+  worked that way (plans/unified-workspace-shell, M2). Kept at full size and merely invisible, the
+  round trip costs nothing, and `pointer-events: none` keeps the route that IS showing clickable
+  through it.
+
+  `.app-shell-main` is its containing block, which is why it is positioned here.
+*/
+.app-shell-main { position: relative; }
+
+/*
+  Windows: `WindowsTitleBar` draws the window's only title row (menu + window buttons) and owns
+  the top 32px; the app lays out below it. Set from the component, so macOS never sees any of it.
+*/
+html[data-windows-titlebar] { --windows-titlebar-h: 32px; }
+html[data-windows-titlebar] body { padding-top: var(--windows-titlebar-h); height: 100vh; }
+html[data-windows-titlebar] .glass-sidebar { height: calc(100vh - var(--windows-titlebar-h)); }
+html[data-windows-titlebar] .lotus-mini-player { top: calc(var(--windows-titlebar-h) + 6px); }
+
+.windows-titlebar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: var(--windows-titlebar-h, 32px);
+  /* Above app chrome and popovers, so the window can always be moved and closed. */
+  z-index: 2147483000;
+  display: flex;
+  align-items: center;
+  background: var(--ds-bg-soft);
+  color: var(--ds-text-muted);
+  font-size: 12px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.windows-titlebar-icon {
+  width: 14px;
+  height: 14px;
+  margin: 0 8px 0 12px;
+  border-radius: 3px;
+  /* Named by ink: `-light` is white artwork, for the dark theme. */
+  background: url("/mark-light.png") center / contain no-repeat;
+  flex: none;
+}
+[data-theme-type="light"] .windows-titlebar-icon { background-image: url("/mark-dark.png"); }
+.windows-titlebar-menus { display: flex; gap: 1px; }
+.windows-titlebar-menus button {
+  padding: 3px 8px;
+  border-radius: 6px;
+  color: inherit;
+}
+.windows-titlebar-menus button:hover,
+.windows-titlebar-menus button:focus-visible {
+  background: color-mix(in srgb, var(--ds-text) 8%, transparent);
+  color: var(--ds-text);
+}
+.windows-titlebar-drag { flex: 1; align-self: stretch; }
+.windows-titlebar-caps { display: flex; align-self: stretch; }
+.windows-titlebar-caps button {
+  width: 46px;
+  display: grid;
+  place-items: center;
+  color: inherit;
+}
+.windows-titlebar-caps button:hover { background: color-mix(in srgb, var(--ds-text) 8%, transparent); color: var(--ds-text); }
+.windows-titlebar-caps .windows-titlebar-close:hover { background: #c42b1c; color: #fff; } /* color-literal-ok: Windows' own close-button red */
+
+.app-shell-parked {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  /* Same reason as `.ws-surface`: invisible is not enough, a parked shell must not be laid out. */
+  content-visibility: hidden;
+}
+
+html[data-ui-ready="false"] .app-shell-main,
+html[data-ui-ready="false"] .glass-sidebar,
+html[data-ui-ready="false"] .shell-chrome,
+html[data-ui-ready="false"] .codechat-shell,
+html[data-ui-ready="false"] .codechat-resize-handle {
+  transition: none !important;
+  animation: none !important;
+}
+
+.codechat-shell {
+  background: var(--bg);
+  color: var(--fg);
+}
+
+/*
+ * CodeChat tokens (Theme 14). Each one names a design-system token, so Dark and Light come out of
+ * this single declaration: the --ds-* values already differ per theme. Mixes go through
+ * color-mix() on a token, never a literal. Mockup decision T6 (plans/app-theme-dark-light-premium).
+ */
+:root {
+  --codechat-sidebar-border: var(--ds-border-subtle);
+  --codechat-toolbar-bg: color-mix(in srgb, var(--ds-canvas) 74%, transparent);
+  --codechat-subtoolbar-bg: color-mix(in srgb, var(--ds-bg) 72%, transparent);
+  --codechat-panel-section-bg: color-mix(in srgb, var(--ds-text) 2%, transparent);
+  --codechat-surface-soft: var(--ds-workbench-surface-soft);
+  --codechat-surface-soft-hover: var(--ds-workbench-surface-hover);
+  --codechat-surface-active: var(--ds-workbench-surface-active);
+  --codechat-surface-muted: color-mix(in srgb, var(--ds-canvas) 60%, transparent);
+  --codechat-border-soft: var(--ds-border);
+  --codechat-border-strong: var(--ds-hairline);
+  --codechat-text-primary: var(--ds-text);
+  --codechat-text-secondary: var(--ds-text-secondary);
+  --codechat-text-tertiary: var(--ds-text-muted);
+  --codechat-text-quiet: var(--ds-text-quiet);
+  --codechat-control-shadow: var(--ds-shadow-edge);
+  --codechat-card-shadow: var(--ds-shadow-edge);
+
+  /* User bubble sits one layer up; the assistant has no bubble at all. */
+  --codechat-bubble-user-bg: var(--ds-surface-raised);
+  --codechat-bubble-user-border: var(--ds-border-subtle);
+  /* Code reads on the terminal's well: deeper than bg in Dark, white paper in Light. */
+  --codechat-code-bg: var(--ds-workbench-terminal-bg);
+  --codechat-code-header-bg: var(--ds-workbench-surface-hover);
+  --codechat-tool-chip-bg: var(--bubble-ai-bg);
+  --codechat-composer-bg: var(--ds-surface);
+  --codechat-composer-shadow: var(--ds-shadow-soft);
+  --codechat-send-bg: var(--ds-accent);
+  --codechat-send-fg: var(--ds-accent-text);
+}
+
+.codechat-sidebar-surface {
+  background: var(--ds-canvas);
+  box-shadow: inset -1px 0 0 var(--ds-hairline);
+}
+
+.codechat-main-surface {
+  background: var(--ds-bg);
+}
+
+.codechat-composer-dock {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    color-mix(in srgb, var(--ds-bg) 82%, transparent) 26%,
+    var(--ds-bg) 100%
+  );
+}
+
+/* The mockup draws the composer ringed in focus ink at rest: it is where typing goes. */
+.codechat-composer-surface {
+  background: var(--codechat-composer-bg);
+  border-color: var(--ds-focus-ring);
+  box-shadow: var(--codechat-composer-shadow);
+}
+
+/* Elevation 3 (T7): overlay fill, popover border, the two-layer warm shadow, no backdrop blur. */
+.codechat-popover-surface {
+  background: var(--ds-workbench-popover-bg);
+  border: 1px solid var(--ds-workbench-popover-border);
+  box-shadow: var(--ds-workbench-popover-shadow);
+}
+
+/* A surface holding menu rows IS a menu: the shared corner and entrance (design-system.css).
+   The same surface also draws cards and a hover card, which keep their own corner and motion.
+   These menus are portalled outside the shell, which is why the tokens live on :root. The inset
+   stays per menu: the command menu is two columns, not a padded list. */
+.codechat-popover-surface:has(.codechat-menu-item) {
+  border-radius: var(--ds-menu-radius);
+  animation: var(--ds-menu-in);
+}
+
+.codechat-send-button {
+  background: var(--codechat-send-bg);
+  color: var(--codechat-send-fg);
+}
+
+.codechat-user-bubble {
+  background: var(--codechat-bubble-user-bg);
+  border: 1px solid var(--codechat-bubble-user-border);
+  border-radius: 14px;
+}
+
+.codechat-code-block {
+  background: var(--codechat-code-bg);
+  border: 1px solid var(--codechat-border-soft);
+}
+
+.codechat-code-header {
+  background: var(--codechat-code-header-bg);
+  border-bottom: 1px solid var(--codechat-border-soft);
+}
+
+.codechat-tool-chip {
+  border: 1px solid var(--ds-border-subtle);
+  background: var(--codechat-tool-chip-bg);
+}
+
+.codechat-tool-chip:hover {
+  background: var(--codechat-surface-soft-hover);
+}
+
+.codechat-toolbar-band {
+  background: var(--codechat-toolbar-bg);
+  border-bottom: 1px solid var(--codechat-sidebar-border);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.codechat-panel-card {
+  border: 1px solid var(--codechat-border-soft);
+  background: var(--codechat-surface-soft);
+  box-shadow: var(--codechat-card-shadow);
+}
+
+.codechat-panel-section {
+  border-top: 1px solid var(--codechat-sidebar-border);
+  background: var(--codechat-panel-section-bg);
+}
+
+.codechat-panel-section:first-child {
+  border-top: 0;
+}
+
+.codechat-resize-handle::before {
+  opacity: 0.7;
+  transition:
+    background-color 0.16s ease,
+    opacity 0.16s ease;
+}
+
+.codechat-resize-handle:hover::before {
+  opacity: 1;
+  background-color: var(--codechat-border-strong);
+}
+
+.codechat-metric-card {
+  border: 1px solid var(--codechat-border-soft);
+  background: var(--codechat-surface-muted);
+}
+
+.codechat-ghost-button {
+  border: 1px solid var(--codechat-border-soft);
+  background: var(--codechat-surface-soft);
+  color: var(--codechat-text-secondary);
+  box-shadow: var(--codechat-control-shadow);
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.codechat-ghost-button:hover {
+  border-color: var(--codechat-border-strong);
+  background: var(--codechat-surface-soft-hover);
+  color: var(--codechat-text-primary);
+}
+
+.codechat-icon-button {
+  border: 1px solid var(--codechat-border-soft);
+  background: var(--codechat-surface-soft);
+  color: var(--codechat-text-tertiary);
+  box-shadow: var(--codechat-control-shadow);
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.codechat-icon-button:hover {
+  border-color: var(--codechat-border-strong);
+  background: var(--codechat-surface-soft-hover);
+  color: var(--codechat-text-primary);
+}
+
+.codechat-pill {
+  border: 1px solid var(--codechat-border-soft);
+  background: var(--codechat-surface-soft);
+  color: var(--codechat-text-secondary);
+}
+
+.codechat-pill-muted {
+  border: 1px solid var(--codechat-border-soft);
+  background: var(--codechat-surface-muted);
+  color: var(--codechat-text-tertiary);
+}
+
+.codechat-menu-section {
+  border-color: var(--codechat-sidebar-border);
+  background: color-mix(in srgb, var(--ds-overlay) 44%, transparent);
+}
+
+.codechat-menu-section-muted {
+  background: var(--codechat-panel-section-bg);
+}
+
+.codechat-menu-heading {
+  color: var(--ds-text-quiet);
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.codechat-menu-item {
+  position: relative;
+  isolation: isolate;
+  border-radius: var(--ds-menu-item-radius);
+  color: var(--codechat-text-secondary);
+  transition:
+    background 0.12s ease,
+    color 0.12s ease;
+}
+
+.codechat-menu-item:hover {
+  background: var(--ds-menu-hover);
+  color: var(--codechat-text-primary);
+}
+
+/* The open submenu's row: the rail's dither, not a raised card inside the menu. */
+.codechat-menu-item-active {
+  color: var(--codechat-text-primary);
+}
+.codechat-menu-item-active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--ds-dither-ink);
+  -webkit-mask: var(--ds-dither-fill);
+  mask: var(--ds-dither-fill);
+  pointer-events: none;
+}
+
+.codechat-menu-item-disabled {
+  color: var(--codechat-text-quiet);
+}
+
+.codechat-menu-icon {
+  color: var(--codechat-text-tertiary);
+}
+
+.codechat-menu-chevron {
+  color: var(--codechat-text-quiet);
+}
+
+.codechat-menu-title {
+  color: var(--codechat-text-primary);
+}
+
+.codechat-menu-description {
+  color: var(--codechat-text-tertiary);
+}
+
+.codechat-menu-meta {
+  color: var(--codechat-text-quiet);
+}
+
+.codechat-sidebar-item {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--codechat-text-secondary);
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.codechat-sidebar-item:hover {
+  border-color: var(--codechat-border-soft);
+  background: var(--codechat-surface-soft);
+  color: var(--codechat-text-primary);
+}
+
+/* Active row (T2): active fill + inset hairline, primary text, no accent colour. */
+.codechat-sidebar-item-active {
+  border-color: transparent;
+  background: var(--codechat-surface-active);
+  color: var(--codechat-text-primary);
+  box-shadow: inset 0 0 0 1px var(--ds-hairline);
+}
+
+.codechat-text-primary { color: var(--codechat-text-primary); }
+.codechat-text-secondary { color: var(--codechat-text-secondary); }
+.codechat-text-tertiary { color: var(--codechat-text-tertiary); }
+.codechat-text-quiet { color: var(--codechat-text-quiet); }
+
+/* ThinkingLoader (styles/design-system.css) on CodeChat's own ink. */
+.codechat-thinking {
+  --ui-thinking-dim: var(--codechat-text-tertiary);
+  --ui-thinking-bright: var(--codechat-text-primary);
+  border-color: var(--codechat-border-soft);
+  background: var(--codechat-surface-soft);
+}
+
+/* The window strip is part of the ground: the canvas step, flat, one hairline under it (T2). */
+.shell-chrome {
+  background: var(--ds-canvas);
+  border-bottom: 1px solid var(--ds-hairline);
+}
+
+.home-shell-chrome {
+  border-bottom: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.shell-chrome-divider {
+  border-color: var(--codechat-sidebar-border);
+}
+
+.shell-chrome-button {
+  border: 1px solid var(--codechat-border-soft);
+  background: var(--codechat-surface-soft);
+  color: var(--codechat-text-secondary);
+  box-shadow: var(--codechat-control-shadow);
+  transition:
+    background 0.16s ease,
+    border-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.shell-chrome-button:hover {
+  border-color: var(--codechat-border-strong);
+  background: var(--codechat-surface-soft-hover);
+  color: var(--codechat-text-primary);
+}
+
+button {
+  cursor: pointer;
+}
+
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  scrollbar-gutter: auto;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar); filter: brightness(1.3); }
+
+.scrollbar-hidden::-webkit-scrollbar-track {
+  display: none !important;
+  background: transparent !important;
+}
+
+.scrollbar-hidden::-webkit-scrollbar-thumb {
+  display: none !important;
+  background: transparent !important;
+}
+
+@keyframes ripple {
+  0% { transform: scale(1); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(8px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-fade-in { animation: fade-in 0.2s ease-out; }
+
+.codespace-panel-toolbar {
+  border-bottom: 1px solid var(--codespace-panel-border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--fg) 4%, transparent), color-mix(in srgb, var(--fg) 1.5%, transparent)),
+    color-mix(in srgb, var(--bg-sidebar) 74%, transparent);
+  backdrop-filter: saturate(1.14) blur(16px);
+  -webkit-backdrop-filter: saturate(1.14) blur(16px);
+}
+
+/* The panel tokens used to come from `.codespace-shell`, which nothing renders since the
+   CodeSpace page was removed (9ab0b1e3). Without them every `var(--codespace-panel-*)` in the
+   workbench and browser cells resolved to nothing: the ⌘P palette and the unsaved-changes dialog
+   drew with no background over the code. The cell root defines them itself now.
+   Surfaces here are near-opaque on purpose: they float over code, not over a blurred panel. */
+.codespace-panel-surface {
+  --codespace-panel-border: var(--border);
+  --codespace-panel-border-strong: color-mix(in srgb, var(--fg) 16%, transparent);
+  --codespace-panel-surface: color-mix(in srgb, var(--bg-sidebar) 96%, transparent);
+  --codespace-panel-surface-raised: color-mix(in srgb, var(--bg-card) 97%, var(--fg) 3%);
+  --codespace-panel-surface-soft: var(--ds-workbench-surface-soft);
+  --codespace-panel-surface-hover: var(--ds-workbench-surface-hover);
+  --codespace-panel-surface-active: var(--ds-workbench-surface-active);
+  --codespace-panel-text: var(--fg);
+  --codespace-panel-text-secondary: var(--text-secondary);
+  --codespace-panel-text-muted: var(--text-muted);
+  --codespace-panel-text-quiet: var(--ds-text-quiet);
+  --codespace-panel-accent: var(--accent);
+  --codespace-panel-accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  background: var(--bg);
+}
+
+/* Path of the open file, under the tabs (EDITOR 01). Each crumb lists its folder. */
+.codespace-workbench-breadcrumb {
+  position: relative;
+  display: flex;
+  height: 26px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--codespace-panel-border);
+  padding: 0 6px 0 10px;
+  font-size: 11.5px;
+  color: var(--codespace-panel-text-muted);
+}
+
+.codespace-workbench-breadcrumb-path {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+}
+
+.codespace-workbench-breadcrumb-crumb {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  border-radius: 4px;
+  padding: 1px 4px;
+  color: inherit;
+  outline: none;
+}
+
+.codespace-workbench-breadcrumb-crumb:hover,
+.codespace-workbench-breadcrumb-crumb[aria-expanded="true"],
+.codespace-workbench-breadcrumb-crumb:focus-visible {
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-workbench-breadcrumb-crumb--file {
+  color: var(--codespace-panel-text-secondary);
+}
+
+.codespace-workbench-breadcrumb-menu {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 8px;
+  z-index: 40;
+  display: flex;
+  max-height: 320px;
+  min-width: 13rem;
+  max-width: min(22rem, calc(100% - 16px));
+  flex-direction: column;
+  overflow-y: auto;
+  border: 1px solid var(--ds-workbench-popover-border);
+  border-radius: 8px;
+  background: var(--ds-workbench-popover-bg);
+  padding: 4px;
+  box-shadow: var(--ds-workbench-popover-shadow);
+}
+
+.codespace-workbench-breadcrumb-item {
+  display: flex;
+  min-height: 24px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 5px;
+  padding: 0 8px;
+  font-size: 12px;
+  text-align: left;
+  color: color-mix(in srgb, var(--fg) 82%, transparent);
+  outline: none;
+}
+
+.codespace-workbench-breadcrumb-item:hover,
+.codespace-workbench-breadcrumb-item:focus-visible {
+  background: var(--codespace-panel-surface-hover);
+}
+
+.codespace-workbench-breadcrumb-item--current {
+  color: var(--codespace-panel-text);
+  font-weight: 600;
+}
+
+.codespace-workbench-breadcrumb-note {
+  padding: 6px 8px;
+  font-size: 11px;
+  color: var(--codespace-panel-text-muted);
+}
+
+/* What is true about the open file, and nothing else (EDITOR 01). */
+.codespace-workbench-statusbar {
+  display: flex;
+  height: 22px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--codespace-panel-border);
+  background: color-mix(in srgb, var(--bg-sidebar) 58%, transparent);
+  padding: 0 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--codespace-panel-text-secondary);
+}
+
+.codespace-workbench-statusbar-quiet {
+  color: var(--codespace-panel-text-muted);
+}
+
+.codespace-workbench-statusbar-unsaved {
+  color: var(--ds-warning);
+}
+
+/* Status items that do something: the language server, the problem counts. */
+.codespace-workbench-statusbar-button {
+  display: inline-flex;
+  min-width: 0;
+  height: 18px;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  padding: 0 4px;
+  margin: 0 -4px;
+  outline: none;
+}
+
+.codespace-workbench-statusbar-button:hover {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-workbench-statusbar-button:focus-visible {
+  box-shadow: 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.codespace-workbench-tabbar {
+  display: flex;
+  height: 34px;
+  flex-shrink: 0;
+  align-items: stretch;
+  border-bottom: 1px solid var(--codespace-panel-border);
+  background: var(--bg-sidebar);
+}
+
+/* Only the tabs scroll; the pane actions after them stay put. */
+.codespace-workbench-tabstrip {
+  --codespace-tab-fade: 28px;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: stretch;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+}
+
+/* An edge fades only while tabs are hidden behind it. */
+/* scrollIntoView stops a tab this far from the edge, clear of the fade. */
+.codespace-workbench-tabstrip > .codespace-workbench-tab {
+  scroll-margin-inline: var(--codespace-tab-fade);
+}
+
+.codespace-workbench-tabstrip[data-fade-start] {
+  mask-image: linear-gradient(90deg, transparent, #000 var(--codespace-tab-fade)); /* color-literal-ok: mask alpha, not a colour */
+}
+
+.codespace-workbench-tabstrip[data-fade-end] {
+  mask-image: linear-gradient(90deg, #000 calc(100% - var(--codespace-tab-fade)), transparent); /* color-literal-ok: mask alpha, not a colour */
+}
+
+.codespace-workbench-tabstrip[data-fade-start][data-fade-end] {
+  mask-image: linear-gradient(90deg, transparent, #000 var(--codespace-tab-fade), #000 calc(100% - var(--codespace-tab-fade)), transparent); /* color-literal-ok: mask alpha, not a colour */
+}
+
+.codespace-workbench-tabstrip::-webkit-scrollbar {
+  display: none;
+}
+
+.codespace-workbench-tab {
+  position: relative;
+  display: flex;
+  min-width: 124px;
+  max-width: 210px;
+  align-items: center;
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+  font-weight: 520;
+  letter-spacing: 0;
+  transition:
+    background 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.codespace-workbench-tab-main {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  padding: 0 4px 0 10px;
+  outline: none;
+}
+
+.codespace-workbench-tab-main:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.codespace-workbench-tab:hover {
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text-secondary);
+}
+
+/* Mockup T5: the active tab is the editor's own ground under a 1.5px ink rule; the others sit on
+   the bar's canvas in muted text. No hue: colour is for status only. */
+.codespace-workbench-tab-active {
+  background: var(--bg);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-workbench-tab-active::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1.5px;
+  content: "";
+  background: var(--ds-workbench-tab-active-color);
+}
+
+.codespace-workbench-tab-icon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.82;
+}
+
+.codespace-workbench-file-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  object-fit: contain;
+}
+
+/* Unsaved: the same dot in a tab and on its tree row (mockup T5). */
+.codespace-workbench-tab-dirty {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--ds-workbench-tab-dirty-color);
+}
+
+.codespace-workbench-tab-close {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--codespace-panel-text-quiet);
+  opacity: 0;
+  outline: none;
+  transition:
+    opacity 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.codespace-workbench-tab:hover .codespace-workbench-tab-close,
+.codespace-workbench-tab-active .codespace-workbench-tab-close,
+.codespace-workbench-tab-close:focus-visible {
+  opacity: 1;
+}
+
+.codespace-workbench-tab-close:hover {
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-workbench-tab-close:focus-visible {
+  box-shadow: 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.codespace-workbench-tab-new,
+.codespace-workbench-toolbar-button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--codespace-panel-text-quiet);
+  outline: none;
+  transition:
+    background 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.codespace-workbench-tab-new {
+  margin: 4px 5px;
+}
+
+.codespace-workbench-tab-new:hover,
+.codespace-workbench-toolbar-button:hover {
+  border-color: color-mix(in srgb, var(--fg) 5.5%, transparent);
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text-secondary);
+}
+
+.codespace-workbench-toolbar-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.codespace-workbench-toolbar-button:disabled:hover {
+  background: transparent;
+  color: var(--codespace-panel-text-quiet);
+}
+
+.codespace-workbench-tab-new:focus-visible,
+.codespace-workbench-toolbar-button:focus-visible {
+  box-shadow: 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.codespace-diff-header {
+  display: flex;
+  height: 32px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--codespace-panel-border);
+  background: color-mix(in srgb, var(--bg-sidebar) 48%, transparent);
+  padding: 0 8px;
+}
+
+.codespace-diff-icon {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 1px solid var(--codespace-panel-border);
+  border-radius: 4px;
+  color: var(--codespace-panel-text-muted);
+  background: var(--codespace-panel-surface-soft);
+}
+
+.codespace-diff-segmented {
+  display: flex;
+  flex-shrink: 0;
+  gap: 2px;
+  border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--bg) 26%, transparent);
+  padding: 1px;
+}
+
+.codespace-diff-segment {
+  min-width: 54px;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+  font-weight: 520;
+  letter-spacing: 0;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.codespace-diff-segment:hover {
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text-secondary);
+}
+
+.codespace-diff-segment-active {
+  background: color-mix(in srgb, var(--fg) 7.5%, transparent);
+  color: var(--codespace-panel-text);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 3.5%, transparent);
+}
+
+/* In the diff tab's header, after the path. */
+.codespace-diff-stats {
+  display: flex;
+  flex-shrink: 0;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* "a.ts updated on disk": a clean file taken from disk by itself. Above the status bar. */
+.codespace-disk-notice {
+  position: absolute;
+  right: 10px;
+  bottom: 30px;
+  z-index: 5;
+  border: 1px solid var(--codespace-panel-border);
+  border-radius: 6px;
+  background: var(--codespace-panel-surface);
+  box-shadow: var(--ds-shadow-lift);
+  padding: 4px 9px;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+/* ⌘L's popover: under a settled selection in the editor or the diff. */
+.codespace-selection-popover {
+  position: absolute;
+  z-index: 6;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  /* Elevation 3, as every menu: opaque enough to read over code, which a panel token is not. */
+  border: 1px solid var(--ds-workbench-popover-border);
+  border-radius: 8px;
+  background: var(--ds-workbench-popover-bg);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  padding: 3px;
+  font-size: 11px;
+}
+
+.codespace-selection-popover button {
+  display: inline-flex;
+  height: 22px;
+  align-items: center;
+  gap: 5px;
+  border-radius: 5px;
+  padding: 0 7px;
+  color: var(--ds-text-secondary);
+  white-space: nowrap;
+}
+
+.codespace-selection-popover button:hover,
+.codespace-selection-popover button:focus-visible {
+  background: var(--ds-workbench-surface-hover);
+  color: var(--ds-text);
+  outline: none;
+}
+
+.codespace-selection-popover kbd {
+  border-radius: 4px;
+  background: var(--ds-workbench-surface-hover);
+  padding: 0 4px;
+  color: var(--ds-text-quiet);
+  font-family: inherit;
+  font-size: 10px;
+}
+
+/* Over the editor when a save was refused: the file changed on disk. */
+.codespace-conflict-banner {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid color-mix(in srgb, var(--ds-warning) 18%, transparent);
+  background: color-mix(in srgb, var(--ds-warning) 6%, transparent);
+  padding: 5px 8px;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 11px;
+}
+
+.codespace-conflict-action {
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--fg) 10%, transparent);
+  border-radius: 5px;
+  padding: 2px 8px;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 11px;
+  font-weight: 520;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.codespace-conflict-action:hover {
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text);
+}
+
+/* Compare loses nothing, so it leads. */
+.codespace-conflict-action--primary {
+  border-color: color-mix(in srgb, var(--ds-warning) 32%, transparent);
+  background: color-mix(in srgb, var(--ds-warning) 12%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+/* Overwrite replaces someone else's change: outlined in red. */
+.codespace-conflict-action--danger {
+  border-color: color-mix(in srgb, var(--ds-danger) 42%, transparent);
+  color: var(--ds-danger);
+}
+
+.codespace-conflict-action--danger:hover {
+  background: color-mix(in srgb, var(--ds-danger) 10%, transparent);
+}
+
+/* A plain action in the diff header (Open file). */
+.codespace-diff-action {
+  flex-shrink: 0;
+  border: 1px solid color-mix(in srgb, var(--fg) 7%, transparent);
+  border-radius: 5px;
+  padding: 2px 8px;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 11px;
+  font-weight: 520;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.codespace-diff-action:hover {
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text);
+}
+
+/* A side with no counterpart: the same box as a segment, not a button. */
+.codespace-diff-side-label {
+  flex-shrink: 0;
+  padding: 2px 6px;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 11px;
+  font-weight: 520;
+}
+
+.codespace-panel-soft {
+  border: 1px solid var(--codespace-panel-border);
+  background: var(--codespace-panel-surface-soft);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--fg) 3.5%, transparent),
+    var(--ds-shadow-lift);
+}
+
+.codespace-panel-icon-button {
+  color: var(--codespace-panel-text-muted);
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.codespace-panel-icon-button:hover {
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-workbench-sidebar {
+  background: color-mix(in srgb, var(--bg-sidebar) 72%, transparent);
+  border-right: 1px solid var(--codespace-panel-border);
+}
+
+.codespace-workbench-main {
+  background:
+    var(--bg);
+}
+
+.codespace-workbench-editorbar {
+  border-color: var(--codespace-panel-border);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--fg) 3.2%, transparent), transparent),
+    color-mix(in srgb, var(--bg-sidebar) 58%, transparent);
+}
+
+/* Explorer chrome, as VS Code: flat, one header row, no bands between sections. */
+.codespace-filetree {
+  background: transparent;
+}
+
+.codespace-filetree-header {
+  display: flex;
+  height: 30px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px 0 12px;
+}
+
+.codespace-filetree-root-name {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  margin: 0;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Quiet until the explorer is hovered or holds focus, as VS Code's title actions. */
+.codespace-filetree-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 1px;
+  opacity: 0.45;
+  transition: opacity 0.12s ease;
+}
+
+.codespace-filetree:hover .codespace-filetree-actions,
+.codespace-filetree-actions:focus-within {
+  opacity: 1;
+}
+
+.codespace-filetree-actions .codespace-workbench-toolbar-button {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+}
+
+.codespace-filetree-search-wrap {
+  padding: 0 8px 6px;
+}
+
+.codespace-filetree-search {
+  display: flex;
+  width: 100%;
+  height: 24px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--fg) 4.5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent);
+  padding: 0 7px;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 11px;
+  transition: box-shadow 0.12s ease, background 0.12s ease;
+}
+
+.codespace-filetree-search:focus-within {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  box-shadow: inset 0 0 0 1px var(--codespace-panel-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .codespace-filetree-actions,
+  .codespace-filetree-search {
+    transition: none;
+  }
+}
+
+.codespace-filetree-scroll {
+  scrollbar-color: color-mix(in srgb, var(--fg) 16%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.codespace-filetree-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+
+.codespace-filetree-scroll::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 14%, transparent);
+  background-clip: content-box;
+}
+
+.codespace-workbench-tree-row {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 22px;
+  align-items: center;
+  gap: 4px;
+  overflow: hidden;
+  padding-right: 4px;
+  font-size: 11px;
+  line-height: 1;
+  text-align: left;
+  isolation: isolate;
+  transition: color 0.12s ease;
+}
+
+/* The row's fill, inset and rounded as in the mockup (T5); hover and selection only change it. */
+.codespace-workbench-tree-row::before {
+  position: absolute;
+  inset: 0 4px;
+  z-index: -1;
+  border-radius: 6px;
+  content: "";
+  background: var(--tree-row-fill, transparent);
+  transition: background 0.12s ease;
+}
+
+.codespace-workbench-tree-row-muted {
+  color: var(--codespace-panel-text-secondary);
+}
+
+.codespace-workbench-tree-row-muted:hover {
+  --tree-row-fill: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text);
+}
+
+/* Git-ignored and build/dependency folders: present, but out of the way (as VS Code dims them). */
+.codespace-workbench-tree-row[data-ignored="true"] .codespace-workbench-tree-button {
+  opacity: 0.5;
+}
+
+.codespace-workbench-tree-row[data-ignored="true"]:hover .codespace-workbench-tree-button {
+  opacity: 0.78;
+}
+
+.codespace-workbench-tree-row-active {
+  --tree-row-fill: var(--codespace-panel-surface-active);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-workbench-tree-button {
+  display: flex;
+  height: 100%;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 7px;
+  border-radius: 4px;
+  outline: none;
+  text-align: left;
+}
+
+/* Unsaved: the tab's dot, clear of the row's rounded fill. */
+.codespace-workbench-tree-row > .codespace-workbench-tab-dirty {
+  margin-right: 6px;
+}
+
+/* The row is the treeitem and holds keyboard focus (roving tabindex), not its label. */
+.codespace-workbench-tree-row {
+  cursor: default;
+  outline: none;
+}
+
+.codespace-workbench-tree-row:focus-visible::before {
+  box-shadow: inset 0 0 0 1px var(--ds-focus-ring);
+}
+
+.codespace-workbench-git-badge {
+  flex-shrink: 0;
+  min-width: 16px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+  padding: 2px 5px;
+  font-size: 11px;
+  font-weight: 760;
+  line-height: 1;
+  text-align: center;
+}
+
+.codespace-workbench-tree-action {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--codespace-panel-text-quiet);
+  opacity: 0;
+  outline: none;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.codespace-workbench-tree-row:hover .codespace-workbench-tree-action,
+.codespace-workbench-tree-row:focus-visible .codespace-workbench-tree-action,
+.codespace-workbench-tree-action:focus-visible {
+  opacity: 1;
+}
+
+.codespace-workbench-tree-action:hover {
+  border-color: color-mix(in srgb, var(--fg) 5.5%, transparent);
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-workbench-tree-action:focus-visible {
+  box-shadow: 0 0 0 1px var(--codespace-panel-accent);
+}
+
+/* EDITOR 02: an Editor pane with nothing open. Quiet by default: one field, a short list, one
+   line of actions; hover and focus bring things forward. */
+.codespace-launcher {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 22vh 20px 32px;
+}
+
+.codespace-launcher-column {
+  display: flex;
+  width: 100%;
+  max-width: 420px;
+  height: fit-content;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.codespace-launcher-field {
+  display: flex;
+  height: 42px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--fg) 4.5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 7%, transparent);
+  padding: 0 12px 0 14px;
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.codespace-launcher-field:hover {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.codespace-launcher-field:focus-within {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  box-shadow:
+    inset 0 0 0 1px var(--codespace-panel-accent),
+    0 0 0 3px var(--codespace-panel-accent-soft);
+}
+
+.codespace-launcher-input {
+  min-width: 0;
+  flex: 1;
+  background: transparent;
+  color: var(--codespace-panel-text);
+  font-size: 13.5px;
+  outline: none;
+}
+
+.codespace-launcher-input::placeholder {
+  color: var(--codespace-panel-text-quiet);
+}
+
+/* Shortcut glyphs in the UI font: a mono face draws ⌘ ⌥ ⇧ ⌃ at odd sizes. */
+.codespace-launcher-kbd,
+.codespace-launcher-keys {
+  font-family: inherit;
+  font-feature-settings: "tnum";
+  letter-spacing: 0.04em;
+}
+
+.codespace-launcher-kbd {
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  padding: 2px 6px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+}
+
+.codespace-launcher-heading {
+  margin: 0;
+  padding: 0 10px 6px;
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.codespace-launcher-row {
+  display: flex;
+  height: 30px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 7px;
+  padding: 0 10px;
+  cursor: default;
+  transition: background 0.12s ease;
+}
+
+.codespace-launcher-row.is-active {
+  background: color-mix(in srgb, var(--fg) 5.5%, transparent);
+}
+
+.codespace-launcher-name {
+  flex-shrink: 0;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 12.5px;
+}
+
+.codespace-launcher-row.is-active .codespace-launcher-name {
+  color: var(--codespace-panel-text);
+}
+
+.codespace-launcher-folder {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--codespace-panel-text-quiet);
+  font-size: 12px;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codespace-launcher-age {
+  flex-shrink: 0;
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11px;
+  font-feature-settings: "tnum";
+}
+
+.codespace-launcher-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.codespace-launcher-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  padding: 6px 8px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 12px;
+  outline: none;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.codespace-launcher-action:hover,
+.codespace-launcher-action:focus-visible {
+  background: color-mix(in srgb, var(--fg) 5.5%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-launcher-action:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.codespace-launcher-keys {
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .codespace-launcher-field,
+  .codespace-launcher-row,
+  .codespace-launcher-action {
+    transition: none;
+  }
+}
+
+/* Rename and new-name fields, drawn inside the row they belong to. */
+.codespace-filetree-inline-input {
+  min-width: 0;
+  height: 20px;
+  flex: 1;
+  border: 1px solid var(--codespace-panel-accent);
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--fg) 4%, transparent);
+  padding: 0 5px;
+  color: var(--codespace-panel-text);
+  font-size: 11px;
+  outline: none;
+}
+
+.codespace-filetree-inline-input[aria-invalid="true"] {
+  border-color: color-mix(in srgb, var(--ds-danger) 72%, transparent);
+}
+
+.codespace-filetree-inline-error {
+  margin: 0;
+  padding-right: 8px;
+  overflow: hidden;
+  color: var(--ds-danger);
+  font-size: 11px;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Tree row menu. Portaled to <body>, outside the panel's token scope, so it uses the base tokens. */
+.codespace-context-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 11.5rem;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--ds-workbench-popover-border);
+  border-radius: 10px;
+  background: var(--ds-workbench-popover-bg);
+  color: var(--ds-text);
+  box-shadow: var(--ds-workbench-popover-shadow);
+}
+
+.codespace-context-menu-item {
+  display: flex;
+  width: 100%;
+  min-height: 26px;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  padding: 4px 8px;
+  color: var(--ds-text-secondary);
+  font-size: 11px;
+  text-align: left;
+  cursor: default;
+  outline: none;
+}
+
+.codespace-context-menu-item:hover,
+.codespace-context-menu-item:focus-visible,
+.codespace-context-menu-item:focus {
+  background: var(--ds-workbench-surface-hover);
+  color: var(--ds-text);
+}
+
+/* Destructive: danger text and icon on the ordinary hover fill (mockup 10, T7). */
+.codespace-context-menu-item.is-danger,
+.codespace-context-menu-item.is-danger:hover,
+.codespace-context-menu-item.is-danger:focus {
+  color: var(--ds-danger);
+}
+
+.codespace-context-menu-icon {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.codespace-context-menu-separator {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--ds-workbench-popover-border);
+}
+
+.codespace-workbench-editor {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--fg) 1.8%, transparent), transparent 26%),
+    var(--bg);
+}
+
+/* Lines a link asked for; cleared by WorkbenchEditor after a moment. */
+.codespace-editor-reveal-line {
+  background: color-mix(in srgb, var(--codespace-panel-accent) 18%, transparent);
+}
+
+/*
+ * Git marks beside the line numbers (WorkbenchEditor): lines added, changed, and a wedge where
+ * lines were removed. Colors as in Source (`.scm-status--*`).
+ */
+/* Inline blame: who last changed the cursor line, quiet at its end (mockups/inline-blame.html). */
+.codespace-inline-blame {
+  margin-left: 3em;
+  color: var(--ds-text-quiet);
+  font-style: normal;
+  opacity: 0.85;
+}
+
+.codespace-git-gutter {
+  --codespace-git-added: var(--ds-success);
+  --codespace-git-modified: var(--ds-warning);
+  --codespace-git-deleted: var(--ds-danger);
+  margin-left: 3px;
+}
+.codespace-git-gutter-added,
+.codespace-git-gutter-modified {
+  width: 3px !important;
+  border-radius: 1px;
+}
+.codespace-git-gutter-added { background: var(--codespace-git-added); }
+.codespace-git-gutter-modified { background: var(--codespace-git-modified); }
+/* A small triangle at the bottom edge of the line above the removed lines. */
+.codespace-git-gutter-deleted::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  border-left: 4px solid var(--codespace-git-deleted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+.codespace-git-gutter-deleted-top::after {
+  top: -4px;
+  bottom: auto;
+}
+
+.codespace-workbench-state {
+  display: grid;
+  max-width: 260px;
+  justify-items: center;
+  border: 1px solid color-mix(in srgb, var(--fg) 7.5%, transparent);
+  border-radius: 10px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--fg) 4%, transparent), transparent 62%),
+    color-mix(in srgb, var(--bg-card) 42%, transparent);
+  padding: 18px 20px;
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--fg) 4.5%, transparent),
+    var(--ds-shadow-lift);
+}
+
+.codespace-workbench-state-icon,
+.codespace-workbench-state-icon-danger {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  margin-bottom: 10px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--codespace-panel-surface-soft);
+  color: var(--codespace-panel-text-secondary);
+  box-shadow: inset 0 0 0 1px var(--codespace-panel-border);
+}
+
+.codespace-workbench-state-icon-danger {
+  background: color-mix(in srgb, var(--ds-danger) 10%, transparent);
+  color: var(--ds-danger);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ds-danger) 18%, transparent);
+}
+
+/* The one button an editor state can offer ("Open anyway" on a large file). */
+.codespace-workbench-state-action {
+  display: inline-flex;
+  height: 26px;
+  align-items: center;
+  border: 1px solid var(--codespace-panel-border);
+  border-radius: 7px;
+  background: var(--codespace-panel-surface-soft);
+  padding: 0 10px;
+  color: var(--codespace-panel-text);
+  font-size: 11px;
+  font-weight: 600;
+  outline: none;
+  transition: background 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.codespace-workbench-state-action:hover {
+  background: var(--codespace-panel-surface-hover);
+}
+
+.codespace-workbench-state-action:focus-visible {
+  box-shadow: 0 0 0 2px var(--ds-focus-ring);
+}
+
+/* A tab whose file was deleted on disk: struck through, as in VS Code. */
+.codespace-workbench-tab-deleted {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--ds-danger) 70%, transparent);
+}
+
+/* A preview tab (one click in the tree): italic until it is kept, as in VS Code. */
+.codespace-workbench-tab-preview {
+  font-style: italic;
+}
+
+/* Same-name tabs: the folder that tells them apart, quieter than the name. */
+.codespace-workbench-tab-folder {
+  min-width: 0;
+  flex-shrink: 1;
+  overflow: hidden;
+  color: var(--codespace-panel-text-quiet);
+  font-size: 0.92em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A pinned tab's unpin button stays visible: it is the only sign the tab is pinned. */
+.codespace-workbench-tab-pin {
+  opacity: 0.72;
+}
+
+/* Where a dragged tab will land. */
+.codespace-workbench-tab[data-drop="before"] {
+  box-shadow: inset 2px 0 0 var(--codespace-panel-accent);
+}
+
+.codespace-workbench-tab[data-drop="after"] {
+  box-shadow: inset -2px 0 0 var(--codespace-panel-accent);
+}
+
+/* Media viewer: images, video and audio in a workbench tab (WorkbenchMediaPreview). */
+.codespace-media-viewer {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--fg) 3%, transparent), transparent 60%),
+    var(--codespace-panel-surface);
+}
+
+.codespace-media-stage {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  padding: 24px 24px 64px;
+  outline: none;
+  overscroll-behavior: contain;
+}
+
+.codespace-media-stage:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.codespace-media-stage--pannable { cursor: grab; }
+.codespace-media-stage--dragging { cursor: grabbing; }
+
+/* `margin: auto` centres a small image and never clips a large one (unlike place-items). */
+.codespace-media-image {
+  flex: none;
+  margin: auto;
+  max-width: none;
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--fg) 8%, transparent),
+    var(--ds-shadow-lift);
+  user-select: none;
+}
+
+.codespace-media-image--checker {
+  background-color: color-mix(in srgb, var(--fg) 6%, transparent);
+  background-image: conic-gradient(
+    color-mix(in srgb, var(--fg) 10%, transparent) 25%,
+    transparent 0 50%,
+    color-mix(in srgb, var(--fg) 10%, transparent) 0 75%,
+    transparent 0
+  );
+  background-size: 16px 16px;
+}
+
+.codespace-media-video {
+  flex: none;
+  margin: auto;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 8px;
+  background: #000; /* color-literal-ok: letterbox behind video, black in both themes as players draw it */
+  box-shadow: var(--ds-shadow-lift);
+}
+
+.codespace-media-stage--audio { align-items: center; justify-content: center; }
+
+.codespace-media-audio-card {
+  display: grid;
+  width: min(420px, 100%);
+  gap: 12px;
+  border: 1px solid var(--codespace-panel-border);
+  border-radius: 12px;
+  background: var(--codespace-panel-surface-raised);
+  padding: 16px;
+}
+
+.codespace-media-audio-card audio { width: 100%; }
+
+.codespace-media-audio-name {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--codespace-panel-text);
+}
+
+.codespace-media-toolbar {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  display: flex;
+  max-width: calc(100% - 24px);
+  align-items: center;
+  gap: 2px;
+  transform: translateX(-50%);
+  border: 1px solid var(--codespace-panel-border-strong);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--bg-card) 88%, transparent);
+  padding: 3px 6px;
+  box-shadow: var(--ds-shadow-soft);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.codespace-media-toolbar--info { padding: 5px 10px; }
+
+.codespace-media-zoom-label {
+  min-width: 48px;
+  border-radius: 6px;
+  padding: 2px 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--codespace-panel-text-secondary);
+}
+
+.codespace-media-zoom-label:hover { background: var(--codespace-panel-surface-hover); }
+.codespace-media-zoom-label:focus-visible { outline: none; box-shadow: 0 0 0 1px var(--codespace-panel-accent); }
+
+.codespace-media-toolbar-divider {
+  width: 1px;
+  height: 14px;
+  margin: 0 4px;
+  background: var(--codespace-panel-border-strong);
+}
+
+/* PDF (WorkbenchPdfViewer): white pages on the panel's own dark well, like Preview in dark mode. */
+.codespace-pdf { background: color-mix(in srgb, var(--codespace-panel-surface) 70%, black 30%); }
+.codespace-pdf-scroller {
+  /* The pages' offsetParent, so offsetTop is a scroll position. */
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  outline: none;
+  overscroll-behavior: contain;
+}
+.codespace-pdf-pages {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+  padding: 24px 24px 72px;
+  gap: 14px;
+}
+.codespace-pdf-page {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #fff; /* color-literal-ok: PDF paper is white in both themes, as Preview draws it */
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, black 30%, transparent),
+    0 2px 6px color-mix(in srgb, black 22%, transparent),
+    0 14px 32px color-mix(in srgb, black 20%, transparent);
+  --scale-round-x: 1px;
+  --scale-round-y: 1px;
+}
+.codespace-pdf-page--loading { background: color-mix(in srgb, #fff 6%, transparent); animation: codespace-pdf-pulse 1.4s ease-in-out infinite; } /* color-literal-ok: a faint sheet of the same white paper */
+@keyframes codespace-pdf-pulse { 50% { opacity: 0.55; } }
+.codespace-pdf-canvas { display: block; width: 100%; height: 100%; }
+.codespace-pdf-error { margin: 48px auto; color: var(--codespace-panel-text-muted); font-size: 12px; text-align: center; }
+.codespace-pdf-count {
+  min-width: 52px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--codespace-panel-text-secondary);
+}
+/* The toolbar steps back while reading and comes forward on hover or focus. */
+.codespace-pdf-toolbar { opacity: 0; transition: opacity 160ms ease-out; }
+.codespace-pdf:hover .codespace-pdf-toolbar,
+.codespace-pdf-toolbar:focus-within { opacity: 1; }
+@media (hover: none) { .codespace-pdf-toolbar { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .codespace-pdf-toolbar { transition: none; }
+  .codespace-pdf-page--loading { animation: none; }
+}
+
+/* pdf.js text layer (pdfjs-dist/web/pdf_viewer.css, trimmed): invisible text over the canvas, so
+   a page can be selected and copied. */
+.codespace-pdf .textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-align: initial;
+  -webkit-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  z-index: 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+.codespace-pdf .textLayer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  user-select: text;
+}
+.codespace-pdf .textLayer > :not(.markedContent),
+.codespace-pdf .textLayer .markedContent span:not(.markedContent) {
+  z-index: 1;
+  --font-height: 0;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1;
+  --rotate: 0deg;
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+.codespace-pdf .textLayer .markedContent { display: contents; }
+.codespace-pdf .textLayer ::selection { background: color-mix(in srgb, var(--ds-info) 32%, transparent); }
+.codespace-pdf .textLayer .endOfContent {
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  display: block;
+  cursor: default;
+  user-select: none;
+}
+
+.codespace-font-stage { padding: 28px 32px 40px; }
+
+.codespace-font-sheet {
+  display: flex;
+  width: 100%;
+  max-width: 960px;
+  margin: 0 auto;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.codespace-font-header { display: grid; gap: 4px; }
+.codespace-font-header .codespace-media-meta { padding: 0; }
+
+.codespace-font-family {
+  overflow-wrap: anywhere;
+  font-size: 40px;
+  font-weight: 400;
+  line-height: 1.15;
+  color: var(--codespace-panel-text);
+}
+
+.codespace-font-input {
+  width: 100%;
+  border: 1px solid var(--codespace-panel-border);
+  border-radius: 8px;
+  background: var(--codespace-panel-surface-raised);
+  padding: 7px 10px;
+  font-size: 12px;
+  color: var(--codespace-panel-text);
+  outline: none;
+}
+
+.codespace-font-input:focus-visible { border-color: var(--codespace-panel-accent); }
+
+.codespace-font-samples { display: grid; gap: 14px; }
+
+.codespace-font-sample {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 12px;
+}
+
+.codespace-font-size-label {
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--codespace-panel-text-muted);
+}
+
+.codespace-font-sample-text {
+  overflow: hidden;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--codespace-panel-text);
+}
+
+.codespace-font-glyphs {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid var(--codespace-panel-border);
+  padding-top: 18px;
+  overflow-wrap: anywhere;
+  font-size: 28px;
+  line-height: 1.3;
+  color: var(--codespace-panel-text-secondary);
+}
+
+.codespace-media-meta {
+  overflow: hidden;
+  padding: 0 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--codespace-panel-text-muted);
+}
+
+.codespace-workbench-save-button {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  height: 28px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--accent);
+  padding: 0 9px;
+  color: var(--accent-fg);
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow:
+    var(--ds-shadow-lift);
+  outline: none;
+  transition:
+    background 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    color 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+    transform 0.16s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.codespace-workbench-save-button:hover {
+  background: color-mix(in srgb, var(--accent) 88%, var(--bg));
+  transform: translateY(-1px);
+}
+
+.codespace-workbench-save-button:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--ds-focus-ring),
+    var(--ds-shadow-lift);
+}
+
+.source-control-panel {
+  background: color-mix(in srgb, var(--bg-sidebar) 40%, transparent);
+}
+
+.source-repo-branch-popover {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--ds-workbench-popover-border);
+  border-radius: 6px;
+  background: var(--ds-workbench-popover-bg);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  padding: 7px 10px;
+  pointer-events: none;
+}
+
+.source-repo-branch-popover-kicker {
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.source-repo-branch-popover-name {
+  color: var(--codespace-panel-text);
+  font-size: 11px;
+  font-weight: 500;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+/* ── Editor sidebar: Files / Source switch and Source control ─────────────────────────────── */
+
+.scm-sidebar-bar {
+  display: flex;
+  height: 34px;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 8px;
+}
+
+/* A quiet segmented switch: the active view reads as raised, the other as plain text. */
+.scm-sidebar-tabs {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+}
+
+.scm-sidebar-tab {
+  display: inline-flex;
+  min-width: 0;
+  height: 24px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 0 8px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+  transition: background-color 150ms cubic-bezier(0.22, 1, 0.36, 1), color 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scm-sidebar-tab:hover {
+  color: var(--codespace-panel-text-secondary);
+}
+
+.scm-sidebar-tab.is-active {
+  background: color-mix(in srgb, var(--fg) 7.5%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.scm-sidebar-tab:focus-visible {
+  box-shadow: 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.scm-sidebar-count {
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.scm-sidebar-hide {
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.codespace-workbench-sidebar:hover .scm-sidebar-hide,
+.scm-sidebar-hide:focus-visible {
+  opacity: 1;
+}
+
+.scm-panel {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+  padding-bottom: 12px;
+}
+
+.scm-icon-action {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 5px;
+  color: var(--codespace-panel-text-muted);
+  outline: none;
+  transition: background-color 120ms ease, color 120ms ease, opacity 120ms ease;
+}
+
+.scm-icon-action:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.scm-icon-action:focus-visible {
+  box-shadow: 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.scm-icon-action:disabled {
+  cursor: default;
+  opacity: 0.35;
+}
+
+.scm-icon-action--danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--ds-danger) 12%, transparent);
+  color: var(--ds-danger);
+}
+
+.scm-icon-action--ai {
+  color: var(--codespace-panel-accent);
+}
+
+/* Find in files: the query, its toggles, then matches grouped by file. */
+.codespace-search {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.codespace-search-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px;
+  padding: 0 8px 6px;
+}
+
+.codespace-search-box {
+  padding-right: 3px;
+}
+
+.codespace-search-tools {
+  display: flex;
+  align-items: center;
+}
+
+.codespace-search-filters {
+  display: grid;
+  grid-column: 1 / -1;
+  gap: 4px;
+}
+
+.codespace-search-filter {
+  outline: none;
+}
+
+.codespace-search-filter::placeholder {
+  color: var(--codespace-panel-text-quiet);
+}
+
+.codespace-search-toggle {
+  display: grid;
+  min-width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 4px;
+  padding: 0 2px;
+  color: var(--codespace-panel-text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 10.5px;
+  outline: none;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.codespace-search-toggle:hover {
+  color: var(--codespace-panel-text);
+}
+
+.codespace-search-toggle.is-active {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-search-toggle:focus-visible {
+  box-shadow: 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.codespace-search-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  padding: 0 12px 6px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+}
+
+.codespace-search-summary:empty {
+  display: none;
+}
+
+.codespace-search-note {
+  color: var(--codespace-panel-text-quiet);
+}
+
+.codespace-search-error {
+  color: var(--ds-warning);
+  overflow-wrap: anywhere;
+}
+
+.codespace-search-results {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
+  scrollbar-color: color-mix(in srgb, var(--fg) 16%, transparent) transparent;
+  scrollbar-width: thin;
+}
+
+.codespace-search-file-row,
+.codespace-search-match {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  height: 22px;
+  align-items: center;
+  outline: none;
+  text-align: left;
+}
+
+.codespace-search-file-row {
+  gap: 4px;
+  padding: 0 10px 0 6px;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 12px;
+}
+
+.codespace-search-match {
+  display: block;
+  overflow: hidden;
+  padding: 0 10px 0 26px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 11.5px;
+  line-height: 22px;
+  text-overflow: ellipsis;
+  white-space: pre;
+}
+
+.codespace-search-file-row:hover,
+.codespace-search-match:hover {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+}
+
+.codespace-search-file-row:focus-visible,
+.codespace-search-match:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.codespace-search-match mark {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.codespace-search-chevron {
+  color: var(--codespace-panel-text-quiet);
+  transition: transform 120ms ease;
+}
+
+.codespace-search-chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.codespace-search-file-name {
+  flex-shrink: 0;
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--codespace-panel-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codespace-search-file-folder {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.codespace-search-count {
+  margin-left: auto;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  padding: 0 5px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  line-height: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .codespace-search-toggle,
+  .codespace-search-chevron {
+    transition: none;
+  }
+}
+
+/* One repository. Repos are told apart by space and a hairline, not by boxes. */
+.scm-repo + .scm-repo,
+.scm-clean-toggle {
+  border-top: 1px solid color-mix(in srgb, var(--fg) 5%, transparent);
+}
+
+.scm-repo-header {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 4px;
+}
+
+.scm-repo-header:hover {
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
+}
+
+.scm-repo-toggle {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 4px;
+  align-self: stretch;
+  border-radius: 5px;
+  text-align: left;
+  outline: none;
+}
+
+.scm-repo-toggle:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.scm-repo-chevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  color: var(--codespace-panel-text-quiet);
+  transition: transform 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.scm-repo--open > .scm-repo-header .scm-repo-chevron,
+.scm-clean-toggle.is-open .scm-repo-chevron {
+  transform: rotate(90deg);
+}
+
+.scm-repo-lines {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.scm-repo-name {
+  overflow: hidden;
+  color: var(--codespace-panel-text);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scm-repo-branch {
+  overflow: hidden;
+  color: var(--codespace-panel-text-muted);
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.scm-repo-meta {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.scm-repo-sync {
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.scm-repo-count {
+  min-width: 16px;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* Refresh is there for when git missed something: on hover, or spinning while it reads. */
+.scm-repo-refresh {
+  opacity: 0;
+}
+
+.scm-repo-header:hover .scm-repo-refresh,
+.scm-repo-refresh:focus-visible,
+.scm-repo-refresh.is-loading {
+  opacity: 1;
+}
+
+.scm-repo-body {
+  padding: 0 8px 10px;
+}
+
+.scm-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 2px 0 8px;
+}
+
+.scm-message {
+  position: relative;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--fg) 4.5%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--fg) 6%, transparent);
+  transition: box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.scm-message:focus-within {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 50%, transparent);
+}
+
+.scm-message-input {
+  display: block;
+  min-height: 30px;
+  width: 100%;
+  resize: none;
+  border: 0;
+  background: transparent;
+  padding: 7px 52px 7px 9px;
+  color: var(--codespace-panel-text);
+  font-size: 12px;
+  line-height: 16px;
+  outline: none;
+}
+
+.scm-message-input::placeholder {
+  color: var(--codespace-panel-text-quiet);
+}
+
+.scm-message-tools {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  display: flex;
+  gap: 1px;
+}
+
+/* The type chips are a writing aid: shown while the message box has focus. */
+.scm-types {
+  display: none;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.scm-composer:focus-within .scm-types {
+  display: flex;
+}
+
+.scm-type {
+  height: 20px;
+  border-radius: 5px;
+  padding: 0 6px;
+  color: var(--codespace-panel-text-muted);
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.scm-type:hover {
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.scm-type.is-active {
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.scm-commit-row {
+  display: flex;
+  gap: 4px;
+}
+
+.scm-commit-row--solo {
+  margin: 2px 0 8px;
+}
+
+.scm-commit,
+.scm-push {
+  display: inline-flex;
+  height: 26px;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-size: 12px;
+  font-weight: 500;
+  outline: none;
+  transition: background-color 150ms ease, color 150ms ease, opacity 150ms ease;
+}
+
+.scm-commit {
+  flex: 1;
+  background: color-mix(in srgb, var(--accent) 90%, transparent);
+  color: var(--bg);
+}
+
+.scm-commit:hover:not(:disabled) {
+  background: var(--accent);
+}
+
+.scm-commit:disabled {
+  background: color-mix(in srgb, var(--fg) 6%, transparent);
+  color: var(--codespace-panel-text-muted);
+  cursor: default;
+}
+
+.scm-commit-count {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
+.scm-push {
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--fg) 7%, transparent);
+  color: var(--codespace-panel-text-secondary);
+}
+
+.scm-push--wide {
+  flex: 1;
+}
+
+.scm-push:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--fg) 11%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.scm-push:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.scm-commit:focus-visible,
+.scm-push:focus-visible {
+  box-shadow: 0 0 0 1px var(--bg), 0 0 0 2px var(--codespace-panel-accent);
+}
+
+.scm-group {
+  margin-top: 4px;
+}
+
+.scm-group-header {
+  display: flex;
+  height: 24px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 0 0 2px;
+}
+
+.scm-group-title {
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.scm-group-count {
+  flex: 1;
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.scm-group-actions,
+.scm-change-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 1px;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.scm-group-header:hover .scm-group-actions,
+.scm-group-actions:focus-within,
+.scm-change-row:hover .scm-change-actions,
+.scm-change-actions:focus-within {
+  opacity: 1;
+}
+
+.scm-change-row {
+  display: flex;
+  height: 24px;
+  min-width: 0;
+  align-items: center;
+  gap: 2px;
+  margin: 0 -4px;
+  border-radius: 5px;
+  padding: 0 4px 0 6px;
+  color: var(--codespace-panel-text-secondary);
+  font-size: 12px;
+}
+
+.scm-change-row:hover {
+  background: color-mix(in srgb, var(--fg) 5%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+.scm-change-open {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  gap: 6px;
+  align-self: stretch;
+  border-radius: 4px;
+  text-align: left;
+  outline: none;
+}
+
+.scm-change-open:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--codespace-panel-accent);
+}
+
+/* The letter carries the kind of change; colour only repeats it. */
+.scm-status {
+  width: 16px;
+  flex-shrink: 0;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.scm-status--added { color: var(--ds-success); }
+.scm-status--deleted { color: var(--ds-danger); }
+.scm-status--staged { color: var(--ds-info); }
+.scm-status--modified { color: var(--ds-warning); }
+
+.scm-note {
+  margin: 0;
+  padding: 4px 2px 2px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+}
+
+.scm-note--center {
+  padding: 24px 12px;
+  text-align: center;
+}
+
+.scm-error {
+  margin: 6px 0 0;
+  max-height: 48px;
+  overflow: hidden;
+  color: var(--ds-warning);
+  font-size: 11px;
+}
+
+.scm-clean-toggle {
+  display: flex;
+  height: 32px;
+  width: 100%;
+  align-items: center;
+  gap: 4px;
+  padding: 0 6px 0 4px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+  font-weight: 500;
+  outline: none;
+}
+
+.scm-clean-toggle:hover {
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
+  color: var(--codespace-panel-text-secondary);
+}
+
+.scm-clean-toggle:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--codespace-panel-accent);
+}
+
+.scm-clean-toggle .scm-repo-count {
+  margin-left: auto;
+  color: var(--codespace-panel-text-quiet);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scm-repo-chevron,
+  .scm-sidebar-tab,
+  .scm-commit,
+  .scm-push {
+    transition: none;
+  }
+}
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: saturate(1.12) blur(var(--glass-blur));
+  -webkit-backdrop-filter: saturate(1.12) blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shine), var(--glass-shadow);
+  isolation: isolate;
+  transform: translateZ(0);
+  will-change: backdrop-filter;
+}
+
+/* ── Liquid Glass card — macOS Tahoe Control Center ── */
+.glass-card {
+  position: relative;
+  background: var(--glass-bg);
+  backdrop-filter: saturate(1.12) blur(var(--glass-blur));
+  -webkit-backdrop-filter: saturate(1.12) blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shine), var(--glass-shadow);
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.4s var(--spring-ease);
+  isolation: isolate;
+  transform: translateZ(0);
+  will-change: backdrop-filter, transform;
+}
+.glass-card > * {
+  position: relative;
+  z-index: 1;
+}
+.glass-card:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  box-shadow: var(--glass-shine), var(--glass-shadow-hover);
+  transform: translateY(-1px);
+}
+
+/* ── Dropdown — a floating menu: elevation 3, no glass (mockup 10, T7) ── */
+.glass-dropdown {
+  background: var(--ds-workbench-popover-bg);
+  border: 1px solid var(--ds-workbench-popover-border);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  border-radius: var(--ds-menu-radius);
+  padding: var(--ds-menu-pad);
+  overflow: hidden;
+  transform-origin: top center;
+  animation: var(--ds-menu-in);
+  isolation: isolate;
+}
+.glass-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--ds-menu-item-h);
+  padding: var(--ds-menu-item-pad);
+  border-radius: var(--ds-menu-item-radius);
+  font-size: var(--ds-menu-font);
+  color: var(--ds-text-secondary);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  border: none;
+  background: transparent;
+}
+.glass-dropdown-item:hover {
+  background: var(--ds-menu-hover);
+  color: var(--ds-text);
+}
+.glass-dropdown-divider {
+  border-top: 1px solid var(--ds-workbench-popover-border);
+}
+
+/* ── Tahoe pill button — macOS Control Center style ── */
+.tahoe-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  background: var(--glass-bg);
+  backdrop-filter: saturate(1.1) blur(var(--glass-blur));
+  -webkit-backdrop-filter: saturate(1.1) blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shine);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  isolation: isolate;
+  transform: translateZ(0);
+}
+.tahoe-pill:hover {
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  color: var(--text-secondary);
+}
+.tahoe-pill:active {
+  transform: scale(0.97);
+  opacity: 0.85;
+}
+
+/* ── App sidebar — the canvas step, flush, no glass: the content beside it is on bg (mockup 10, T2) ── */
+.glass-sidebar {
+  background: var(--ds-canvas);
+}
+
+/* ── Terminal pane (CodeSpace terminal cell) ── */
+.terminal-pane {
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--fg) 2.8%, transparent) 0%, color-mix(in srgb, var(--fg) 1.2%, transparent) 100%);
+  border-color: var(--border);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--fg) 3.5%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--ds-shadow-ink) 16%, transparent);
+}
+
+.terminal-pane-header {
+  backdrop-filter: saturate(1.08) blur(14px);
+  -webkit-backdrop-filter: saturate(1.08) blur(14px);
+  isolation: isolate;
+  transform: translateZ(0);
+}
+
+.terminal-pane-body {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--fg) 2%, transparent);
+}
+
+.terminal-pane-focused {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--fg) 4.5%, transparent),
+    0 10px 24px color-mix(in srgb, var(--ds-shadow-ink) 18%, transparent);
+}
+
+.terminal-pane-unread {
+  position: relative;
+  border-color: color-mix(in srgb, var(--ds-success) 50%, transparent) !important;
+  animation: terminal-pane-unread-pulse 2s ease-in-out infinite;
+}
+
+.terminal-pane-unread::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--ds-success) 90%, transparent) 0%,
+    color-mix(in srgb, var(--ds-success) 60%, transparent) 55%,
+    transparent 100%
+  );
+  border-radius: inherit;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.terminal-pane-unread .terminal-pane-header {
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--ds-success) 14%, transparent), transparent 38%),
+    var(--bg-sidebar) !important;
+  box-shadow:
+    inset 0 2px 0 color-mix(in srgb, var(--ds-success) 65%, transparent),
+    inset 0 -1px 0 color-mix(in srgb, var(--ds-success) 18%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent);
+}
+
+/* ── Home launchpad — keep the launcher comfortable on short laptop viewports ── */
+@keyframes home-launchpad-stage-in {
+  from {
+    opacity: 0;
+    filter: blur(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+@keyframes home-launchpad-item-in {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+/* ── Terminal pane — unread pulse ── */
+
+@keyframes terminal-pane-unread-pulse {
+  0%, 100% {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--ds-success) 10%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--ds-success) 14%, transparent),
+      0 10px 34px color-mix(in srgb, var(--ds-success) 12%, transparent);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--fg) 5%, transparent),
+      inset 0 0 0 1px color-mix(in srgb, var(--ds-success) 18%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--ds-success) 24%, transparent),
+      0 10px 48px color-mix(in srgb, var(--ds-success) 22%, transparent),
+      0 0 28px color-mix(in srgb, var(--ds-success) 10%, transparent);
+  }
+}
+
+.home-launchpad-stage {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  min-height: 100%;
+  width: min(1040px, 100%);
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.75rem;
+  margin: 0 auto;
+  padding: 1.375rem 1.25rem 1rem;
+  animation: home-launchpad-stage-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  will-change: opacity, filter;
+}
+
+.home-launchpad {
+  --home-bg: var(--ds-bg);
+  --home-bg-soft: var(--ds-bg-soft);
+  --home-panel: color-mix(in srgb, var(--ds-surface) 88%, transparent);
+  --home-panel-strong: color-mix(in srgb, var(--ds-surface-raised) 90%, transparent);
+  --home-stone: var(--ds-stone);
+  --home-stone-strong: color-mix(in srgb, var(--ds-text) 16%, transparent);
+  --home-text: var(--ds-text);
+  --home-secondary: var(--ds-text-secondary);
+  --home-muted: var(--ds-text-muted);
+  --home-border: var(--ds-border-subtle);
+  --home-border-strong: var(--ds-border);
+  --home-shadow-edge: var(--ds-shadow-edge);
+  --home-shadow-card: var(--ds-shadow-soft);
+  --home-shadow-card-hover: color-mix(in srgb, var(--ds-text) 14%, transparent) 0 0 0 1px, color-mix(in srgb, var(--ds-shadow-ink) 26%, transparent) 0 16px 38px;
+  --home-shadow-pill: color-mix(in srgb, var(--ds-text) 10%, transparent) 0 0 0 1px, color-mix(in srgb, var(--ds-shadow-ink) 18%, transparent) 0 8px 22px;
+  position: relative;
+  overflow: auto;
+  background:
+    radial-gradient(ellipse 58% 34% at 50% 0%, color-mix(in srgb, var(--ds-accent) 7%, transparent), transparent 68%),
+    linear-gradient(180deg, var(--home-bg-soft) 0%, var(--home-bg) 58%, color-mix(in srgb, var(--ds-canvas) 30%, var(--ds-shadow-ink)) 100%);
+  color: var(--home-text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+[data-theme-type="light"] .home-launchpad {
+  --home-panel: color-mix(in srgb, var(--ds-surface) 84%, transparent);
+  --home-panel-strong: color-mix(in srgb, var(--ds-surface-raised) 92%, transparent);
+  --home-stone: color-mix(in srgb, var(--ds-canvas) 80%, transparent);
+  --home-stone-strong: color-mix(in srgb, var(--ds-canvas) 96%, transparent);
+  --home-shadow-card: color-mix(in srgb, var(--ds-shadow-ink) 5.5%, transparent) 0 0 0 1px, color-mix(in srgb, var(--ds-shadow-ink) 4%, transparent) 0 10px 26px;
+  --home-shadow-card-hover: color-mix(in srgb, var(--ds-shadow-ink) 12%, transparent) 0 0 0 1px, color-mix(in srgb, var(--ds-shadow-ink) 6%, transparent) 0 14px 30px;
+  --home-shadow-pill: color-mix(in srgb, var(--ds-shadow-ink) 8%, transparent) 0 0 0 1px, color-mix(in srgb, var(--ds-shadow-ink) 4%, transparent) 0 6px 16px;
+  background:
+    radial-gradient(ellipse 48% 32% at 50% 0%, color-mix(in srgb, var(--ds-canvas) 82%, transparent), transparent 66%),
+    linear-gradient(180deg, var(--ds-surface) 0%, var(--ds-surface) 58%, var(--ds-bg) 100%);
+}
+
+.home-launchpad::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent 0, transparent calc(25% - 0.5px), color-mix(in srgb, var(--home-text) 1.8%, transparent) calc(25% - 0.5px), color-mix(in srgb, var(--home-text) 1.8%, transparent) 25%, transparent 25%),
+    linear-gradient(180deg, color-mix(in srgb, var(--home-text) 2.8%, transparent) 0%, transparent 36%);
+  opacity: 0.28;
+}
+
+.home-launchpad-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  animation: home-launchpad-item-in 520ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
+}
+
+.home-launchpad-main {
+  display: grid;
+  gap: 0.8rem;
+  border: 1px solid var(--home-border);
+  border-radius: 1.125rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--home-text) 2.6%, transparent), color-mix(in srgb, var(--home-text) 0.6%, transparent)),
+    var(--home-panel);
+  padding: 0.875rem;
+  box-shadow:
+    var(--home-shadow-edge),
+    var(--home-shadow-card);
+  animation: home-launchpad-item-in 520ms cubic-bezier(0.16, 1, 0.3, 1) 140ms both;
+}
+
+.home-launchpad-brand,
+.home-launchpad-settings-pill {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.home-launchpad-brand {
+  gap: 0.625rem;
+  color: var(--home-text);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  line-height: 1.5;
+  letter-spacing: 0.15px;
+}
+
+.home-launchpad-brand-mark {
+  display: block;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.65rem;
+  background: var(--home-stone);
+  box-shadow: var(--home-shadow-pill);
+}
+
+.home-launchpad-settings-pill {
+  min-height: 2.125rem;
+  gap: 0.5rem;
+  border: 0;
+  border-radius: 9999px;
+  background: var(--home-panel);
+  padding: 0 0.5rem 0 0.75rem;
+  color: var(--home-secondary);
+  font-family: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0.14px;
+  box-shadow: color-mix(in srgb, var(--home-text) 8%, transparent) 0 0 0 1px;
+  transition:
+    color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.home-launchpad-settings-pill:hover {
+  color: var(--home-text);
+  transform: translateY(-1px);
+  box-shadow:
+    color-mix(in srgb, var(--home-text) 13%, transparent) 0 0 0 1px,
+    var(--home-shadow-pill);
+}
+
+.home-launchpad-settings-pill kbd {
+  border-radius: 9999px;
+  background: var(--home-stone);
+  padding: 0.125rem 0.45rem;
+  color: var(--home-muted);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  line-height: 1.35;
+}
+
+.home-launchpad-hero {
+  display: grid;
+  max-width: 44rem;
+  gap: 0.4rem;
+  padding: 0.125rem 0.125rem 0.25rem;
+}
+
+.home-launchpad-eyebrow {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.5rem;
+  border-radius: 9999px;
+  background: var(--home-stone);
+  padding: 0.3rem 0.625rem;
+  color: var(--home-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.14px;
+  box-shadow: color-mix(in srgb, var(--ds-shadow-ink) 4%, transparent) 0 6px 16px;
+}
+
+.home-launchpad-hero h1 {
+  max-width: 46rem;
+  color: var(--home-text);
+  font-size: 2rem;
+  font-weight: 300;
+  line-height: 1.08;
+  letter-spacing: 0;
+}
+
+.home-launchpad-subtitle {
+  max-width: 38rem;
+  color: var(--home-secondary);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.56;
+  letter-spacing: 0.18px;
+}
+
+.home-launchpad-status-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.625rem;
+  min-width: 0;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--home-text) 4%, transparent);
+  padding: 0.45rem 0.6rem;
+  box-shadow: color-mix(in srgb, var(--home-text) 6%, transparent) 0 0 0 0.5px inset;
+}
+
+.home-launchpad-status-line span {
+  color: var(--home-muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.home-launchpad-status-line strong {
+  color: var(--home-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.home-launchpad-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.625rem;
+}
+
+.home-launchpad-card {
+  position: relative;
+  display: flex;
+  min-height: 11.75rem;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  border: 1px solid var(--home-border);
+  border-radius: 0.875rem;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--home-text) 3%, transparent) 0%, color-mix(in srgb, var(--home-text) 0.9%, transparent) 100%),
+    var(--home-panel);
+  padding: 0.925rem;
+  color: var(--home-text);
+  text-decoration: none;
+  box-shadow: var(--home-shadow-edge);
+  animation: home-launchpad-item-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(260ms + (var(--launchpad-item-index, 0) * 55ms));
+  transition:
+    background 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease;
+  will-change: opacity, filter;
+}
+
+.home-launchpad-card::after {
+  content: "";
+  position: absolute;
+  inset: auto 1rem 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--home-text) 20%, transparent), transparent);
+  opacity: 0;
+  transition: opacity 160ms ease;
+}
+
+.home-launchpad-card:hover {
+  border-color: var(--home-border-strong);
+  transform: translateY(-1px);
+  box-shadow: var(--home-shadow-card-hover);
+}
+
+.home-launchpad-card:hover::after {
+  opacity: 1;
+}
+
+.home-launchpad-card-top,
+.home-launchpad-card-action,
+.home-launchpad-shortcut-item {
+  display: flex;
+  align-items: center;
+}
+
+.home-launchpad-card-top {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.home-launchpad-card-icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--home-stone);
+  color: var(--home-text);
+  box-shadow:
+    color-mix(in srgb, var(--home-text) 8%, transparent) 0 0 0 0.5px inset,
+    color-mix(in srgb, var(--ds-shadow-ink) 4%, transparent) 0 6px 16px;
+}
+
+.home-launchpad-card-kbd,
+.home-launchpad-shortcut-kbd {
+  border-radius: 9999px;
+  background: var(--home-stone);
+  color: var(--home-muted);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.35;
+  box-shadow: color-mix(in srgb, var(--home-text) 8%, transparent) 0 0 0 0.5px inset;
+}
+
+.home-launchpad-card-kbd {
+  padding: 0.2rem 0.5rem;
+}
+
+.home-launchpad-card-copy {
+  display: grid;
+  gap: 0.425rem;
+  margin-top: 1.25rem;
+}
+
+.home-launchpad-card-subtitle {
+  color: var(--home-muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.14px;
+}
+
+.home-launchpad-card-title {
+  color: var(--home-text);
+  font-size: 1.375rem;
+  font-weight: 300;
+  line-height: 1.13;
+  letter-spacing: 0;
+}
+
+.home-launchpad-card-description {
+  max-width: 17rem;
+  color: var(--home-secondary);
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.15px;
+}
+
+.home-launchpad-card-action {
+  width: fit-content;
+  gap: 0.45rem;
+  margin-top: 1rem;
+  border-radius: 9999px;
+  background: var(--accent);
+  padding: 0.4rem 0.675rem 0.4rem 0.75rem;
+  color: var(--accent-fg);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.45;
+  box-shadow: var(--home-shadow-pill);
+}
+
+.home-launchpad-status-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.home-launchpad-shortcuts {
+  display: flex;
+  width: fit-content;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.95rem;
+  border-radius: 9999px;
+  border: 1px solid var(--home-border);
+  background: var(--home-panel);
+  padding: 0.45rem 0.65rem;
+  box-shadow:
+    color-mix(in srgb, var(--home-text) 4%, transparent) 0 1px 0 inset,
+    var(--home-shadow-pill);
+  animation: home-launchpad-item-in 520ms cubic-bezier(0.16, 1, 0.3, 1) 330ms both;
+}
+
+.home-launchpad-shortcut-item {
+  gap: 0.5rem;
+  opacity: 0.82;
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.home-launchpad-shortcut-item:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+}
+
+.home-launchpad-shortcut-kbd {
+  padding: 0.125rem 0.45rem;
+  background: var(--home-stone);
+}
+
+.home-launchpad-shortcut-label {
+  color: var(--home-muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  line-height: 1.35;
+  letter-spacing: 0.7px;
+}
+
+@media (min-width: 1280px) {
+  .home-launchpad-stage {
+    padding-top: 1.75rem;
+    padding-bottom: 1.75rem;
+  }
+}
+
+@media (max-width: 1180px) {
+  .home-launchpad-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .home-launchpad-stage {
+    justify-content: flex-start;
+    gap: 1rem;
+    padding: 1.25rem;
+  }
+
+  .home-launchpad-main {
+    padding: 0.75rem;
+  }
+
+  .home-launchpad-hero {
+    padding-top: 1rem;
+  }
+
+  .home-launchpad-hero h1 {
+    font-size: 1.875rem;
+  }
+
+  .home-launchpad-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .home-launchpad-status-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .home-launchpad-card {
+    min-height: 9rem;
+  }
+
+  .home-launchpad-shortcuts {
+    width: 100%;
+    border-radius: 1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .home-launchpad-topbar {
+    align-items: flex-start;
+  }
+
+  .home-launchpad-settings-pill span {
+    display: none;
+  }
+
+  .home-launchpad-hero h1 {
+    font-size: 1.7rem;
+  }
+
+  .home-launchpad-subtitle {
+    font-size: 0.9375rem;
+  }
+
+  .home-launchpad-card {
+    padding: 1rem;
+  }
+
+  .home-launchpad-card-copy {
+    margin-top: 1rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-launchpad-stage,
+  .home-launchpad-topbar,
+  .home-launchpad-hero,
+  .home-launchpad-card,
+  .home-launchpad-shortcuts {
+    animation: none !important;
+    filter: none !important;
+  }
+
+  .home-launchpad-card,
+  .home-launchpad-settings-pill,
+  .home-launchpad-shortcut-item {
+    transition-duration: 0ms !important;
+  }
+}
+
+/* Light panes are white glass: edges in the surface white, shadows in the warm ink. */
+[data-theme-type="light"] .terminal-pane {
+  background: color-mix(in srgb, var(--ds-surface) 18%, transparent);
+  border-color: color-mix(in srgb, var(--ds-surface) 58%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--ds-surface) 64%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--ds-shadow-ink) 6%, transparent),
+    0 1px 0 color-mix(in srgb, var(--ds-shadow-ink) 5%, transparent);
+}
+
+[data-theme-type="light"] .terminal-pane-focused {
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--ds-surface) 72%, transparent),
+    0 8px 24px color-mix(in srgb, var(--ds-shadow-ink) 8%, transparent);
+}
+
+[data-theme-type="light"] .terminal-pane-header {
+  background: linear-gradient(180deg, color-mix(in srgb, var(--ds-surface) 34%, transparent) 0%, color-mix(in srgb, var(--ds-surface) 20%, transparent) 100%) !important;
+  border-color: color-mix(in srgb, var(--ds-surface) 54%, transparent) !important;
+}
+
+[data-theme-type="light"] .terminal-pane-body {
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--ds-surface) 34%, transparent);
+}
+
+/* ── CodeChat markdown prose — theme-aware, works in light + dark ── */
+.codechat-prose {
+  font-size: 0.875rem;
+  line-height: 1.65;
+  color: var(--fg);
+}
+.codechat-prose > *:first-child { margin-top: 0; }
+.codechat-prose > *:last-child  { margin-bottom: 0; }
+
+.codechat-prose p { margin: 0.5rem 0; }
+
+.codechat-prose h1 { font-size: 1rem;    font-weight: 700; margin: 1.25rem 0 0.5rem; color: var(--fg); }
+.codechat-prose h2 { font-size: 0.9rem;  font-weight: 600; margin: 1.1rem 0 0.4rem;  color: var(--fg); }
+.codechat-prose h3 { font-size: 0.8rem;  font-weight: 600; margin: 0.9rem 0 0.3rem;  color: var(--text-secondary); }
+.codechat-prose h4 { font-size: 0.75rem; font-weight: 500; margin: 0.75rem 0 0.25rem; color: var(--text-secondary); }
+
+.codechat-prose ul { list-style-type: disc;    padding-left: 1.4rem; margin: 0.5rem 0; }
+.codechat-prose ol { list-style-type: decimal; padding-left: 1.4rem; margin: 0.5rem 0; }
+.codechat-prose li { margin: 0.2rem 0; }
+.codechat-prose li > p { margin: 0; }
+
+.codechat-prose table        { border-collapse: collapse; width: 100%; margin: 0.75rem 0; font-size: 0.8rem; }
+.codechat-prose th           { border: 1px solid var(--border); padding: 0.375rem 0.75rem; font-weight: 600; background: var(--codechat-surface-soft); text-align: left; }
+.codechat-prose td           { border: 1px solid var(--border); padding: 0.375rem 0.75rem; }
+.codechat-prose tr:nth-child(even) td { background: var(--codechat-panel-section-bg); }
+
+.codechat-prose code:not(pre > code) {
+  background: var(--codechat-surface-soft-hover);
+  border-radius: 0.25rem;
+  padding: 0.1em 0.35em;
+  font-size: 0.78rem;
+  font-family: ui-monospace, monospace;
+}
+
+.codechat-prose pre { margin: 0; } /* handled by CodeBlock component */
+
+.codechat-prose blockquote {
+  border-left: 2px solid var(--accent);
+  padding-left: 1rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  margin: 0.5rem 0;
+}
+
+.codechat-prose hr    { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+.codechat-prose strong { font-weight: 600; }
+.codechat-prose em     { font-style: italic; }
+.codechat-prose a      { color: var(--accent); text-decoration: underline; text-underline-offset: 2px; }
+
+.codechat-prose-chat {
+  color: var(--codechat-text-primary);
+  line-height: 1.72;
+}
+
+.codechat-prose-chat p {
+  margin: 0.65rem 0;
+  color: var(--codechat-text-primary);
+}
+
+.codechat-prose-chat h1,
+.codechat-prose-chat h2,
+.codechat-prose-chat h3,
+.codechat-prose-chat h4 {
+  color: var(--codechat-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.codechat-prose-chat ul li::marker,
+.codechat-prose-chat ol li::marker {
+  color: var(--codechat-text-tertiary);
+}
+
+.codechat-prose-chat code:not(pre > code) {
+  background: var(--codechat-surface-soft);
+  color: var(--codechat-text-primary);
+  border: 1px solid var(--codechat-border-soft);
+}
+
+.codechat-prose-chat table {
+  overflow: hidden;
+  border: 1px solid var(--codechat-border-soft);
+  border-radius: 1rem;
+}
+
+.codechat-prose-chat th {
+  background: var(--codechat-surface-soft);
+  border-color: var(--codechat-border-soft);
+}
+
+.codechat-prose-chat td {
+  border-color: var(--codechat-border-soft);
+}
+
+.codechat-diagram-preview-stage {
+  position: relative;
+  border: 1px solid var(--codechat-mermaid-stage-border);
+  background:
+    linear-gradient(180deg, var(--codechat-mermaid-stage-shine), transparent),
+    var(--codechat-mermaid-stage-bg);
+  box-shadow:
+    inset 0 1px 0 var(--codechat-mermaid-stage-inset),
+    0 8px 20px var(--codechat-mermaid-stage-shadow);
+}
+
+.codechat-diagram-preview-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid var(--codechat-mermaid-inner-border);
+  pointer-events: none;
+}
+
+.codechat-diagram-preview {
+  --codechat-mermaid-stage-bg: var(--ds-surface);
+  --codechat-mermaid-stage-border: var(--ds-border-subtle);
+  --codechat-mermaid-stage-shine: color-mix(in srgb, var(--ds-text) 2%, transparent);
+  --codechat-mermaid-stage-inset: color-mix(in srgb, var(--ds-text) 4%, transparent);
+  --codechat-mermaid-stage-shadow: color-mix(in srgb, var(--ds-canvas) 24%, transparent);
+  --codechat-mermaid-inner-border: color-mix(in srgb, var(--ds-text) 3%, transparent);
+  --codechat-mermaid-grid-line: color-mix(in srgb, var(--ds-text) 5%, transparent);
+  --codechat-mermaid-ui-strong: var(--ds-text);
+  --codechat-mermaid-ui-muted: var(--ds-text-muted);
+  --codechat-mermaid-ui-subtle: var(--ds-text-quiet);
+  --codechat-mermaid-svg-text: var(--ds-text);
+  --codechat-mermaid-control-bg: color-mix(in srgb, var(--ds-surface) 60%, transparent);
+  --codechat-mermaid-control-hover: var(--ds-workbench-surface-hover);
+  --codechat-mermaid-control-active: var(--ds-workbench-surface-active);
+  --codechat-mermaid-control-border: var(--ds-border);
+}
+
+.codechat-diagram-preview-canvas {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  will-change: transform;
+}
+
+.codechat-diagram-preview svg {
+  position: relative;
+  z-index: 1;
+  display: block;
+  width: auto;
+  max-width: none;
+  height: auto;
+  filter: none;
+}
+
+.codechat-diagram-preview svg .nodeLabel,
+.codechat-diagram-preview svg .nodeLabel *,
+.codechat-diagram-preview svg .edgeLabel,
+.codechat-diagram-preview svg .edgeLabel *,
+.codechat-diagram-preview svg .label,
+.codechat-diagram-preview svg .label *,
+.codechat-diagram-preview svg foreignObject p,
+.codechat-diagram-preview svg foreignObject span,
+.codechat-diagram-preview svg foreignObject div {
+  color: var(--codechat-mermaid-svg-text) !important;
+  fill: var(--codechat-mermaid-svg-text) !important;
+  opacity: 1 !important;
+}
+
+.codechat-diagram-preview svg .rough-fill {
+  display: none !important;
+}
+
+.codechat-diagram-toolbar-shell {
+  box-shadow: var(--ds-shadow-lift);
+}
+
+.codechat-diagram-preview-grid {
+  background-image:
+    linear-gradient(var(--codechat-mermaid-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--codechat-mermaid-grid-line) 1px, transparent 1px);
+  background-position: center;
+  background-size: 44px 44px;
+  opacity: 0.16;
+}
+
+.codechat-diagram-preview[data-fullscreen="true"] .codechat-diagram-toolbar-shell {
+  border-radius: 0.65rem;
+  padding: 0.35rem;
+}
+
+.codechat-diagram-preview[data-fullscreen="true"] .codechat-diagram-toolbar-shell-compact {
+  gap: 0.3rem;
+}
+
+/* ── Accessibility: reduced motion ── */
+@media (prefers-reduced-motion: reduce) {
+  .glass-card,
+  .tahoe-pill {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-elevated) 50%, var(--bg-card) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ─── Bridge role chips (per-role color variants) ───────────────────────
+ * Used by <RoleChip /> to visually distinguish cells spawned with a
+ * pre-baked Bridge role. Theme-aware via translucent overlays on top of
+ * the active surface — works on every theme without per-theme overrides.
+ */
+.bridge-role-chip {
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text-secondary);
+  border: 1px solid color-mix(in srgb, var(--accent) 25%, transparent);
+}
+.bridge-role-chip--planner     { --role-hue: #60a5fa; } /* color-literal-ok: role identity hue, the same in both themes */
+.bridge-role-chip--implementer { --role-hue: #34d399; } /* color-literal-ok: role identity hue, the same in both themes */
+.bridge-role-chip--reviewer    { --role-hue: #fb923c; } /* color-literal-ok: role identity hue, the same in both themes */
+.bridge-role-chip--tester      { --role-hue: #c084fc; } /* color-literal-ok: role identity hue, the same in both themes */
+.bridge-role-chip--refactor    { --role-hue: #f472b6; } /* color-literal-ok: role identity hue, the same in both themes */
+/* The hue tints the fill and the edge; the label is the hue pulled toward the text ink, so it is a
+   pastel on Dark and a deep shade on Light instead of a pastel on white. */
+.bridge-role-chip--planner,
+.bridge-role-chip--implementer,
+.bridge-role-chip--reviewer,
+.bridge-role-chip--tester,
+.bridge-role-chip--refactor {
+  background: color-mix(in srgb, var(--role-hue) 18%, transparent);
+  color: color-mix(in oklab, var(--role-hue) 45%, var(--fg));
+  border-color: color-mix(in srgb, var(--role-hue) 35%, transparent);
+}
+
+/* Production-grade pane header system (path line, status dot, title text,
+   workspace slug, manual trigger pill). See file for full breakdown. */
+@import "./terminal-cell-header.css";
+
+/* ── Workbench Markdown Preview ──────────────────────────────────────────── */
+
+/* Preview toggle button — active state */
+.codespace-workbench-toolbar-button--preview-on {
+  border-color: color-mix(in srgb, var(--codespace-panel-accent) 28%, transparent);
+  background: color-mix(in srgb, var(--codespace-panel-accent) 10%, transparent);
+  color: var(--codespace-panel-accent);
+}
+
+.codespace-workbench-toolbar-button--preview-on:hover {
+  border-color: color-mix(in srgb, var(--codespace-panel-accent) 40%, transparent);
+  background: color-mix(in srgb, var(--codespace-panel-accent) 15%, transparent);
+  color: var(--codespace-panel-accent);
+}
+
+/* Scroll container */
+.wbmd-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--fg) 14%, transparent) transparent;
+  /* Lets a wide table measure the pane (cqi) rather than the 80ch text column. */
+  container-type: inline-size;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--fg) 1.2%, transparent), transparent 28%),
+    var(--codespace-panel-surface);
+}
+
+/* Article layout */
+.wbmd-article {
+  max-width: 80ch;
+  margin: 0 auto;
+  padding: 32px 32px 56px;
+  /* Body a step below the headings: long reading in pure white is glare. */
+  color: color-mix(in srgb, var(--codespace-panel-text) 86%, transparent);
+  font-size: 14px;
+  line-height: 1.7;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Headings */
+.wbmd-article h1,
+.wbmd-article h2,
+.wbmd-article h3,
+.wbmd-article h4,
+.wbmd-article h5,
+.wbmd-article h6 {
+  color: var(--codespace-panel-text);
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 2em;
+  margin-bottom: 0.6em;
+  text-wrap: balance;
+}
+
+.wbmd-article > :first-child { margin-top: 0; }
+.wbmd-article h1 { font-size: 24px; letter-spacing: -0.022em; line-height: 1.25; }
+.wbmd-article h2 { font-size: 18px; letter-spacing: -0.014em; }
+.wbmd-article h3 { font-size: 15px; letter-spacing: -0.006em; }
+.wbmd-article h4 { font-size: 14px; }
+.wbmd-article h5,
+.wbmd-article h6 { font-size: 12px; font-weight: 600; color: var(--codespace-panel-text-secondary); }
+
+/* Paragraph */
+.wbmd-article p {
+  margin: 0 0 1em;
+  text-wrap: pretty;
+}
+
+/* Lists */
+.wbmd-article ul,
+.wbmd-article ol {
+  padding-left: 1.5em;
+  margin: 0 0 1em;
+}
+
+/* Tailwind preflight strips list markers; an ordered list lost its numbers. */
+.wbmd-article ul { list-style: disc; }
+.wbmd-article ol { list-style: decimal; }
+
+.wbmd-article li {
+  margin-bottom: 0.5em;
+  padding-left: 0.25em;
+  text-wrap: pretty;
+}
+
+.wbmd-article li::marker {
+  color: var(--codespace-panel-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.wbmd-article li > ul,
+.wbmd-article li > ol {
+  margin-bottom: 0;
+  margin-top: 0.25em;
+}
+
+/* Links */
+.wbmd-link {
+  color: var(--codespace-panel-accent);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in srgb, var(--codespace-panel-accent) 30%, transparent);
+  transition: border-color 120ms ease;
+}
+
+.wbmd-link:hover {
+  border-color: var(--codespace-panel-accent);
+}
+
+/* Inline code */
+.wbmd-inline-code {
+  padding: 0.12em 0.4em;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  color: var(--codespace-panel-text);
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.86em;
+  letter-spacing: 0;
+  /* A chip wrapped across lines keeps its padding and corners on both halves. */
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* Code block wrapper */
+.wbmd-code-block {
+  position: relative;
+  margin: 0 0 1em;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--fg) 8%, transparent);
+  background: color-mix(in srgb, var(--bg) 56%, transparent);
+  overflow: hidden;
+}
+
+.wbmd-code-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 34px;
+  padding: 0 8px 0 14px;
+  border-bottom: 1px solid color-mix(in srgb, var(--fg) 6%, transparent);
+}
+
+.wbmd-code-lang {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  color: var(--codespace-panel-text-muted);
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  user-select: none;
+}
+
+.wbmd-code-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--codespace-panel-text-muted);
+  font-size: 11px;
+  opacity: 0;
+  transition: opacity 140ms ease, background 120ms ease, color 120ms ease;
+}
+
+.wbmd-code-block:hover .wbmd-code-copy,
+.wbmd-code-copy:focus-visible {
+  opacity: 1;
+}
+
+.wbmd-code-copy:hover {
+  background: color-mix(in srgb, var(--fg) 8%, transparent);
+  color: var(--codespace-panel-text);
+}
+
+/* Code block pre/code — let hljs handle token colors */
+.wbmd-pre {
+  margin: 0;
+  padding: 12px 14px 14px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--fg) 12%, transparent) transparent;
+}
+
+/* .hljs: the highlight.js theme pads and paints `pre code.hljs`, which outranks .wbmd-pre code. */
+.wbmd-pre code,
+.wbmd-pre code.hljs {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  background: transparent;
+  border: none;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Blockquote */
+.wbmd-blockquote {
+  margin: 0 0 1em;
+  padding: 10px 16px;
+  border-radius: 6px;
+  border-left: 3px solid color-mix(in srgb, var(--codespace-panel-accent) 38%, transparent);
+  background: color-mix(in srgb, var(--codespace-panel-accent) 5%, transparent);
+  color: var(--codespace-panel-text-secondary);
+}
+
+.wbmd-blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+/* Horizontal rule */
+.wbmd-hr {
+  border: none;
+  border-top: 1px solid var(--codespace-panel-border);
+  margin: 2em 0;
+}
+
+/* Table: may break out of the 80ch text column up to 960px, so a many-column table is not squeezed. */
+.wbmd-table-wrap {
+  overflow-x: auto;
+  /* Only as wide as the table needs: a 2-column table stays in the text column. */
+  position: relative;
+  left: 50%;
+  width: max-content;
+  min-width: 100%;
+  max-width: min(100cqi - 64px, 960px);
+  margin: 0.4em 0 1.4em;
+  transform: translateX(-50%);
+  border-radius: 8px;
+  border: 1px solid var(--codespace-panel-border);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--fg) 12%, transparent) transparent;
+}
+
+.wbmd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.wbmd-table th {
+  padding: 7px 12px;
+  background: color-mix(in srgb, var(--fg) 4.5%, transparent);
+  color: var(--codespace-panel-text);
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.01em;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--codespace-panel-border);
+}
+
+.wbmd-table td {
+  padding: 9px 12px;
+  vertical-align: top;
+  color: var(--codespace-panel-text-secondary);
+  border-bottom: 1px solid var(--codespace-panel-border);
+}
+
+.wbmd-table tr:last-child td {
+  border-bottom: none;
+}
+
+.wbmd-table tr:hover td {
+  background: color-mix(in srgb, var(--fg) 2.2%, transparent);
+}
+
+/* Strong / em */
+.wbmd-article strong {
+  font-weight: 600;
+  color: var(--codespace-panel-text);
+}
+
+.wbmd-article em {
+  font-style: italic;
+  color: var(--codespace-panel-text-secondary);
+}
+
+/* Images */
+.wbmd-article img {
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--codespace-panel-border);
+}
+
+/* An image from the disk that is not there (or not an image): its alt text, as a chip. */
+.wbmd-image-missing {
+  display: inline-block;
+  border: 1px dashed var(--codespace-panel-border-strong);
+  border-radius: 6px;
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--codespace-panel-text-muted);
+}
+
+.wbmd-image-loading {
+  display: inline-block;
+  width: 64px;
+  height: 20px;
+  border-radius: 6px;
+  background: var(--codespace-panel-surface-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wbmd-link,
+  .wbmd-code-copy {
+    transition: none;
+  }
+}

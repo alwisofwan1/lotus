@@ -1,0 +1,3464 @@
+/*
+  Tasks — the tracker surface.
+
+  It borrows the shell's tokens (`--ws-surface`, `--ws-line`, the radii) rather than inventing a
+  second palette: the tracker is a panel of the same window, opened from the same sidebar, and one
+  that looked like a different application would undo that. What it adds is its own six status
+  hues, because a task state is not a pane state — see `task-vocabulary.ts`.
+*/
+
+.tk-body {
+  /* Amber, rose and green are the design system's status tokens, so each keeps its hue and is
+     tuned per theme for contrast. Violet has no token: it is the one literal, deepened toward the
+     ink on Light below. */
+  --tk-violet: #a78bfa; /* color-literal-ok: review identity hue, the same in every theme (Light deepens it below) */
+  --tk-status-progress: var(--ds-warning);
+  --tk-status-review: var(--tk-violet);
+  /* Rose, and deliberately the only alarming hue on the surface: a blocked task is the one row
+     that changes what you should do next. Never the cancelled grey — stuck and abandoned are
+     different fates. */
+  --tk-status-blocked: var(--ds-danger);
+  --tk-status-open: var(--text-muted);
+  --tk-status-done: var(--ds-success);
+  --tk-status-dropped: color-mix(in oklab, var(--text-muted) 70%, transparent);
+  --tk-row-height: 34px;
+  /* The brief's body ink: the theme's secondary text, a step below headings in either theme. */
+  --tk-md-text: var(--text-secondary);
+}
+
+/* Raw violet is 2.7:1 on Light white; deepened toward the ink it reads at 6.1:1. */
+[data-theme-type="light"] .tk-body { --tk-status-review: color-mix(in oklab, var(--tk-violet) 60%, var(--fg)); }
+
+/*
+  The list is a card, the way a pane is: same surface, same line, same corner. On bare `--bg` it
+  read as the window's background with text on it, and the sticky status bands — which DO carry
+  the surface — showed up as stripes across it.
+*/
+.tk-column {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+  background: var(--bg);
+}
+
+/*
+  The shell's dither, as the tracker wears it (2026-10-25): a dotted rule that fades out to the
+  right under a heading or a bar, and the dotted fill of the row that is "this one". Each site
+  below only places its rule; the look lives here once.
+*/
+.tk-section-head::after,
+.tk-dbar::after,
+.tk-detail-h::after,
+.tk-compose-crumb::after,
+.tk-compose-foot::before {
+  content: "";
+  position: absolute;
+  height: 1px;
+  background: var(--ws-dither-ink);
+  -webkit-mask: var(--ws-dither-rule);
+  mask: var(--ws-dither-rule);
+  pointer-events: none;
+}
+
+.tk-row[data-selected="true"]::after,
+.tk-nav-item[data-active="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--ws-dither-ink);
+  -webkit-mask: var(--ws-dither-fill);
+  mask: var(--ws-dither-fill);
+  animation: ws-dither-in 220ms var(--ws-ease) both;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-row[data-selected="true"]::after,
+  .tk-nav-item[data-active="true"]::after { animation: none; }
+}
+
+/* ── The tracker's own navigation, on the right ───────────────────────────── */
+
+.tk-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* The slot is a flex ROW, so without this the nav was only as wide as its widest label and the
+     counts stopped short of the edge however far the seam was dragged. */
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  min-height: 0;
+  padding: 6px 6px 10px;
+  overflow-y: auto;
+}
+
+.tk-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-body);
+  text-align: left;
+  transition: background var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+
+.tk-nav-item:hover { background: var(--ws-hover); color: var(--fg); }
+.tk-nav-item[data-active="true"] {
+  background: var(--ws-surface-quiet);
+  color: var(--fg);
+  font-weight: 500;
+  position: relative;
+  isolation: isolate;
+}
+.tk-nav-item > svg { flex: 0 0 auto; width: 15px; color: var(--text-muted); transition: color var(--ws-dur) var(--ws-ease); }
+.tk-nav-item--quiet { color: var(--text-muted); font-size: var(--ds-t-micro); opacity: 0.85; }
+.tk-nav-item[data-active="true"] > svg { color: var(--fg); }
+.tk-nav-item:hover > svg { color: var(--text-secondary); }
+.tk-nav-item--quiet:hover { opacity: 1; }
+
+.tk-nav-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The prefix earns its place: it is what someone types to find a task, and seeing it here is how
+   they learn what the keys on their own rows mean. */
+.tk-nav-prefix {
+  flex: 0 0 auto;
+  font-size: var(--ds-t-micro);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  opacity: 0;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+
+/* Shown where the eye already is — the row under the pointer, or the one selected — and nowhere
+   else, so the column reads as names and counts. The full prefix stays in the row's tooltip. */
+.tk-nav-item:hover .tk-nav-prefix,
+.tk-nav-item[data-active="true"] .tk-nav-prefix { opacity: 1; }
+
+.tk-nav-count {
+  flex: 0 0 auto;
+  min-width: 18px;
+  text-align: right;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tk-nav-item[data-active="true"] .tk-nav-count { color: var(--text-secondary); }
+
+.tk-nav-fold-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  list-style: none;
+}
+.tk-nav-fold-head::-webkit-details-marker { display: none; }
+.tk-nav-fold-head .tk-nav-count { margin-left: auto; font-weight: 400; letter-spacing: 0; }
+.tk-nav-fold-chev { transform: rotate(-90deg); transition: transform var(--ws-dur) var(--ws-ease); }
+.tk-nav-fold[open] .tk-nav-fold-chev { transform: none; }
+
+.tk-nav-section {
+  margin: 18px 8px 6px;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  color: var(--ds-text-quiet, var(--text-muted));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tk-nav-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  margin: 0 3px;
+  /* Same corner as the swatch in the reference: a tile, not a status dot — the nav's colour is
+     WHICH project, not what state it is in. The fallback has to be visible on `--bg`. */
+  border-radius: 3px;
+  background: color-mix(in oklab, var(--text-muted) 55%, transparent);
+}
+
+/* Tasks from closed workspaces: quiet, because it is a recovery tool and not a view. The titles
+   are the point — the id is a uuid nobody recognises, what is in it is how they know the folder. */
+.tk-orphan {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px 8px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-body);
+}
+.tk-orphan-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.tk-orphan-head > svg { flex: 0 0 auto; width: 16px; color: var(--text-muted); }
+.tk-orphan-head .tk-nav-label { font-variant-numeric: tabular-nums; }
+
+.tk-orphan-titles {
+  margin: 0 0 0 24px;
+  padding: 0;
+  list-style: none;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+.tk-orphan-titles li { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tk-orphan-move { display: flex; gap: 6px; margin-left: 24px; min-width: 0; }
+.tk-orphan-select {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-raised);
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+}
+.tk-orphan-button {
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-raised);
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  transition: background var(--ws-dur) var(--ws-ease);
+}
+.tk-orphan-button:not(:disabled):hover { background: var(--ws-hover); }
+.tk-orphan-button:disabled, .tk-orphan-select:disabled { opacity: 0.55; }
+
+/* Ignore and Delete stay text-quiet under the row: Move is the action this section is for. */
+.tk-orphan-actions { display: flex; gap: 12px; margin-left: 24px; }
+.tk-orphan-link {
+  padding: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+  transition: color var(--ws-dur) var(--ws-ease);
+}
+.tk-orphan-link:not(:disabled):hover { color: var(--fg); }
+.tk-orphan-link--danger:not(:disabled):hover { color: var(--tk-status-blocked); }
+.tk-orphan-link:disabled { opacity: 0.55; }
+.tk-orphan-toggle { margin: 2px 10px 0; align-self: flex-start; }
+.tk-orphan--ignored { opacity: 0.6; }
+
+.tk-orphan-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-left: 24px;
+  font-size: var(--ds-t-micro);
+}
+.tk-orphan-confirm p { flex: 1 1 100%; margin: 0; color: var(--fg); }
+.tk-orphan-button--danger { color: var(--tk-status-blocked); }
+
+.tk-orphan-notice {
+  margin: 2px 10px 0;
+  font-size: var(--ds-t-micro);
+  color: var(--text-secondary);
+}
+
+/* ── Header and filters ───────────────────────────────────────────────────── */
+
+.tk-head {
+  /* Never shrunk by the list below it: a wrapped filter row would spill out under the hairline. */
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 8px 10px 8px 16px;
+  border-bottom: 1px solid var(--ws-line);
+}
+
+.tk-head-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  font-size: var(--ds-t-lede);
+  font-weight: 600;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.tk-head-count {
+  color: var(--text-muted);
+  font-size: var(--ds-t-body);
+  font-variant-numeric: tabular-nums;
+  margin-right: auto;
+}
+/*
+  The filter bar lives inside the title row (Tasks revamp D3). `display: contents` lets its tools
+  sit in the header's flex line, and its rule chips wrap onto a full-width second line below.
+*/
+.tk-head > .tk-filterbar { display: contents; }
+.tk-head .tk-filters { padding: 0; border: 0; gap: 4px; min-width: 0; }
+.tk-head .tk-fr-row-bar { order: 99; flex: 1 0 100%; padding-left: 0; }
+.tk-head .tk-button {
+  color: var(--text-muted);
+  transition: color var(--ws-dur) var(--ws-ease), background var(--ws-dur) var(--ws-ease);
+}
+.tk-head .tk-button:hover { color: var(--fg); }
+
+.tk-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px 5px 9px;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-raised);
+  border: 1px solid var(--ws-line);
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+  margin: 0 2px 0 4px;
+  box-shadow: var(--ds-shadow-soft);
+  font-weight: 500;
+  transition: background var(--ws-dur) var(--ws-ease), transform var(--ws-dur) var(--ws-ease);
+}
+
+.tk-new:disabled { opacity: 0.55; cursor: default; }
+.tk-new:not(:disabled):hover { background: var(--ws-hover); }
+.tk-new:not(:disabled):active { transform: translateY(0.5px); }
+
+.tk-filters {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ws-line);
+}
+
+/*
+  A row being carried: lifted above its neighbours while they slide out of its way. Only
+  `transform` moves (set inline by dnd-kit), so nothing lays out while the drag runs.
+*/
+.tk-row-sortable[data-dragging="true"] {
+  position: relative;
+  z-index: 2;
+}
+
+.tk-row-sortable[data-dragging="true"] .tk-row {
+  background: var(--ws-hover);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ds-shadow-ink) 22%, transparent);
+}
+
+/* "notes": this ticket has a note with the same key (PLAN S37). Quiet — a fact, not a state. */
+.tk-row-notes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 1px 7px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: 999px;
+  font-size: var(--ds-t-micro);
+  line-height: 12px;
+  color: var(--text-muted);
+}
+
+/* The agent on a row: the rail's own dot, at the end of the line where the eye finishes reading. */
+.tk-row-live {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+/* The live badge as the way to its agent (LOT2-220): the badge's own look, plus ↗ and a hover wash. */
+.tk-row-live-jump {
+  gap: 3px;
+  padding: 1px 4px 1px 1px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tk-row-live-jump:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  color: var(--fg);
+}
+
+.tk-row-live-jump:focus-visible {
+  outline: 2px solid var(--ws-focus-line);
+  outline-offset: 1px;
+}
+
+.tk-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: var(--ws-r-pill);
+  border: 1px solid var(--ws-line);
+  color: var(--text-muted);
+  min-width: 0;
+  flex: 0 1 200px;
+}
+
+.tk-search:focus-within {
+  border-color: var(--ws-line-strong);
+  color: var(--text-secondary);
+}
+
+.tk-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  outline: none;
+}
+
+.tk-search input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.tk-filters-end {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.tk-filters-count {
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
+  A chip is a `<details>`: the browser gives open/close and Escape for free, and a filter menu is
+  exactly the place where reimplementing them earns nothing. `position: relative` on the chip plus
+  an absolute menu is what keeps opening one from pushing the list down.
+*/
+.tk-chip { position: relative; }
+
+.tk-chip > summary,
+.tk-chip-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: var(--ws-r-pill);
+  border: 1px solid var(--ws-line);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--ds-t-micro);
+  cursor: pointer;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.tk-chip > summary::-webkit-details-marker { display: none; }
+.tk-chip > summary:hover,
+.tk-chip-button:hover { background: var(--ws-hover); color: var(--fg); }
+
+/* A switch that is ON wears the same accent wash as a chip with choices in it. */
+.tk-chip-button[data-on="true"] {
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--ws-line));
+  color: var(--fg);
+}
+.tk-chip[open] > summary { background: var(--ws-surface-quiet); color: var(--fg); }
+
+.tk-chip-count {
+  min-width: 15px;
+  padding: 0 4px;
+  border-radius: var(--ws-r-pill);
+  background: color-mix(in oklab, var(--accent) 22%, transparent);
+  color: var(--fg);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.tk-chip-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 190px;
+  padding: var(--ds-menu-pad);
+  border-radius: var(--ds-menu-radius);
+  border: 1px solid var(--ds-workbench-popover-border);
+  background: var(--ds-workbench-popover-bg);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  transform-origin: top left;
+  animation: var(--ds-menu-in);
+}
+
+.tk-chip-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: var(--ds-menu-item-h);
+  padding: var(--ds-menu-item-pad);
+  border-radius: var(--ds-menu-item-radius);
+  color: var(--text-secondary);
+  font-size: var(--ds-menu-font);
+  text-align: left;
+  transition: background-color var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+
+.tk-chip-option:hover { background: var(--ds-menu-hover); color: var(--fg); }
+.tk-chip-option[aria-pressed="true"] { color: var(--fg); }
+
+/* The one current value of a single-choice menu (status, priority) wears the rail's dither. */
+.tk-chip-option[role="menuitemradio"][aria-checked="true"] {
+  position: relative;
+  isolation: isolate;
+  color: var(--fg);
+}
+.tk-chip-option[role="menuitemradio"][aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--ds-dither-ink);
+  -webkit-mask: var(--ds-dither-fill);
+  mask: var(--ds-dither-fill);
+  pointer-events: none;
+}
+
+.tk-view-menu { left: auto; right: 0; transform-origin: top right; }
+.tk-view-label {
+  margin: 4px 8px 2px;
+  color: var(--ds-text-quiet, var(--text-muted));
+  font-size: var(--ds-t-micro);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tk-view-rule { margin: 4px 0; border: 0; border-top: 1px solid var(--ws-line); }
+.tk-view-check { margin-left: auto; }
+
+.tk-chip-check {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 12px;
+  justify-content: center;
+  color: var(--accent);
+}
+
+/* ── Filters (Notion-style rules) ─────────────────────────────────────────────
+  Two rows: the tools, then — only once a rule exists — one chip per rule. The wrapper owns the
+  bottom rule so the second row reads as part of the bar, not as a new band above the list.
+*/
+.tk-filterbar { border-bottom: 1px solid var(--ws-line); }
+.tk-filterbar > .tk-filters { border-bottom: 0; }
+
+.tk-fr-row-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 8px;
+  animation: tk-fr-in 140ms ease-out;
+}
+
+@keyframes tk-fr-in {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The toolbar's Filter wears the accent once a rule filters — the dot in Notion's icon. */
+.tk-fr-picker--on > summary {
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 35%, var(--ws-line));
+  color: var(--fg);
+}
+
+/* A rule chip: neutral until it filters, then the accent wash with accent text. */
+.tk-fr-chip > summary {
+  max-width: 280px;
+  gap: 5px;
+  padding: 3px 8px 3px 9px;
+}
+.tk-fr-chip[data-on] > summary {
+  background: color-mix(in oklab, var(--accent) 13%, transparent);
+  border-color: color-mix(in oklab, var(--accent) 30%, transparent);
+  color: color-mix(in oklab, var(--accent) 70%, var(--fg));
+}
+.tk-fr-chip[data-on] > summary:hover {
+  background: color-mix(in oklab, var(--accent) 20%, transparent);
+}
+.tk-fr-chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tk-fr-chip-prop { font-weight: 560; }
+.tk-fr-caret { flex: 0 0 auto; opacity: 0.7; transition: transform 120ms ease; }
+.tk-fr-chip[open] .tk-fr-caret { transform: rotate(180deg); }
+
+.tk-fr-add > summary {
+  border-color: transparent;
+  color: var(--text-muted);
+  padding: 3px 7px;
+}
+.tk-fr-add > summary:hover { color: var(--fg); }
+
+.tk-fr-reset {
+  margin-left: auto;
+  padding: 3px 8px;
+  border-radius: var(--ws-r-pill);
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+}
+.tk-fr-reset:hover { background: var(--ws-hover); color: var(--fg); }
+
+/* The popover. Wider than the other chip menus: it holds a token box and people's names. */
+.tk-fr-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 300px;
+  max-width: calc(100vw - 32px);
+}
+.tk-fr-picker .tk-fr-menu { width: 220px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-fr-row-bar { animation: none; }
+  .tk-fr-caret { transition: none; }
+}
+
+.tk-fr-head {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 2px 6px 6px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+}
+.tk-fr-head-prop { color: var(--text-muted); }
+.tk-fr-operator {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 5px;
+  border-radius: var(--ws-r-panel);
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+  font-weight: 560;
+}
+.tk-fr-operator:hover,
+.tk-fr-operator[aria-expanded="true"] { background: var(--ws-hover); }
+.tk-fr-icon {
+  display: inline-flex;
+  margin-left: auto;
+  padding: 3px;
+  border-radius: var(--ws-r-panel);
+  color: var(--text-muted);
+}
+.tk-fr-icon:hover,
+.tk-fr-icon[aria-expanded="true"] { background: var(--ws-hover); color: var(--fg); }
+
+.tk-fr-search,
+.tk-fr-tokens {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 3px 6px;
+  border-radius: var(--ws-r-panel);
+  border: 1px solid var(--ws-line-strong);
+  background: var(--ws-surface-quiet);
+  color: var(--text-muted);
+  cursor: text;
+}
+.tk-fr-search { flex-wrap: nowrap; margin-bottom: 4px; }
+.tk-fr-search:focus-within,
+.tk-fr-tokens:focus-within {
+  border-color: color-mix(in oklab, var(--accent) 70%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+}
+.tk-fr-search input,
+.tk-fr-input {
+  flex: 1 1 60px;
+  min-width: 60px;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  outline: none;
+}
+
+.tk-fr-token {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 1px 3px 1px 4px;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--fg) 9%, transparent);
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+  line-height: 18px;
+}
+.tk-fr-token-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-fr-token-x,
+.tk-fr-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  color: var(--text-muted);
+}
+.tk-fr-token-x:hover { background: var(--ws-hover); color: var(--fg); }
+.tk-fr-clear {
+  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--fg) 16%, transparent);
+  color: var(--fg);
+}
+.tk-fr-clear:hover { background: color-mix(in oklab, var(--fg) 26%, transparent); }
+
+.tk-fr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 300px;
+  margin-top: 4px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.tk-fr-row { display: contents; }
+.tk-fr-group {
+  margin: 7px 8px 3px;
+  color: var(--ds-text-quiet);
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.tk-fr-group:first-child { margin-top: 2px; }
+
+.tk-fr-option[data-active] { background: var(--ds-menu-hover); color: var(--fg); }
+.tk-fr-option[data-me-row] { font-weight: 560; }
+.tk-fr-option-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tk-fr-meta {
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-weight: 400;
+}
+.tk-fr-option > .tk-fr-meta { margin-left: auto; }
+.tk-fr-count {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+.tk-fr-tick {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: 14px;
+  justify-content: center;
+  color: var(--accent);
+}
+.tk-fr-danger:hover { color: var(--tk-status-blocked); }
+
+.tk-fr-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--accent) 22%, var(--ws-surface-raised));
+  color: var(--fg);
+  font-size: 9.5px;
+  font-weight: 650;
+}
+.tk-fr-token .tk-fr-avatar { width: 16px; height: 16px; font-size: 9px; }
+.tk-fr-avatar[data-me] { background: color-mix(in oklab, var(--accent) 45%, var(--ws-surface-raised)); }
+.tk-fr-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.tk-fr-hint,
+.tk-fr-empty {
+  margin: 4px 8px 6px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+  line-height: 1.45;
+}
+
+.tk-empty-action {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: var(--ws-r-pill);
+  border: 1px solid var(--ws-line);
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+}
+.tk-empty-action:hover { background: var(--ws-hover); }
+
+/* ── The list ─────────────────────────────────────────────────────────────── */
+
+.tk-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.tk-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px 6px;
+  background: var(--bg);
+  font-size: var(--ds-t-micro);
+}
+.tk-section-head::after { left: 16px; right: 16px; bottom: 0; }
+
+.tk-section-label { color: var(--fg); font-weight: 500; }
+/* D4: the whole header folds the section; the chevron is the button, stretched over the band. */
+.tk-section-fold {
+  display: inline-grid;
+  place-items: center;
+  margin-left: -4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: transform var(--ws-dur) var(--ws-ease);
+}
+.tk-section-fold::before { content: ""; position: absolute; inset: 0; }
+.tk-section-head:hover .tk-section-fold { color: var(--fg); }
+.tk-section[data-collapsed="true"] .tk-section-fold { transform: rotate(-90deg); }
+.tk-section-count { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.tk-section + .tk-section { margin-top: 4px; }
+.tk-list { padding-top: 2px; }
+
+.tk-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 8px);
+  height: var(--tk-row-height);
+  margin: 0 4px;
+  padding: 0 8px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-body);
+  text-align: left;
+  position: relative;
+  isolation: isolate;
+  transition: background var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+
+.tk-row:hover { background: color-mix(in oklab, var(--ws-hover) 70%, transparent); }
+.tk-row[data-selected="true"] { background: var(--ws-surface-quiet); color: var(--fg); position: relative; isolation: isolate; }
+
+/*
+  The key column keeps its width whether or not the task has a number. Rows whose ids slid left
+  and right as the store caught up would make the list look like it was rearranging itself.
+*/
+.tk-row-key {
+  flex: 0 0 64px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+
+.tk-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+}
+
+.tk-row-project {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.tk-glyph {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.tk-glyph[data-tone="progress"] { color: var(--tk-status-progress); }
+.tk-glyph[data-tone="review"] { color: var(--tk-status-review); }
+.tk-glyph[data-tone="blocked"] { color: var(--tk-status-blocked); }
+.tk-glyph[data-tone="open"] { color: var(--tk-status-open); }
+.tk-glyph[data-tone="done"] { color: var(--tk-status-done); }
+.tk-glyph[data-tone="dropped"] { color: var(--tk-status-dropped); }
+
+/* Priority reads as a ramp, so it is drawn as one: the higher it is, the brighter it sits. */
+.tk-glyph[data-priority="high"] { color: var(--fg); }
+.tk-glyph[data-priority="medium"] { color: var(--text-secondary); }
+.tk-glyph[data-priority="low"] { color: var(--text-muted); }
+.tk-glyph[data-priority="none"] { color: color-mix(in oklab, var(--text-muted) 55%, transparent); }
+/* No priority keeps its slot (the column lines up) but shows only on hover: a faint mark on every row read as noise. */
+.tk-glyph[data-priority="none"] { opacity: 0; transition: opacity var(--ws-dur) var(--ws-ease); }
+.tk-row:hover .tk-glyph[data-priority="none"],
+.tk-prop[open] .tk-glyph[data-priority="none"] { opacity: 1; }
+
+/* D7: the cursor/selected row carries a lead bar, readable on Light where the dither is faint. */
+.tk-row[data-selected="true"]::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+/*
+  D1: a row is its own stacking context (`isolation: isolate` for the dither), so its open menu's
+  z-index could not leave it and the next rows painted over the menu. The row with an open menu
+  rises above its neighbours instead.
+*/
+.tk-row:has(.tk-prop[open]),
+.tk-row-sortable:has(.tk-prop[open]) { z-index: 20; }
+.tk-row-sortable:has(.tk-prop[open]) { position: relative; }
+
+/* D8: the tick box. Shown on hover, and on every row once any row is ticked. */
+.tk-row-pick {
+  display: inline-grid;
+  flex: 0 0 16px;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  margin-left: -2px;
+  padding: 0;
+  border: 1.5px solid var(--text-muted);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--accent-fg);
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+.tk-row:hover .tk-row-pick,
+.tk-row-pick:focus-visible,
+.tk-list:has(.tk-row[data-picked="true"]) .tk-row-pick { opacity: 1; }
+.tk-row-pick[aria-checked="true"] { border-color: var(--accent); background: var(--accent); }
+.tk-row[data-picked="true"] { background: color-mix(in oklab, var(--accent) 9%, transparent); }
+
+.tk-prop-key {
+  margin-left: auto;
+  padding: 0 4px;
+  border: 1px solid var(--ws-line);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font: var(--ds-t-micro) / 1.4 ui-monospace, monospace;
+}
+
+/* The bulk bar floats at the foot of the list (D8). */
+.tk-column { position: relative; }
+.tk-bulk {
+  position: absolute;
+  z-index: 40;
+  bottom: 16px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 4px 4px 12px;
+  border: 1px solid var(--ds-workbench-popover-border);
+  border-radius: var(--ws-r-card);
+  background: var(--ds-workbench-popover-bg);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  transform: translateX(-50%);
+  animation: tk-toast-in 160ms ease-out;
+}
+.tk-bulk-count { margin-right: 6px; color: var(--fg); font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tk-bulk-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 10px;
+  border: 0;
+  border-radius: var(--ws-r-control);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--ds-t-micro);
+  white-space: nowrap;
+  cursor: pointer;
+  list-style: none;
+}
+.tk-bulk-button::-webkit-details-marker { display: none; }
+.tk-bulk-button:hover, .tk-bulk-menu[open] > .tk-bulk-button { background: var(--ws-hover); color: var(--fg); }
+.tk-bulk-menu > .tk-chip-menu { top: auto; bottom: calc(100% + 8px); transform-origin: bottom left; }
+.tk-bulk-sep { width: 1px; height: 18px; margin: 0 4px; background: var(--ws-line); }
+@media (prefers-reduced-motion: reduce) { .tk-bulk { animation: none; } }
+
+.tk-empty,
+.tk-error {
+  padding: 18px 12px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+}
+
+.tk-error { color: var(--ws-activity-warn, var(--ds-danger)); padding: 10px 16px; }
+
+/* Loading: the list's rows and the detail's page in their own shape (the pulse is .rs-skel). */
+.tk-skel-rows { margin: 0; padding: 10px 0 0; list-style: none; }
+.tk-row--skeleton { cursor: default; }
+.tk-row--skeleton:hover { background: none; }
+.tk-skel-key { flex: 0 0 52px; height: 10px; margin-right: 24px; }
+.tk-skel-title { height: 11px; }
+.tk-skel-detail { padding: 18px 16px; }
+.tk-empty-band { padding: 12px 16px; }
+/* Empty: one quiet line and its one way out, not a dashed box. */
+.tk-empty-band .rs-empty {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 10px 10px 14px;
+  border: 0;
+  border-radius: var(--ws-r-panel);
+  background: var(--ws-surface-quiet);
+  color: var(--text-muted);
+  font-size: var(--ds-t-meta);
+  text-align: left;
+}
+.tk-empty-band .rs-empty .rs-button { flex: 0 0 auto; }
+
+/* ── Writing: the composer row and the property menus ─────────────────────── */
+
+/*
+  The composer looks like the rows it makes, because that is what it is making. A panel in a
+  different shape would read as a form that happens to be above a list.
+*/
+.tk-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  height: var(--tk-row-height);
+  border-bottom: 1px solid var(--ws-line);
+  background: var(--ws-surface-quiet);
+}
+
+.tk-composer-mark { flex: 0 0 auto; color: var(--text-muted); }
+
+.tk-composer-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  outline: none;
+}
+
+.tk-composer-input::placeholder { color: var(--text-muted); }
+
+.tk-composer-select,
+.tk-composer-priority select {
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: var(--ds-t-micro);
+  outline: none;
+  cursor: pointer;
+}
+
+.tk-composer-priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tk-composer-add {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  border-radius: var(--ws-r-pill);
+  border: 1px solid var(--ws-line);
+  background: var(--ws-surface-raised);
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+}
+
+.tk-composer-add:disabled { opacity: 0.55; cursor: default; }
+.tk-composer-add:not(:disabled):hover { background: var(--ws-hover); }
+
+/* The title is the button now that the marks beside it are their own controls. */
+.tk-row-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--fg);
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+  font-size: inherit;
+  cursor: pointer;
+}
+
+.tk-row-edit {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  border-bottom: 1px solid var(--accent);
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  outline: none;
+}
+
+/* A mark you can change says so on hover, and says nothing the rest of the time. */
+.tk-prop { position: relative; flex: 0 0 auto; }
+
+.tk-prop-summary {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--ws-r-panel);
+  padding: 2px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.tk-prop-summary::-webkit-details-marker { display: none; }
+.tk-prop-summary:hover { background: var(--ws-hover); }
+.tk-prop[open] > .tk-prop-summary { background: var(--ws-surface-raised); }
+
+.tk-prop-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 170px;
+  padding: var(--ds-menu-pad);
+  border-radius: var(--ds-menu-radius);
+  border: 1px solid var(--ds-workbench-popover-border);
+  background: var(--ds-workbench-popover-bg);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  transform-origin: top left;
+  animation: var(--ds-menu-in);
+}
+
+/* ── One task, and what has happened to it ────────────────────────────────── */
+
+/*
+  `bb`'s issue page: a bar with the way back and the way to the neighbours, then a reading column
+  and a narrow Properties column. The reading column carries a MEASURE — past ~72ch the eye loses
+  the line it is returning to — and the page centres it rather than stretching prose edge to edge.
+*/
+
+.tk-detail {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  container-type: inline-size;
+}
+
+.tk-dbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 44px;
+  padding: 0 10px;
+  border-bottom: 0;
+  flex: 0 0 auto;
+  position: relative;
+}
+.tk-dbar::after { left: 12px; right: 12px; bottom: 0; }
+
+.tk-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-muted);
+  transition: background var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+
+.tk-icon-button:hover:not(:disabled) { background: var(--ws-hover); color: var(--fg); }
+.tk-icon-button:disabled { opacity: 0.35; cursor: default; }
+
+.tk-dbar-crumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--ds-t-body);
+}
+
+.tk-dbar-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.tk-dbar-project:hover { background: var(--ws-hover); color: var(--fg); }
+.tk-dbar-project .tk-nav-dot { margin: 0; }
+.tk-dbar-sep { flex: 0 0 auto; color: var(--text-muted); }
+
+.tk-dbar-key {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  font-size: var(--ds-t-meta);
+}
+
+.tk-dbar-step {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+}
+
+.tk-dbar-count {
+  margin-right: 6px;
+  font-size: var(--ds-t-micro);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.tk-detail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.tk-detail-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 48px;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 32px 40px 72px;
+}
+
+/* A narrow panel stacks: Properties first, because status is what someone opening a task checks. */
+@container (max-width: 760px) {
+  .tk-detail-page { grid-template-columns: minmax(0, 1fr); gap: 24px; padding: 24px 20px 48px; }
+}
+
+.tk-detail-main { min-width: 0; max-width: 920px; }
+
+.tk-detail-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 14px;
+  padding: 3px 10px 3px 6px;
+  border-radius: var(--ws-r-pill);
+  background: var(--ws-surface-quiet);
+  font-size: var(--ds-t-micro);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+/* A ring that fills: conic-gradient reads the ratio from one custom property. */
+.tk-progress-ring {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background:
+    radial-gradient(closest-side, var(--ws-surface) 62%, transparent 64%),
+    conic-gradient(var(--tk-status-done) var(--tk-progress, 0%), var(--ws-line-strong) 0);
+}
+
+.tk-detail-title {
+  margin: 0 0 18px;
+  font-size: var(--ds-t-display);
+  font-weight: 600;
+  line-height: 1.22;
+  letter-spacing: -0.018em;
+  color: var(--fg);
+  text-wrap: balance;
+}
+
+.tk-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border-radius: var(--ws-r-card);
+  font-size: var(--ds-t-body);
+  line-height: 1.5;
+  color: var(--fg);
+}
+
+.tk-callout > svg { flex: 0 0 auto; margin-top: 2px; }
+
+/* The one line on this page that changes what you do next — first under the title. */
+.tk-callout--blocked {
+  border: 1px solid color-mix(in oklab, var(--tk-status-blocked) 40%, transparent);
+  background: color-mix(in oklab, var(--tk-status-blocked) 10%, transparent);
+  border-color: color-mix(in oklab, var(--tk-status-blocked) 26%, transparent);
+}
+
+.tk-callout--blocked > svg { color: var(--tk-status-blocked); }
+
+.tk-callout--error {
+  display: block;
+  border: 1px solid color-mix(in oklab, var(--tk-status-blocked) 30%, transparent);
+  background: color-mix(in oklab, var(--tk-status-blocked) 7%, transparent);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--ds-t-micro);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border-color: color-mix(in oklab, var(--tk-status-blocked) 20%, transparent);
+}
+
+.tk-detail-section { margin-top: 36px; }
+
+/* Section heads: quiet capitals over the dotted rule, the list's own section language. */
+.tk-detail-h {
+  margin: 0 0 14px;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  color: var(--ds-text-quiet, var(--text-muted));
+  position: relative;
+  padding-bottom: 8px;
+  text-transform: uppercase;
+}
+.tk-detail-h::after { left: 0; right: 0; bottom: 0; }
+
+.tk-detail-empty {
+  margin: 0;
+  font-size: var(--ds-t-body);
+  color: var(--text-muted);
+}
+
+/* Sub-tasks: unruled rows with a soft hover, the list's own rhythm. */
+.tk-subtasks {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 0;
+}
+
+.tk-subtasks li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 34px;
+  padding: 4px 8px;
+  border-bottom: 0;
+  font-size: var(--ds-t-body);
+  color: var(--fg);
+  border-radius: var(--ws-r-control);
+  transition: background var(--ws-dur) var(--ws-ease);
+}
+.tk-subtasks li:hover { background: color-mix(in oklab, var(--ws-hover) 70%, transparent); }
+
+.tk-subtask-mark { flex: 0 0 auto; color: var(--text-muted); }
+.tk-subtasks li[data-status="in-progress"] .tk-subtask-mark { color: var(--tk-status-progress); }
+.tk-subtasks li[data-status="completed"] .tk-subtask-mark { color: var(--tk-status-done); }
+/* `completed` is the word the store writes — a finished sub-task dims and is struck through. */
+.tk-subtasks li[data-status="completed"] .tk-subtask-title { color: var(--text-muted); text-decoration: line-through; text-decoration-color: var(--ws-line-strong); }
+
+.tk-subtask-title { flex: 1 1 auto; min-width: 0; }
+.tk-subtask-who { flex: 0 0 auto; font-size: var(--ds-t-micro); color: var(--text-muted); }
+
+/* Activity: a timeline — a dotted spine with a dot per event, oldest first. */
+.tk-detail-activity-section { padding-top: 0; border-top: 0; }
+
+.tk-timeline {
+  position: relative;
+  margin: 0;
+  padding: 0 0 0 22px;
+  list-style: none;
+}
+
+.tk-timeline::before {
+  content: "";
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 5px;
+  width: 0;
+  background: none;
+  border-left: 1px dotted var(--ws-line-strong);
+}
+
+.tk-timeline li { position: relative; padding: 5px 0; }
+
+.tk-timeline li::before {
+  content: "";
+  position: absolute;
+  top: 13px;
+  left: -19px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 0;
+  background: color-mix(in oklab, var(--text-muted) 70%, transparent);
+  box-sizing: border-box;
+}
+/* The newest event is the lit one; older ones are small and quiet. */
+.tk-timeline li:last-child::before {
+  top: 11px;
+  left: -21px;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--bg);
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 18%, transparent);
+}
+
+.tk-timeline-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 4px;
+  font-size: var(--ds-t-body);
+  line-height: 1.6;
+}
+
+.tk-timeline-who { color: var(--fg); font-weight: 500; }
+.tk-timeline-what { color: var(--text-secondary); }
+.tk-timeline-when { color: var(--text-muted); font-size: var(--ds-t-meta); }
+
+.tk-timeline-summary {
+  margin: 2px 0 2px;
+  font-size: var(--ds-t-body);
+  line-height: 1.55;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+}
+
+.tk-timeline-meta {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+/* ── Properties ── */
+
+.tk-props {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px 10px 12px;
+  border-radius: var(--ws-r-card);
+  background: var(--ws-surface-quiet);
+}
+
+/* Stacked in a narrow panel, Properties scrolls away with the ticket. This must come after the
+   rule above: a container query adds no specificity, and placed before it `sticky` won and the
+   ticket scrolled underneath Properties, through its translucent ground. */
+@container (max-width: 760px) {
+  .tk-props { order: -1; position: static; padding-bottom: 12px; }
+}
+
+.tk-props-h {
+  margin: 18px 8px 6px;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  color: var(--ds-text-quiet, var(--text-muted));
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tk-props-h:first-child { margin-top: 0; }
+
+.tk-props-list { display: flex; flex-direction: column; gap: 2px; }
+
+.tk-props-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 0 8px;
+  font-size: var(--ds-t-body);
+  color: var(--fg);
+}
+
+.tk-props-value .tk-nav-dot { margin: 0; }
+
+.tk-props-note {
+  padding: 0 8px;
+  font-size: var(--ds-t-micro);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.tk-props-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-body);
+  text-align: left;
+}
+
+.tk-props-link:hover { background: var(--ws-hover); color: var(--fg); }
+
+/* The tasks a ticket has become: one line each, key first, where it lives after. */
+.tk-props-work {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tk-props-work .tk-props-link { width: 100%; }
+
+.tk-props-work-where {
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+}
+
+.tk-props-foot {
+  margin-top: 18px;
+  padding: 0 8px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+/* Status and priority as full rows: the mark AND its name, the whole row the target. */
+.tk-prop--labelled { display: block; }
+
+.tk-prop--labelled > .tk-prop-summary {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 8px;
+  border-radius: var(--ws-r-control);
+  transition: background var(--ws-dur) var(--ws-ease);
+}
+.tk-prop--labelled > .tk-prop-summary:hover { background: color-mix(in oklab, var(--ws-hover) 70%, transparent); }
+
+.tk-prop-label { font-size: var(--ds-t-body); color: var(--fg); }
+
+/* Delegate in the Properties column is the page's one action: a full-width button. */
+.tk-props .tk-delegate { width: 100%; }
+
+.tk-props .tk-delegate-summary {
+  justify-content: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-raised);
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  font-weight: 500;
+  box-shadow: var(--ds-shadow-soft);
+  transition: background var(--ws-dur) var(--ws-ease), transform var(--ws-dur) var(--ws-ease);
+}
+
+.tk-props .tk-delegate-summary:hover { filter: none; color: var(--fg); background: var(--ws-hover); }
+.tk-props .tk-delegate-summary:active { transform: translateY(0.5px); }
+.tk-props .tk-delegate-menu { left: 0; right: 0; min-width: 0; }
+
+.tk-select-chip--block { display: flex; margin-bottom: 6px; }
+.tk-select-chip--block > .tk-select-chip-value { flex: 1 1 auto; }
+
+/*
+  Connecting an Obsidian vault, in the row where the vault will live.
+
+  No card and no panel: the form borrows the nav column's own 8px rhythm and its one hairline, so
+  opening it changes what the row SAYS rather than introducing a new surface to read. The only
+  colour it adds is Obsidian's violet, and only once the vault is connected — a mark that is
+  muted while it is still an invitation.
+*/
+
+.tk-vault-row { width: 100%; }
+
+.tk-vault-mark {
+  flex: 0 0 auto;
+  display: inline-flex;
+  justify-content: center;
+  width: 16px;
+  color: var(--text-muted);
+}
+
+/* The mark is Obsidian's own violet now, so "not connected yet" is said by taking the colour away
+   rather than by a muted currentColor. Connected, it wears its full colour. */
+.tk-vault-row:not([data-connected="true"]) .tk-vault-mark { filter: grayscale(1); opacity: 0.7; }
+.tk-vault-row:not([data-connected="true"]):hover .tk-vault-mark { filter: none; opacity: 1; }
+
+.tk-vault-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  /* One quiet surface, inset like a nav row, so the form reads as the row that opened — not a
+     loose stack of controls floating in the column. */
+  margin: 4px 0 0;
+  padding: 10px;
+  border-radius: var(--ws-r-panel);
+  background: var(--ws-surface-quiet);
+  border: 1px solid var(--ws-line);
+  animation: tk-vault-in 120ms ease-out;
+}
+
+/* Opacity only. The column must not reflow while someone is reading the line that just appeared. */
+@keyframes tk-vault-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-vault-form { animation: none; }
+}
+
+.tk-vault-label {
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* The box is the field; the input inside it has no border of its own. Focus tints the box the
+   way a focused pane is tinted — never the hard accent ring that read as a white rectangle. */
+.tk-vault-field {
+  display: flex;
+  align-items: center;
+  height: 30px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  background: var(--bg);
+  transition: border-color var(--ws-dur) var(--ws-ease);
+}
+
+.tk-vault-field:focus-within { border-color: var(--ws-focus-line); }
+
+.tk-vault-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-control, 6px);
+  background: var(--ws-surface);
+  color: var(--text-primary);
+  font-size: var(--ds-t-meta);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.tk-vault-input:focus { outline: none; border-color: var(--accent); }
+
+/* Inside the vault field the BOX is the border (DelegateMenu keeps the standalone input above). */
+.tk-vault-field .tk-vault-input {
+  height: 100%;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+  outline: none;
+}
+
+.tk-vault-field .tk-vault-input:focus { border-color: transparent; }
+.tk-vault-field .tk-vault-input::placeholder { color: var(--text-muted); }
+
+.tk-vault-browse {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  margin-right: 2px;
+  border-radius: calc(var(--ws-r-control) - 2px);
+  color: var(--text-muted);
+}
+
+.tk-vault-browse:hover { background: var(--ws-hover); color: var(--fg); }
+
+.tk-vault-found {
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  line-height: 1.4;
+  /* Wraps rather than truncates: a path that is wrong is exactly the string you need to read. */
+  overflow-wrap: anywhere;
+}
+
+.tk-vault-found[data-tone="ok"] { color: var(--tk-status-done); }
+.tk-vault-found[data-tone="warn"] { color: var(--tk-status-progress); }
+.tk-vault-found[data-tone="error"] { color: var(--tk-status-blocked); }
+
+.tk-vault-scope { color: var(--text-muted); }
+
+.tk-vault-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.tk-vault-cancel,
+.tk-vault-connect,
+.tk-vault-disconnect {
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--ws-r-control);
+  font-size: var(--ds-t-micro);
+}
+
+.tk-vault-cancel { color: var(--text-secondary); }
+.tk-vault-cancel:hover { background: var(--ws-hover); color: var(--fg); }
+
+.tk-vault-connect {
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 500;
+}
+
+.tk-vault-connect:disabled {
+  background: var(--ws-surface-raised);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.tk-vault-connect:not(:disabled):hover { filter: brightness(1.08); }
+
+/* Far left and plain text: destructive, so it is never the button the hand lands on. */
+.tk-vault-disconnect {
+  margin-right: auto;
+  padding: 0 4px;
+  color: var(--text-muted);
+}
+
+.tk-vault-disconnect:hover { color: var(--ws-activity-warn); }
+
+/*
+  A project's own stretch of the list, drawn only when there is more than one to tell apart.
+  Quieter than a status header: the status headers inside it are what the eye is scanning, and a
+  louder line above them would compete with the thing it is introducing.
+*/
+.tk-project-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 16px 12px 2px;
+}
+
+.tk-project + .tk-project { border-top: 1px solid var(--ws-line); margin-top: 8px; }
+
+.tk-project-name {
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.tk-project-count {
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+
+/*
+  A vault ticket, read.
+
+  The prose here was written by a person in Obsidian and pasted from Notion: long, heavy with
+  tables, and not shaped for this column. So the type is set for reading — a measure, real
+  spacing between blocks, tables that can be scanned — rather than for the density the task list
+  needs. The list is scanned; this is read.
+*/
+
+.tk-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.tk-detail-tag {
+  padding: 1px 7px;
+  border: 1px solid var(--ws-line);
+  border-radius: 999px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+/*
+  The brief, rendered — modelled on `bb`'s issue body.
+
+  Rhythm first: one line-height (1.65), one block gap (12px), headings that sit closer to what
+  follows than to what precedes. Inline code is a quiet tint with NO border: bordered chips at
+  body size made every path a small box and pushed the lines apart. Everything scales off the
+  body size, so a heading after a table and a list inside a list space themselves the same way.
+*/
+.tk-markdown {
+  --tk-md-size: 15px;
+  --tk-md-gap: 12px;
+  font-size: var(--tk-md-size);
+  line-height: 1.65;
+  color: var(--tk-md-text);
+  overflow-wrap: break-word;
+  font-feature-settings: "cv11", "ss01";
+}
+
+.tk-markdown > :first-child { margin-top: 0 !important; }
+.tk-markdown > :last-child { margin-bottom: 0 !important; }
+
+.tk-markdown p,
+.tk-markdown ul,
+.tk-markdown ol,
+.tk-markdown pre,
+.tk-markdown blockquote,
+.tk-markdown .tk-md-table { margin: 0 0 var(--tk-md-gap); }
+
+.tk-markdown h1,
+.tk-markdown h2,
+.tk-markdown h3,
+.tk-markdown h4,
+.tk-markdown h5,
+.tk-markdown h6 {
+  margin: 1.9em 0 0.55em;
+  color: var(--fg);
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.tk-markdown h1 { font-size: 22px; }
+.tk-markdown h2 { font-size: 19px; }
+.tk-markdown h3 { font-size: 16.5px; }
+.tk-markdown h4,
+.tk-markdown h5,
+.tk-markdown h6 { font-size: var(--tk-md-size); }
+
+.tk-markdown strong { color: var(--fg); font-weight: 600; }
+.tk-markdown em { font-style: italic; }
+
+.tk-markdown a {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--fg) 30%, transparent);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.tk-markdown a:hover { text-decoration-color: var(--fg); }
+
+/* ── Lists ── */
+.tk-markdown ul,
+.tk-markdown ol { padding-left: 1.5em; }
+.tk-markdown ul { list-style: disc; }
+.tk-markdown ol { list-style: decimal; }
+.tk-markdown ul ul { list-style: circle; }
+.tk-markdown ul ul ul { list-style: square; }
+.tk-markdown li { padding-left: 0.3em; }
+.tk-markdown li + li { margin-top: 4px; }
+.tk-markdown li > p { margin: 0; }
+.tk-markdown li > ul,
+.tk-markdown li > ol { margin: 4px 0 0; }
+.tk-markdown li::marker { color: color-mix(in oklab, var(--tk-md-text) 60%, transparent); }
+.tk-markdown ol > li::marker { font-variant-numeric: tabular-nums; }
+
+/*
+  GFM task lists: the box replaces the bullet and HANGS in the left margin, so a wrapped line
+  starts under the text, not under the box.
+
+  Deliberately NOT `display: flex` on the item. A flex item's every child — each text run, each
+  `<strong>`, each `<code>` — becomes its own flex column, which shredded any checklist line that
+  had bold or code in it into narrow columns and stood `/plans` up one letter per line. Normal
+  inline flow plus an absolutely placed box keeps the text a paragraph.
+
+  The box may be the item's direct child (a tight list) or sit inside its `<p>` (a loose list,
+  when items are separated by blank lines) — both are matched.
+*/
+.tk-markdown ul.contains-task-list { padding-left: 0; list-style: none; }
+
+.tk-markdown li.task-list-item {
+  position: relative;
+  padding-left: 26px;
+  list-style: none;
+}
+
+.tk-markdown li.task-list-item + li.task-list-item { margin-top: 6px; }
+
+.tk-markdown li.task-list-item > input[type="checkbox"],
+.tk-markdown li.task-list-item > p:first-child > input[type="checkbox"]:first-child {
+  appearance: none;
+  position: absolute;
+  left: 0;
+  /* Centred on the FIRST line: (line-height − box) / 2. */
+  top: calc((1.65em - 15px) / 2);
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border: 1.5px solid var(--ws-line-strong);
+  border-radius: 4px;
+  background: transparent;
+}
+
+.tk-markdown li.task-list-item input[type="checkbox"]:checked {
+  border-color: var(--tk-status-done);
+  background:
+    no-repeat center / 10px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.2 5 8.5l4.5-5'/%3E%3C/svg%3E"),
+    var(--tk-status-done);
+}
+
+/* A nested list inside a checklist item keeps normal bullets, indented under the text. */
+.tk-markdown li.task-list-item > ul:not(.contains-task-list) { list-style: disc; }
+
+.tk-markdown li.task-list-item:has(> input:checked),
+.tk-markdown li.task-list-item:has(> p:first-child > input:checked) { color: color-mix(in oklab, var(--tk-md-text) 72%, transparent); }
+
+/* ── Code ── */
+.tk-markdown code {
+  padding: 0.14em 0.38em;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--fg) 8%, transparent);
+  color: var(--fg);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.82em;
+  /* A long path may break anywhere rather than overflow the column. */
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.tk-markdown pre {
+  padding: 14px 16px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-panel);
+  background: color-mix(in oklab, var(--fg) 4%, transparent);
+  overflow-x: auto;
+  line-height: 1.6;
+}
+
+.tk-markdown pre code {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--tk-md-text);
+  font-size: 12.5px;
+  overflow-wrap: normal;
+  white-space: pre;
+}
+
+/* ── Quotes, rules, images ── */
+.tk-markdown blockquote {
+  padding: 2px 0 2px 16px;
+  border-left: 3px solid var(--ws-line-strong);
+  color: color-mix(in oklab, var(--tk-md-text) 80%, transparent);
+}
+
+.tk-markdown blockquote > :last-child { margin-bottom: 0; }
+
+.tk-markdown hr {
+  margin: 28px 0;
+  border: 0;
+  border-top: 1px solid var(--ws-line);
+}
+
+/* `height: auto` keeps a GitHub `<img width=…>` in proportion when max-width shrinks it. */
+.tk-markdown img { max-width: 100%; height: auto; border-radius: var(--ws-r-panel); }
+
+/* ── GitHub's HTML (LOT2-107): folded sections and keys ── */
+.tk-markdown details {
+  margin: 0 0 1em;
+  padding: 8px 12px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-panel);
+}
+
+.tk-markdown details > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.tk-markdown details[open] > summary { margin-bottom: 8px; }
+.tk-markdown details > :last-child { margin-bottom: 0; }
+
+.tk-markdown kbd {
+  padding: 0.1em 0.4em;
+  border: 1px solid var(--ws-line-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.8em;
+}
+
+/* ── Obsidian [[references]] ── */
+.tk-md-ref {
+  display: inline;
+  padding: 0.08em 0.4em;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--tk-status-review) 14%, transparent);
+  color: color-mix(in oklab, var(--tk-status-review) 70%, var(--fg));
+  font-size: 0.92em;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+button.tk-md-ref { cursor: pointer; font-family: inherit; line-height: inherit; }
+button.tk-md-ref:hover { background: color-mix(in oklab, var(--tk-status-review) 24%, transparent); }
+
+/* ── Tables: ruled, a quiet header band, their own scroll box when wider ── */
+.tk-md-table {
+  overflow-x: auto;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-panel);
+}
+
+.tk-md-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.tk-md-table th,
+.tk-md-table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--ws-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.tk-md-table td + td,
+.tk-md-table th + th { border-left: 1px solid var(--ws-line); }
+.tk-md-table tr:last-child td { border-bottom: 0; }
+
+.tk-md-table th {
+  background: color-mix(in oklab, var(--fg) 5%, transparent);
+  color: var(--fg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tk-md-table td code { font-size: 0.86em; }
+
+/*
+  Delegate. Pressing it spawns a real process, so it is drawn as a deliberate control rather than
+  another quiet mark in the header row — and it stays quiet until there is something to press.
+*/
+
+.tk-delegate { position: relative; }
+
+.tk-delegate-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: 1px solid var(--ws-line);
+  border-radius: 999px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-secondary);
+  cursor: pointer;
+  list-style: none;
+}
+
+.tk-delegate-summary::-webkit-details-marker { display: none; }
+.tk-delegate-summary:hover { border-color: var(--accent); color: var(--text-primary); }
+
+.tk-delegate-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 300px;
+  padding: 8px;
+  border: 1px solid var(--ds-workbench-popover-border);
+  border-radius: var(--ws-r-panel);
+  background: var(--ds-workbench-popover-bg);
+  box-shadow: var(--ds-workbench-popover-shadow);
+}
+
+.tk-delegate-row { display: flex; align-items: center; gap: 4px; }
+.tk-delegate-row .tk-chip-option { flex: 1 1 auto; }
+.tk-delegate-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
+
+/* What the name runs, in words — `Sonnet 5 · High` — beside it; the raw command is the tooltip. */
+.tk-delegate-agent {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+.tk-delegate-remove {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  padding: 4px 6px;
+  border-radius: var(--ws-r-control, 6px);
+  color: var(--text-muted);
+}
+
+/* Edit, not delete — deleting lives in the editor, behind one more deliberate click. */
+.tk-delegate-remove:hover { color: var(--fg); background: var(--ws-hover); }
+
+.tk-delegate-note {
+  padding: 2px 4px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.tk-delegate-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--ws-r-panel);
+  text-align: left;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+.tk-delegate-new:hover { color: var(--fg); background: var(--ws-hover); }
+
+
+/* Walking back into a session a dispatch recorded. Quiet: it sits inside a history line, and the
+   line is what is being read. */
+.tk-detail-resume {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border: 1px solid var(--ws-line);
+  border-radius: 999px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+.tk-detail-resume:hover { border-color: var(--accent); color: var(--text-primary); }
+
+/* Where a task came from. Quiet, under the title: it explains the work rather than being it. */
+.tk-detail-source {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ds-t-meta);
+  color: var(--text-muted);
+}
+
+.tk-detail-source .tk-vault-mark { color: var(--tk-status-review); }
+.tk-detail-source button { color: var(--accent); font-size: inherit; }
+.tk-detail-source button:hover { text-decoration: underline; }
+
+/* ── Modals: New task and the preset editor ───────────────────────────────── */
+
+/*
+  Covers the Tasks surface (list AND its sidebar), never the window rail — the same boundary the
+  Tasks panel itself keeps. The dim is the page's own `--bg`, so it darkens a dark theme and pales
+  a light one instead of dropping a black sheet over white.
+*/
+.tk-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 12vh 16px 16px;
+  background: color-mix(in oklab, var(--bg) 70%, transparent);
+  animation: tk-modal-fade 120ms ease-out;
+}
+
+.tk-modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(100%, 460px);
+  max-height: 100%;
+  overflow: auto;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-card);
+  background: var(--ws-surface);
+  box-shadow: 0 24px 60px -24px color-mix(in srgb, var(--ds-shadow-ink) 60%, transparent);
+  animation: tk-modal-rise 140ms var(--ws-ease);
+}
+
+.tk-modal--lg { width: min(100%, 620px); }
+
+@keyframes tk-modal-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tk-modal-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* The composer springs in, a touch larger than the other sheets' rise. */
+.tk-modal.tk-compose {
+  animation: tk-compose-in 220ms var(--ws-ease-spring) both;
+  transform-origin: 50% 0;
+}
+@keyframes tk-compose-in {
+  from { opacity: 0; transform: translateY(4px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-modal-backdrop, .tk-modal, .tk-modal.tk-compose { animation: none; }
+}
+
+.tk-modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-muted);
+}
+
+.tk-modal-close:hover { background: var(--ws-hover); color: var(--fg); }
+
+.tk-modal-refusal {
+  font-size: var(--ds-t-micro);
+  color: var(--tk-status-blocked);
+}
+
+/* Buttons: one primary, the rest quiet. */
+.tk-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+}
+
+.tk-button:hover { background: var(--ws-hover); color: var(--fg); }
+
+.tk-button--primary { background: var(--accent); color: var(--accent-fg); }
+.tk-button--primary:hover { background: var(--accent); color: var(--accent-fg); filter: brightness(1.08); }
+.tk-button--primary:disabled {
+  background: var(--ws-surface-raised);
+  color: var(--text-muted);
+  filter: none;
+  cursor: not-allowed;
+}
+
+.tk-button--danger { margin-right: auto; padding: 0 4px; color: var(--text-muted); }
+.tk-button--danger:hover { background: transparent; color: var(--tk-status-blocked); }
+
+/* ── New task ── */
+
+.tk-compose-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px 14px;
+}
+
+.tk-compose-crumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding-right: 32px;
+  font-size: var(--ds-t-micro);
+  color: var(--ds-text-quiet, var(--text-muted));
+  position: relative;
+  padding-bottom: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.tk-compose-crumb::after { left: 0; right: 0; bottom: 0; }
+
+.tk-compose-crumb .tk-nav-dot { margin: 0; }
+.tk-compose-crumb-project { color: inherit; font-weight: 500; }
+
+/* Borderless: the modal is the box. A title field in a second box would read as a form. */
+.tk-compose-title,
+.tk-compose-description {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--fg);
+  outline: none;
+  resize: none;
+}
+
+.tk-compose-title { font-size: var(--ds-t-head); font-weight: 600; letter-spacing: -0.012em; line-height: 1.3; }
+.tk-compose-description { min-height: 84px; font-size: var(--ds-t-body); line-height: 1.6; color: var(--text-secondary); }
+.tk-compose-title::placeholder,
+.tk-compose-description::placeholder { color: color-mix(in oklab, var(--text-muted) 80%, transparent); }
+.tk-compose-title::placeholder,
+.tk-compose-description::placeholder { color: var(--text-muted); font-weight: inherit; }
+
+.tk-compose-props {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+/*
+  A property chip that IS a native <select>: the select is laid over the chip, invisible, so the
+  OS menu, keyboard and screen-reader behaviour all come for free while the chip shows the glyph.
+*/
+.tk-select-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 8px 0 9px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-micro);
+  cursor: pointer;
+}
+
+.tk-select-chip:hover { background: var(--ws-hover); color: var(--fg); }
+.tk-select-chip:focus-within { border-color: var(--ws-focus-line); }
+.tk-select-chip .tk-nav-dot { width: 10px; height: 10px; margin: 0; border-radius: 3px; }
+.tk-select-chip > svg:last-of-type { color: var(--text-muted); }
+.tk-select-chip-value { color: var(--fg); white-space: nowrap; }
+/* In the composer the chips are a quiet surface; the edge appears only under the hand or focus. */
+.tk-compose .tk-select-chip {
+  border-color: transparent;
+  background: var(--ws-surface-quiet);
+  transition: background var(--ws-dur) var(--ws-ease), border-color var(--ws-dur) var(--ws-ease);
+}
+.tk-compose .tk-select-chip:hover { border-color: var(--ws-line); background: var(--ws-hover); }
+.tk-compose .tk-select-chip:focus-within { border-color: var(--ws-focus-line); }
+
+.tk-select-chip select {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  font-size: var(--ds-t-body);
+}
+
+.tk-compose-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px 10px 18px;
+  border-top: 0;
+  position: relative;
+}
+.tk-compose-foot::before { top: 0; left: 18px; right: 18px; }
+
+/* Create is the raised control, as New task is in the list. */
+.tk-compose .tk-button--primary {
+  border: 1px solid var(--ws-line);
+  background: var(--ws-surface-raised);
+  color: var(--fg);
+  box-shadow: var(--ds-shadow-soft);
+  transition: background var(--ws-dur) var(--ws-ease), transform var(--ws-dur) var(--ws-ease);
+}
+.tk-compose .tk-button--primary:hover:not(:disabled) { filter: none; background: var(--ws-hover); color: var(--fg); }
+.tk-compose .tk-button--primary:active:not(:disabled) { transform: translateY(0.5px); }
+.tk-compose .tk-button--primary:disabled { box-shadow: none; border-color: transparent; }
+
+.tk-compose-hint {
+  margin-left: auto;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  padding: 1px 5px;
+  border: 1px solid var(--ws-line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--ws-surface-quiet);
+  font-variant-numeric: tabular-nums;
+  line-height: 14px;
+}
+
+.tk-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.tk-check input { accent-color: var(--accent); width: 14px; height: 14px; }
+
+/* ── The preset editor ── */
+
+.tk-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 20px;
+}
+
+.tk-form-head { padding-right: 28px; }
+.tk-form-title { font-size: 15px; font-weight: 600; color: var(--fg); }
+.tk-form-lede { margin-top: 4px; font-size: var(--ds-t-micro); line-height: 1.5; color: var(--text-secondary); }
+
+.tk-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tk-field-label { font-size: var(--ds-t-micro); font-weight: 600; color: var(--text-secondary); }
+
+.tk-field-hint {
+  margin-top: -8px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.tk-field-hint code {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  color: var(--text-secondary);
+}
+
+.tk-input {
+  width: 100%;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  background: var(--bg);
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  outline: none;
+  transition: border-color var(--ws-dur) var(--ws-ease);
+}
+
+.tk-input:focus { border-color: var(--ws-focus-line); }
+.tk-input::placeholder { color: var(--text-muted); }
+.tk-input--mono { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--ds-t-micro); }
+.tk-input--area { height: auto; min-height: 88px; padding: 8px 10px; line-height: 1.5; resize: vertical; }
+
+.tk-form-foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* ── Preset editor: agent, model, reasoning, permissions ──
+   bb's picker shape (one trigger, agent segments, model rows, a reasoning strip) on this surface's
+   own tokens. Every choice here becomes a flag, so the controls only ever offer what the CLI takes.
+   Compact on purpose: 32px controls, one segmented-control language for agent, reasoning and
+   permissions, colour only where it means something (amber = no approvals). */
+
+.tk-modal--preset { width: min(100%, 500px); }
+.tk-modal--preset .tk-form { gap: 16px; padding: 18px 18px 16px; }
+
+.tk-field > .tk-field-hint { margin-top: 0; line-height: 1.45; }
+.tk-field-hint[data-tone="warn"] { color: color-mix(in oklab, var(--tk-status-progress) 85%, var(--fg)); }
+.tk-field-error { font-size: var(--ds-t-micro); color: var(--tk-status-blocked); }
+.tk-input[aria-invalid="true"] { border-color: color-mix(in oklab, var(--tk-status-blocked) 60%, transparent); }
+.tk-input[data-tone="warn"] { border-color: color-mix(in oklab, var(--tk-status-progress) 55%, transparent); }
+.tk-field-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: var(--ds-t-micro);
+  line-height: 1.45;
+  color: var(--tk-status-progress);
+}
+.tk-field-warn > svg { flex: 0 0 auto; margin-top: 2px; }
+.tk-field-label-row { display: flex; align-items: center; justify-content: space-between; }
+
+/* The vendor mark through a mask, in currentColor — same rule as the pane header's runner mark. */
+.tk-agent-logo {
+  display: inline-block;
+  flex: 0 0 auto;
+  background: currentColor;
+  -webkit-mask: var(--tk-agent-logo) center / contain no-repeat;
+  mask: var(--tk-agent-logo) center / contain no-repeat;
+}
+.tk-agent-glyph { flex: 0 0 auto; }
+
+/* ── Segmented control: one track, one raised thumb ── */
+.tk-seg {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--ws-line);
+  border-radius: 9px;
+  background: color-mix(in oklab, var(--bg) 85%, black);
+}
+.tk-seg-option {
+  display: inline-flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 7px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+.tk-seg-option:hover { color: var(--fg); }
+.tk-seg-option[aria-checked="true"],
+.tk-seg-option[aria-selected="true"] {
+  background: var(--ws-surface-raised);
+  color: var(--fg);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--ds-shadow-ink) 35%, transparent), inset 0 0 0 1px var(--ws-line);
+}
+.tk-seg-option:focus-visible { outline: 1px solid var(--ws-focus-line); outline-offset: -1px; }
+
+/* Agents: icon-only, equal segments; the name is in the head line below and the tooltip. */
+.tk-seg--agents .tk-seg-option--agent { padding: 0; }
+
+/* Permissions: the no-approvals choice is amber when it is the one chosen. */
+.tk-seg--perm .tk-seg-option[data-tone="warn"][aria-checked="true"] {
+  background: color-mix(in oklab, var(--tk-status-progress) 16%, var(--ws-surface-raised));
+  color: var(--tk-status-progress);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--tk-status-progress) 35%, transparent);
+}
+.tk-perm-icon { flex: 0 0 auto; }
+.tk-full-access { flex: 0 0 auto; color: var(--tk-status-progress); }
+.tk-perm-flag {
+  margin-left: 6px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ── The trigger ── */
+.tk-pick-trigger {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  background: var(--bg);
+  color: var(--fg);
+  text-align: left;
+  transition: border-color var(--ws-dur) var(--ws-ease);
+}
+.tk-pick-trigger:hover { border-color: color-mix(in oklab, var(--fg) 22%, transparent); }
+.tk-pick-trigger:focus-visible,
+.tk-pick-trigger[data-open] { border-color: var(--ws-focus-line); outline: none; }
+.tk-pick-chevron { flex: 0 0 auto; margin-left: auto; color: var(--text-muted); }
+.tk-pick-value { display: flex; align-items: baseline; gap: 7px; min-width: 0; font-size: var(--ds-t-body); }
+.tk-pick-agent { color: var(--text-muted); }
+.tk-pick-model { font-weight: 500; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-pick-effort { color: var(--text-secondary); }
+.tk-pick-effort::before { content: "·"; margin-right: 7px; color: var(--text-muted); }
+
+/* ── The dropdown ── */
+.tk-pick-pop {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  max-height: min(460px, 70vh);
+  overflow: hidden auto;
+  border: 1px solid var(--ds-workbench-popover-border);
+  border-radius: 12px;
+  background: var(--ds-workbench-popover-bg);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  animation: tk-modal-rise 120ms var(--ws-ease);
+}
+@media (prefers-reduced-motion: reduce) { .tk-pick-pop { animation: none; } }
+
+.tk-pick-top { display: flex; flex-direction: column; gap: 8px; padding: 8px 8px 6px; border-bottom: 1px solid var(--ws-line); }
+.tk-pick-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 4px; }
+.tk-pick-head-title { font-size: var(--ds-t-micro); font-weight: 500; color: var(--text-secondary); }
+.tk-pick-probe { display: inline-flex; align-items: center; gap: 6px; font-size: var(--ds-t-micro); color: var(--text-muted); }
+.tk-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tk-status-blocked); }
+.tk-pick-probe[data-ok] .tk-dot { background: var(--tk-status-done); }
+
+.tk-pick-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--ws-line);
+  color: var(--text-muted);
+}
+.tk-pick-search input { flex: 1 1 auto; min-width: 0; background: none; border: 0; outline: none; color: var(--fg); font-size: var(--ds-t-body); }
+.tk-pick-search input::placeholder { color: var(--text-muted); }
+
+.tk-pick-section { padding: 6px 12px 2px; font-size: 11px; font-weight: 500; color: var(--text-muted); }
+/* One line per model, bb-style; the description lives in the tooltip. The list scrolls on its own
+   so the reasoning strip below never leaves the popover. */
+.tk-pick-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 232px;
+  overflow-y: auto;
+  padding: 0 4px 4px;
+  outline: none;
+}
+.tk-pick-row {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.tk-pick-row-tag { font-size: 11px; color: var(--text-muted); }
+.tk-pick-row[data-active] { background: var(--ws-hover); }
+.tk-pick-row-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ds-t-body); color: var(--fg); }
+.tk-pick-row-name--quiet { color: var(--text-secondary); }
+.tk-pick-check { flex: 0 0 auto; color: transparent; }
+.tk-pick-check[data-on] { color: var(--fg); }
+.tk-pick-empty { padding: 10px 8px; font-size: var(--ds-t-micro); color: var(--text-muted); }
+.tk-pick-note { padding: 2px 12px 12px; font-size: var(--ds-t-micro); line-height: 1.45; color: var(--text-muted); }
+
+.tk-pick-effort-row { display: flex; flex-direction: column; gap: 6px; padding: 2px 8px 8px; border-top: 1px solid var(--ws-line); }
+.tk-pick-effort-head { display: flex; align-items: center; justify-content: space-between; padding: 0 4px; }
+.tk-pick-effort-head .tk-pick-section { padding: 8px 0 0; }
+.tk-pick-keys { padding-top: 8px; font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; color: var(--text-muted); }
+
+/* ── Advanced ── */
+.tk-advanced { margin-top: -2px; }
+.tk-advanced-toggle { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: var(--ds-t-micro); font-weight: 500; }
+.tk-advanced-toggle:hover { color: var(--fg); }
+.tk-advanced-summary { margin-left: 2px; font-weight: 400; color: var(--text-muted); }
+.tk-advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-panel);
+  background: color-mix(in oklab, var(--bg) 60%, transparent);
+}
+
+/* The command wraps instead of clipping: it is read, not edited. */
+.tk-command {
+  display: block;
+  padding: 8px 10px;
+  border-radius: var(--ws-r-control);
+  background: color-mix(in oklab, var(--bg) 70%, black);
+  color: var(--text-secondary);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--ds-t-micro);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.tk-confirm-ask { margin-right: auto; font-size: var(--ds-t-micro); color: var(--text-secondary); }
+
+/* A preset in the sidebar: logo, name, and what it runs in words. */
+.tk-nav-item--preset { height: auto; min-height: 38px; padding-top: 4px; padding-bottom: 4px; }
+.tk-nav-item--preset > .tk-agent-logo,
+.tk-nav-item--preset > .tk-agent-glyph { color: var(--text-muted); }
+.tk-nav-item--preset:hover > .tk-agent-logo { color: var(--fg); }
+.tk-nav-preset-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 0; min-width: 0; }
+.tk-nav-preset-meta { display: flex; align-items: center; gap: 5px; font-size: var(--ds-t-micro); color: var(--text-muted); white-space: nowrap; overflow: hidden; }
+.tk-nav-item > svg.tk-nav-preset-edit { width: 12px; opacity: 0; transition: opacity var(--ws-dur) var(--ws-ease); }
+.tk-nav-item--preset:hover > svg.tk-nav-preset-edit,
+.tk-nav-item--preset:focus-visible > svg.tk-nav-preset-edit { opacity: 1; }
+.tk-delegate-row .tk-agent-logo { color: var(--text-secondary); }
+
+.tk-dbar-trailing { display: flex; align-items: center; margin-left: 4px; }
+.tk-dbar-step + .tk-dbar-trailing { padding-left: 6px; border-left: 1px solid var(--ws-line); }
+.tk-dbar-crumb + .tk-dbar-trailing { margin-left: auto; }
+
+/* ── Editing a vault ticket in place ─────────────────────────────────────── */
+
+/*
+  The editor IS the rendered page: the same `.tk-markdown` type set, so switching from reading to
+  writing moves nothing on screen. What it adds is only what an editor needs — a caret, a
+  placeholder for an empty section, and a faint hover wash that says "this is editable".
+*/
+.tk-editor-host { position: relative; margin: 0 -10px; }
+
+.tk-editor {
+  min-height: 1.65em;
+  padding: 4px 10px;
+  border-radius: var(--ws-r-control);
+  outline: none;
+  caret-color: var(--fg);
+  transition: background var(--ws-dur) var(--ws-ease);
+}
+
+.tk-editor:hover { background: color-mix(in oklab, var(--fg) 2.5%, transparent); }
+.tk-editor:focus { background: transparent; }
+
+.tk-editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.tk-editor ::selection { background: color-mix(in oklab, var(--accent) 22%, transparent); }
+
+/* TipTap's task items are <li><label><input></label><div>…</div></li>: the box hangs in the margin
+   exactly like the reader's, and the text stays one flowing block. */
+.tk-editor ul[data-type="taskList"] { padding-left: 0; list-style: none; }
+.tk-editor ul[data-type="taskList"] > li { position: relative; padding-left: 26px; list-style: none; }
+.tk-editor ul[data-type="taskList"] > li + li { margin-top: 6px; }
+.tk-editor ul[data-type="taskList"] > li > label {
+  position: absolute;
+  left: 0;
+  top: calc((1.65em - 15px) / 2);
+  display: block;
+  line-height: 0;
+  user-select: none;
+}
+.tk-editor ul[data-type="taskList"] > li > label > input {
+  appearance: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border: 1.5px solid var(--ws-line-strong);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.tk-editor ul[data-type="taskList"] > li > label > input:checked {
+  border-color: var(--tk-status-done);
+  background:
+    no-repeat center / 10px url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2.5 6.2 5 8.5l4.5-5'/%3E%3C/svg%3E"),
+    var(--tk-status-done);
+}
+.tk-editor ul[data-type="taskList"] > li > div > p { margin: 0; }
+.tk-editor ul[data-type="taskList"] > li[data-checked="true"] > div { color: color-mix(in oklab, var(--tk-md-text) 72%, transparent); }
+
+/* An atom the caret steps over; ⌘-click opens it. */
+.tk-editor .tk-md-ref { cursor: default; }
+.tk-editor .ProseMirror-selectednode.tk-md-ref,
+.tk-editor .tk-md-ref.ProseMirror-selectednode { outline: 2px solid color-mix(in oklab, var(--tk-status-review) 50%, transparent); }
+
+.tk-editor table { border-collapse: collapse; width: 100%; margin: 0 0 var(--tk-md-gap); font-size: 13.5px; }
+.tk-editor th,
+.tk-editor td { border: 1px solid var(--ws-line); padding: 8px 12px; vertical-align: top; text-align: left; }
+.tk-editor th { background: color-mix(in oklab, var(--fg) 5%, transparent); color: var(--fg); font-weight: 600; }
+.tk-editor td > p,
+.tk-editor th > p { margin: 0; }
+.tk-editor .selectedCell { background: color-mix(in oklab, var(--accent) 12%, transparent); }
+
+/* ── The bubble menu, `bb`'s shape ── */
+.tk-bubble {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-panel);
+  background: var(--ws-surface-raised);
+  box-shadow: 0 10px 28px -12px color-mix(in srgb, var(--ds-shadow-ink) 55%, transparent);
+}
+
+.tk-bubble-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  padding: 0 5px;
+  border-radius: calc(var(--ws-r-control) - 2px);
+  color: var(--text-secondary);
+}
+
+.tk-bubble-button:hover { background: var(--ws-hover); color: var(--fg); }
+.tk-bubble-button[aria-pressed="true"] { background: color-mix(in oklab, var(--accent) 16%, transparent); color: var(--fg); }
+.tk-bubble-text { font-size: 11.5px; font-weight: 650; letter-spacing: 0.02em; }
+.tk-bubble-sep { width: 1px; height: 16px; margin: 0 3px; background: var(--ws-line); }
+
+/* ── Title, save state, conflict ── */
+.tk-detail-title--editable {
+  margin-left: -8px;
+  margin-right: -8px;
+  padding: 2px 8px;
+  border-radius: var(--ws-r-control);
+  outline: none;
+  cursor: text;
+}
+
+.tk-detail-title--editable:hover { background: color-mix(in oklab, var(--fg) 2.5%, transparent); }
+.tk-detail-title--editable:focus { background: transparent; box-shadow: inset 0 0 0 1px var(--ws-focus-line); }
+
+.tk-save-state {
+  margin: 0 0 10px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  min-height: 1.4em;
+}
+
+.tk-save-state[data-state="saving"],
+.tk-save-state[data-state="dirty"] { color: var(--text-secondary); }
+.tk-save-state[data-state="error"] { color: var(--tk-status-blocked); }
+
+.tk-callout--conflict {
+  border: 1px solid color-mix(in oklab, var(--tk-status-progress) 45%, transparent);
+  background: color-mix(in oklab, var(--tk-status-progress) 10%, transparent);
+}
+
+.tk-callout--conflict > svg { color: var(--tk-status-progress); }
+.tk-conflict-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.tk-conflict-body p { margin: 0; }
+.tk-conflict-hint { font-size: var(--ds-t-micro); color: var(--text-secondary); }
+.tk-conflict-actions { display: flex; gap: 6px; margin-top: 4px; }
+
+/* ── Ticket sources in the nav ─────────────────────────────────────────────
+   A source row carries two lines — its name, and which tool it is and how it is doing — because the
+   second line is the one place a source says it is stale or cannot be read (`SOURCES 01`, `06`). */
+.tk-nav-item--source { height: auto; min-height: 40px; padding-top: 5px; padding-bottom: 5px; }
+.tk-nav-source-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.tk-nav-sync {
+  overflow: hidden;
+  font-size: var(--ds-t-micro);
+  font-weight: 400;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Add a ticket source (`SOURCES 02`) ──
+   Every kind is listed, even the ones not ready, so nobody concludes Notion does not exist. */
+.tk-add-source-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 18px 14px;
+}
+.tk-add-source-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 32px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.tk-add-source-title > svg { color: var(--text-muted); }
+.tk-add-source-kinds {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.tk-add-source-kind {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 10px;
+  border-radius: var(--ws-r-control);
+  text-align: left;
+  color: var(--text-secondary);
+}
+.tk-add-source-kind:hover:not(:disabled),
+.tk-add-source-kind:focus-visible { background: var(--ws-hover); color: var(--fg); }
+.tk-add-source-kind:disabled { cursor: default; }
+.tk-add-source-kind:disabled .tk-vault-mark { filter: grayscale(1); opacity: 0.6; }
+.tk-add-source-kind .tk-vault-mark { margin-top: 1px; }
+.tk-add-source-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+.tk-add-source-name { font-size: var(--ds-t-body); font-weight: 500; color: var(--fg); }
+.tk-add-source-kind:disabled .tk-add-source-name { color: var(--text-secondary); }
+.tk-add-source-description { font-size: var(--ds-t-micro); line-height: 1.45; color: var(--text-muted); }
+.tk-add-source-badge {
+  flex: 0 0 auto;
+  margin-top: 1px;
+  padding: 1px 7px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: 999px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+.tk-add-source-note { font-size: var(--ds-t-micro); color: var(--text-muted); }
+
+/* ── Add a Notion database (`SOURCES 03`) ── */
+.tk-add-notion-who { margin-top: -6px; font-size: var(--ds-t-micro); color: var(--text-muted); }
+.tk-add-notion-section { display: flex; flex-direction: column; gap: 6px; }
+.tk-add-notion-h { font-size: var(--ds-t-micro); font-weight: 600; color: var(--text-secondary); }
+.tk-add-notion-note { font-size: var(--ds-t-micro); line-height: 1.45; color: var(--text-muted); }
+.tk-add-notion-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  color: var(--text-muted);
+}
+.tk-add-notion-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  outline: none;
+}
+.tk-add-notion-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 168px;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.tk-add-notion-db {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-body);
+  text-align: left;
+}
+.tk-add-notion-db:hover { background: var(--ws-hover); color: var(--fg); }
+.tk-add-notion-db[aria-selected="true"] { background: var(--ws-surface-raised); color: var(--fg); font-weight: 500; }
+.tk-add-notion-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+.tk-add-notion-field { display: grid; grid-template-columns: 80px 1fr; align-items: center; gap: 2px 8px; }
+.tk-add-notion-field-name { font-size: var(--ds-t-micro); color: var(--text-secondary); }
+.tk-add-notion-field select {
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface);
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+}
+.tk-add-notion-hint { grid-column: 2; font-size: var(--ds-t-micro); color: var(--text-muted); }
+.tk-add-notion-statuses {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--ds-t-micro);
+  color: var(--text-secondary);
+}
+.tk-add-notion-group { display: inline-block; min-width: 150px; color: var(--text-muted); }
+.tk-add-notion-choice { display: flex; align-items: flex-start; gap: 8px; font-size: var(--ds-t-micro); color: var(--text-secondary); }
+.tk-add-notion-choice[data-disabled="true"] { opacity: 0.55; }
+.tk-add-notion-choice strong { color: var(--fg); font-weight: 500; }
+.tk-add-notion-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.tk-add-notion-foot .tk-add-notion-note { margin-right: auto; }
+.tk-add-notion-match { display: inline-flex; align-items: center; gap: 6px; margin-right: auto; font-size: var(--ds-t-micro); color: var(--text-secondary); }
+.tk-add-notion-match strong { color: var(--fg); font-weight: 500; }
+.tk-add-notion-match + .tk-add-notion-note { margin-right: 0; }
+.tk-add-notion-optional { color: var(--text-muted); }
+.tk-notion-body-note { padding: 0; text-align: left; }
+
+/* ── A Notion ticket's page (`SOURCES 04`) ── */
+.tk-notion-body-note { display: flex; flex-wrap: wrap; align-items: center; gap: 0 4px; font-size: var(--ds-t-micro); color: var(--text-muted); }
+.tk-notion-body-state { padding: 0; text-align: left; }
+.tk-notion-partial { font-size: var(--ds-t-micro); }
+.tk-notion-sync { color: var(--text-muted); font-size: var(--ds-t-micro); }
+
+/* ── A GitHub issue's comments (LOT2-100) ── read only: author, age, the comment as markdown. */
+.tk-gh-comments { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 20px; }
+.tk-gh-comment { padding-top: 16px; border-top: 1px solid var(--ws-line); }
+.tk-gh-comment:first-child { padding-top: 0; border-top: 0; }
+.tk-gh-comment-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+.tk-gh-comment-author { font-weight: 600; color: var(--text-secondary); }
+
+/* ── Source health (`SOURCES 06`) ──────────────────────────────────────────
+   One tone per state, shared by the nav dot and the list banner, so both say the same thing at a
+   glance. The banner sits above rows that stay: it reports, it does not replace the list. */
+.tk-health-dot {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  margin-right: 5px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: var(--text-muted);
+}
+.tk-health-dot[data-tone="ok"] { background: var(--tk-status-done); }
+.tk-health-dot[data-tone="warn"] { background: var(--tk-status-progress); }
+.tk-health-dot[data-tone="bad"] { background: var(--tk-status-blocked); }
+.tk-health-dot[data-tone="busy"] {
+  background: var(--text-secondary);
+  animation: tk-health-pulse 1.2s ease-in-out infinite;
+}
+@keyframes tk-health-pulse { 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) { .tk-health-dot[data-tone="busy"] { animation: none; } }
+
+.tk-health-banner {
+  --tk-health-tone: var(--tk-status-progress);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 16px 8px;
+  padding: 7px 8px 7px 12px;
+  border: 1px solid color-mix(in oklab, var(--tk-health-tone) 32%, transparent);
+  border-radius: var(--ws-r-control);
+  background: color-mix(in oklab, var(--tk-health-tone) 8%, transparent);
+}
+.tk-health-banner[data-tone="bad"] { --tk-health-tone: var(--tk-status-blocked); }
+.tk-health-banner > .tk-health-dot { margin-right: 0; }
+.tk-health-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--ds-t-micro);
+  line-height: 1.45;
+  color: var(--fg);
+}
+.tk-health-action {
+  flex: 0 0 auto;
+  height: 24px;
+  border: 1px solid color-mix(in oklab, var(--tk-health-tone) 40%, transparent);
+  color: var(--fg);
+}
+
+/* ── A ticket in a Manage database (task "Ticket Sources 09") ──────────────
+   The Properties column as it reads anywhere else — values, not controls — and each value is the
+   target that changes it: a status menu like a Lotus task's, and people / labels that show only
+   what is set, with the rest one search away. A write in flight dims the column's controls. */
+.tk-notion-notice { margin: 0 0 14px; }
+.tk-notion-status[data-busy] { opacity: 0.6; pointer-events: none; }
+
+.tk-multi { position: relative; }
+.tk-multi-summary { align-items: flex-start; padding-top: 4px; padding-bottom: 4px; }
+.tk-multi-summary[aria-disabled] { opacity: 0.6; cursor: default; }
+.tk-multi-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-body);
+}
+.tk-multi-summary:hover .tk-multi-empty { color: var(--text-secondary); }
+
+.tk-multi-people { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.tk-multi-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  min-height: 22px;
+  overflow: hidden;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tk-multi-person[data-unnamed] { color: var(--text-muted); font-style: italic; }
+.tk-multi-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--accent) 22%, var(--ws-surface-raised));
+  color: var(--fg);
+  font-size: 10px;
+  font-weight: 650;
+  font-style: normal;
+}
+
+.tk-multi-labels { display: flex; flex-wrap: wrap; gap: 4px; padding: 1px 0; }
+.tk-multi-label {
+  padding: 1px 7px;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-hover);
+  color: var(--fg);
+  font-size: var(--ds-t-micro);
+  line-height: 18px;
+}
+
+/* The menu takes the column's width, and scrolls on its own past a dozen names. */
+.tk-multi-list { right: 0; min-width: 220px; padding: 0; }
+.tk-multi-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--ws-line);
+  color: var(--text-muted);
+}
+.tk-multi-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+}
+.tk-multi-options { max-height: 260px; overflow-y: auto; padding: 4px; }
+.tk-multi-options .tk-chip-option[aria-checked="true"] { color: var(--fg); }
+.tk-multi-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tk-multi-none { margin: 0; padding: 8px; color: var(--text-muted); font-size: var(--ds-t-micro); }
+.tk-multi-foot {
+  margin: 0;
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--ws-line);
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+}
+
+/* ── Trash a Notion ticket, and Undo (`SOURCES 07`, `08`) ─────────────────
+   The action sits at the foot of the Properties column, quiet until hovered; the dialog is where it
+   turns red. The toast floats above the list's foot, one line and one action. */
+.tk-props-trash { margin-top: 20px; color: var(--text-muted); }
+.tk-props-trash:hover:not(:disabled) { background: color-mix(in oklab, var(--tk-status-blocked) 10%, transparent); color: var(--tk-status-blocked); }
+
+.tk-trash-sub { margin: -4px 0 0; color: var(--text-muted); font-size: var(--ds-t-micro); }
+.tk-trash-explain { margin: 0; color: var(--text-secondary); font-size: var(--ds-t-body); line-height: 1.5; }
+.tk-trash-subs { margin: 0; }
+.tk-button--destructive {
+  gap: 6px;
+  background: var(--tk-status-blocked);
+  color: var(--ds-danger-text);
+}
+.tk-button--destructive:hover:not(:disabled) { background: var(--tk-status-blocked); color: var(--ds-danger-text); filter: brightness(1.08); }
+.tk-button--destructive:disabled { opacity: 0.6; }
+
+.tk-toast {
+  position: fixed;
+  z-index: 60;
+  bottom: 20px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-card);
+  background: var(--ws-surface-raised);
+  box-shadow: 0 18px 40px -20px color-mix(in srgb, var(--ds-shadow-ink) 75%, transparent);
+  transform: translateX(-50%);
+  animation: tk-toast-in 160ms ease-out;
+}
+@keyframes tk-toast-in { from { opacity: 0; transform: translate(-50%, 6px); } }
+@media (prefers-reduced-motion: reduce) { .tk-toast { animation: none; } }
+.tk-toast-text { color: var(--fg); font-size: var(--ds-t-body); white-space: nowrap; }
+.tk-toast-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--ws-r-control);
+  color: var(--accent);
+  font-size: var(--ds-t-body);
+  font-weight: 600;
+}
+.tk-toast-action:hover { background: var(--ws-hover); }
+.tk-toast-key { color: var(--text-muted); font: inherit; font-size: var(--ds-t-micro); font-weight: 400; }
+
+/* ── Sub-tickets on a Notion ticket (`SOURCES 09`) ─────────────────────────
+   The board's own rows that name this ticket as Parent, one line each — key, title, status — and a
+   one-line form in the same grid that adds the next. */
+.tk-subtickets-h { display: flex; align-items: baseline; gap: 8px; }
+.tk-subtickets-count { color: var(--text-muted); font-size: var(--ds-t-micro); font-weight: 500; }
+.tk-subtickets-list { display: flex; flex-direction: column; margin: 0 0 6px; padding: 0; list-style: none; }
+.tk-subticket,
+.tk-subticket-new {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 8px;
+  border-radius: var(--ws-r-control);
+  text-align: left;
+}
+.tk-subticket:hover { background: var(--ws-hover); }
+.tk-subticket-key { color: var(--text-muted); font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: var(--ds-t-micro); }
+.tk-subticket-title { min-width: 0; overflow: hidden; color: var(--fg); font-size: var(--ds-t-body); text-overflow: ellipsis; white-space: nowrap; }
+.tk-subticket-status { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: var(--ds-t-micro); white-space: nowrap; }
+.tk-props-link .tk-subticket-title { font-size: var(--ds-t-body); }
+.tk-subticket-new { border: 1px dashed var(--ws-line-strong); }
+.tk-subticket-new:focus-within { border-style: solid; border-color: color-mix(in oklab, var(--accent) 55%, transparent); }
+.tk-subticket-new[data-busy] { opacity: 0.6; }
+.tk-subticket-input {
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+}
+.tk-subticket-new .tk-button { gap: 6px; height: 24px; }
+.tk-subtickets-hint { margin: 6px 0 0; padding: 0 8px; color: var(--text-muted); font-size: var(--ds-t-micro); line-height: 1.5; }
+
+.tk-new-ticket-input {
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  background: transparent;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+}
+.tk-new-ticket-input:focus { outline: none; border-color: color-mix(in oklab, var(--accent) 55%, transparent); }
+.tk-subtickets-error { display: flex; align-items: center; gap: 10px; margin: 8px 0 0; }
+.tk-subtickets-error > span { flex: 1 1 auto; }
+
+/* ── Editing a Notion page body (task "Ticket Sources 13") ─────────────────
+   Notion's own markdown in a plain, monospace field: what is shown is exactly what is sent, and
+   the tags of blocks Lotus draws differently stay visible rather than being guessed at. */
+.tk-notion-body-edit { margin: 0 0 12px; }
+.tk-notion-body-editor { display: flex; flex-direction: column; gap: 8px; }
+.tk-notion-body-textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 12px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-card);
+  background: color-mix(in oklab, var(--ws-surface-raised) 60%, transparent);
+  color: var(--fg);
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 12.5px;
+  line-height: 1.6;
+  resize: vertical;
+}
+.tk-notion-body-textarea:focus { outline: none; border-color: color-mix(in oklab, var(--accent) 55%, transparent); }
+.tk-notion-body-hint { margin: 0; color: var(--text-muted); font-size: var(--ds-t-micro); }
+.tk-notion-body-actions { display: flex; justify-content: flex-end; gap: 6px; }
+.tk-notion-body-notice { display: flex; align-items: center; gap: 10px; margin: 0; }
+.tk-notion-body-notice > span { flex: 1 1 auto; }
+
+/* ── Notion blocks markdown has no word for (`notion-blocks.ts`) ──────────
+   A callout as Notion draws it: a tinted box, its icon at the start. Notion's `*_bg` colours map to
+   tints of the tracker's own tones, so the box sits in this theme rather than Notion's. */
+.tk-markdown .tk-md-callout {
+  --tk-callout-tone: var(--text-muted);
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 0;
+  padding: 12px 14px;
+  border-radius: var(--ws-r-card);
+  background: color-mix(in oklab, var(--tk-callout-tone) 14%, transparent);
+}
+.tk-markdown .tk-md-callout[data-color^="blue"] { --tk-callout-tone: var(--ds-info); }
+.tk-markdown .tk-md-callout[data-color^="green"] { --tk-callout-tone: var(--tk-status-done); }
+.tk-markdown .tk-md-callout[data-color^="yellow"],
+.tk-markdown .tk-md-callout[data-color^="orange"] { --tk-callout-tone: var(--tk-status-progress); }
+.tk-markdown .tk-md-callout[data-color^="red"],
+.tk-markdown .tk-md-callout[data-color^="pink"] { --tk-callout-tone: var(--tk-status-blocked); }
+.tk-markdown .tk-md-callout[data-color^="purple"] { --tk-callout-tone: var(--tk-status-review); }
+.tk-markdown .tk-md-callout-icon { flex: 0 0 auto; line-height: 1.5; }
+.tk-markdown .tk-md-callout-body { flex: 1 1 auto; min-width: 0; }
+.tk-markdown .tk-md-callout-body > :first-child { margin-top: 0; }
+.tk-markdown .tk-md-callout-body > :last-child { margin-bottom: 0; }
+
+/* An empty block keeps the space Notion leaves for it. */
+.tk-markdown .tk-md-gap { height: 1.2em; }
+
+/* An empty to-do: Notion's grey placeholder beside the box. */
+.tk-markdown .tk-md-todo-empty { color: var(--text-muted); }
+
+/* ── A vault note refreshed from Notion (`NOTION 02`, `NOTION 03`) ── */
+.tk-callout--pull {
+  align-items: center;
+  border: 1px solid var(--ws-line-strong);
+  background: var(--ws-hover);
+}
+.tk-callout--pull > svg { color: var(--tk-status-progress); margin-top: 0; }
+.tk-pull-callout-body { flex: 1 1 auto; min-width: 0; }
+.tk-pull-callout-body p { margin: 0; }
+.tk-pull-callout-meta { font-size: var(--ds-t-micro); color: var(--text-muted); }
+.tk-pull-owned-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: -6px 0 10px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+.tk-pull-source { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 6px; }
+.tk-pull-newer { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: var(--ds-t-micro); color: var(--tk-status-progress); }
+.tk-pull-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tk-status-progress); }
+.tk-pull-refresh { display: inline-flex; align-items: center; gap: 6px; }
+
+.tk-pull-head { padding: 18px 22px 12px; border-bottom: 1px solid var(--ws-line); }
+.tk-pull-sub { margin: 4px 0 0; font-size: var(--ds-t-micro); color: var(--text-secondary); }
+.tk-pull-state, .tk-pull-partial { margin: 14px 22px; }
+.tk-pull .tk-error { margin: 14px 22px; }
+.tk-pull-diff {
+  list-style: none;
+  margin: 0;
+  padding: 10px 0;
+  max-height: 52vh;
+  overflow: auto;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--ds-t-micro);
+  line-height: 1.6;
+}
+.tk-pull-line { display: flex; gap: 10px; padding: 1px 22px; color: var(--text-secondary); }
+.tk-pull-line[data-kind="removed"] { background: color-mix(in oklab, var(--tk-status-blocked) 14%, transparent); color: var(--fg); }
+.tk-pull-line[data-kind="added"] { background: color-mix(in oklab, var(--tk-status-done) 12%, transparent); color: var(--fg); }
+.tk-pull-mark { flex: 0 0 auto; width: 1ch; color: var(--text-muted); }
+.tk-pull-text { white-space: pre-wrap; overflow-wrap: anywhere; min-width: 0; }
+.tk-pull-foot { padding: 12px 22px; border-top: 1px solid var(--ws-line); }
+.tk-pull.tk-modal--lg { width: min(100%, 760px); }
+
+/* The task has a node on the canvas board beside the Dock (board 18); pressing it shows that node. */
+.tk-row-canvas {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  padding: 2px 6px;
+  border: 0;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--ws-kind-browser) 12%, transparent);
+  color: var(--ws-kind-browser);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  line-height: 12px;
+  cursor: pointer;
+  transition: background var(--ws-dur) var(--ws-ease);
+}
+
+.tk-row-canvas:hover {
+  background: color-mix(in srgb, var(--ws-kind-browser) 22%, transparent);
+}
+
+.tk-row-canvas:focus-visible {
+  outline: 2px solid var(--ws-focus-line);
+  outline-offset: 1px;
+}
+
+/* ── Tasks revamp, round 2: the header as the mockup draws it ─────────────────
+  One control height (28px), filled search, borderless tools, an ink New task. Scoped to `.tk-head`
+  so the filter rule chips below keep their own look. */
+.tk-head .tk-search {
+  flex: 0 1 240px;
+  height: 28px;
+  padding: 0 6px 0 9px;
+  border: 0;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-quiet);
+}
+.tk-head .tk-search:focus-within { background: var(--ws-hover); box-shadow: inset 0 0 0 1px var(--ws-line-strong); }
+.tk-head .tk-search input { font-size: var(--ds-t-body); }
+.tk-search-key {
+  padding: 0 5px;
+  border: 1px solid var(--ws-line);
+  border-radius: 4px;
+  color: var(--text-muted);
+  font: var(--ds-t-micro) / 1.4 ui-monospace, monospace;
+}
+.tk-head .tk-filters > .tk-chip > summary {
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--ws-r-control);
+  font-size: var(--ds-t-body);
+}
+.tk-head .tk-new {
+  height: 28px;
+  padding: 0 12px 0 10px;
+  margin: 0 2px 0 6px;
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--ds-t-body);
+  box-shadow: none;
+}
+.tk-head .tk-new:not(:disabled):hover { background: var(--accent); filter: brightness(1.12); }
+.tk-head .tk-fr-row-bar { padding-top: 2px; }
+
+/* Section headers read at body size, like the rows they introduce. */
+.tk-section-head { font-size: var(--ds-t-body); padding: 12px 16px 6px; }
+.tk-bulk-button:disabled { opacity: 0.45; cursor: default; background: transparent; }

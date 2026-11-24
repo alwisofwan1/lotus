@@ -1,0 +1,539 @@
+/* CodeCanvas Live Agent persona header (ADR-0022) + NL Command Bar. Split from agent-node.css (≤600-line policy). */
+
+/* ── Live Agent Node — persona header (ADR-0022) ─────────────────────────────
+   Mirrors the Canvas Terminal header aesthetic: a compact drag handle with a
+   runner badge, the persona name (coordination handle), model, permission chip,
+   and live phase pill. */
+.canvas-persona-header {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.5rem;
+  min-height: 1.9rem;
+  /* Canvas Terminal idiom (ADR-0033): monospace chrome, flat transparent surface
+     over the node scrim, hairline bottom. Identity rides the top-edge accent +
+     the mono name + runner label — no per-runner tinted bar. Reads the THEME mono
+     token (--canvas-font-mono) so this matches the Terminal Node header, not
+     --canvas-code (the whiteboard shape font — Comic Mono, Excalidraw parity). */
+  font-family: var(--canvas-font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  font-size: 0.72rem;
+  /* ── GILDED BAND ──
+     This REPLACES the ADR-0033 "bare glass" contract for the persona header (no fill, no bottom
+     hairline), which canvas-terminal-frame.css.test.ts asserted. Changed deliberately, on request,
+     and the test moved with it rather than being deleted.
+
+     What the old contract bought: the header dissolved into the node so the body's ink floor was
+     the only separation. What it cost: on a light theme the header and the body are both pale, so
+     "no separation" became "no header" — the drag handle read as blank paper with faint text on it.
+
+     The band is built from --node-glass-border, the node's OWN edge colour, so the header wears
+     the frame it sits in rather than introducing a colour. On Garden of Dawn that edge is gilt
+     (rgba(168,124,51,0.66)), which is what makes this read as gold leaf; on the dark built-ins it
+     is their existing hairline ink, so they get a whisper of lift and no new hue. One rule, no
+     per-theme branch, and no theme gets a colour its author did not already choose.
+
+     Kept from the old rule: the rounded top corners, so the header can never poke past the node's
+     rounded frame (the node is overflow:visible for floating panels). */
+  background:linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--node-glass-border) 26%, transparent) 0%,
+    color-mix(in oklab, var(--node-glass-border) 8%, transparent) 100%
+  );
+  border-bottom: 1px solid color-mix(in oklab, var(--node-glass-border) 62%, transparent);
+  border-radius: calc(var(--canvas-node-radius) - 1px) calc(var(--canvas-node-radius) - 1px) 0 0;
+  cursor: grab;
+  user-select: none;
+}
+.canvas-persona-header:active { cursor: grabbing; }
+
+/* Runner badge — stable identity mark coloured by status. Logo marks use a CSS mask; glyph and
+   terminal marks stay transparent so custom runners never degrade into a solid square. */
+.canvas-persona-badge {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 12px;
+  height: 12px;
+  color:var(--badge-color, var(--badge-status, oklch(0.50 0.005 260)));
+  background:transparent;
+  line-height: 1;
+  transition: color 280ms ease;
+}
+.canvas-persona-badge[data-mark="logo"] {
+  background:currentColor;
+  -webkit-mask: var(--badge-logo) center / contain no-repeat;
+  mask: var(--badge-logo) center / contain no-repeat;
+  -webkit-mask-source-type: luminance;
+  mask-mode: luminance;
+}
+.canvas-persona-badge-glyph {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  transform: translateY(-0.5px);
+}
+.canvas-persona-badge-terminal {
+  display: block;
+  width: 12px;
+  height: 12px;
+}
+/* Status colours are shared by branded and custom runner marks. */
+.canvas-persona-badge[data-s="boot"]  { --badge-status: oklch(0.84 0.13 90); }
+.canvas-persona-badge[data-s="run"]   { --badge-status: #fff; }
+.canvas-persona-badge[data-s="fail"]  { --badge-status: oklch(0.64 0.19 23); }
+/* A human is required before this agent can continue (plans/honest-agent-status/).
+   Violet, because every neighbouring meaning is taken and none of them is this one: white reads as
+   working, amber as booting, red as failed, grey as resting. Held at L=0.78 — at or above the boot
+   amber — so it stays legible over the video-backed glass themes, where the card has no known
+   background. Deliberately NOT animated: a spinner over "answer me" is the exact lie being fixed. */
+.canvas-persona-badge[data-s="ask"]   { --badge-status: oklch(0.78 0.16 295); }
+/* Ended = idle: dim grey. */
+.canvas-persona-badge[data-s="idle"]  { --badge-status: oklch(0.50 0.005 260); }
+/* Force status colour when no persona colour is set — prevents accidental override. */
+.canvas-persona-badge:not([style*="--badge-color"]) { --badge-color: var(--badge-status); }
+
+.canvas-persona-name {
+  flex: 0 0 auto;
+  font-weight: 650;
+  /* Was `var(--canvas-fg, #e8e8f0)`. There is no --canvas-fg token — it is defined nowhere in
+     the codebase (the real one is --canvas-text), so this fallback rendered #e8e8f0 on EVERY
+     theme since it was written. Invisible the moment a light theme shipped, and a var() typo
+     fails exactly like this: silently, with a plausible-looking colour. */
+  color:var(--canvas-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 16ch;
+}
+
+/* The conversation's title (src/modules/conversation-title) takes the row's slack after the name; the runner is the logo. */
+.canvas-persona-title { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 0.4rem; color: var(--canvas-text-muted); }
+.canvas-persona-sep { flex: none; }
+.canvas-node-header:has(.conversation-title-menu[open]) { z-index: 30; }
+
+/* The account chip sits after the title (mockups/account-picker-everywhere.html, decision 4). */
+.canvas-persona-account { flex: 0 1 auto; min-width: 0; margin-right: auto; cursor: default; }
+.canvas-persona-account .chat-model { height: 22px; padding: 0 6px 0 8px; gap: 5px; max-width: 18ch; }
+/* Above the node body, which comes later in the DOM. */
+.canvas-node-header:has(.canvas-persona-account .chat-model[aria-expanded="true"]) { z-index: 30; }
+
+.canvas-persona-close {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border:none;
+  border-radius: 4px;
+  background:transparent;
+  color:color-mix(in oklab, var(--canvas-text) 40%, transparent);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.canvas-persona-close:hover { background:rgba(248, 113, 113, 0.15); color:color-mix(in oklab, #fca5a5 var(--ink-blend), var(--canvas-text)); }
+
+/* Skills action in the live-agent header (ADR-0027 Phase 6a) */
+.canvas-persona-action {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border:none;
+  border-radius: 4px;
+  background:transparent;
+  color:color-mix(in oklab, var(--canvas-text) 40%, transparent);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+.canvas-persona-action:hover { background:rgba(251, 191, 36, 0.16); color:color-mix(in oklab, #fcd34d var(--ink-blend), var(--canvas-text)); }
+.canvas-persona-action[data-active="true"] { color:color-mix(in oklab, #fcd34d var(--ink-blend), var(--canvas-text)); }
+
+/* Focus-mode action: quiet violet on hover (skills owns the amber). */
+.canvas-persona-action--focus:hover { background:rgba(139, 124, 246, 0.16); color:color-mix(in oklab, #c4b5fd var(--ink-blend), var(--canvas-text)); }
+
+/* ── NL Command Bar (Fase 1) — floating bottom-center, above the message composer ── */
+/* ── NL command bar — minimal: a slim neutral-glass pill docked at the bottom (CNVS-style).
+   Quiet by default; a single soft sakura status dot is the only accent. */
+/* Ultra-minimal NL command bar: one slim flat pill, monochrome ghost icons, plain-text status. */
+.canvas-nl-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 33;
+  /* The UI face, upright: the serif italic gave the bar a third type voice beside the sans chip and
+     the mono Frame numbers (composer redesign B, mockups/canvas-composer-clean.html). A theme can
+     still bring its own face through --ct-canvas-nl-font. */
+  --canvas-nl-font: var(--ct-canvas-nl-font, var(--canvas-font-body, system-ui, sans-serif));
+  /* Room the Frame Switcher chips and the Lotus mark take in the docked cluster (set inline by
+     CanvasNlCommandBar, 0 when not docked). The bar widens by exactly that much so the text well keeps
+     the width it had before Frames; chips never take it from the input (LOT2-132, decision 33). */
+  --canvas-nl-frames-extra: 0px;
+  width: min(400px, 48%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.3rem;
+}
+/* Docked mode (CNVS "In command bar"): the top-bar controls live in this pill, so it
+   needs room for the project switcher + Canvases + Settings beside the input. Kept compact so the
+   bar reads as a tight cluster, not a wide strip with dead space. */
+.canvas-nl-bar[data-docked] {
+  width: min(calc(600px + var(--canvas-nl-frames-extra)), calc(64% + var(--canvas-nl-frames-extra)));
+}
+.canvas-nl-bar:has(.canvas-nl-live-voice) {
+  width: min(620px, calc(100vw - 48px));
+}
+.canvas-nl-bar[data-docked]:has(.canvas-nl-live-voice) {
+  width: min(700px, calc(100vw - 48px));
+}
+/* The project dropdown pops UP out of the input row. This used to move the row's own glass onto
+   a ::before layer, because a row that itself carries backdrop-filter becomes a "backdrop root" —
+   the part of the dropdown rendered above the row would have no backdrop to blur and come out
+   sharp. That hack is gone (slice 9): the row below is now a SOLID material with no
+   backdrop-filter at all, so it never establishes a backdrop root in the first place and the
+   dropdown's own backdrop-filter frosts the canvas behind it with no help needed here. */
+/* The docked top-controls cluster, pinned to the right of the input row. */
+.canvas-nl-docked {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.canvas-nl-input-row {
+  position: relative;
+  width: 100%;
+  /* Column 1 is a shared "text well": the ghost hint (.canvas-nl-hint), the <textarea>, and the
+     live-voice surface all stack into the SAME cell so the hint can sit directly behind the real
+     input with no wrapper element (see .canvas-nl-hint in canvas-nl-bar.css). Every other child —
+     .canvas-nl-keys, the mic button, the docked cluster — is left unplaced, so grid-auto-flow lays
+     each one into its own new implicit column: exactly as many as actually render, so an absent
+     docked cluster never reserves a phantom gap the way a hard-coded N-column template would. */
+  display: grid;
+  /* The text well never drops below ~16rem (capped on small windows), so the controls beside it can
+     not squeeze it into a wrapping sliver. */
+  grid-template-columns: minmax(min(16rem, 30vw), 1fr);
+  grid-auto-flow: column;
+  grid-auto-columns: auto;
+  /* Center the input + controls as one proportional cluster on a single line. When the input grows
+     to multiple lines, [data-multiline] switches to flex-end so the controls pin to the last line. */
+  align-items: center;
+  gap: 0.3rem;
+  /* Right and vertical insets are one token: the last tile sits as far from the edge as from top and bottom. */
+  padding: var(--cc-inset, 0.25rem) var(--cc-inset, 0.25rem) var(--cc-inset, 0.25rem) 0.8rem;
+  border-radius: var(--cc-chrome-radius, 14px);
+  border:1px solid var(--cc-chrome-border, color-mix(in oklab, var(--canvas-text) 9%, transparent));
+  /* SMOKED GLASS. The surface is the ::before below, never the row itself: a backdrop-filter on the
+     row makes it a backdrop root, and the project / ⋯ menus that open inside it would then blur only
+     the bar instead of the canvas. The row keeps the edge and the depth: a light top edge (inset)
+     over a contact shadow and a soft one. */
+  box-shadow: var(--cc-glass-edge), 0 1px 2px rgb(0 0 0 / 0.22), var(--cc-chrome-shadow, 0 10px 30px -18px rgb(0 0 0 / 0.9));
+  transition: border-color .25s var(--canvas-ease-out);
+}
+/* The glass: the shared --cc-glass-* recipe (theme.css), on a ::before for the reason above. */
+.canvas-nl-input-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-color: var(--cc-glass-tint);
+  background-image: var(--cc-glass-sheen);
+  -webkit-backdrop-filter: var(--cc-glass-filter);
+  backdrop-filter: var(--cc-glass-filter);
+}
+/* Reduced transparency: the solid floor the bar had before the glass. */
+@media (prefers-reduced-transparency: reduce) {
+  .canvas-nl-input-row::before {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background-color: #121118;
+    background-image: linear-gradient(0deg, var(--canvas-surface-r, rgba(28, 25, 22, 0.82)), var(--canvas-surface-r, rgba(28, 25, 22, 0.82)));
+  }
+}
+.canvas-nl-input-row:focus-within {
+  border-color:var(--cc-chrome-border-hi, color-mix(in oklab, var(--canvas-text) 22%, transparent));
+}
+/* Multiline: pin the controls to the last line so they don't float in the vertical middle of a tall input. */
+.canvas-nl-input-row[data-multiline="true"] { align-items: flex-end; }
+.canvas-nl-input {
+  /* Shares column 1 with .canvas-nl-hint (see .canvas-nl-input-row) so the two stack exactly. */
+  grid-column: 1; grid-row: 1; z-index: 1; position: relative;
+  min-width: 0; background:none; border:none; outline: none;
+  color:var(--cc-chrome-ink, var(--canvas-text));
+  font-family: var(--canvas-nl-font);
+  font-size: var(--ds-t-body);
+  letter-spacing: 0;
+  /* Multiline compose: auto-grown by JS up to a cap, then scrolls internally. Reset the UA
+     textarea chrome so it reads exactly like the old single-line input when short. */
+  resize: none;
+  line-height: 1.4;
+  max-height: 160px;
+  overflow-y: auto;
+  /* Text soft-wraps, so sideways scroll is never content: only a stray bar on a resize. */
+  overflow-x: hidden;
+  padding: 0.12rem 0;
+  /* Keep the resting bar a single clean line; the JS auto-size grows it from here. */
+  min-height: 1.4rem;
+  scrollbar-width: thin;
+}
+/* A real ::placeholder can't be animated, so the visible copy moved to the .canvas-nl-hint ghost
+   layer behind this field (canvas-nl-bar.css) — this native placeholder stays only for assistive
+   tech and is painted fully transparent. Tone colours moved with it onto .canvas-nl-hint[data-tone]. */
+/* Invisible but still laid out: wrapped, it grew the empty field to two lines on a narrow window. */
+.canvas-nl-input::placeholder { color:transparent; white-space: nowrap; overflow: hidden; }
+
+/* Icon buttons — borderless, muted, brighten on hover. */
+.canvas-nl-icon {
+  flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+  width: var(--cc-control, 1.625rem); height: var(--cc-control, 1.625rem); border-radius: var(--cc-chrome-radius-sm, 9px);
+  border:none; background:none;
+  color:var(--cc-chrome-ink-quiet, color-mix(in oklab, var(--canvas-text) 50%, transparent));
+  cursor: pointer;
+  transition: background .15s var(--canvas-ease-out), color .15s var(--canvas-ease-out), opacity .15s var(--canvas-ease-out);
+}
+.canvas-nl-icon:hover:not(:disabled) {
+  background:var(--cc-chrome-fill, color-mix(in oklab, var(--canvas-text) 10%, transparent));
+  color:var(--cc-chrome-ink, var(--canvas-text));
+}
+.canvas-nl-icon:disabled { opacity: .3; cursor: default; }
+/* Send only reads as active when it will actually run something — tinted by the theme accent. */
+.canvas-nl-icon--send:not(:disabled) { color:var(--canvas-accent, var(--canvas-text)); }
+/* Toggle yang menyala — Fleet (dan tombol on/off lain yang memakai data-active).
+   Masalah yang diperbaiki: tombol sudah mengirim data-active sejak awal, tapi tidak ada
+   aturan yang membacanya, sehingga panel terbuka dan tertutup terlihat persis sama. Sebuah
+   toggle tanpa state terbaca adalah tombol yang membohongi penggunanya.
+
+   Bentuk state-nya sengaja tiga lapis, bukan satu, karena satu lapis saja gagal di salah satu
+   konteks: tint accent hilang di tema yang accent-nya nyaris putih, ring saja terlalu samar di
+   atas wallpaper terang, dan titik saja terlalu kecil untuk dilihat dari sudut mata. Bersama-sama
+   mereka tetap terbaca di tema apa pun:
+     · tile accent-soft  — massa yang membedakannya dari tetangga yang datar
+     · ring 1px inset    — tepi yang bertahan meski wallpaper di belakangnya ramai
+     · titik 3px         — LED kecil di bawah ikon, isyarat "hidup" yang dikenali tanpa dibaca
+   Hover tidak menghapus state (bug klasik: menyorot tombol aktif membuatnya tampak mati). */
+.canvas-nl-icon[data-active="true"] {
+  position: relative;
+  color:var(--canvas-accent, var(--canvas-text));
+  background:var(--cc-chrome-accent-soft);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--canvas-accent) 28%, transparent);
+}
+.canvas-nl-icon[data-active="true"]:hover:not(:disabled) {
+  color:var(--canvas-accent, var(--canvas-text));
+  background:color-mix(in oklab, var(--canvas-accent) 26%, transparent);
+}
+/* Titik hidup. Ditempel di bawah ikon, di dalam tile, jadi tidak menggeser layout satu piksel pun
+   dan tidak menambah lebar strip — geometri baris ikon tetap sama antara aktif dan tidak. */
+.canvas-nl-icon[data-active="true"]::after {
+  content: "";
+  position: absolute; bottom: 2px; left: 50%; translate: -50% 0;
+  width: 3px; height: 3px; border-radius: 50%;
+  background:currentColor;
+  box-shadow: 0 0 5px color-mix(in oklab, var(--canvas-accent) 70%, transparent);
+  animation: canvas-nl-active-dot .28s var(--canvas-ease-out, ease-out) both;
+}
+@keyframes canvas-nl-active-dot {
+  from { opacity: 0; scale: 0.4 }
+  to   { opacity: 1; scale: 1 }
+}
+/* Hormati preferensi sistem: state tetap terbaca penuh, hanya gerakannya yang dilepas. */
+@media (prefers-reduced-motion: reduce) {
+  .canvas-nl-icon[data-active="true"]::after { animation: none }
+}
+/* Voice Auto Mode chip (ADR-0034) — a live readout of what the mic will do, not a blind toggle.
+   "Auto" (quiet) · "→ Name" (dictate to the Focused Node, accent) · "Command". Click cycles the
+   explicit override (Auto → Command → Dictate → Auto); a pinned override reads brighter. */
+.canvas-nl-mode {
+  /* Sized to match the mic icon (--cc-control) so the chip + mic read as one proportional, centered cluster. */
+  flex: 0 0 auto; white-space: nowrap; cursor: pointer;
+  height: var(--cc-control, 1.625rem); display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 0 0.6rem; border-radius: var(--cc-chrome-radius-sm, 9px);
+  border:1px solid var(--cc-chrome-border); background:none;
+  color:var(--cc-chrome-ink-quiet, color-mix(in oklab, var(--canvas-text) 50%, transparent));
+  font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.02em; line-height: 1;
+  transition: background .15s var(--canvas-ease-out), color .15s var(--canvas-ease-out), border-color .15s var(--canvas-ease-out);
+}
+.canvas-nl-mode:hover:not(:disabled) {
+  background:var(--cc-chrome-fill, color-mix(in oklab, var(--canvas-text) 10%, transparent));
+  color:var(--cc-chrome-ink, var(--canvas-text));
+}
+.canvas-nl-mode:disabled { opacity: .4; cursor: default; }
+/* Auto — the quiet resting default; it isn't a state the user has to manage. */
+.canvas-nl-mode[data-chip="auto"] { color:var(--cc-chrome-ink-quiet, color-mix(in oklab, var(--canvas-text) 42%, transparent)); }
+/* Dictate — the distinct "to this agent" state, tinted with the theme accent so the target is obvious. */
+.canvas-nl-mode[data-chip="dictate"] {
+  color:var(--canvas-accent, var(--canvas-text));
+  border-color:color-mix(in oklch, var(--canvas-accent, #f2eff5) 45%, transparent);
+}
+/* Transform — text selected in the focused note; speech rewrites it. Shares the accent-tinted "targeted" look. */
+.canvas-nl-mode[data-chip="transform"] {
+  color:var(--canvas-accent, var(--canvas-text));
+  border-color:color-mix(in oklch, var(--canvas-accent, #f2eff5) 45%, transparent);
+}
+/* A pinned override (⌘⇧V/⌘⇧D or an explicit click) reads brighter than an Auto-derived label. */
+.canvas-nl-mode[data-forced="true"] {
+  color:var(--cc-chrome-ink, var(--canvas-text));
+  border-color:var(--cc-chrome-border-hi, color-mix(in oklab, var(--canvas-text) 22%, transparent));
+}
+.canvas-nl-mode[data-chip="dictate"][data-forced="true"] {
+  border-color:color-mix(in oklch, var(--canvas-accent, #f2eff5) 70%, transparent);
+}
+.canvas-nl-spin { animation: canvas-nl-spin .8s linear infinite; }
+@keyframes canvas-nl-spin { to { transform: rotate(360deg); } }
+
+/* Live Voice (ticket 09) is a composer state now — LiveVoiceComposerRow draws the shared parts, so
+   the old orb/wave/End surface is gone. The bar still picks up a faint accent glow while it runs. */
+.canvas-nl-input-row:has(.canvas-nl-live-voice) {
+  box-shadow: 0 14px 46px -16px color-mix(in oklab, var(--canvas-accent) 50%, transparent);
+}
+
+/* Visually-hidden live region — the feedback is shown via the input placeholder; this keeps screen
+   readers announcing each status/result without any visible chrome above the bar. */
+.canvas-nl-sr {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border:0;
+}
+
+/* Error alert — minimal red-tinted chip, positioned dynamically relative to the bar. */
+.canvas-nl-alert {
+  position: absolute; z-index: 2;
+  padding: 0.34rem 0.72rem; border-radius: 11px;
+  font-size: var(--ds-t-meta); line-height: 1.35;
+  color:oklch(0.82 0.1 25);
+  background:oklch(0.17 0.02 25 / 0.84);
+  border:1px solid oklch(0.6 0.12 25 / 0.3);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 24px -16px oklch(0.02 0.01 25 / 0.9);
+  animation: canvas-nl-alert-in .16s ease;
+}
+/* Above (default — full bar width). */
+.canvas-nl-alert[data-placement="above"] { bottom: calc(100% + 8px); left: 0; right: 0; }
+/* Beside — when there isn't room overhead. */
+.canvas-nl-alert[data-placement="right"] { left: calc(100% + 10px); top: 50%; transform: translateY(-50%); width: max-content; max-width: 16rem; }
+.canvas-nl-alert[data-placement="left"]  { right: calc(100% + 10px); top: 50%; transform: translateY(-50%); width: max-content; max-width: 16rem; }
+@keyframes canvas-nl-alert-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .canvas-nl-alert { animation: none; } }
+.canvas-nl-provider-notice {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.48rem 0.5rem 0.48rem 0.72rem;
+  color:var(--cc-chrome-ink, oklch(0.94 0.01 25));
+  background:var(--node-floor-solid, oklch(0.17 0.02 25));
+  border-color:color-mix(in oklab, var(--canvas-status-error) 36%, var(--cc-chrome-border));
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.canvas-nl-provider-notice__copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+.canvas-nl-provider-notice__copy strong {
+  color:var(--cc-chrome-ink, oklch(0.94 0.01 25));
+  font-size: var(--ds-t-meta);
+  font-weight: 650;
+}
+.canvas-nl-provider-notice__copy span {
+  color:var(--cc-chrome-ink-quiet, oklch(0.72 0.02 25));
+  font-size: var(--ds-t-micro);
+}
+.canvas-nl-provider-notice__action,
+.canvas-nl-provider-notice__dismiss {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border:1px solid var(--cc-chrome-border, oklch(0.55 0.02 25 / 0.35));
+  color:var(--cc-chrome-ink, oklch(0.94 0.01 25));
+  background:var(--cc-chrome-fill, oklch(0.32 0.02 25 / 0.72));
+  cursor: pointer;
+}
+.canvas-nl-provider-notice__action {
+  gap: 0.3rem;
+  min-height: 1.8rem;
+  padding: 0 0.65rem;
+  border-radius: 8px;
+  white-space: nowrap;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+}
+.canvas-nl-provider-notice__dismiss {
+  width: 1.8rem;
+  height: 1.8rem;
+  padding: 0;
+  border-color:transparent;
+  border-radius: 8px;
+  color:var(--cc-chrome-ink-quiet, oklch(0.72 0.02 25));
+  background:transparent;
+}
+.canvas-nl-provider-notice__action:hover,
+.canvas-nl-provider-notice__dismiss:hover {
+  background:var(--cc-chrome-fill-on, oklch(0.4 0.03 25 / 0.82));
+}
+.canvas-nl-provider-notice__action:focus-visible,
+.canvas-nl-provider-notice__dismiss:focus-visible {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: 2px;
+}
+@media (max-width: 700px) {
+  .canvas-nl-provider-notice {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .canvas-nl-provider-notice__action {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+    order: 3;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-nl-spin { animation: none; }
+}
+.canvas-nl-confirm {
+  display: flex; align-items: center; gap: 0.5rem; align-self: center;
+  font-size: var(--ds-t-meta); padding: 0.28rem 0.4rem 0.28rem 0.8rem; border-radius: var(--cc-chrome-radius, 12px);
+  color:var(--cc-chrome-ink, var(--canvas-text));
+  border:1px solid var(--cc-chrome-border, color-mix(in oklab, var(--canvas-text) 12%, transparent));
+  background:var(--cc-chrome-bg, rgba(18, 17, 24, 0.78));
+  backdrop-filter: var(--cc-chrome-blur, blur(16px)); -webkit-backdrop-filter: var(--cc-chrome-blur, blur(16px));
+}
+.canvas-nl-confirm-text { color:var(--cc-chrome-ink, var(--canvas-text)); }
+.canvas-nl-confirm-yes, .canvas-nl-confirm-no {
+  border:1px solid transparent; border-radius: 999px; padding: 0.2rem 0.7rem; font-size: var(--ds-t-meta); cursor: pointer;
+  transition: background .15s var(--canvas-ease-out), border-color .15s var(--canvas-ease-out);
+}
+.canvas-nl-confirm-yes { background:oklch(0.55 0.13 25 / 0.9); color:oklch(0.97 0.01 25); }
+.canvas-nl-confirm-yes:hover { background:oklch(0.6 0.14 25); }
+.canvas-nl-confirm-no { background:var(--cc-chrome-fill, color-mix(in oklab, var(--canvas-text) 8%, transparent)); color:var(--cc-chrome-ink-muted, color-mix(in oklab, var(--canvas-text) 90%, transparent)); }
+.canvas-nl-confirm-no:hover { background:var(--cc-chrome-fill-on, color-mix(in oklab, var(--canvas-text) 14%, transparent)); }
+
+/* Agent headline — the work title, shown only when the terminal is not rendered
+   (plans/agent-headlines/ Slice 4, option C).
+
+   Absolutely positioned rather than added to the flex row, so the row itself is untouched: nothing
+   in it re-flows, and the name's 16ch cap and the action buttons keep their exact behaviour whether
+   a headline is present or not. The header grows by the line's height via padding-bottom, applied
+   only when `data-headline` is set, so a card at full zoom is byte-identical to before. */
+.canvas-persona-header[data-headline] {
+  position: relative;
+  padding-bottom: 0.95rem;
+}
+.canvas-persona-headline {
+  position: absolute;
+  left: 1.55rem;
+  right: 0.5rem;
+  bottom: 0.18rem;
+  font-size: 0.55rem;
+  line-height: 1.3;
+  color:var(--canvas-sidebar-muted, color-mix(in oklab, var(--canvas-text) 42%, transparent));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}

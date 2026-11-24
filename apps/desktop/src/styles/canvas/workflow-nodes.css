@@ -1,0 +1,968 @@
+/* ══ SEMANTIC INK ════════════════════════════════════════════════════════
+   Status and identity colour for the workflow nodes, in one place and with a light-theme
+   answer.
+
+   WHAT WAS WRONG. These hues were spelled out as ~30 separate literals, every one of them a
+   bright, LIGHT colour picked to sit on a dark node. Measured on Garden of Dawn against the
+   node body this file actually renders, every single one landed between 1.09 and 1.79:1 —
+   priority chips, PASS/FAIL verdicts, the dispatched marker, the waiting state, the critic
+   icon, the team pills. Not "a bit low": invisible. The same inks measure 6.1 to 10.6:1 on
+   Void, which is why nothing looked wrong to anyone working on a dark theme.
+
+   THE ADR IS NOT VIOLATED, and the distinction matters. ADR-0023 §2b makes the run-state ramp
+   theme-INDEPENDENT so that "running" cannot mean a different colour per theme. That is a
+   guarantee about HUE. The light branch below changes lightness only: each colour is mixed
+   toward the theme's own ink, which grounds it in the palette without moving it around the
+   wheel. Green stays green.
+
+   ONE NUMBER, NOT A TUNED TABLE. 30% of the hue against 70% ink clears AA for every role on
+   the measured light node body — worst case 4.86:1 (warn), best 6.4:1 (focus). Per-role
+   constants were tried first and rejected: they hit their targets more precisely and left
+   nothing anyone could reason about later. An earlier attempt darkened in HLS instead, which
+   held the hue but turned the pale violets into electric blue — legible, and wrong for a
+   product PRODUCT.md describes as calm.
+
+   Alphas are carried over unchanged from the literals, so the dark themes render exactly as
+   before. */
+.canvas-node {
+  --wf-pass:         #34d399;
+  --wf-fail:         #f87171;
+  --wf-warn:         #fbbf24;
+  --wf-info:         #60a5fa;
+  --wf-critic:       #a5b4fc;
+  --wf-team:         #38bdf8;
+  --wf-team-ink:     #bae6fd;
+  --wf-focus:        #8b7cf6;
+  --wf-focus-deep:   #7c3aed;
+  --wf-focus-ink:    #c4b5fd;
+  --wf-title-warm:   #f8e7b8;
+}
+
+.codecanvas-shell[data-canvas-mode="light"] .canvas-node {
+  --wf-pass:         color-mix(in oklab, #34d399 30%, var(--canvas-text));
+  --wf-fail:         color-mix(in oklab, #f87171 30%, var(--canvas-text));
+  --wf-warn:         color-mix(in oklab, #fbbf24 30%, var(--canvas-text));
+  --wf-info:         color-mix(in oklab, #60a5fa 30%, var(--canvas-text));
+  --wf-critic:       color-mix(in oklab, #a5b4fc 30%, var(--canvas-text));
+  --wf-team:         color-mix(in oklab, #38bdf8 30%, var(--canvas-text));
+  /* The one role that needs more ink than the shared 30%: this is the PALE sky, and it sits on
+     a sky-tinted chip rather than on the node body, so the chip's own wash eats the difference.
+     Measured 3.64:1 at 30%; 18% clears AA on the same surface. */
+  --wf-team-ink:     color-mix(in oklab, #bae6fd 18%, var(--canvas-text));
+  --wf-focus:        color-mix(in oklab, #8b7cf6 30%, var(--canvas-text));
+  --wf-focus-deep:   color-mix(in oklab, #7c3aed 30%, var(--canvas-text));
+  --wf-focus-ink:    color-mix(in oklab, #c4b5fd 30%, var(--canvas-text));
+  --wf-title-warm:   color-mix(in oklab, #f8e7b8 30%, var(--canvas-text));
+}
+
+/* CodeCanvas workflow/orchestration node surfaces: task, context, critic, human gate, and team. */
+
+/* ── Task node ── */
+.canvas-task-node-body {
+  --canvas-task-font: "Monaspace Neon", var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  display: flex;
+  flex-direction: column;
+  gap: 0.42rem;
+  height: 100%;
+  min-height: 0;
+  padding: 0.55rem 0.62rem 0.6rem;
+  overflow: hidden;
+  font-family: var(--canvas-task-font);
+}
+
+.canvas-task-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding-right: 0.2rem;
+}
+
+.canvas-task-scroll .canvas-task-title {
+  margin-bottom: 0.38rem;
+}
+
+.canvas-task-title {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: color-mix(in oklab, var(--canvas-text) 94%, var(--wf-title-warm) 6%);
+  font-family: var(--canvas-task-font);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1.2;
+  caret-color: var(--canvas-accent);
+}
+.canvas-task-title::placeholder { color: var(--canvas-text-muted); }
+
+.canvas-task-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.45rem;
+}
+
+.canvas-task-chip {
+  --canvas-task-chip-color: var(--canvas-text-muted);
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.12rem;
+  padding: 0 0.46rem;
+  border-radius: 9999px;
+  border: 1px solid color-mix(in oklab, var(--canvas-task-chip-color) 34%, transparent);
+  background: color-mix(in oklab, var(--canvas-task-chip-color) 10%, transparent);
+  color: var(--canvas-task-chip-color);
+  font-family: var(--canvas-task-font);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.canvas-task-section-head {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.28rem;
+}
+
+.canvas-task-section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: color-mix(in oklab, var(--canvas-text-muted) 78%, var(--node-accent) 22%);
+  font-family: var(--canvas-task-font);
+  font-size: 0.585rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.canvas-task-section-label::before {
+  content: "";
+  width: 0.25rem;
+  height: 0.25rem;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--node-accent) 70%, transparent);
+}
+
+.canvas-task-section-count {
+  /* Was a fixed pale lavender, then a 42% ink mix in this pass — measured 3.8:1 on dark and
+     2.3:1 on light, faint in both. "2/12" is the plan's progress, not decoration. */
+  color: color-mix(in oklab, var(--canvas-text) 78%, transparent);
+  font-family: var(--canvas-task-font);
+  font-size: 0.585rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  line-height: 1;
+}
+
+.canvas-task-intent {
+  margin-bottom: 0.45rem;
+}
+
+.canvas-task-intent-text {
+  margin: 0;
+  color: color-mix(in oklab, var(--canvas-text) 82%, transparent);
+  font-family: var(--canvas-task-font);
+  font-size: 0.72rem;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.45;
+}
+
+.canvas-task-description {
+  display: block;
+  width: 100%;
+  min-height: 5.5rem;
+  resize: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  background: color-mix(in oklab, var(--canvas-text) 3%, transparent);
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 6%, transparent);
+  border-radius: 8px;
+  outline: none;
+  color: var(--canvas-text);
+  font-family: var(--canvas-task-font);
+  font-size: 0.7rem;
+  letter-spacing: -0.035em;
+  line-height: 1.45;
+  padding: 0.45rem 0.55rem;
+  caret-color: var(--canvas-accent);
+  box-sizing: border-box;
+}
+.canvas-task-description::placeholder { color: var(--canvas-text-muted); }
+
+.canvas-task-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.canvas-task-criteria {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.canvas-task-criterion {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.38rem;
+  cursor: pointer;
+}
+
+.canvas-task-criterion--done {
+  opacity: 0.46;
+}
+
+.canvas-task-criterion-check {
+  width: 0.7rem;
+  height: 0.7rem;
+  margin: 0.12rem 0 0;
+  flex-shrink: 0;
+  accent-color: var(--node-accent);
+  cursor: pointer;
+}
+
+.canvas-task-criterion-text {
+  color: color-mix(in oklab, var(--canvas-text) 76%, transparent);
+  font-family: var(--canvas-task-font);
+  font-size: 0.675rem;
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1.38;
+}
+
+.canvas-task-criterion--done .canvas-task-criterion-text {
+  text-decoration: line-through;
+}
+
+/* Board 18 (plans/canvas-dock): the tracker's own status hues, the same six the Tasks rows wear.
+   The menus are portalled out of the node (`.canvas-task-menu-layer`), so they carry them too. */
+.canvas-task-node-body,
+.canvas-task-menu-layer {
+  --canvas-task-progress: #f5b544;
+  --canvas-task-review: #a78bfa;
+  --canvas-task-blocked: #fb7185;
+  --canvas-task-done: #4ade80;
+  --canvas-task-menu-surface: color-mix(in oklab, var(--node-floor-solid) 86%, var(--canvas-text) 6%);
+}
+.canvas-task-node-body [data-tone="progress"],
+.canvas-task-menu-layer [data-tone="progress"] { --canvas-task-chip-color: var(--canvas-task-progress); }
+.canvas-task-node-body [data-tone="review"],
+.canvas-task-menu-layer [data-tone="review"] { --canvas-task-chip-color: var(--canvas-task-review); }
+.canvas-task-node-body [data-tone="blocked"],
+.canvas-task-menu-layer [data-tone="blocked"] { --canvas-task-chip-color: var(--canvas-task-blocked); }
+.canvas-task-node-body [data-tone="done"],
+.canvas-task-menu-layer [data-tone="done"] { --canvas-task-chip-color: var(--canvas-task-done); }
+.canvas-task-node-body [data-tone="open"],
+.canvas-task-node-body [data-tone="dropped"],
+.canvas-task-menu-layer [data-tone="open"],
+.canvas-task-menu-layer [data-tone="dropped"] { --canvas-task-chip-color: var(--canvas-text-muted); }
+.canvas-task-node-body .tk-glyph,
+.canvas-task-menu-layer .tk-glyph { display: inline-flex; color: var(--canvas-task-chip-color, var(--canvas-text-muted)); }
+
+.canvas-task-key {
+  margin-left: 0.3rem;
+  color: var(--canvas-text-muted);
+  font-weight: 500;
+}
+.canvas-task-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  margin-left: auto;
+  padding: 0.08rem 0.38rem;
+  border-radius: 0.38rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 12%, transparent);
+  color: var(--canvas-text-muted);
+  font-family: var(--canvas-task-font);
+  font-size: 0.6rem;
+  font-weight: 600;
+}
+
+/* Chips: the status chip is a button with a menu; priority and workspace are quiet labels. */
+.canvas-task-chip { gap: 0.26rem; }
+.canvas-task-chip svg { flex-shrink: 0; }
+.canvas-task-chip--quiet {
+  --canvas-task-chip-color: var(--canvas-text-muted);
+  background: transparent;
+  border-color: color-mix(in oklab, var(--canvas-text) 11%, transparent);
+}
+.canvas-task-chip--quiet[data-priority="high"] { color: var(--canvas-text); }
+.canvas-task-status-chip {
+  min-height: 1.3rem;
+  padding: 0 0.42rem 0 0.38rem;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+.canvas-task-status-chip:hover,
+.canvas-task-status-chip[aria-expanded="true"] {
+  background: color-mix(in oklab, var(--canvas-task-chip-color) 18%, transparent);
+}
+.canvas-task-status-chip:focus-visible { outline: 2px solid var(--canvas-focus-ring, var(--canvas-accent)); outline-offset: 1px; }
+
+/* Menus: opaque, never the canvas showing through. */
+.canvas-task-menu-root,
+.canvas-task-split { position: relative; }
+.canvas-task-menu-layer { z-index: 60; --canvas-task-font: "Monaspace Neon", var(--font-jetbrains-mono, "JetBrains Mono"), ui-monospace, SFMono-Regular, Menlo, monospace; }
+.canvas-task-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 11rem;
+  padding: 0.25rem;
+  border-radius: 0.6rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 12%, transparent);
+  background: var(--canvas-task-menu-surface);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.45);
+}
+.canvas-task-menu-group + .canvas-task-menu-group {
+  margin-top: 0.2rem;
+  padding-top: 0.2rem;
+  border-top: 1px solid color-mix(in oklab, var(--canvas-text) 9%, transparent);
+}
+.canvas-task-menu-group { display: flex; flex-direction: column; }
+.canvas-task-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  min-height: 1.7rem;
+  padding: 0 0.45rem;
+  border: 0;
+  border-radius: 0.4rem;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 88%, transparent);
+  font-family: var(--canvas-task-font);
+  font-size: 0.66rem;
+  letter-spacing: -0.03em;
+  text-align: left;
+  cursor: pointer;
+}
+.canvas-task-menu-item:hover,
+.canvas-task-menu-item:focus-visible { background: color-mix(in oklab, var(--canvas-text) 8%, transparent); outline: none; }
+.canvas-task-menu-item[aria-checked="true"] { color: var(--canvas-text); background: color-mix(in oklab, var(--canvas-text) 5%, transparent); }
+.canvas-task-menu-icon { width: 12px; flex-shrink: 0; }
+.canvas-task-menu-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas-task-menu-hint { color: var(--canvas-text-muted); font-size: 0.6rem; }
+.canvas-task-menu-item kbd {
+  min-width: 1rem;
+  padding: 0 0.22rem;
+  border-radius: 0.25rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 12%, transparent);
+  color: var(--canvas-text-muted);
+  font-family: var(--canvas-task-font);
+  font-size: 0.58rem;
+  text-align: center;
+}
+
+/* The live line: what the task's pane is doing, from the board's activities. */
+.canvas-task-live {
+  --canvas-task-live: var(--canvas-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.45rem;
+  padding: 0.38rem 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 8%, transparent);
+  background: color-mix(in oklab, var(--node-floor-solid) 70%, transparent);
+  font-family: var(--canvas-task-font);
+  font-size: 0.64rem;
+  letter-spacing: -0.03em;
+}
+.canvas-task-live[data-activity="working"] { --canvas-task-live: var(--canvas-status-running-ink); }
+.canvas-task-live[data-activity="needs-you"] {
+  --canvas-task-live: var(--canvas-task-review);
+  border-color: color-mix(in oklab, var(--canvas-task-review) 45%, transparent);
+}
+.canvas-task-live[data-activity="failed"] { --canvas-task-live: var(--canvas-status-error-ink); }
+.canvas-task-live[data-activity="done"] { --canvas-task-live: var(--canvas-task-done); }
+.canvas-task-live-dot {
+  width: 0.4rem;
+  height: 0.4rem;
+  flex-shrink: 0;
+  border-radius: 9999px;
+  background: var(--canvas-task-live);
+}
+.canvas-task-live[data-activity="working"] .canvas-task-live-dot { animation: canvas-task-live-pulse 1.6s ease-in-out infinite; }
+@keyframes canvas-task-live-pulse { 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) {
+  .canvas-task-live[data-activity="working"] .canvas-task-live-dot { animation: none; }
+}
+.canvas-task-live-who { color: color-mix(in oklab, var(--canvas-text) 86%, transparent); font-weight: 600; }
+.canvas-task-live-state { margin-left: auto; color: var(--canvas-task-live); white-space: nowrap; }
+
+/* Actions: one primary (Delegate, or Add to Tasks) and quiet icon buttons. */
+.canvas-task-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.34rem;
+}
+.canvas-task-split {
+  flex: 1 1 0;
+  display: flex;
+  min-width: 0;
+  min-height: 1.95rem;
+  border-radius: 0.55rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 11%, transparent);
+  background: color-mix(in oklab, var(--canvas-text) 4%, transparent);
+}
+.canvas-task-split--primary {
+  border-color: transparent;
+  background: color-mix(in oklab, var(--canvas-text) 92%, transparent);
+}
+.canvas-task-split-main,
+.canvas-task-split-more,
+.canvas-task-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  border: 0;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 86%, transparent);
+  font-family: var(--canvas-task-font);
+  font-size: 0.66rem;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  cursor: pointer;
+}
+.canvas-task-split-main { flex: 1 1 auto; min-width: 0; padding: 0 0.5rem; border-radius: 0.55rem 0 0 0.55rem; }
+.canvas-task-split-more {
+  flex: 0 0 auto;
+  width: 1.7rem;
+  border-left: 1px solid color-mix(in oklab, var(--canvas-text) 10%, transparent);
+  border-radius: 0 0.55rem 0.55rem 0;
+}
+.canvas-task-split--primary .canvas-task-split-main,
+.canvas-task-split--primary .canvas-task-split-more { color: var(--node-floor-solid); }
+.canvas-task-split--primary .canvas-task-split-more { border-left-color: color-mix(in oklab, var(--node-floor-solid) 18%, transparent); }
+.canvas-task-split-main:hover:not(:disabled),
+.canvas-task-split-more:hover { background: color-mix(in oklab, var(--canvas-text) 7%, transparent); }
+.canvas-task-split--primary .canvas-task-split-main:hover:not(:disabled),
+.canvas-task-split--primary .canvas-task-split-more:hover { background: color-mix(in oklab, var(--node-floor-solid) 9%, transparent); }
+.canvas-task-split-main:disabled { cursor: default; opacity: 0.55; }
+.canvas-task-split-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas-task-split-sub { font-weight: 450; opacity: 0.68; }
+.canvas-task-primary {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 1.95rem;
+  padding: 0 0.5rem;
+  border-radius: 0.55rem;
+  background: color-mix(in oklab, var(--canvas-text) 92%, transparent);
+  color: var(--node-floor-solid);
+}
+.canvas-task-primary:hover:not(:disabled) { background: var(--canvas-text); }
+.canvas-task-primary:disabled { cursor: default; opacity: 0.6; }
+.canvas-task-icon-button,
+.canvas-task-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: 1.95rem;
+  min-height: 1.95rem;
+  padding: 0 0.42rem;
+  border-radius: 0.55rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 11%, transparent);
+  background: transparent;
+  color: var(--canvas-text-muted);
+  font-family: var(--canvas-task-font);
+  font-size: 0.64rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.14s ease, border-color 0.14s ease, background 0.14s ease;
+}
+.canvas-task-icon-button:hover,
+.canvas-task-button:hover { color: var(--canvas-text); background: color-mix(in oklab, var(--canvas-text) 6%, transparent); }
+.canvas-task-icon-button--done { color: var(--canvas-task-done); border-color: color-mix(in oklab, var(--canvas-task-done) 30%, transparent); }
+.canvas-task-split-main:focus-visible,
+.canvas-task-split-more:focus-visible,
+.canvas-task-primary:focus-visible,
+.canvas-task-icon-button:focus-visible,
+.canvas-task-button:focus-visible,
+.canvas-task-open:focus-visible { outline: 2px solid var(--canvas-focus-ring, var(--canvas-accent)); outline-offset: 1px; }
+
+.canvas-task-error {
+  margin: 0;
+  color: var(--canvas-status-error-ink);
+  font-family: var(--canvas-task-font);
+  font-size: 0.62rem;
+  line-height: 1.35;
+}
+.canvas-task-meta-text {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--canvas-text-muted);
+  font-family: var(--canvas-task-font);
+  font-size: 0.6rem;
+  letter-spacing: -0.03em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-task-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  flex-shrink: 0;
+  border: 0;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  font-family: var(--canvas-task-font);
+  font-size: 0.6rem;
+  cursor: pointer;
+}
+.canvas-task-open:hover { color: var(--canvas-text); }
+
+/* A link whose task is gone from Tasks: quiet, and says what to do. */
+.canvas-task-node-body[data-link="removed"] .canvas-task-title { opacity: 0.6; }
+.canvas-task-removed {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.5rem;
+  border-radius: 0.5rem;
+  border: 1px dashed color-mix(in oklab, var(--canvas-text) 16%, transparent);
+  color: var(--canvas-text-muted);
+  font-family: var(--canvas-task-font);
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+.canvas-task-removed strong { color: var(--canvas-text); font-weight: 600; }
+.canvas-task-removed-actions { display: flex; gap: 0.34rem; margin-top: 0.15rem; }
+
+/* Context Bus node — shared artifact store surface (N3). */
+.canvas-context {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 100%;
+  padding: 0.6rem 0.7rem 0.7rem;
+  overflow: hidden;
+}
+.canvas-context-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.canvas-context-title {
+  flex: 1 1 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--canvas-text);
+  font-family: var(--font-sans, system-ui);
+  font-size: 0.875rem;
+  font-weight: 600;
+  caret-color: var(--canvas-accent);
+}
+.canvas-context-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+}
+.canvas-context-close:hover { background: color-mix(in oklab, var(--canvas-text) 8%, transparent); color: var(--canvas-text); }
+.canvas-context-close.canvas-node-focus:hover { background: color-mix(in oklab, var(--wf-focus) 16%, transparent); color: var(--wf-focus-ink); }
+.canvas-context-empty {
+  margin: 0;
+  color: var(--canvas-text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+.canvas-context-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  overflow-y: auto;
+}
+.canvas-context-item {
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 8%, transparent);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--canvas-text) 3%, transparent);
+  padding: 0.4rem 0.5rem;
+}
+.canvas-context-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+}
+.canvas-context-key {
+  color: var(--canvas-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+.canvas-context-meta {
+  color: var(--canvas-text-muted);
+  font-size: 0.625rem;
+}
+.canvas-context-value {
+  margin: 0.3rem 0 0;
+  color: var(--canvas-text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Critic Node — skeptical gate that verifies upstream work (N4). */
+.canvas-critic {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  height: 100%;
+  padding: 0.6rem 0.7rem 0.7rem;
+  overflow: hidden;
+}
+.canvas-critic-head {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.canvas-critic-icon { color: color-mix(in oklab, var(--wf-critic) 95%, transparent); flex: none; }
+.canvas-critic-title {
+  flex: 1 1 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--canvas-text);
+  font-family: var(--font-sans, system-ui);
+  font-size: 0.875rem;
+  font-weight: 600;
+  caret-color: var(--canvas-accent);
+}
+.canvas-critic-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+}
+.canvas-critic-close:hover { background: color-mix(in oklab, var(--canvas-text) 8%, transparent); color: var(--canvas-text); }
+.canvas-critic-close.canvas-node-focus:hover { background: color-mix(in oklab, var(--wf-focus) 16%, transparent); color: var(--wf-focus-ink); }
+.canvas-critic-hint {
+  margin: 0;
+  color: var(--canvas-text-muted);
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+.canvas-critic-foot {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: auto;
+}
+.canvas-critic-status {
+  color: var(--canvas-text-muted);
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.canvas-critic-verdict {
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.1rem 0.35rem;
+  border-radius: 5px;
+}
+.canvas-critic-verdict--pass { color: color-mix(in oklab, var(--wf-pass) 98%, transparent); border: 1px solid color-mix(in oklab, var(--wf-pass) 40%, transparent); }
+.canvas-critic-verdict--fail { color: color-mix(in oklab, var(--wf-fail) 98%, transparent); border: 1px solid color-mix(in oklab, var(--wf-fail) 45%, transparent); }
+.canvas-critic-btn {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: 8px;
+  border: 1px solid color-mix(in oklab, var(--wf-critic) 35%, transparent);
+  background: color-mix(in oklab, var(--wf-critic) 12%, transparent);
+  color: var(--canvas-text);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s ease;
+}
+.canvas-critic-btn:hover { background: color-mix(in oklab, var(--wf-critic) 20%, transparent); }
+.canvas-critic-btn:disabled { opacity: 0.42; cursor: not-allowed; }
+.canvas-human-gate-instructions {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: none;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 8%, transparent);
+  border-radius: 0.5rem;
+  background: color-mix(in oklab, var(--node-floor-solid) 16%, transparent);
+  color: var(--canvas-text);
+  padding: 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  outline: none;
+}
+.canvas-human-gate-instructions:focus { border-color: color-mix(in oklab, var(--wf-warn) 44%, transparent); }
+.canvas-human-gate-status--waiting { color: color-mix(in oklab, var(--wf-warn) 98%, transparent); }
+.canvas-human-gate-status--approved { color: color-mix(in oklab, var(--wf-pass) 98%, transparent); }
+.canvas-human-gate-status--rejected { color: color-mix(in oklab, var(--wf-fail) 98%, transparent); }
+.canvas-team-members { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.canvas-team-member {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  border: 1px solid color-mix(in oklab, var(--wf-team) 22%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--wf-team) 10%, transparent);
+  color: color-mix(in oklab, var(--wf-team-ink) 94%, transparent);
+  padding: 0.14rem 0.3rem 0.14rem 0.5rem;
+  font-size: 0.66rem;
+  line-height: 1.4;
+}
+/* "· claude" runner tag inside a team slot chip */
+.canvas-team-member-runner {
+  color: color-mix(in oklab, var(--wf-team-ink) 60%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+.canvas-team-member-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 0.95rem;
+  height: 0.95rem;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in oklab, var(--wf-team-ink) 55%, transparent);
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.canvas-team-member-remove:hover {
+  background: color-mix(in oklab, var(--wf-fail) 18%, transparent);
+  color: color-mix(in oklab, var(--wf-fail) 96%, transparent);
+}
+.canvas-team-member-empty {
+  color: var(--canvas-text-muted);
+  font-size: 0.66rem;
+  font-style: italic;
+}
+/* Add-runner row: picker + button */
+.canvas-team-add {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.canvas-team-add .canvas-task-agent-select { flex: 1; max-width: none; }
+.canvas-team-add .canvas-critic-btn { margin-left: 0; }
+.canvas-team-error { margin: 0; color: color-mix(in oklab, var(--wf-fail) 96%, transparent); font-size: 0.68rem; line-height: 1.3; }
+
+/* Single-run agent picker (Task node) */
+.canvas-task-agent-select {
+  max-width: 8.5rem;
+  padding: 0.28rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 10%, transparent);
+  background: color-mix(in oklab, var(--canvas-text) 4%, transparent);
+  /* Same --canvas-fg typo as .canvas-persona-name carried: the token does not exist, so this
+     always rendered the literal. --canvas-text is the real one. */
+  color: var(--canvas-text);
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+.canvas-task-agent-select:hover { border-color: color-mix(in oklab, var(--wf-focus-deep) 50%, transparent); }
+
+/* ── Run Node (plans/canvas-graph-run, mockup S8) ─────────────────────────────────────────
+   Tone comes from data-tone → one --run-tone; dots/rail use the bare status tone, TEXT uses the
+   -ink twin so it stays readable on light themes (PR #76). */
+.run-card, .run-glyph, .run-group { --run-tone: var(--canvas-status-idle); --run-ink: var(--canvas-status-idle-ink); }
+.run-card[data-tone="running"], .run-glyph[data-tone="running"], .run-group[data-tone="running"] { --run-tone: var(--canvas-status-running); --run-ink: var(--canvas-status-running-ink); }
+.run-card[data-tone="completed"], .run-glyph[data-tone="completed"], .run-group[data-tone="completed"] { --run-tone: var(--canvas-status-completed); --run-ink: var(--canvas-status-completed-ink); }
+.run-card[data-tone="error"], .run-glyph[data-tone="error"], .run-group[data-tone="error"] { --run-tone: var(--canvas-status-error); --run-ink: var(--canvas-status-error-ink); }
+.run-card[data-tone="blocked"], .run-glyph[data-tone="blocked"], .run-group[data-tone="blocked"] { --run-tone: var(--canvas-status-blocked); --run-ink: var(--canvas-status-blocked-ink); }
+.run-card[data-tone="idle"] { --run-ink: var(--canvas-text-muted); }
+
+.run-card {
+  position: relative; z-index: 1; display: flex; flex-direction: column; gap: 0.45rem;
+  width: 100%; height: 100%; padding: 0.7rem 0.8rem 0.65rem;
+  border-radius: var(--canvas-node-radius); overflow: hidden;
+  font-family: var(--canvas-font-body);
+}
+/* S8: the run that needs you is the one with the amber line — inset, so overflow: hidden keeps it. */
+.run-card[data-run-state="waiting"], .run-card[data-run-state="paused"] { box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--run-tone) 70%, transparent); }
+.run-card-head { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+.run-card-dot {
+  flex-shrink: 0; width: 8px; height: 8px; border-radius: 999px; background: var(--run-tone);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--run-tone) 22%, transparent);
+}
+.run-card[data-run-state="running"] .run-card-dot,
+.run-card[data-run-state="waiting"] .run-card-dot { animation: run-card-pulse 1.6s ease-in-out infinite; }
+@keyframes run-card-pulse { 50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--run-tone) 8%, transparent); } }
+.run-card-title {
+  flex: 1; min-width: 0; font-size: 0.82rem; font-weight: 600; color: var(--canvas-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.run-card-icon {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px;
+  color: var(--canvas-text-muted); background: transparent; border: 0; cursor: pointer;
+}
+.run-card-icon:hover { color: var(--canvas-text); background: color-mix(in oklab, var(--canvas-text) 8%, transparent); }
+.run-card-meta {
+  display: flex; flex-wrap: wrap; gap: 0.3rem; font-size: 0.66rem;
+  font-family: var(--canvas-font-mono); color: var(--canvas-text-muted);
+}
+.run-card-status { font-weight: 600; color: var(--run-ink); }
+/* The goal fills the free space, so a tall card grows its editor instead of an empty gap. */
+.run-card-goal {
+  flex: 1; min-height: 3.2rem; resize: none; padding: 0.45rem 0.55rem; border-radius: 8px;
+  font: inherit; font-size: 0.74rem; line-height: 1.4; color: var(--canvas-text);
+  background: color-mix(in oklab, var(--canvas-text) 4%, transparent);
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 10%, transparent);
+}
+.run-card-goal::placeholder { color: var(--canvas-text-muted); }
+.run-card-goal:focus { outline: none; border-color: var(--canvas-focus-ring); }
+.run-card-goal[readonly] { opacity: 0.8; }
+.run-card-chain, .run-card-error {
+  margin: 0; font-size: 0.68rem; line-height: 1.35; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.run-card-chain { color: var(--canvas-text-muted); }
+.run-card-error { white-space: normal; color: var(--canvas-status-error-ink); }
+.run-card-rail { height: 3px; border-radius: 999px; background: color-mix(in oklab, var(--canvas-text) 9%, transparent); overflow: hidden; }
+.run-card-rail > span { display: block; height: 100%; background: var(--run-tone); transition: width 240ms ease; }
+/* Budget meter (ticket ac1 `$used ▬── $cap`): its own bar, apart from the progress rail. */
+.run-card-budget { display: flex; align-items: center; gap: 0.5rem; min-height: 1.3rem; }
+.run-card-meter { flex: 1; height: 3px; border-radius: 999px; background: color-mix(in oklab, var(--canvas-text) 9%, transparent); overflow: hidden; }
+.run-card-meter > span { display: block; height: 100%; background: var(--run-tone); transition: width 240ms ease; }
+.run-card-meter[data-full] > span { background: var(--canvas-status-blocked); }
+.run-card-budget-text { font-size: 0.64rem; font-family: var(--canvas-font-mono); color: var(--canvas-text-muted); white-space: nowrap; }
+.run-card-cap {
+  display: inline-flex; align-items: center; gap: 0.2rem; margin-left: auto;
+  font-size: 0.64rem; font-family: var(--canvas-font-mono); color: var(--canvas-text-muted);
+}
+.run-card-cap input {
+  width: 3.6rem; padding: 0.1rem 0.3rem; border-radius: 5px; font: inherit; color: var(--canvas-text);
+  background: color-mix(in oklab, var(--canvas-text) 4%, transparent);
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 10%, transparent);
+}
+.run-card-cap input:focus { outline: none; border-color: var(--canvas-focus-ring); }
+.run-card-cap input[readonly] { opacity: 0.8; }
+.run-card-foot { display: flex; align-items: center; gap: 0.5rem; margin-top: auto; }
+.run-card-avatars { display: flex; }
+.run-card-avatar {
+  display: inline-grid; place-items: center; width: 22px; height: 22px; margin-left: -5px;
+  border-radius: 999px; font-size: 0.55rem; font-weight: 700; font-family: var(--canvas-font-mono);
+  color: var(--canvas-text); background: var(--canvas-surface-r, var(--canvas-surface));
+  border: 1.5px solid var(--canvas-surface);
+}
+.run-card-avatar:first-child { margin-left: 0; }
+.run-card-avatar--more { color: var(--canvas-text-muted); }
+.run-card-count { flex: 1; font-size: 0.64rem; font-family: var(--canvas-font-mono); color: var(--canvas-text-muted); }
+/* S8 "only one button": every action is an outline button; Decide and Raise cap are the only filled ones. */
+.run-card-action {
+  display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.3rem 0.65rem;
+  border-radius: 7px; cursor: pointer; font-size: 0.7rem; font-weight: 600;
+  color: var(--canvas-text); background: transparent;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 28%, transparent);
+}
+.run-card-action:hover:not(:disabled) { background: color-mix(in oklab, var(--canvas-text) 6%, transparent); }
+.run-card-action--filled {
+  color: var(--canvas-accent-fg); background: var(--canvas-accent); border-color: transparent;
+}
+.run-card-action--filled:hover:not(:disabled) { background: var(--canvas-accent); filter: brightness(1.08); }
+.run-card-action:disabled { cursor: default; opacity: 0.55; }
+.run-card-action:focus-visible, .run-card-icon:focus-visible { outline: 2px solid var(--canvas-focus-ring); outline-offset: 2px; }
+.run-card-action-timer { font-family: var(--canvas-font-mono); font-weight: 500; }
+.run-card-action kbd, .run-decision-option kbd {
+  font: inherit; font-family: var(--canvas-font-mono); font-size: 0.62rem; opacity: 0.75;
+}
+
+/* Decision card (mockup S6): opens in place of the goal while a member gate waits on the user. */
+.run-decision {
+  flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 0.4rem; padding: 0.45rem 0.55rem;
+  border-radius: 8px; border: 1px solid color-mix(in oklab, var(--run-tone) 45%, transparent);
+  background: color-mix(in oklab, var(--run-tone) 8%, transparent);
+}
+.run-decision-head { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.run-decision-title {
+  flex: 1; min-width: 0; font-size: 0.74rem; font-weight: 600; color: var(--run-ink);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.run-decision-instructions {
+  margin: 0; flex: 1; min-height: 0; overflow: auto; font-size: 0.7rem; line-height: 1.4; color: var(--canvas-text);
+}
+.run-decision-options { display: flex; gap: 0.4rem; }
+.run-decision-option {
+  flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem; padding: 0.3rem 0.5rem;
+  border-radius: 7px; cursor: pointer; font-size: 0.7rem; font-weight: 600; color: var(--canvas-text);
+  background: var(--canvas-surface); border: 1px solid color-mix(in oklab, var(--canvas-text) 14%, transparent);
+}
+.run-decision-option:hover:not(:disabled) { border-color: var(--run-tone); }
+.run-decision-option:disabled { cursor: default; opacity: 0.5; }
+.run-decision-option:focus-visible { outline: 2px solid var(--canvas-focus-ring); outline-offset: 2px; }
+
+/* Open Run Node (#74, mockup S9): an outline around the members, the run's header on top. The card's
+   box stays on the board, inert and unseen, so closing puts the card back where it was. */
+.react-flow__node.run-node--open { visibility: hidden; pointer-events: none; }
+.run-group {
+  position: absolute; pointer-events: none; border-radius: 16px;
+  border: 1.5px solid color-mix(in oklab, var(--run-tone) 70%, transparent);
+  background: color-mix(in oklab, var(--canvas-surface) 35%, transparent);
+  font-family: var(--canvas-font-body);
+}
+.run-group-head {
+  pointer-events: auto; display: flex; align-items: center; gap: 0.5rem;
+  height: 40px; padding: 0 0.45rem 0 0.4rem; box-sizing: border-box;
+  border-radius: 15px 15px 0 0;
+  background: color-mix(in oklab, var(--canvas-surface) 92%, var(--run-tone));
+  border-bottom: 1px solid color-mix(in oklab, var(--run-tone) 18%, transparent);
+}
+/* One row: title, then status and counts beside it — the meta is quieter, so the title leads. */
+.run-group .run-card-title { flex: 0 1 auto; font-size: 0.8rem; }
+.run-group .run-card-meta { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; font-size: 0.64rem; }
+.run-group .run-card-action { padding: 0.22rem 0.55rem; font-size: 0.68rem; }
+.run-group[data-run-state="running"] .run-card-dot,
+.run-group[data-run-state="waiting"] .run-card-dot { animation: run-card-pulse 1.6s ease-in-out infinite; }
+.run-group[data-run-state="waiting"], .run-group[data-run-state="paused"] { border-width: 2px; }
+.run-group-head:focus-visible { outline: 2px solid var(--canvas-focus-ring); outline-offset: -2px; border-radius: 16px 16px 0 0; }
+.run-group-name { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 0.5rem; }
+.run-group-budget { display: flex; align-items: center; gap: 0.5rem; width: 9rem; }
+.run-group-decision { pointer-events: auto; position: absolute; top: 46px; right: 0.6rem; width: 18rem; max-height: 12rem; display: flex; background: var(--canvas-surface); border-radius: 8px; }
+.run-group-error { pointer-events: auto; margin: 0.4rem 0.9rem 0; }
+.run-group-hint {
+  position: absolute; left: 0; right: 0; bottom: 0.3rem; margin: 0; text-align: center;
+  font-size: 0.68rem; color: var(--canvas-text-muted);
+}
+
+/* Zoomed-out: title + status dot only, readable from far away. */
+.run-glyph {
+  flex: 1; min-height: 0; display: flex; align-items: center; gap: 0.9rem; padding: 0 1.4rem;
+  border-radius: var(--canvas-node-radius); border: 1px solid color-mix(in oklab, var(--run-tone) 45%, transparent);
+  background: color-mix(in oklab, var(--run-tone) 10%, var(--canvas-surface));
+}
+/* Waiting on you / paused must still read from far away: a full-strength outline, not the 45% tint. */
+.run-glyph[data-run-state="waiting"], .run-glyph[data-run-state="paused"] { border: 3px solid var(--run-tone); }
+.run-glyph .run-card-dot { width: 22px; height: 22px; box-shadow: 0 0 0 6px color-mix(in oklab, var(--run-tone) 22%, transparent); }
+.run-glyph-title {
+  min-width: 0; font-size: 2rem; font-weight: 700; color: var(--canvas-text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}

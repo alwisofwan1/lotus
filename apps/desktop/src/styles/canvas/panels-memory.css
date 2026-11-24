@@ -1,0 +1,695 @@
+/* CodeCanvas project-memory panel. Durable project-scoped memory shared with agents; rendered as a
+   popover above the unified corner control bar (see .canvas-corner-* in controls.css).
+
+   Surface rule: this panel carries prose, so it is GUARANTEED opaque — a plain hex on
+   `background-color` plus the theme tint in `background-image` via --canvas-surface-r. It must never
+   go back to a --canvas-bg color-mix or a backdrop-filter: themes bleed --canvas-bg toward zero
+   alpha, which let the wallpaper through the text, and blur over ReactFlow costs frames on every pan.
+   Same proven recipe as .canvas-command-palette-panel (controls.css) and .canvas-nl-input-row. */
+
+@keyframes canvas-memory-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Kind roles ride the theme-independent status ramp. --canvas-accent resolves to a near-white in
+   every builtin theme, so it cannot carry semantic colour here. */
+.canvas-memory-shell {
+  --cc-mem-rule: var(--canvas-status-blocked-ink, #fb923c);
+  --cc-mem-decision: var(--canvas-status-completed-ink, #60a5fa);
+  --cc-mem-blocker: var(--canvas-status-error-ink, #f87171);
+  --cc-mem-evidence: var(--canvas-status-running-ink, #34d399);
+  --cc-mem-handoff: var(--canvas-status-connecting-ink, #fbbf24);
+  --cc-mem-neutral: color-mix(in oklab, var(--canvas-text) 62%, transparent);
+
+  animation: canvas-memory-in var(--canvas-motion-overlay, 220ms) var(--canvas-ease-out-quart, ease-out);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  width: min(23rem, calc(100vw - 2rem));
+  max-height: min(34rem, calc(100vh - 5.5rem));
+  border: 1px solid var(--cc-chrome-border, color-mix(in oklab, var(--canvas-text) 10%, transparent));
+  border-radius: 14px;
+  background-color: #16151d;
+  background-image:
+    linear-gradient(180deg, color-mix(in oklab, #ffffff 3%, transparent) 0%, transparent 38%),
+    linear-gradient(0deg, var(--canvas-surface-r, rgba(28, 25, 22, 0.86)), var(--canvas-surface-r, rgba(28, 25, 22, 0.86)));
+  box-shadow: 0 16px 44px -26px rgb(0 0 0 / 0.7);
+  color: var(--canvas-text);
+  overflow: hidden;
+}
+
+/* Second tier: the same component widened into a reading view. */
+.canvas-memory-shell[data-expanded="true"] {
+  width: min(46rem, calc(100vw - 2rem));
+  max-height: min(38rem, calc(100vh - 5.5rem));
+}
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+.canvas-memory-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.7rem 0.58rem 0.78rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--canvas-text) 7%, transparent);
+}
+
+.canvas-memory-eyebrow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.42rem;
+  min-width: 0;
+  color: color-mix(in oklab, var(--canvas-text) 52%, transparent);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.canvas-memory-count {
+  font-size: var(--ds-t-micro);
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  color: color-mix(in oklab, var(--canvas-text) 34%, transparent);
+  white-space: nowrap;
+}
+
+.canvas-memory-head-actions { display: flex; align-items: center; gap: 0.1rem; }
+
+.canvas-memory-iconbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.62rem;
+  height: 1.62rem;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 50%, transparent);
+  cursor: pointer;
+  transition: background-color 0.16s var(--canvas-ease-out, ease-out), color 0.16s var(--canvas-ease-out, ease-out);
+}
+.canvas-memory-iconbtn:hover { background: rgb(255 255 255 / 0.07); color: var(--canvas-text); }
+.canvas-memory-iconbtn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--canvas-focus-ring, #8ab4ff) 60%, transparent);
+  outline-offset: 1px;
+}
+
+.canvas-memory-error {
+  margin: 0;
+  padding: 0.4rem 0.78rem;
+  background: color-mix(in oklab, var(--canvas-status-error, #e5484d) 16%, transparent);
+  color: color-mix(in oklab, var(--canvas-status-error-ink, #e5484d) 82%, var(--canvas-text) 18%);
+  font-size: var(--ds-t-micro);
+  line-height: 1.4;
+}
+
+/* ── search ─────────────────────────────────────────────────────────────── */
+.canvas-memory-search {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.44rem 0.78rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--canvas-text) 6%, transparent);
+  color: color-mix(in oklab, var(--canvas-text) 38%, transparent);
+}
+
+.canvas-memory-search input {
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--canvas-text);
+  font-size: var(--ds-t-body);
+  font-weight: 500;
+  appearance: none;
+}
+.canvas-memory-search input::-webkit-search-cancel-button { display: none; }
+.canvas-memory-search input::placeholder { color: color-mix(in oklab, var(--canvas-text) 30%, transparent); }
+
+.canvas-memory-hits {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in oklab, var(--canvas-text) 42%, transparent);
+  white-space: nowrap;
+}
+.canvas-memory-hits button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+}
+.canvas-memory-hits button:hover { color: var(--canvas-text); text-decoration: underline; }
+
+/* ── kind filters ───────────────────────────────────────────────────────── */
+.canvas-memory-filters {
+  display: flex;
+  gap: 0.28rem;
+  padding: 0.48rem 0.7rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.canvas-memory-filters::-webkit-scrollbar { display: none; }
+
+.canvas-memory-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.05);
+  color: color-mix(in oklab, var(--canvas-text) 62%, transparent);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background-color 0.16s var(--canvas-ease-out, ease-out), color 0.16s var(--canvas-ease-out, ease-out);
+}
+.canvas-memory-chip:hover { color: var(--canvas-text); }
+.canvas-memory-chip[aria-pressed="true"] {
+  background: rgb(255 255 255 / 0.14);
+  border-color: var(--cc-chrome-border-hi, rgb(255 255 255 / 0.22));
+  color: var(--canvas-text);
+}
+.canvas-memory-chip-count { color: color-mix(in oklab, var(--canvas-text) 32%, transparent); }
+.canvas-memory-glyph { font-size: var(--ds-t-meta); line-height: 1; }
+
+/* ── list ───────────────────────────────────────────────────────────────── */
+.canvas-memory-body { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.canvas-memory-shell[data-expanded="true"] .canvas-memory-body {
+  display: grid;
+  grid-template-columns: 11rem minmax(0, 1fr);
+}
+
+.canvas-memory-rail {
+  display: grid;
+  gap: 0.08rem;
+  align-content: start;
+  padding: 0.6rem 0.5rem;
+  border-right: 1px solid color-mix(in oklab, var(--canvas-text) 6%, transparent);
+  overflow-y: auto;
+}
+
+.canvas-memory-rail-item {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 0.4rem;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 58%, transparent);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  letter-spacing: 0.03em;
+  text-align: left;
+  cursor: pointer;
+}
+.canvas-memory-rail-item:hover { background: rgb(255 255 255 / 0.04); color: var(--canvas-text); }
+.canvas-memory-rail-item[aria-pressed="true"] { background: rgb(255 255 255 / 0.1); color: var(--canvas-text); }
+
+.canvas-memory-list {
+  list-style: none;
+  margin: 0;
+  flex: 1;
+  min-height: 0;
+  padding: 0.1rem 0.55rem 0.6rem;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in oklab, var(--canvas-text) 18%, transparent) transparent;
+}
+.canvas-memory-shell[data-expanded="true"] .canvas-memory-list { padding: 0.1rem 1rem 1rem; }
+
+.canvas-memory-group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.28rem;
+  padding: 0.26rem 0.2rem 0.24rem;
+  color: color-mix(in oklab, var(--canvas-text) 44%, transparent);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.canvas-memory-group:first-child { margin-top: 0.2rem; }
+/* Kind identity, in one place and on one mark. It used to live on every card as a full uppercase
+   word in the kind colour, which made a list of four rules four coloured labels competing with
+   four bodies. A single coloured glyph on the heading carries the same signal at a fraction of
+   the ink, and the heading's own text stays neutral so the body is still the loudest thing in
+   the group. */
+.canvas-memory-group .canvas-memory-glyph { color: var(--cc-mem-neutral); }
+.canvas-memory-group[data-role="rule"] .canvas-memory-glyph { color: var(--cc-mem-rule); }
+.canvas-memory-group[data-role="decision"] .canvas-memory-glyph { color: var(--cc-mem-decision); }
+.canvas-memory-group[data-role="blocker"] .canvas-memory-glyph { color: var(--cc-mem-blocker); }
+.canvas-memory-group[data-role="evidence"] .canvas-memory-glyph { color: var(--cc-mem-evidence); }
+.canvas-memory-group[data-role="handoff"] .canvas-memory-glyph { color: var(--cc-mem-handoff); }
+.canvas-memory-group-note {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: color-mix(in oklab, var(--canvas-text) 28%, transparent);
+}
+
+/* One row lighter than it was: the kind/reach line is gone, so the card starts at its content.
+   `relative` because the hover actions now anchor to the card's own corner — see below. */
+.canvas-memory-item {
+  position: relative;
+  padding: 0.4rem 0.55rem 0.46rem;
+  border: 1px solid transparent;
+  border-radius: 9px;
+}
+.canvas-memory-item:hover,
+.canvas-memory-item:focus-within {
+  background: rgb(255 255 255 / 0.035);
+  border-color: rgb(255 255 255 / 0.07);
+}
+.canvas-memory-item[data-archived="true"] { opacity: 0.62; }
+
+/* Says out loud whether the row is in the agent prompt. Colour is never the only signal. */
+
+.canvas-memory-title {
+  margin: 0.28rem 0 0;
+  font-size: var(--ds-t-body);
+  font-weight: 600;
+  line-height: 1.32;
+  letter-spacing: -0.005em;
+}
+
+.canvas-memory-item-body {
+  margin: 0.2rem 0 0;
+  color: color-mix(in oklab, var(--canvas-text) 74%, transparent);
+  font-size: var(--ds-t-body);
+  line-height: 1.52;
+  overflow-wrap: anywhere;
+}
+.canvas-memory-item-body[data-clamped="true"] {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.canvas-memory-shell[data-expanded="true"] .canvas-memory-item-body { max-width: 65ch; }
+.canvas-memory-item-body code {
+  padding: 0.05em 0.26em;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.08);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: 0.9em;
+}
+
+/* This is the primary way to READ a memory, and it was painted as the quietest thing in the row:
+   a borderless 40%-ink word, indistinguishable from the metadata under it. It has always been a
+   real <button>; only the affordance was missing. An underline plus a hit area is enough — a
+   filled control here would outweigh the prose it belongs to. */
+.canvas-memory-expand {
+  margin-top: 0.1rem;
+  border: 0;
+  border-radius: 4px;
+  padding: 0.1rem 0.3rem;
+  margin-left: -0.3rem;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 62%, transparent);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--canvas-text) 26%, transparent);
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+.canvas-memory-expand:hover {
+  color: var(--canvas-text);
+  background: color-mix(in oklab, var(--canvas-text) 7%, transparent);
+}
+.canvas-memory-expand:focus-visible {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: 1px;
+}
+
+.canvas-memory-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  row-gap: 0.18rem;
+  gap: 0.32rem;
+  margin-top: 0.36rem;
+  min-height: 1.1rem;
+  color: color-mix(in oklab, var(--canvas-text) 36%, transparent);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+}
+/* Every value on this line is atomic — an author, an age, a scope, a tag. Letting one break
+   mid-word ("project-" / "wide") reads as a layout fault, not as data. They wrap BETWEEN values
+   instead, which is why the row above sets row-gap. */
+.canvas-memory-meta > * { white-space: nowrap; }
+
+.canvas-memory-meta-who { color: color-mix(in oklab, var(--canvas-text) 52%, transparent); }
+.canvas-memory-meta-sep { opacity: 0.45; }
+/* A tag is now a filter. It stays typographically quiet — this is still the metadata line, and a
+   row with three loud pills would out-shout its own body — but it answers to hover, focus and a
+   pressed state, so the one axis that cuts across kinds is reachable from where it is read. */
+.canvas-memory-meta-tag {
+  border: 0;
+  border-radius: 4px;
+  padding: 0.02rem 0.22rem;
+  margin: 0 -0.02rem;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 44%, transparent);
+  font: inherit;
+  transition: color 120ms ease, background-color 120ms ease;
+}
+button.canvas-memory-meta-tag { cursor: pointer; }
+button.canvas-memory-meta-tag:hover {
+  background: color-mix(in oklab, var(--canvas-text) 8%, transparent);
+  color: var(--canvas-text);
+}
+button.canvas-memory-meta-tag:focus-visible {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: 1px;
+}
+button.canvas-memory-meta-tag[aria-pressed="true"] {
+  background: color-mix(in oklab, var(--canvas-accent) 20%, transparent);
+  color: var(--canvas-text);
+}
+.canvas-memory-meta-archived {
+  padding: 0.02rem 0.28rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 14%, transparent);
+  border-radius: 4px;
+  color: color-mix(in oklab, var(--canvas-text) 46%, transparent);
+  font-size: var(--ds-t-micro);
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Destructive and state actions stay off the resting row. */
+/* OUT OF THE METADATA FLOW, and that is a fix for a bug I introduced two edits ago as much as a
+   design call. Letting the meta row wrap (so "project-wide" stops breaking mid-word) meant these
+   buttons — flex children with `margin-left: auto` — wrapped onto a line of their own and left
+   21px of dead space under every card whose tags filled the row. Measured, not guessed: the first
+   card's meta row was 42px against the second card's 21px.
+
+   Anchoring them to the card corner is also where they belong. They are actions ON the memory,
+   not facts ABOUT it, and appending them to a line of provenance made them compete for width
+   with the tags that are now the row's navigation. */
+.canvas-memory-item-actions {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  opacity: 0;
+  transition: opacity 0.16s var(--canvas-ease-out, ease-out);
+}
+.canvas-memory-item:hover .canvas-memory-item-actions,
+.canvas-memory-item:focus-within .canvas-memory-item-actions,
+.canvas-memory-item-actions:has(:focus-visible),
+.canvas-memory-item-actions[data-always="true"] { opacity: 1; }
+
+.canvas-memory-rowbtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.3rem;
+  height: 1.3rem;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 48%, transparent);
+  cursor: pointer;
+}
+.canvas-memory-rowbtn:hover { background: rgb(255 255 255 / 0.08); color: var(--canvas-text); }
+.canvas-memory-rowbtn[data-active="true"] { color: var(--cc-mem-handoff); opacity: 1; }
+
+/* ── empty state ────────────────────────────────────────────────────────── */
+.canvas-memory-empty { padding: 1.3rem 1rem 1.5rem; }
+.canvas-memory-empty h3 { margin: 0; font-size: var(--ds-t-body); font-weight: 620; }
+.canvas-memory-empty p {
+  margin: 0.4rem 0 0;
+  color: color-mix(in oklab, var(--canvas-text) 56%, transparent);
+  font-size: var(--ds-t-meta);
+  line-height: 1.55;
+}
+.canvas-memory-examples {
+  list-style: none;
+  display: grid;
+  gap: 0.36rem;
+  margin: 0.8rem 0 0;
+  padding: 0;
+}
+.canvas-memory-examples li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: baseline;
+  color: color-mix(in oklab, var(--canvas-text) 62%, transparent);
+  font-size: var(--ds-t-meta);
+  line-height: 1.45;
+}
+.canvas-memory-examples b { color: color-mix(in oklab, var(--canvas-text) 84%, transparent); font-weight: 620; }
+.canvas-memory-examples .canvas-memory-glyph { color: var(--cc-mem-neutral); }
+.canvas-memory-examples .canvas-memory-glyph[data-role="rule"] { color: var(--cc-mem-rule); }
+.canvas-memory-examples .canvas-memory-glyph[data-role="decision"] { color: var(--cc-mem-decision); }
+.canvas-memory-examples .canvas-memory-glyph[data-role="blocker"] { color: var(--cc-mem-blocker); }
+.canvas-memory-empty-action { margin-top: 1rem; }
+
+/* ── composer ───────────────────────────────────────────────────────────── */
+.canvas-memory-foot {
+  padding: 0.5rem 0.7rem 0.56rem;
+  border-top: 1px solid color-mix(in oklab, var(--canvas-text) 7%, transparent);
+  background: rgb(255 255 255 / 0.018);
+}
+
+.canvas-memory-add {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border: 1px dashed rgb(255 255 255 / 0.13);
+  border-radius: 9px;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 54%, transparent);
+  font-size: var(--ds-t-meta);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s var(--canvas-ease-out, ease-out), color 0.16s var(--canvas-ease-out, ease-out);
+}
+.canvas-memory-add:hover { border-color: var(--cc-chrome-border-hi, rgb(255 255 255 / 0.22)); color: var(--canvas-text); }
+
+.canvas-memory-kbd {
+  margin-left: auto;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid rgb(255 255 255 / 0.1);
+  border-radius: 4px;
+  color: color-mix(in oklab, var(--canvas-text) 40%, transparent);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+}
+
+.canvas-memory-compose { display: grid; gap: 0.48rem; }
+.canvas-memory-compose-kinds { display: flex; flex-wrap: wrap; gap: 0.26rem; }
+.canvas-memory-compose-hint {
+  margin: 0;
+  color: color-mix(in oklab, var(--canvas-text) 52%, transparent);
+  font-size: var(--ds-t-meta);
+  line-height: 1.45;
+}
+.canvas-memory-compose-hint b { color: color-mix(in oklab, var(--canvas-text) 78%, transparent); font-weight: 620; }
+
+.canvas-memory-field {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid var(--cc-chrome-border, rgb(255 255 255 / 0.09));
+  border-radius: 9px;
+  background: rgb(0 0 0 / 0.22);
+}
+.canvas-memory-field:focus-within { border-color: var(--cc-chrome-border-hi, rgb(255 255 255 / 0.22)); }
+.canvas-memory-field input,
+.canvas-memory-field textarea {
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--canvas-text);
+  font-family: inherit;
+}
+.canvas-memory-field input {
+  padding: 0.4rem 0.55rem 0.3rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--canvas-text) 6%, transparent);
+  font-size: var(--ds-t-body);
+  font-weight: 600;
+}
+.canvas-memory-field textarea {
+  padding: 0.45rem 0.55rem 0.5rem;
+  min-height: 3.6rem;
+  font-size: var(--ds-t-body);
+  line-height: 1.5;
+  resize: vertical;
+}
+.canvas-memory-field input::placeholder,
+.canvas-memory-field textarea::placeholder { color: color-mix(in oklab, var(--canvas-text) 30%, transparent); }
+
+.canvas-memory-compose-actions { display: flex; align-items: center; gap: 0.5rem; }
+.canvas-memory-tags {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--canvas-text);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+}
+.canvas-memory-tags::placeholder { color: color-mix(in oklab, var(--canvas-text) 30%, transparent); }
+
+.canvas-memory-btn-ghost,
+.canvas-memory-btn-primary {
+  padding: 0.34rem 0.62rem;
+  border: 0;
+  border-radius: 7px;
+  font-size: var(--ds-t-meta);
+  font-weight: 620;
+  cursor: pointer;
+}
+.canvas-memory-btn-ghost { background: transparent; color: color-mix(in oklab, var(--canvas-text) 50%, transparent); }
+.canvas-memory-btn-ghost:hover { color: var(--canvas-text); }
+.canvas-memory-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: color-mix(in oklab, var(--canvas-text) 92%, transparent);
+  color: #17161b;
+}
+.canvas-memory-btn-primary:hover { background: var(--canvas-text); }
+.canvas-memory-btn-primary:disabled { opacity: 0.45; cursor: default; }
+.canvas-memory-btn-primary .canvas-memory-kbd {
+  margin-left: 0;
+  border-color: rgb(0 0 0 / 0.18);
+  color: rgb(23 22 27 / 0.6);
+}
+
+/* ── undo toast ─────────────────────────────────────────────────────────── */
+.canvas-memory-undo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.78rem;
+  border-top: 1px solid color-mix(in oklab, var(--canvas-text) 7%, transparent);
+  background: rgb(255 255 255 / 0.04);
+  color: color-mix(in oklab, var(--canvas-text) 66%, transparent);
+  font-size: var(--ds-t-meta);
+}
+.canvas-memory-undo button {
+  margin-left: auto;
+  border: 0;
+  background: transparent;
+  color: var(--canvas-text);
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+.canvas-memory-undo button:hover { text-decoration: underline; }
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-memory-shell { animation: none; }
+  .canvas-memory-iconbtn,
+  .canvas-memory-chip,
+  .canvas-memory-add,
+  .canvas-memory-item-actions { transition: none; }
+}
+
+/* ══ SCOPE, AND THE FILTERS THE USER SET FROM INSIDE A ROW ═══════════════════
+   Two additions that exist to stop the panel asking one question in two voices.
+
+   The archived toggle used to be the last item in the KIND rail, styled exactly like Rules and
+   Facts. Three things were wrong with that: it does not select a kind, it is not exclusive with
+   the kind that IS selected (archived can be on while Rules is), and it changes what the store is
+   asked for rather than what the list shows. It sits with search now, because both answer "what
+   am I looking at" rather than "which kind". */
+.canvas-memory-scope {
+  flex: none;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 14%, transparent);
+  border-radius: var(--ds-radius-pill, 9999px);
+  padding: 0.12rem 0.52rem;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 52%, transparent);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  cursor: pointer;
+  transition: color 120ms ease, background-color 120ms ease, border-color 120ms ease;
+}
+.canvas-memory-scope:hover {
+  border-color: color-mix(in oklab, var(--canvas-text) 26%, transparent);
+  color: var(--canvas-text);
+}
+.canvas-memory-scope:focus-visible { outline: 2px solid var(--canvas-accent); outline-offset: 2px; }
+.canvas-memory-scope[aria-checked="true"] {
+  border-color: color-mix(in oklab, var(--canvas-accent) 42%, transparent);
+  background: color-mix(in oklab, var(--canvas-accent) 16%, transparent);
+  color: var(--canvas-text);
+}
+
+/* A tag filter is set from inside a row, so without this the list just gets shorter and the reason
+   is three rows down inside an item that may now be filtered out of view. State the user cannot
+   see is state the user cannot undo. */
+.canvas-memory-activefilter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem 0;
+  color: color-mix(in oklab, var(--canvas-text) 46%, transparent);
+  font-family: var(--canvas-font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+}
+.canvas-memory-activefilter button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-accent) 38%, transparent);
+  border-radius: var(--ds-radius-pill, 9999px);
+  padding: 0.06rem 0.46rem;
+  background: color-mix(in oklab, var(--canvas-accent) 16%, transparent);
+  color: var(--canvas-text);
+  font: inherit;
+  cursor: pointer;
+}
+.canvas-memory-activefilter button:hover {
+  background: color-mix(in oklab, var(--canvas-accent) 26%, transparent);
+}
+.canvas-memory-activefilter button:focus-visible {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: 2px;
+}
+
+/* An empty kind is still worth listing — it teaches the taxonomy and it is a place to file the
+   next thing — but at full weight six empty rows out-shouted the two with content. Quiet, not
+   hidden, and never removed from the keyboard. */
+.canvas-memory-rail-item[data-empty] { opacity: 0.42; }
+.canvas-memory-rail-item[data-empty]:hover,
+.canvas-memory-rail-item[data-empty]:focus-visible,
+.canvas-memory-rail-item[data-empty][aria-pressed="true"] { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-memory-scope,
+  .canvas-memory-expand,
+  .canvas-memory-meta-tag { transition: none; }
+}

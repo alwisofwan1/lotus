@@ -1,0 +1,249 @@
+/* CodeCanvas ReactFlow edge, connection line, wire toolbar, and connection handle styling. */
+
+/* CodeCanvas edge and connection styles. Theme tokens live in theme.css. */
+
+.codecanvas-shell .react-flow__edge.canvas-wire {
+  --canvas-edge-stroke: var(--canvas-wire);
+  --canvas-edge-stroke-soft: var(--canvas-wire-soft);
+  --canvas-edge-stroke-active: var(--canvas-wire-active);
+  --canvas-edge-glow-active: rgba(103, 232, 249, 0.26);
+}
+
+.codecanvas-shell .react-flow__edge.canvas-wire--skills {
+  --canvas-edge-stroke: rgba(103, 232, 249, 0.38);
+  --canvas-edge-stroke-soft: rgba(103, 232, 249, 0.18);
+  --canvas-edge-stroke-active: rgba(103, 232, 249, 0.86);
+  --canvas-edge-glow-active: rgba(103, 232, 249, 0.28);
+}
+
+.codecanvas-shell .react-flow__edge.canvas-wire--skill-preview {
+  --canvas-edge-stroke: rgba(167, 139, 250, 0.38);
+  --canvas-edge-stroke-soft: rgba(167, 139, 250, 0.16);
+  --canvas-edge-stroke-active: rgba(196, 181, 253, 0.9);
+  --canvas-edge-glow-active: rgba(167, 139, 250, 0.26);
+}
+
+.codecanvas-shell .react-flow__edge-path,
+.codecanvas-shell .react-flow__connection-path {
+  stroke: var(--canvas-edge-stroke, var(--canvas-wire));
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.92;
+  filter:
+    drop-shadow(0 0 2px var(--canvas-edge-stroke-soft, var(--canvas-wire-soft)))
+    drop-shadow(0 0 8px rgba(103, 232, 249, 0.08));
+  /* Hover/select widen + brighten eases instead of snapping. The glow filter is
+     left out of the transition — drop-shadow lists don't interpolate cleanly and
+     animating SVG filters repaints per frame; the eased stroke carries the effect. */
+  transition:
+    stroke var(--canvas-motion-fast, 120ms) ease,
+    stroke-width var(--canvas-motion-fast, 120ms) ease,
+    opacity var(--canvas-motion-fast, 120ms) ease;
+}
+
+.codecanvas-shell .react-flow__edge.canvas-wire--browser-spawn {
+  --canvas-edge-stroke: rgba(139, 92, 246, 0.52);
+  --canvas-edge-stroke-soft: rgba(139, 92, 246, 0.22);
+  --canvas-edge-stroke-active: rgba(167, 139, 250, 0.9);
+  --canvas-edge-glow-active: rgba(139, 92, 246, 0.32);
+}
+
+.codecanvas-shell .react-flow__edge.canvas-wire--skills .react-flow__edge-path,
+.codecanvas-shell .react-flow__edge.canvas-wire--skill-preview .react-flow__edge-path,
+.codecanvas-shell .react-flow__edge.canvas-wire--context .react-flow__edge-path,
+.codecanvas-shell .react-flow__edge.canvas-wire--triggers .react-flow__edge-path,
+.codecanvas-shell .react-flow__edge.canvas-wire--orchestrates .react-flow__edge-path,
+.codecanvas-shell .react-flow__edge.canvas-wire--data-flow .react-flow__edge-path,
+.codecanvas-shell .react-flow__edge.canvas-wire--agent-link .react-flow__edge-path,
+.codecanvas-shell .react-flow__edge.canvas-wire--browser-spawn .react-flow__edge-path {
+  stroke-dasharray: 7 10;
+  stroke: var(--canvas-edge-stroke, var(--canvas-wire));
+}
+
+.codecanvas-shell .react-flow__edge.canvas-wire--browser-spawn .react-flow__edge-path {
+  stroke-dasharray: 6 3;
+  opacity: 0.72;
+}
+
+.codecanvas-shell .react-flow__edge.selected .react-flow__edge-path,
+.codecanvas-shell .react-flow__edge:hover .react-flow__edge-path,
+.codecanvas-shell .react-flow__edge:focus-visible .react-flow__edge-path {
+  stroke: var(--canvas-edge-stroke-active, var(--canvas-wire-active));
+  stroke-width: 3.4;
+  opacity: 1;
+  filter:
+    drop-shadow(0 0 4px var(--canvas-edge-glow-active, rgba(103, 232, 249, 0.26)))
+    drop-shadow(0 0 14px var(--canvas-edge-glow-active, rgba(103, 232, 249, 0.18)));
+}
+
+.codecanvas-shell .react-flow__connection-path,
+.canvas-connection-line-path {
+  stroke: var(--canvas-wire-active);
+  stroke-width: 3;
+  stroke-dasharray: 6 8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+  filter:
+    drop-shadow(0 0 4px rgba(103, 232, 249, 0.28))
+    drop-shadow(0 0 14px rgba(103, 232, 249, 0.14));
+}
+
+.canvas-connection-line[data-status="invalid"] .canvas-connection-line-path {
+  stroke: rgba(248, 113, 113, 0.86);
+  filter: drop-shadow(0 0 5px rgba(248, 113, 113, 0.22));
+}
+
+.canvas-connection-line-label-host { overflow: visible; pointer-events: none; }
+.canvas-connection-line-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: max-content;
+  max-width: 132px;
+  height: 1.5rem;
+  padding: 0 0.55rem;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  border-radius: 9999px;
+  background: rgba(8, 10, 16, 0.9);
+  color: rgba(224, 242, 254, 0.88);
+  font-size: 0.66rem;
+  font-weight: 650;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32), 0 0 0 0.5px rgba(255, 255, 255, 0.08) inset;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.canvas-connection-line[data-status="invalid"] .canvas-connection-line-label {
+  border-color: rgba(248, 113, 113, 0.32);
+  color: rgba(254, 202, 202, 0.92);
+}
+
+.canvas-wire-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  pointer-events: all;
+}
+
+.canvas-wire-label-input {
+  height: 1.625rem;
+  width: 7.5rem;
+  padding: 0 0.55rem;
+  border: 1px solid rgba(103, 232, 249, 0.22);
+  border-radius: 9999px;
+  background: rgba(8, 10, 18, 0.92);
+  color: rgba(224, 242, 254, 0.9);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  outline: none;
+  backdrop-filter: blur(10px) saturate(1.08);
+  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.32), 0 0 0 0.5px rgba(255, 255, 255, 0.06) inset;
+  pointer-events: all;
+}
+.canvas-wire-label-input::placeholder {
+  color: rgba(103, 232, 249, 0.28);
+  font-style: italic;
+}
+.canvas-wire-label-input:focus {
+  border-color: rgba(103, 232, 249, 0.45);
+  box-shadow: 0 0 0 2px rgba(103, 232, 249, 0.08), 0 10px 24px rgba(0, 0, 0, 0.32);
+}
+
+.canvas-wire-delete-button {
+  width: 1.625rem;
+  height: 1.625rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  border-radius: 9999px;
+  background: rgba(24, 12, 16, 0.92);
+  color: rgba(254, 202, 202, 0.92);
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.34), 0 0 0 0.5px rgba(255, 255, 255, 0.08) inset;
+  backdrop-filter: blur(10px) saturate(1.08);
+  -webkit-backdrop-filter: blur(10px) saturate(1.08);
+  pointer-events: all;
+}
+.canvas-wire-delete-button:hover,
+.canvas-wire-delete-button:focus-visible {
+  background: rgba(248, 113, 113, 0.18);
+  border-color: rgba(248, 113, 113, 0.5);
+  outline: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .canvas-connection-line-label,
+  .canvas-wire-label-input,
+  .canvas-wire-delete-button {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+.codecanvas-shell .react-flow__handle {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+  border: 0;
+  border-radius: 9999px;
+  opacity: 0;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.codecanvas-shell .canvas-node-handle--top {
+  transform: translate(-50%, calc(-100% - 6px));
+}
+.codecanvas-shell .canvas-node-handle--right {
+  transform: translate(calc(100% + 6px), -50%);
+}
+.codecanvas-shell .canvas-node-handle--bottom {
+  transform: translate(-50%, calc(100% + 6px));
+}
+.codecanvas-shell .canvas-node-handle--left {
+  transform: translate(calc(-100% - 6px), -50%);
+}
+
+.codecanvas-shell .canvas-node-handle::after {
+  content: "";
+  position: absolute;
+  inset: 5px;
+  border-radius: inherit;
+  background: color-mix(in oklab, var(--canvas-surface-r) 72%, #67e8f9 28%);
+  border: 1px solid rgba(207, 250, 254, 0.56);
+  box-shadow: 0 0 0 2px rgba(7, 7, 13, 0.72), 0 0 10px rgba(103, 232, 249, 0.12);
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, inset 140ms ease;
+}
+
+.codecanvas-shell .react-flow__handle:hover,
+.codecanvas-shell .react-flow__handle.connectingto,
+.codecanvas-shell .react-flow__handle.connectingfrom,
+.codecanvas-shell .canvas-center[data-connecting="true"] .canvas-node-handle,
+.codecanvas-shell .canvas-node:hover .canvas-node-handle,
+.codecanvas-shell .canvas-node.selected .canvas-node-handle {
+  opacity: 1;
+}
+
+.codecanvas-shell .canvas-center[data-connecting="true"] .canvas-node {
+  box-shadow: var(--node-glass-shadow), var(--node-glass-inset), 0 0 0 1px rgba(103, 232, 249, 0.12), 0 0 28px rgba(103, 232, 249, 0.08);
+}
+
+.codecanvas-shell .canvas-center[data-connecting="true"] .canvas-node-handle::after {
+  border-color: rgba(207, 250, 254, 0.78);
+  box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.12), 0 0 14px rgba(103, 232, 249, 0.26);
+}
+
+.codecanvas-shell .react-flow__handle:hover::after,
+.codecanvas-shell .react-flow__handle.connectingto::after,
+.codecanvas-shell .react-flow__handle.connectingfrom::after {
+  inset: 3px;
+  background: #67e8f9;
+  border-color: rgba(207, 250, 254, 0.95);
+  box-shadow: 0 0 0 3px rgba(103, 232, 249, 0.14), 0 0 14px rgba(103, 232, 249, 0.36);
+}

@@ -1,0 +1,44 @@
+name: web drift
+
+# ci-filters: allow-multi-package
+#
+# The site's tests read the PRODUCT's source (facts-match-source, copy-matches-product,
+# privacy-desktop) and fail when the site no longer describes it. web-deploy.yml runs them,
+# but only when apps/web changes — and drift is caused by the OTHER side changing. On
+# 2026-10-03 the live site said "52 MCP tools" for days after the app reached 54, and showed
+# Chat as "Soon" while it was live, because no push to apps/web happened to run the suite.
+#
+# This job runs the same suite once a day against main. It never deploys: a red run here
+# means "update the site", not "the site is broken". It crosses packages on purpose, hence
+# the opt-out above (tools/verify-ci-filters.mjs).
+#
+# Daily, not per push: per-push cost 273 runs in 20 days (2026-11) and helped exhaust the
+# private-repo Actions minutes. Drift found a day late is still found.
+
+on:
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: apps/web
+
+concurrency:
+  group: web-drift-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+      - name: Site still matches the product
+        run: bun run test

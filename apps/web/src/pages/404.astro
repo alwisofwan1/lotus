@@ -1,0 +1,54 @@
+---
+/**
+ * Without this file Cloudflare Pages falls back to index.html for every unmatched
+ * path AND returns HTTP 200 — so `/anything-at-all` silently served the homepage.
+ * Verified against the live deploy before this existed:
+ *   /tidak-ada-file-ini.xyz -> HTTP 200, content-type text/html, homepage body.
+ *
+ * That is a soft-404: crawlers index unlimited duplicate URLs, and a mistyped link
+ * looks like it worked. Astro builds this to 404.html, which Pages serves with a
+ * real 404 status.
+ */
+import SiteHeader from "../components/SiteHeader.astro";
+import SiteFooter from "../components/SiteFooter.astro";
+import Base from "../layouts/Base.astro";
+import { site } from "../copy";
+---
+
+<Base title={`Not found — ${site.name}`} description="That page does not exist." noindex>
+  <SiteHeader />
+  <main class="wrap">
+    <div class="shell inner">
+      <p class="idx">404</p>
+      <h1>That page does not exist.</h1>
+      <p class="prose">
+        Nothing here. The link was probably mistyped, or it pointed at something that
+        has not been built yet.
+      </p>
+      <p class="back"><a class="btn" href="/">Back to the start</a></p>
+    </div>
+  </main>
+  <SiteFooter />
+</Base>
+
+<style>
+  .wrap {
+    min-block-size: 78vh;
+    display: grid;
+    place-items: center;
+  }
+  .inner {
+    inline-size: 100%;
+    display: grid;
+    gap: 1rem;
+    justify-items: start;
+  }
+  h1 {
+    font-size: clamp(1.9rem, 5vw, 3.2rem);
+    letter-spacing: -0.035em;
+    max-width: 22ch;
+  }
+  .back {
+    margin-top: 0.75rem;
+  }
+</style>

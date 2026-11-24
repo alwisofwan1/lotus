@@ -1,0 +1,84 @@
+.canvas-voice-tool-trace {
+  position: absolute;
+  left: max(24px, env(safe-area-inset-left));
+  right: max(24px, env(safe-area-inset-right));
+  bottom: calc(100% + 10px);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: min(760px, calc(100vw - 48px));
+  margin: 0 auto;
+  padding: 8px 12px;
+  border: 1px solid color-mix(in srgb, rgba(125, 211, 252, 0.46), transparent 35%);
+  border-radius: 14px;
+  background: color-mix(in srgb, rgba(8, 15, 32, 0.94), transparent 8%);
+  box-shadow: 0 12px 40px rgba(3, 8, 22, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  color: rgba(224, 242, 254, 0.9);
+  font-size: var(--ds-t-micro);
+  line-height: 1.35;
+  pointer-events: none;
+  transform: translateY(-2px);
+}
+
+.canvas-voice-tool-trace[data-ok="false"] {
+  border-color: rgba(248, 113, 113, 0.5);
+  color: rgba(254, 226, 226, 0.94);
+}
+
+.canvas-voice-tool-trace__tool {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.18);
+  color: rgba(186, 230, 253, 0.98);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.canvas-voice-tool-trace__preview {
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(203, 213, 225, 0.86);
+  /* The bar's own face, italic: a quoted transcript reads as a quote. */
+  font-family: var(--canvas-nl-font, "Iowan Old Style", Charter, Georgia, ui-serif, serif);
+  font-style: italic;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-voice-tool-trace__copy {
+  pointer-events: auto;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 3px 7px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+  color: rgba(226, 232, 240, 0.9);
+  font: inherit;
+  cursor: pointer;
+}
+
+.canvas-voice-tool-trace__copy:hover {
+  border-color: rgba(125, 211, 252, 0.45);
+  color: rgba(240, 249, 255, 0.98);
+}
+
+@media (max-width: 720px) {
+  .canvas-voice-tool-trace {
+    flex-wrap: wrap;
+    width: calc(100vw - 32px);
+    font-size: var(--ds-t-micro);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .canvas-voice-tool-trace {
+    background: #071124;
+  }
+}

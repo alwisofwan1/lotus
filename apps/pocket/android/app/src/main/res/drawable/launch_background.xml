@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The window the OS draws before Flutter exists. One flat colour, matching
+     `AppTokens.dark.bg`, so the handover to the first frame is invisible.
+     No bitmap: a launch window cannot animate, and the mark that does belongs
+     to `SplashScreen`, which is drawn by Flutter. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/launch_floor" />
+</layer-list>

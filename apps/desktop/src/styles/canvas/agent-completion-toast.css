@@ -1,0 +1,502 @@
+/* Agent completion toast — app-level "agent finished" cards, anchored inside .canvas-center.
+   Material = "ambient lamplight" (revamp Jul 2026): the card is the ACTIVE THEME's raised surface,
+   lifted toward white and lit from above, with the warmth carried by light (top sheen, seal pool,
+   outer bloom) rather than pigment in the face. 200×40: seal · name over project · ✕.
+   Every colour comes from the --cc-toast-* block in theme.css (itself derived from --canvas-*), so
+   the toast re-skins with the Artisan theme instead of carrying its own palette. No backdrop blur:
+   the bottom background layer is --canvas-bg, so the card is effectively opaque over the graph.
+
+   Multiple finishes form a STACKED DECK (newest in front, older peeking behind); hover/focus fans
+   the deck open into a column, and a +N chip holds anything beyond the cap. Cards slide in/out
+   toward the anchored edge. Anchored absolute, so it sits above the graph, ignores pan/zoom, and
+   stays clear of the side rails. */
+
+.canvas-agent-toast-host {
+  position: absolute;
+  z-index: 120; /* above the command-delivery FX overlay (96), below modals */
+  width: 12.5rem; /* 200px. The deck is fixed-width (its cards are absolutely positioned), so width
+                     alone decides how much dead space opens up before the ✕. Stacking the project on
+                     its own line takes the horizontal pressure off, which is what lets the card be
+                     this narrow and still fit a name like "orchids-agent-teams". */
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  pointer-events: none; /* the canvas stays interactive around the cards */
+}
+
+/* ── anchors (Settings → Canvas → Completion toast position) ──
+   Each anchor pins the stack inside .canvas-center (absolute), so it ignores pan/zoom and stays clear
+   of the side rails. top-* anchors offset by the docked top bar's height so they never hide under it. */
+.canvas-agent-toast-host[data-pos="bottom-right"] { right: 1rem; bottom: 1rem; }
+.canvas-agent-toast-host[data-pos="bottom-left"]  { left: 1rem;  bottom: 1rem; }
+.canvas-agent-toast-host[data-pos="top-right"]    { right: 1rem; top: calc(1rem + var(--canvas-header-h, 0px)); }
+.canvas-agent-toast-host[data-pos="top-left"]     { left: 1rem;  top: calc(1rem + var(--canvas-header-h, 0px)); }
+.canvas-agent-toast-host[data-pos="bottom-center"] {
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+}
+
+/* ── +N chip (finishes beyond the cap) ──
+   A quiet tally riding the deck's anchor edge; clicking it reveals every folded finish as a card.
+   Once expanded it is re-rendered as an inert <span> (not a disabled button), so there is no dead
+   click target left behind — see AgentCompletionToasts. */
+.canvas-agent-toast-chip {
+  align-self: flex-end;
+  pointer-events: auto;
+  position: relative;
+  z-index: 40; /* rides above the deck's top sliver it tucks against */
+  margin-bottom: -0.25rem; /* hug the deck — cancel most of the host gap so chip+deck read as one group */
+  margin-right: 0.375rem; /* off the rounded corner, onto the card's flat top edge */
+  border: 1px solid var(--cc-toast-border, rgba(255, 255, 255, 0.14));
+  border-radius: 999px;
+  background: var(--cc-toast-surface, #2a2924);
+  color: var(--cc-toast-ink-muted, rgba(255, 255, 255, 0.52));
+  font-size: var(--ds-t-micro);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  padding: 0.25rem 0.4375rem;
+  cursor: pointer;
+  box-shadow: 0 8px 18px -10px rgb(0 0 0 / 0.7);
+  transition:
+    color 140ms var(--canvas-ease-out, ease),
+    border-color 140ms var(--canvas-ease-out, ease),
+    background-color 140ms var(--canvas-ease-out, ease);
+  animation: canvas-agent-toast-chip-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.canvas-agent-toast-chip[data-inert="true"] {
+  pointer-events: none;
+  cursor: default;
+}
+button.canvas-agent-toast-chip:hover {
+  color: var(--cc-toast-ink, #f5f4ef);
+  border-color: var(--cc-toast-border-hi, rgba(255, 255, 255, 0.24));
+  background: color-mix(in oklab, var(--cc-toast-surface, #2a2924) 88%, var(--cc-toast-warm, #f0a35e) 12%);
+}
+.canvas-agent-toast-host[data-pos$="left"] .canvas-agent-toast-chip {
+  align-self: flex-start;
+  margin-right: 0;
+  margin-left: 0.375rem;
+}
+.canvas-agent-toast-host[data-pos="bottom-center"] .canvas-agent-toast-chip {
+  align-self: center;
+  margin-right: 0;
+}
+@keyframes canvas-agent-toast-chip-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* ── the deck box ──
+   The list is a fixed-size positioning box (height set inline from toastStackHeightRem) whose
+   absolute children are the cards. It owns hover/focus: collapsed it hugs the front card + peeks;
+   open it spans the whole column, so the pointer can move between cards without the deck snapping
+   shut. Pointer events only while open — collapsed, the cards themselves are the hover target. */
+.canvas-agent-toast-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+  pointer-events: none;
+  transition: height 240ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.canvas-agent-toast-list[data-open="true"] {
+  pointer-events: auto;
+}
+
+/* ── card surface (ambient lamplight) ──
+   Layers, front to back: warm halo · top sheen · warmed+lifted theme surface · --canvas-bg (the
+   opacity floor, so a theme whose raised surface carries alpha still yields a solid card).
+   --cc-toast-signal is the per-scope status hue, set on the card below and reused by the seal, the
+   life bar, and the project ink, so one variable re-tints the whole card coherently. */
+.canvas-agent-toast {
+  --cc-toast-signal: var(--cc-toast-ok, #6da871);
+  border-radius: var(--cc-toast-radius, 15px);
+  border: 1px solid var(--cc-toast-border, rgba(255, 255, 255, 0.14));
+  /* The surface is wrapped in a flat linear-gradient ON PURPOSE: only the LAST layer of the
+     `background` shorthand may be a colour, so a bare colour in the middle would invalidate the
+     whole declaration and leave the card with no background at all. The final layer is the theme's
+     paper (opaque in every theme), which is what guarantees the card is solid over the graph.
+
+     The surface is painted TWICE. Several themes give their raised surface an alpha around 0.6, and
+     one coat let the paper below wash the card out (and let the warm halo out-vote the theme's own
+     hue). Two coats deepen the theme's colour without shifting it — 0.62 alpha composites to ~0.86,
+     an opaque theme stays opaque — so warmth can stay purely a matter of light. */
+  background:
+    var(--cc-toast-halo, none),
+    var(--cc-toast-sheen, none),
+    linear-gradient(var(--cc-toast-surface, #2a2924), var(--cc-toast-surface, #2a2924)),
+    linear-gradient(var(--cc-toast-surface, #2a2924), var(--cc-toast-surface, #2a2924)),
+    var(--canvas-bg, #14140f);
+  box-shadow: var(--cc-toast-shadow, 0 20px 40px -20px rgb(0 0 0 / 0.6));
+}
+.canvas-agent-toast--background {
+  --cc-toast-signal: var(--cc-toast-accent, #d97757);
+}
+
+/* ── card layout + deck geometry ──
+   Two stacked lines (name over project) beside the seal, ✕ at the trailing edge — the structure the
+   user signed off on. Compaction comes from the BOX, not the arrangement: 200×40 where it started at
+   248×52, roughly a third less area, with the leading tightened rather than any line dropped.
+   Every card is absolute at the anchor edge; --stack-i (inline, 0 = newest/front) drives its slot.
+   The rem constants MUST stay in sync with TOAST_CARD_H_REM / TOAST_STACK_GAP_REM /
+   TOAST_STACK_PEEK_REM in services/agent-completion-toast.ts:
+     card height 2.5rem · open offset 3rem (card + 0.5rem gap) · collapsed peek 0.5625rem.
+   --lift is the hover nudge; it lives inside the transform so a raised card never fights the
+   deck's own translate/scale. */
+.canvas-agent-toast {
+  --stack-y: calc(var(--stack-i, 0) * -0.5625rem);
+  --stack-s: calc(1 - var(--stack-i, 0) * 0.05);
+  --lift: 0px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  height: 2.5rem;
+  display: grid;
+  /* TWO in-flow items only — the hit button and the ✕ (the life bar is absolutely positioned, so it
+     never takes a grid slot). A third `auto` column would leave the ✕ stranded at the start of the
+     1fr column, mid-card; the hit button takes the 1fr and pushes the ✕ to the edge. */
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  column-gap: 0.25rem;
+  padding: 0 0.375rem 0 0.625rem;
+  pointer-events: auto;
+  isolation: isolate;
+  transform: translateY(calc(var(--stack-y) + var(--lift))) scale(var(--stack-s));
+  transform-origin: bottom center;
+  opacity: calc(1 - var(--stack-i, 0) * 0.16);
+  z-index: calc(30 - var(--stack-i, 0));
+  /* visibility waits for the fade when a deep card hides (deck closing); shows instantly on open */
+  transition:
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 240ms var(--canvas-ease-out, ease),
+    opacity 240ms ease,
+    visibility 0s linear 240ms;
+}
+.canvas-agent-toast-list[data-open="true"] .canvas-agent-toast {
+  --stack-y: calc(var(--stack-i, 0) * -3rem);
+  --stack-s: 1;
+  opacity: 1;
+  transition:
+    transform 240ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 240ms var(--canvas-ease-out, ease),
+    opacity 240ms ease,
+    visibility 0s;
+}
+/* Hover/focus on an open deck: the card lifts and its ambient bloom widens — the whole card is a
+   button, and this is the only cue that says so. */
+.canvas-agent-toast-list[data-open="true"] .canvas-agent-toast:hover,
+.canvas-agent-toast-list[data-open="true"] .canvas-agent-toast:focus-within {
+  --lift: -2px;
+  border-color: var(--cc-toast-border-hi, rgba(255, 255, 255, 0.22));
+  box-shadow: var(--cc-toast-shadow-hover, 0 26px 50px -22px rgb(0 0 0 / 0.66));
+}
+.canvas-agent-toast-list[data-open="true"] .canvas-agent-toast:has(.canvas-agent-toast__hit:active) {
+  --lift: 0px;
+}
+/* Back layers carry a lighter shadow while collapsed — the front card keeps the full ambient
+   depth and stays visually dominant (the last child is the newest/front card). */
+.canvas-agent-toast-list:not([data-open="true"]) .canvas-agent-toast:not(:last-child) {
+  box-shadow: var(--cc-toast-shadow-deep, 0 12px 26px -16px rgb(0 0 0 / 0.55));
+}
+/* Deeper than the visible back layers (TOAST_STACK_MAX_LAYERS = 3): hidden until the deck opens. */
+.canvas-agent-toast-list:not([data-open="true"]) .canvas-agent-toast:nth-last-child(n + 4) {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+/* Top-anchored decks mirror: cards pin to the top edge, back layers peek DOWNWARD, the column
+   opens downward. */
+.canvas-agent-toast-host[data-pos^="top"] .canvas-agent-toast {
+  bottom: auto;
+  top: 0;
+  transform-origin: top center;
+  --stack-y: calc(var(--stack-i, 0) * 0.5625rem);
+}
+.canvas-agent-toast-host[data-pos^="top"] .canvas-agent-toast-list[data-open="true"] .canvas-agent-toast {
+  --stack-y: calc(var(--stack-i, 0) * 3rem);
+}
+
+/* The 3px signal-coloured stripe that used to run down the left edge is GONE, deliberately. A thick
+   coloured side border is a house-banned pattern, and it was the third thing saying what the seal and
+   the life bar already said. Scope now reads from the seal's hue, the project ink, and the ↗ —
+   which also keeps the cue non-colour-only. */
+
+.canvas-agent-toast__hit {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 0.5rem;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+
+/* ── the seal ──
+   A scalloped "verified" mark in the signal hue, sitting in its own soft pool of light: the ::after
+   ambient disc is what makes the corner feel lamplit rather than stamped. */
+.canvas-agent-toast__seal {
+  position: relative;
+  /* 18px against a two-line block: large enough to read as the "done" mark at a glance, small
+     enough that the agent's name still leads. */
+  width: 1.125rem;
+  height: 1.125rem;
+  display: block;
+}
+.canvas-agent-toast__seal::after {
+  content: "";
+  position: absolute;
+  inset: -0.25rem;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle,
+    color-mix(in oklab, var(--cc-toast-signal) 24%, transparent),
+    transparent 68%
+  );
+}
+.canvas-agent-toast__seal svg {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.canvas-agent-toast__seal-body {
+  fill: var(--cc-toast-signal);
+}
+.canvas-agent-toast__seal-check {
+  fill: none;
+  /* punch the check OUT of the seal in the card's own body colour, so it reads as embossed at any
+     theme brightness (a fixed dark stroke would disappear on a light theme's card) */
+  stroke: var(--cc-toast-surface, #14140f);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Name over project, each on its own line and each truncating independently. Compaction is bought
+   with LEADING (1.15 / 1.2 instead of 1.2 / 1.25) and a 40px box, never by merging the two lines —
+   the stacked pair is what makes "who finished, and where" readable at a glance. */
+.canvas-agent-toast__body {
+  min-width: 0;
+}
+/* Ink follows the theme (--cc-toast-* → --canvas-text), so a light Artisan theme gets dark ink on a
+   cream card and a dark theme gets warm ink on lamplit graphite. Title stays one line — uniform card
+   height is what makes the deck geometry exact. */
+.canvas-agent-toast__title {
+  display: block;
+  font-size: var(--ds-t-body);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--cc-toast-ink, #f5f4ef);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.canvas-agent-toast__sub {
+  display: block;
+  font-size: var(--ds-t-micro);
+  line-height: 1.2;
+  color: var(--cc-toast-ink-muted, rgba(255, 255, 255, 0.52));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.canvas-agent-toast__proj {
+  /* a step brighter than the muted sub line — the project name is the answer to "where did the
+     work land", so it carries slightly more ink than its surroundings */
+  color: var(--cc-toast-proj-ink, rgba(255, 255, 255, 0.78));
+  font-weight: 500;
+}
+.canvas-agent-toast--background .canvas-agent-toast__proj {
+  color: color-mix(in oklab, var(--cc-toast-signal) 72%, var(--cc-toast-ink, #f5f4ef));
+}
+.canvas-agent-toast__ext {
+  color: color-mix(in oklab, var(--cc-toast-signal) 72%, var(--cc-toast-ink, #f5f4ef));
+  font-size: var(--ds-t-micro);
+  margin-left: 2px;
+  vertical-align: 1px;
+}
+
+/* ── life bar (the countdown, finally visible) ──
+   A hairline at the card's foot that drains over the toast's own duration (--toast-life, inline).
+   Pure transform, one compositor-only animation, no JS tick — and it PAUSES with the deck, so an
+   inspected card visibly stops draining instead of silently banking time. */
+.canvas-agent-toast__life {
+  position: absolute;
+  /* Insets match the corner radius so the bar sits INSIDE the card's curve without needing
+     overflow:hidden (which would clip the seal's ambient halo). Riding the foot edge — not floating
+     under the text — is what keeps it reading as a countdown instead of an underline. */
+  left: 0.6875rem;
+  right: 0.6875rem;
+  bottom: 0;
+  height: 1.5px;
+  border-radius: 1.5px 1.5px 0 0;
+  pointer-events: none;
+  transform-origin: left center;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--cc-toast-signal) 58%, transparent),
+    color-mix(in oklab, var(--cc-toast-signal) 14%, transparent)
+  );
+  animation: canvas-agent-toast-life var(--toast-life, 6000ms) linear both;
+}
+.canvas-agent-toast-list[data-open="true"] .canvas-agent-toast__life,
+.canvas-agent-toast[data-leaving="true"] .canvas-agent-toast__life {
+  animation-play-state: paused;
+}
+@keyframes canvas-agent-toast-life {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Close: a hairline drawn ×, quiet but findable (the old 0.4 opacity was effectively invisible).
+   18px keeps a usable hit target while sitting close to the content instead of pinned far right. */
+.canvas-agent-toast__close {
+  display: grid;
+  place-items: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cc-chrome-radius-sm, 8px);
+  background: none;
+  color: var(--cc-toast-ink-muted, rgba(255, 255, 255, 0.52));
+  opacity: 0.62;
+  cursor: pointer;
+  transition:
+    opacity 140ms var(--canvas-ease-out, ease),
+    color 140ms var(--canvas-ease-out, ease),
+    background-color 140ms var(--canvas-ease-out, ease);
+}
+.canvas-agent-toast__close svg {
+  width: 0.5rem;
+  height: 0.5rem;
+  display: block;
+}
+.canvas-agent-toast__close svg path {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.3;
+  stroke-linecap: round;
+}
+.canvas-agent-toast__close:hover,
+.canvas-agent-toast__close:focus-visible {
+  opacity: 1;
+  color: var(--cc-toast-ink, #f5f4ef);
+  background: var(--cc-toast-fill, rgba(255, 255, 255, 0.09));
+}
+
+.canvas-agent-toast__hit:focus-visible,
+.canvas-agent-toast__close:focus-visible,
+.canvas-agent-toast-chip:focus-visible {
+  outline: 2px solid var(--canvas-focus-ring, rgba(255, 255, 255, 0.28));
+  outline-offset: 2px;
+  border-radius: var(--cc-chrome-radius-sm, 8px);
+}
+
+/* ── enter / leave: a slide toward the anchored edge ──
+   Entry keyframes define only `from`, exit keyframes only `to` — the missing end is the card's LIVE
+   deck transform, so a new card glides into the front slot and a dismissed one slides out of
+   whatever slot it occupies, without ever snapping to identity first. Exit names keep the
+   `canvas-agent-toast-out` prefix — ToastCard's animationend handler matches on it. */
+.canvas-agent-toast {
+  animation: canvas-agent-toast-in-right 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.canvas-agent-toast-host[data-pos$="left"] .canvas-agent-toast {
+  animation-name: canvas-agent-toast-in-left;
+}
+.canvas-agent-toast-host[data-pos="bottom-center"] .canvas-agent-toast {
+  animation-name: canvas-agent-toast-in-rise;
+}
+.canvas-agent-toast[data-leaving="true"] {
+  animation: canvas-agent-toast-out-right 240ms cubic-bezier(0.55, 0, 0.85, 0.6) both;
+  pointer-events: none;
+}
+.canvas-agent-toast-host[data-pos$="left"] .canvas-agent-toast[data-leaving="true"] {
+  animation-name: canvas-agent-toast-out-left;
+}
+.canvas-agent-toast-host[data-pos="bottom-center"] .canvas-agent-toast[data-leaving="true"] {
+  animation-name: canvas-agent-toast-out-sink;
+}
+
+@keyframes canvas-agent-toast-in-right {
+  from {
+    opacity: 0;
+    transform: translate(calc(100% + 1.25rem), var(--stack-y, 0rem)) scale(var(--stack-s, 1));
+  }
+}
+@keyframes canvas-agent-toast-out-right {
+  to {
+    opacity: 0;
+    transform: translate(calc(100% + 1.25rem), var(--stack-y, 0rem)) scale(var(--stack-s, 1));
+  }
+}
+@keyframes canvas-agent-toast-in-left {
+  from {
+    opacity: 0;
+    transform: translate(calc(-100% - 1.25rem), var(--stack-y, 0rem)) scale(var(--stack-s, 1));
+  }
+}
+@keyframes canvas-agent-toast-out-left {
+  to {
+    opacity: 0;
+    transform: translate(calc(-100% - 1.25rem), var(--stack-y, 0rem)) scale(var(--stack-s, 1));
+  }
+}
+@keyframes canvas-agent-toast-in-rise {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--stack-y, 0rem) + 100% + 1.25rem)) scale(var(--stack-s, 1));
+  }
+}
+@keyframes canvas-agent-toast-out-sink {
+  to {
+    opacity: 0;
+    transform: translateY(calc(var(--stack-y, 0rem) + 100% + 1.25rem)) scale(var(--stack-s, 1));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-agent-toast-host[data-pos] .canvas-agent-toast {
+    animation: canvas-agent-toast-fade 90ms ease both;
+    transition: none;
+  }
+  /* Keeps the `canvas-agent-toast-out` prefix so removal timing still works. */
+  .canvas-agent-toast-host[data-pos] .canvas-agent-toast[data-leaving="true"] {
+    animation: canvas-agent-toast-out-fade 90ms ease both;
+  }
+  .canvas-agent-toast-list,
+  .canvas-agent-toast-chip {
+    transition: none;
+    animation: none;
+  }
+  /* The life bar KEEPS animating: a linear hairline drain is not a vestibular trigger, and it is
+     the only thing telling the user the card is about to leave. Removing it would trade motion
+     safety for a real loss of information. */
+}
+@keyframes canvas-agent-toast-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes canvas-agent-toast-out-fade {
+  to {
+    opacity: 0;
+  }
+}

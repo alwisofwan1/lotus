@@ -1,0 +1,129 @@
+/* CodeCanvas shared ReactFlow NodeResizer affordances. */
+
+/* Node resize affordance — larger targets than React Flow's default 5px handles.
+   Controls are mounted for every full-detail node so users can grab them on hover,
+   while opacity/pointer-events keep idle canvases quiet. */
+.canvas-node .react-flow__resize-control {
+  z-index: 8;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease, background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.canvas-node:hover .react-flow__resize-control,
+.canvas-node.selected .react-flow__resize-control,
+.canvas-node--resizing .react-flow__resize-control {
+  opacity: 1;
+  pointer-events: all;
+}
+/* Mockup 07k: four small round knobs on the corners; the edges stay invisible (still grabbable,
+   the cursor says so) and show a short pill only under the pointer or while dragging. */
+.canvas-node .canvas-node-resize-handle {
+  width: 18px;
+  height: 18px;
+  border: 0;
+  background: transparent;
+}
+/* The knob is drawn inside an 18px hit target so a small dot stays easy to grab. */
+.canvas-node .canvas-node-resize-handle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--canvas-text) 92%, white);
+  box-shadow:
+    0 0 0 1.5px var(--canvas-surface),
+    0 0 0 2.5px color-mix(in oklab, var(--canvas-accent) 55%, transparent),
+    0 2px 6px rgba(0, 0, 0, 0.35);
+  translate: -50% -50%;
+  transition: scale 120ms ease, box-shadow 120ms ease;
+}
+.canvas-node .canvas-node-resize-handle:hover::after,
+.canvas-node .canvas-node-resize-handle:focus-visible::after,
+.canvas-node--resizing .canvas-node-resize-handle::after {
+  scale: 1.4;
+  box-shadow:
+    0 0 0 1.5px var(--canvas-surface),
+    0 0 0 2.5px color-mix(in oklab, var(--canvas-accent) 90%, transparent),
+    0 0 14px color-mix(in oklab, var(--canvas-accent) 50%, transparent);
+}
+.canvas-node .canvas-node-resize-line {
+  border-color: transparent;
+}
+.canvas-node .canvas-node-resize-line.left,
+.canvas-node .canvas-node-resize-line.right {
+  width: 12px;
+}
+.canvas-node .canvas-node-resize-line.top,
+.canvas-node .canvas-node-resize-line.bottom {
+  height: 12px;
+}
+.canvas-node .canvas-node-resize-line::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 36px;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--canvas-accent) 70%, white);
+  opacity: 0;
+  transform: translate(-50%, -50%);
+  transition: opacity 120ms ease;
+}
+.canvas-node .canvas-node-resize-line.top::after,
+.canvas-node .canvas-node-resize-line.bottom::after {
+  width: 36px;
+  height: 3px;
+}
+.canvas-node .canvas-node-resize-line:hover::after,
+.canvas-node--resizing .canvas-node-resize-line:active::after {
+  opacity: 1;
+}
+.canvas-node--glyph .react-flow__resize-control {
+  display: none;
+}
+
+/* Bare whiteboard shapes do not carry .canvas-node chrome, so their ReactFlow resize layer
+   needs its own styling. Keep the resize line coral/subtle so it reads as selection chrome,
+   not as the user-selected shape stroke. */
+.canvas-shape-node .react-flow__resize-control {
+  z-index: 8;
+  opacity: 1;
+  pointer-events: all;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+}
+.canvas-shape-node .canvas-node-resize-handle {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid rgba(255, 220, 204, 0.9);
+  border-radius: 3px;
+  background: rgba(18, 18, 27, 0.94);
+  box-shadow: 0 0 0 1.5px rgba(232, 102, 61, 0.7), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+.canvas-shape-node .canvas-node-resize-handle::after,
+.canvas-shape-node .canvas-node-resize-line::after {
+  content: none;
+}
+.canvas-shape-node .canvas-node-resize-line {
+  border-color: rgba(232, 102, 61, 0.34);
+}
+.canvas-shape-node .canvas-node-resize-handle:hover,
+.canvas-shape-node .canvas-node-resize-handle:focus-visible {
+  background: #e8663d;
+  border-color: rgba(255, 246, 240, 0.96);
+  box-shadow: 0 0 0 3px rgba(232, 102, 61, 0.18), 0 0 18px rgba(232, 102, 61, 0.36);
+}
+
+/* Browser nodes host a native child WebView: the page under the pointer never reaches CSS
+   hover, so the controls stay grabbable while invisible instead of waiting for :hover. */
+.canvas-browser-node .react-flow__resize-control {
+  z-index: 18;
+  pointer-events: all;
+}
+.canvas-browser-node .canvas-node-resize-handle {
+  width: 22px;
+  height: 22px;
+}

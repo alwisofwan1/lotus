@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher icon from API 26 up, which is every device this app can reach except
+     API 24–25 (minSdk is 24 because of flutter_secure_storage).
+
+     It is also what fixes the launch screen on this Transsion ROM. Measured 2026-09-08:
+     the device runs the platform SplashScreen (`SplashScreenStartingData` in logcat) but
+     ignores both `windowSplashScreenBackground` and `windowSplashScreenAnimatedIcon` —
+     a diagnostic build setting the background to magenta showed no magenta at all. What
+     it draws instead is the launcher icon, which was still Flutter's stock logo. So the
+     icon is the fix, and `values-v31/styles.xml` stays for the devices that do honour it. -->
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@color/launch_floor" />
+    <foreground android:drawable="@drawable/ic_launcher_foreground" />
+    <monochrome android:drawable="@drawable/ic_launcher_foreground" />
+</adaptive-icon>

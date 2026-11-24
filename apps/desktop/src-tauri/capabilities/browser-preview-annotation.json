@@ -1,0 +1,11 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "browser-preview-annotation",
+  "description": "Allow remote pages inside the embedded browser preview to emit annotation selections only.",
+  "local": false,
+  "remote": {
+    "urls": ["http://*", "https://*", "http://*:*", "https://*:*"]
+  },
+  "webviews": ["codechat-browser-preview-embed-*"],
+  "permissions": ["allow-browser-preview-emit-annotation"]
+}

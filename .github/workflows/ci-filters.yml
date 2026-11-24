@@ -1,0 +1,31 @@
+name: ci filters
+
+# Asserts that every OTHER workflow's path filter still matches real files and stays
+# inside its package. ADR-7's third lesson: a filter that matches nothing fails quietly —
+# the host suite stopped being tested and nothing went red.
+#
+# It used to run on every push (317 runs in 20 days, 2026-11), which helped exhaust the
+# private-repo Actions minutes. Now: on a workflow/verifier change, plus a weekly run that
+# catches a package moved without touching any workflow. Its own globs are checked by the
+# script too, so a broken filter here still goes red on the weekly run.
+
+on:
+  push:
+    paths:
+      - ".github/workflows/**"
+      - "tools/verify-ci-filters.mjs"
+  pull_request:
+    paths:
+      - ".github/workflows/**"
+      - "tools/verify-ci-filters.mjs"
+  schedule:
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify workflow path filters
+        run: node tools/verify-ci-filters.mjs

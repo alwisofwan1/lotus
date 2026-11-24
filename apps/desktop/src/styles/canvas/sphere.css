@@ -1,0 +1,159 @@
+/* CodeCanvas — Canvases sphere selector */
+
+.canvas-sphere-stage {
+  position: relative;
+  width: 100%;
+  height: clamp(26rem, 62vh, 44rem);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.canvas-sphere-stage.is-dragging {
+  cursor: grabbing;
+}
+.canvas-sphere-stage.is-opening {
+  cursor: default;
+  animation: canvas-sphere-open 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes canvas-sphere-open {
+  0% { opacity: 1; transform: scale(1); }
+  70% { opacity: 0.9; transform: scale(1.06); }
+  100% { opacity: 0; transform: scale(1.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-sphere-stage.is-opening {
+    animation: none;
+  }
+}
+
+/* Billboarded HTML labels rendered via drei <Html>. */
+.canvas-sphere-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.05rem 0;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: var(--ds-t-micro);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color:color-mix(in oklab, var(--canvas-text) 42%, transparent);
+  transition: color 140ms ease;
+  pointer-events: none;
+}
+.canvas-sphere-label.is-active {
+  color:var(--canvas-text);
+}
+.canvas-sphere-label-name {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.canvas-sphere-label-current {
+  font-size: var(--ds-t-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--canvas-wire-active, #67e8f9);
+}
+.canvas-sphere-label-count {
+  min-width: 1rem;
+  padding: 0 0.32rem;
+  border-radius: 9999px;
+  font-size: var(--ds-t-micro);
+  text-align: center;
+  color:color-mix(in oklab, var(--canvas-text) 78%, transparent);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.canvas-sphere-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 0.5rem;
+  transform: translateX(-50%);
+  margin: 0;
+  font-size: var(--ds-t-micro);
+  font-style: italic;
+  color:color-mix(in oklab, var(--canvas-text) 28%, transparent);
+  pointer-events: none;
+}
+
+.canvas-sphere-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-size: var(--ds-t-body);
+  color:color-mix(in oklab, var(--canvas-text) 40%, transparent);
+}
+
+/* ── Mode toggle (segmented control) ── */
+.canvases-mode-toggle {
+  display: inline-flex;
+  gap: 0.15rem;
+  padding: 0.18rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.03);
+}
+.canvases-mode-btn {
+  padding: 0.28rem 0.85rem;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+  color:color-mix(in oklab, var(--canvas-text) 50%, transparent);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+.canvases-mode-btn:hover {
+  color:color-mix(in oklab, var(--canvas-text) 85%, transparent);
+}
+.canvases-mode-btn.is-active {
+  background: rgba(255, 255, 255, 0.09);
+  color:var(--canvas-text);
+}
+.canvases-mode-btn:focus-visible {
+  outline: 2px solid var(--canvas-wire-active, #67e8f9);
+  outline-offset: 2px;
+}
+
+.canvases-head-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.canvases-head-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Compact "New canvas" pill shown in sphere mode. */
+.canvas-sphere-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.03);
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+  color:color-mix(in oklab, var(--canvas-text) 70%, transparent);
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
+}
+.canvas-sphere-new:hover {
+  border-color:color-mix(in oklab, var(--canvas-text) 28%, transparent);
+  color:var(--canvas-text);
+  background: rgba(255, 255, 255, 0.05);
+}
+.canvas-sphere-new:focus-visible {
+  outline: 2px solid var(--canvas-wire-active, #67e8f9);
+  outline-offset: 2px;
+}

@@ -1,0 +1,71 @@
+---
+/**
+ * The home page. Composition only — no copy, no layout decisions. A sentence belongs in
+ * `../copy.ts`; a rule belongs in the section that owns it.
+ *
+ * ── The revamp, 2026-09-30 (plans/lotus-web/REVAMP.md) ──
+ *
+ * Ten sections became five, and the order is the argument: the claim (Hero), the product
+ * running and answerable (LiveDemo), four checkable facts (Proof), and the last call with
+ * the legal line (Footer). Everything the old page explained in prose — surfaces, the run,
+ * ceilings, capabilities, economics — is either shown in the demo or cut. The build log
+ * moved to /changelog/.
+ *
+ * ── The redesign, 2026-11-07 (plans/lotus-web/redesign-2026-11/index.html) ──
+ *
+ * Factory, Automations and Chat each got a section, plus an interactive demo.
+ *
+ * ── The redesign, 2026-11-21 ──
+ *
+ * Ultra-minimal. The claim (Hero); the product told once in a pinned window that changes
+ * scene per chapter (Story: Canvas, hand-off, Chat, Factory, Automations); Pocket as a
+ * teaser; the first-launch step for the unsigned builds (Install); FAQ; the last call
+ * (Footer). The interactive demo is gone. `public/motion.js` switches the scenes and plays
+ * the motion; without it every chapter is readable and the first scene is shown.
+ *
+ * Keep notes like this one in frontmatter. An `<!-- HTML comment -->` in the template is
+ * copied verbatim into `dist/`, and a retired claim once shipped back onto the page that way.
+ */
+import Base from "../layouts/Base.astro";
+import Hero from "../sections/Hero.astro";
+import Story from "../sections/Story.astro";
+import Pocket from "../sections/Pocket.astro";
+import Install from "../sections/Install.astro";
+import Faq from "../sections/Faq.astro";
+import Footer from "../sections/Footer.astro";
+import { nav } from "../copy";
+import SiteHeader from "../components/SiteHeader.astro";
+---
+
+<Base>
+  <a class="skip" href="#story">{nav.skip}</a>
+  <SiteHeader />
+
+  <main>
+    <Hero />
+    <Story />
+    <Pocket />
+    <Install />
+    <Faq />
+  </main>
+
+  <Footer />
+  <script is:inline src="/motion.js" defer></script>
+</Base>
+
+<style>
+  .skip {
+    position: absolute;
+    left: 1rem;
+    top: -3rem;
+    z-index: 100;
+    padding: 0.5rem 0.9rem;
+    border-radius: 8px;
+    background: var(--ink);
+    color: var(--ground);
+    font-size: 0.875rem;
+  }
+  .skip:focus-visible {
+    top: 0.75rem;
+  }
+</style>

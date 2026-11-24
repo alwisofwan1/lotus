@@ -1,0 +1,43 @@
+{
+  "type": "fleet.changed",
+  "cells": [
+    {
+      "paneId": "p-1",
+      "workspaceId": "ws-lotus",
+      "agentType": "claude",
+      "runnerLabel": "acme",
+      "profileId": "initech",
+      "title": "Chase",
+      "status": "live",
+      "isAlive": true,
+      "cwd": "/Users/op/code/lotus",
+      "workspaceLabel": "Lotus",
+      "lastOutputPreview": "Running tests…",
+      "headline": "clean up the legacy files",
+      "sessionId": "sess-1",
+      "turn": "needs-input",
+      "turnAgeMs": 4000,
+      "gating": "asks",
+      "model": "claude-opus-5-5",
+      "branch": "feat/pocket-context"
+    },
+    {
+      "paneId": "p-2",
+      "workspaceId": "ws-lotus",
+      "agentType": "codex",
+      "runnerLabel": "Codex",
+      "title": "Marshall",
+      "status": "live",
+      "isAlive": true,
+      "cwd": "/Users/op/code/lotus",
+      "workspaceLabel": "Lotus",
+      "sessionId": "sess-2",
+      "gating": "runner_cannot",
+      "usage": {
+        "status": "allowed_warning",
+        "window": "five_hour",
+        "resetsAt": 1788763800
+      }
+    }
+  ]
+}

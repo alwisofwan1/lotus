@@ -1,0 +1,46 @@
+name: desktop CI
+
+# Same shape as host-ci.yml: gated on the desktop subtree only.
+# Frontend only for now; the Rust crate needs a macOS runner and ~15 min, add it as its own job later.
+
+on:
+  push:
+    paths:
+      - "apps/desktop/**"
+      - ".github/workflows/desktop-ci.yml"
+  pull_request:
+    paths:
+      - "apps/desktop/**"
+      - ".github/workflows/desktop-ci.yml"
+
+# A newer push makes the older run pointless; cancel it to save private-repo minutes.
+concurrency:
+  group: desktop-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: apps/desktop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # next-env.d.ts (which declares *.svg imports) is gitignored; locally `next dev` writes it.
+      - name: Generate Next types
+        run: bunx next typegen
+
+      - name: Typecheck
+        run: bunx tsc --noEmit -p .
+
+      - name: Test
+        run: bun run test

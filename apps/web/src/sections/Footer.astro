@@ -1,0 +1,138 @@
+---
+/**
+ * The last call and the legal line.
+ *
+ * The footer carries the two things the law actually requires, not decoration: a privacy
+ * notice link beside the signup path (GDPR Art. 13(1)) and a physical postal address, which
+ * must appear in every email we send (CAN-SPAM §7704(a)(5)(iii)). The address is a
+ * placeholder until a real one is decided, and a placeholder is never rendered: the law
+ * asks for it in the mail, not here, and `<registered postal address>` on a live page reads
+ * as a broken template. It appears in the bottom row the day copy.ts holds a real one.
+ *
+ * It also carries the page's second signup form, tagged `footer` rather than `hero`. That is
+ * what makes the channel tag a measurement instead of a constant: a signup here means the
+ * whole page was read first. Both placements come through the same seam, so they open and
+ * close together.
+ */
+import { Image } from "astro:assets";
+import { finalCta, hero } from "../copy";
+import SiteFooter from "../components/SiteFooter.astro";
+import DownloadButtons from "../components/DownloadButtons.astro";
+import { describePlacement } from "../lib/waitlist";
+import appIcon from "../assets/brand/lotus-app-icon.png";
+
+const placement = describePlacement("footer");
+---
+
+<section class="last" aria-labelledby="last-title">
+  <div class="shell last-in">
+    <Image src={appIcon} alt="" width={76} height={75} densities={[1, 2]} class="app-icon" loading="lazy" decoding="async" />
+    <h2 id="last-title">{finalCta.heading.lead}<br /><span class="turn">{finalCta.heading.turn}</span></h2>
+    <p class="say">{finalCta.body}</p>
+
+    <DownloadButtons />
+
+    <form
+      class="cta"
+      action={placement.open ? placement.plan.action : undefined}
+      method={placement.open ? placement.plan.method : undefined}
+    >
+      {placement.open && placement.plan.hidden.map((f) => <input type="hidden" name={f.name} value={f.value} />)}
+      {
+        placement.open ? (
+          <div class="field">
+            <input
+              type="email"
+              name="email"
+              required
+              placeholder="you@company.com"
+              aria-label="Work email"
+              autocomplete="email"
+              inputmode="email"
+              maxlength="254"
+            />
+            <button class="btn" type="submit">{hero.cta.submit}</button>
+          </div>
+        ) : null
+      }
+      <p class="fine">
+        <a href="/privacy/">Privacy</a>
+      </p>
+    </form>
+  </div>
+</section>
+
+<SiteFooter />
+
+<style>
+  .last {
+    padding-block: clamp(6rem, 11vw, 9.5rem) clamp(4.5rem, 8vw, 7rem);
+    text-align: center;
+  }
+  .last-in {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .app-icon {
+    width: 76px;
+    height: auto;
+  }
+  h2 {
+    margin-top: 1.5rem;
+    font-size: clamp(2.2rem, 4.8vw, 3.3rem);
+    letter-spacing: -0.04em;
+    max-width: 18ch;
+  }
+  .turn {
+    color: var(--faint);
+  }
+  .say {
+    margin-top: 1rem;
+    font-size: 1rem;
+    color: var(--dim);
+  }
+  .cta {
+    width: 100%;
+    max-width: 26rem;
+    margin-top: 1.8rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .cta :global(.field) {
+    width: 100%;
+  }
+  .fine {
+    margin-top: 0.75rem;
+    font-size: 0.8125rem;
+  }
+  .fine a {
+    color: var(--dim);
+  }
+  .fine a:hover {
+    color: var(--ink);
+  }
+
+  @media (max-width: 560px) {
+    .cta :global(.field) {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.6rem;
+      padding: 0;
+      background: none;
+      box-shadow: none;
+    }
+    .cta :global(.field input) {
+      padding: 0.9rem 1.2rem;
+      border-radius: 999px;
+      background: var(--glass-3);
+      box-shadow: inset 0 0 0 1px var(--hair-2);
+      font-size: 1rem;
+    }
+    .cta :global(.field .btn) {
+      justify-content: center;
+      padding-block: 0.95rem;
+    }
+  }
+</style>

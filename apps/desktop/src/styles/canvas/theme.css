@@ -1,0 +1,563 @@
+/* CodeCanvas theme, tokens, and background surfaces. */
+/* CodeCanvas — scoped under .codecanvas-shell */
+
+.codecanvas-shell {
+  /* Canvas area tokens.
+     Source order: --ct-* (Artisan Theme Engine resolver, injected by CanvasPage)
+     → --ds-workbench-* (app theme, legacy inheritance) → literal default.
+     Legacy per-theme overrides (.canvas-center[data-canvas-theme=…], custom shell
+     rules) set the public canvas/node-glass token names on more specific
+     selectors, so they still win over this base block. See ADR-0023 (Phase 0b). */
+  --canvas-bg:           var(--ct-canvas-bg,         var(--ds-workbench-bg,            #07070d));
+  --canvas-surface:      var(--ct-canvas-surface,    var(--ds-workbench-surface,       rgba(22,20,18,0.86)));
+  --canvas-surface-r:    var(--ct-canvas-surface-r,  var(--ds-workbench-surface-raised, rgba(28,25,22,0.82)));
+  --canvas-text:         var(--ct-canvas-text,       var(--ds-workbench-text,          #f7f2ea));
+  --canvas-text-muted:   var(--ct-canvas-text-muted, var(--ds-workbench-text-muted,    rgba(247,242,234,0.42)));
+  --canvas-border:       var(--ct-canvas-border,     var(--ds-workbench-border,        rgba(245,242,239,0.12)));
+  --canvas-border-str:   var(--ct-canvas-border-str, var(--ds-workbench-border-strong, rgba(245,242,239,0.18)));
+  --canvas-accent:       var(--ct-canvas-accent,     var(--ds-workbench-accent,        #f5f2ef));
+  /* The ink ON a filled accent surface. Resolved per theme rather than authored, because
+     chromeAccent is near-white on the dark builtins and dark on the light one — see
+     `accentInk` in resolve-canvas-theme.ts.
+
+     THE FALLBACK IS PART OF A PAIR, and it used to contradict its partner. The line above falls
+     back to #f5f2ef, a near-white accent; this one fell back to #ffffff. White ink on a white
+     accent is 1.05:1 — an accent pill with an invisible label, and a switch whose knob vanishes
+     into its own track. #0b0b0f is simply the ink that #f5f2ef asks for. Change one of these two
+     literals and you have to change the other.
+
+     IT ALSO USED TO CLOSE A CYCLE. The old fallback named --accent-fg, and the isolation block
+     below sets `--accent-fg: var(--canvas-accent-fg)`. Whenever --ct-canvas-accent-fg is absent —
+     the first paint before CanvasPage injects the resolved style, or any shell rendered without a
+     theme — the two names referenced each other, so per CSS Variables both became invalid at
+     computed-value time and EVERY `var(--canvas-accent-fg, #ffffff)` call site painted the white.
+
+     Verified in a browser rather than argued from the spec, because the interesting half is
+     counter-intuitive: with --ct-canvas-accent-fg present the same pair of declarations resolves
+     perfectly (a fallback arm is not a cycle dependency when the primary value is there). So the
+     bug was invisible on a themed shell and total on an unthemed one — which is exactly the kind
+     of intermittency that gets filed as "sometimes the toggle looks wrong". */
+  /* Outside the canvas (Settings over Chat or Code) the accent above falls back to the app's
+     workbench accent, so the ink must be that accent's own ink: the light theme's accent is dark,
+     and #0b0b0f on it was a black-on-black pill. */
+  --canvas-accent-fg:    var(--ct-canvas-accent-fg,  var(--ds-workbench-accent-text, #0b0b0f));
+  --canvas-focus-ring:   var(--ct-canvas-focus-ring, var(--ds-workbench-focus-ring,    rgba(245,242,239,0.28)));
+  --canvas-wire:         var(--ct-canvas-wire,        rgba(103, 232, 249, 0.34));
+  --canvas-wire-soft:    var(--ct-canvas-wire-soft,   rgba(103, 232, 249, 0.18));
+  --canvas-wire-active:  var(--ct-canvas-wire-active, rgba(103, 232, 249, 0.82));
+  --canvas-wire-node:    var(--ct-canvas-wire-node,   rgba(103, 232, 249, 0.42));
+  /* ── Theme font roles ──
+     These four bridges were MISSING, which is the same failure the --node-floor-solid comment
+     below describes, only quieter and older. resolve-canvas-theme.ts has always emitted
+     --ct-canvas-font-{display,body,mono}; nothing declared the public names, so
+     `var(--canvas-font-mono, …)` in terminal-node.css fell back to its own literal on every
+     theme and a theme's `fonts.mono` reached nothing at all.
+
+     It is worth naming why this survived: canvas-terminal-typography.css.test.ts asserts that
+     the rule TEXT says `var(--canvas-font-mono` — which it does, and always did. A stylesheet
+     assertion cannot see that the token it names is undefined. Found instead by reading
+     getComputedStyle('.codecanvas-shell') in a real browser against the dev server, where all
+     four came back as empty strings. The bridge-completeness test in
+     __tests__/canvas-theme-var-bridge.css.test.ts is the guard that generalises it.
+
+     Fallbacks are what a shell renders with before the resolver lands, so they stay generic. */
+  --canvas-font-display: var(--ct-canvas-font-display, ui-rounded, system-ui, sans-serif);
+  --canvas-font-body:    var(--ct-canvas-font-body,    system-ui, sans-serif);
+  --canvas-font-mono:    var(--ct-canvas-font-mono,    ui-monospace, SFMono-Regular, Menlo, monospace);
+  /* `hud` is the one OPTIONAL role: the resolver emits --ct-canvas-font-hud ONLY for a theme
+     that names one, so this fallback is not a stand-in for a missing frame — it is the value
+     every theme without a hud face keeps forever. It therefore has to be exactly what the
+     consumers in agent-node.css resolved to before the bucket existed: the app mono. Put a
+     canvas token or a pixel face here instead and five themes silently change.
+
+     WHY THE STACK IS SPELLED OUT rather than read through `var(--font-mono, …)`, which is what
+     this line said until the font bridge below landed. That indirection was correct only while
+     `--font-mono` still meant the APP mono inside this shell. The isolation block now remaps it
+     to the active theme's mono — which is the whole point of the bridge — so the old spelling
+     would have quietly redirected hud onto a canvas token: precisely the substitution the
+     paragraph above forbids, arriving through a token rename rather than an edit here.
+
+     It is worth naming how close this came to shipping unnoticed. The guard in
+     canvas-theme-var-bridge.css.test.ts asserted the declaration TEXT read `var(--font-mono,
+     … monospace)`, and it still would have — the text never changed, only what the name
+     resolves to on this element. Same blind spot the file's own header describes: a stylesheet
+     assertion cannot see a redefined variable any more than an undefined one. The guard now
+     compares this literal against globals.css instead, so a drift in either file is a red test.
+
+     The stack below is `--font-mono` from globals.css minus its `--font-geist-sans`-style hook
+     (geist is not a dependency; the hook resolves to nothing). Keep the two in step. */
+  --canvas-font-hud:     var(--ct-canvas-font-hud,     "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  /* ── APP-TOKEN ISOLATION ────────────────────────────────────────────────
+     CodeCanvas owns its colour inside this shell. Everything below RE-DECLARES an
+     app-global token name in terms of the active Artisan theme, so the canvas stops
+     inheriting the CodeSpace / design-system theme through `:root`.
+
+     THE BUG THIS FIXES. There are two independent theme systems in this app:
+
+       • the design-system / CodeSpace theme, written to `:root` by resolve-theme.ts
+         (`--fg`, `--accent`, `--text-muted`, …)
+       • the CodeCanvas Artisan theme, written to `.codecanvas-shell` as `--ct-*` and
+         bridged to `--canvas-*` in the block above
+
+     Canvas components consume BOTH — 273 reads of the global names across 22 files, against
+     `--canvas-*` elsewhere in the same components. While every canvas theme was dark and the
+     app theme was dark, the two happened to agree and nobody noticed. Garden of Dawn is light,
+     and the disagreement became visible all at once: the Settings modal rendered `--fg`
+     (#e8e8f0, near-white) on the theme's own pale paper, so every row title and description
+     was invisible, while active segmented pills painted the app theme's Gruvbox `--accent`
+     (#fe8019) — orange, a hue that appears nowhere in the canvas theme.
+
+     WHY REMAP RATHER THAN EDIT THE CALL SITES. 273 reads is not a migration anyone finishes,
+     and a component that reads `--fg` is not WRONG — it is asking for "the foreground of
+     whatever surface I am on", which is exactly what this block now answers correctly. One
+     rule here also means a component added tomorrow is themed without knowing this file exists.
+
+     SCOPE. These are plain declarations on `.codecanvas-shell`, so they cover the canvas and
+     everything descending from it (the Settings modal is a DOM child, not a portal) and reach
+     nothing outside it. CodeSpace and the rest of the app keep the design-system theme
+     untouched. A more specific canvas rule still wins, which is what lets the Settings modal
+     keep its own tuned `--bg-card` / `--border-sub` in settings-modal.css.
+
+     NOT REMAPPED, deliberately: `--bg` is NOT pointed at `--canvas-bg`. That token is
+     `paper.fill`, a GRADIENT on most themes, and its 13 consumers here are all input-field
+     wells that would break — the same trap note-node.css already documents for color-mix(). */
+  --fg:             var(--canvas-text);
+  --fg-muted:       var(--canvas-text-muted);
+  --text-muted:     var(--canvas-text-muted);
+  --text-secondary: color-mix(in oklab, var(--canvas-text) 72%, transparent);
+  --accent:         var(--canvas-accent);
+  --accent-fg:      var(--canvas-accent-fg);
+  --border:         var(--canvas-border-str);
+  --border-sub:     var(--canvas-border);
+  --bg:             color-mix(in oklab, var(--canvas-text) 6%, transparent);
+  --bg-card:        color-mix(in oklab, var(--canvas-text) 4%, transparent);
+  --bg-sidebar:     var(--canvas-surface);
+  --bg-elevated:    var(--canvas-surface-r);
+  --bg-hover:       color-mix(in oklab, var(--canvas-text) 7%, transparent);
+  --scrollbar:      color-mix(in oklab, var(--canvas-text) 22%, transparent);
+
+  /* ── FONT ROLES, same remap for the same reason ──
+     Everything above remaps COLOUR. The two names below are the typographic half of the same
+     bug, and they went unnoticed longer because a wrong font reads as a style choice while a
+     wrong colour reads as broken.
+
+     resolve-canvas-theme.ts has always emitted `fonts.body` and `fonts.mono`, and the block at
+     the top of this file bridges them to --canvas-font-body / --canvas-font-mono. But the canvas
+     components that name a face overwhelmingly ask for the APP names: 33 reads of
+     `var(--font-mono, …)` across the canvas stylesheets plus 15 uses of Tailwind's `font-mono`
+     utility, which compiles to `font-family: var(--font-mono)`. So the Settings modal recoloured
+     with every theme while rendering in the app's JetBrains Mono and the browser's system sans,
+     and a theme's `fonts.mono` reached nothing but the terminal chrome — which had to be fixed
+     one call site at a time (see canvas-terminal-typography.css.test.ts).
+
+     Remapping here fixes the whole surface at once and, like the colour remap, means a component
+     added tomorrow is themed without knowing this file exists. A component that CAN name the
+     canvas token still should — the remap is a safety net, not a licence.
+
+     --font-sans additionally repairs a token that is dead outside this shell: globals.css sets it
+     to `var(--font-geist-sans)`, and nothing defines --font-geist-sans (geist is not a dependency
+     — the same shape as the --font-geist-mono bug documented one line below it there). Reads with
+     a fallback survive; Tailwind's bare `font-sans` utility does not. Inside the canvas it now
+     resolves to the theme body face either way.
+
+     NOT REMAPPED: --canvas-font-hud, three declarations up. It reads a spelled-out literal
+     precisely so this remap cannot reach it. */
+  --font-mono:      var(--canvas-font-mono);
+  --font-sans:      var(--canvas-font-body);
+
+  --canvas-node-radius:  0.75rem;
+  --canvas-header-h:     2.25rem;
+  /* Node-content text scale (orthogonal user axis). Consumed by node content
+     (Markdown reader, chat); NOT app chrome. CanvasPage injects the effective rem. */
+  --canvas-node-text-size: var(--ct-canvas-node-text-size, 0.875rem);
+
+  /* ── CHROME TYPE SCALE — moved out ──
+     The six-step scale (--ds-t-micro … --ds-t-display), its two line-heights and its caps
+     tracking were first written here, on .codecanvas-shell. They now live at `:root` in
+     styles/design-system.css, with the full rationale.
+
+     They had to move to be used at all. `styles/canvas/index.css` is imported by
+     app/canvas/page.tsx alone, so anything declared on this shell is invisible to /settings —
+     and the whole point of the scale is that both surfaces share one. design-system.css comes
+     from the root layout, so it reaches here too: every --ds-t-* read in the settings-modal
+     stylesheets resolves through inheritance, with nothing to declare on this side.
+
+     The prefix went with it. `--ds-t-*` said the scale was a canvas concept; it never was.
+     Sizes are the app's rhythm and are deliberately not themeable — unlike the four font ROLES
+     above, which are exactly what a theme gets to choose. That split is the reason this file
+     still owns the faces and no longer owns the sizes. */
+
+  /* ── NODE-TYPE IDENTITY COLOUR — the canonical table ──
+     One colour per node type, and the ONLY copy. node-shell.css sets each node's --node-accent
+     from these, and the Fleet panel paints its row icons from the same names, so a row's mark in
+     the list is literally the colour that node wears on the board. Before this, the Fleet drew
+     every icon in one muted grey and the correspondence had to be remembered.
+
+     Five types resolve to a palette role, so they follow the active theme. The other six are
+     LITERALS, and stay literals: they were authored that way in node-shell.css and re-deriving
+     them from the theme is a separate design decision, not a refactor to smuggle in here.
+     `context` has no node rule of its own — it takes the same slate default node-shell.css
+     applies to an unrecognised node. */
+  --canvas-type-agent:      var(--canvas-node-agent);
+  --canvas-type-terminal:   var(--canvas-node-info);
+  --canvas-type-browser:    var(--canvas-node-info);
+  --canvas-type-note:       var(--canvas-node-note);
+  --canvas-type-task:       var(--canvas-node-task);
+  --canvas-type-plan:       #5eead4;
+  --canvas-type-critic:     #f0abfc;
+  --canvas-type-human-gate: #fbbf24;
+  --canvas-type-team:       #38bdf8;
+  --canvas-type-skill:      #fbbf24;
+  --canvas-type-skills:     #fbbf24;
+  --canvas-type-context:    #94a3b8;
+  /* On the board but NOT in the Fleet's TYPE_ICON list — the table covers every node type the
+     canvas can render, not just the ones the panel lists, so `music` belongs here even though no
+     row will ever ask for it. Found by the drift guard on its first run. */
+  --canvas-type-music:      #e8a34c;
+
+  /* Per-node-type identity hues (palette roles). Fallbacks = Void palette. */
+  --canvas-node-agent: var(--ct-canvas-node-agent, #a78bfa);
+  --canvas-node-task:  var(--ct-canvas-node-task,  #5eead4);
+  --canvas-node-note:  var(--ct-canvas-node-note,  #facc15);
+  --canvas-node-info:  var(--ct-canvas-node-info,  #7dd3fc);
+  /* Status/run-state ramp — THEME-INDEPENDENT (ADR-0023 §2b). Fallbacks = STATUS_TONES.
+     A theme may not remap these hues; the resolver emits the same ramp for every theme. */
+  --canvas-status-idle:       var(--ct-canvas-status-idle,       #ffffff);
+  --canvas-status-connecting: var(--ct-canvas-status-connecting, #fbbf24);
+  --canvas-status-running:    var(--ct-canvas-status-running,    #34d399);
+  --canvas-status-completed:  var(--ct-canvas-status-completed,  #60a5fa);
+  --canvas-status-error:      var(--ct-canvas-status-error,      #f87171);
+  --canvas-status-blocked:    var(--ct-canvas-status-blocked,    #fb923c);
+  /* Frame colours (ADR-0050): six named hues, none near a status hue. Emitted by the resolver from
+     canvas-frame-palette.ts; the fallbacks are the same hexes. */
+  --canvas-frame-iris:        var(--ct-canvas-frame-iris,        #9f95ec);
+  --canvas-frame-moss:        var(--ct-canvas-frame-moss,        #a8bb72);
+  --canvas-frame-rose:        var(--ct-canvas-frame-rose,        #e58ab8);
+  --canvas-frame-orchid:      var(--ct-canvas-frame-orchid,      #c588e3);
+  --canvas-frame-mist:        var(--ct-canvas-frame-mist,        #a0b4bc);
+  --canvas-frame-stone:       var(--ct-canvas-frame-stone,       #b3ada4);
+  /* Status INK — the same ramp, for text and glyphs only. Dots, tints and borders keep the bare
+     tone above. On dark themes ink IS the tone (idle carries its old 40% here so consumers stop
+     spelling it). The light branch below moves lightness only, never hue (ADR-0023 §2b). */
+  --canvas-status-idle-ink:       color-mix(in srgb, var(--canvas-status-idle) 40%, transparent);
+  --canvas-status-connecting-ink: var(--canvas-status-connecting);
+  --canvas-status-running-ink:    var(--canvas-status-running);
+  --canvas-status-completed-ink:  var(--canvas-status-completed);
+  --canvas-status-error-ink:      var(--canvas-status-error);
+  --canvas-status-blocked-ink:    var(--canvas-status-blocked);
+
+  /* ── Liquid glass node system ── */
+  --node-glass-bg:         var(--ct-node-glass-bg,      rgba(10, 9, 18, 0.58));
+  --node-resting-filter:   none;
+  --node-glass-filter:     var(--ct-node-glass-filter,  blur(20px) saturate(1.3) brightness(1.06));
+  /* Resting frost for the two LIVE glass families (Terminal Node + Live Agent Terminal).
+     They are the one exception to --node-resting-filter:none — they frost while idle, so this
+     is a deliberately CHEAPER recipe than the theme's own --node-glass-filter (22px on Lakeside)
+     rather than a second copy of it. Radius stays bounded; saturate/brightness match the revamp
+     mockup, which LIFTS the wallpaper behind the glass. The old value darkened it
+     (brightness 0.92) and that, more than anything, made the nodes read as muddy slabs. */
+  --node-live-filter:      var(--ct-node-live-filter,   blur(14px) saturate(1.3) brightness(1.04));
+  /* Opaque terminal floor (plans/canvas-terminal-opaque-floor), resolved by terminal-floor.ts.
+     Bridged here like every other --ct-* token, and it MUST stay bridged: this line was missing
+     and the failure was silent-but-visible. An undefined custom property makes every declaration
+     referencing it invalid at computed-value time, so `background: var(--node-floor-solid)` on the
+     viewport fell back to transparent while xterm went on painting its own opaque rows from the
+     same resolver. The only pixels that betrayed the hole were the sub-row strip along the bottom
+     edge, which showed the node's glass — read as a stray "glass effect" under the terminal.
+     Fallback = FALLBACK_PAPER in terminal-floor.ts, so a shell rendered before the resolver has
+     landed still gets an opaque ground rather than a transparent one. */
+  --node-floor-solid:      var(--ct-node-floor-solid,    rgb(8, 8, 12));
+  --node-glass-border:     var(--ct-node-glass-border,  rgba(255, 255, 255, 0.09));
+  --node-glass-shadow:     var(--ct-node-glass-shadow,  0 8px 28px rgba(0, 0, 0, 0.44), 0 2px 6px rgba(0, 0, 0, 0.26));
+  --node-glass-inset:      var(--ct-node-glass-inset,   inset 0 1px 0 rgba(255, 255, 255, 0.09), inset 1px 0 0 rgba(255, 255, 255, 0.03));
+  --header-glass-grad:     var(--ct-header-glass-grad,  linear-gradient(180deg, rgba(255,255,255,0.058) 0%, rgba(255,255,255,0.012) 100%));
+  --panel-glass-bg:        var(--ct-panel-glass-bg,     rgba(8, 7, 15, 0.72));
+  --panel-glass-filter:    var(--ct-panel-glass-filter, blur(18px) saturate(1.24) brightness(1.02));
+
+  /* ── Floating chrome material (ADR-0023) ──
+     One quiet, theme-driven surface vocabulary shared by every floating control
+     overlay: the top-bar pill, the tool rail, the inspector, and the NL command
+     bar. Derived ONLY from --canvas-* tokens so all four recolor with the active
+     Artisan theme instead of carrying hardcoded hues. Tune the look here once. */
+  --cc-chrome-bg:          color-mix(in oklab, var(--panel-glass-bg) 92%, var(--canvas-accent) 4%);
+  --cc-chrome-blur:        var(--panel-glass-filter, blur(20px) saturate(1.15));
+  --cc-chrome-border:      color-mix(in oklab, var(--canvas-text) 9%,  transparent);
+  --cc-chrome-border-hi:   color-mix(in oklab, var(--canvas-text) 15%, transparent);
+  --cc-chrome-radius:      13px;   /* pills + bars (top bar, NL bar, tool rail) */
+  --cc-chrome-radius-lg:   15px;   /* panels (inspector) */
+  --cc-chrome-radius-sm:   9px;    /* in-chrome buttons + chips */
+  --cc-chrome-shadow:      0 12px 32px -14px rgb(0 0 0 / 0.5), inset 0 1px 0 color-mix(in oklab, var(--canvas-text) 6%, transparent);
+  --cc-chrome-ink:         var(--canvas-text);
+  --cc-chrome-ink-muted:   var(--canvas-text-muted);
+  --cc-chrome-ink-quiet:   color-mix(in oklab, var(--canvas-text-muted) 66%, transparent);
+  --cc-chrome-fill:        color-mix(in oklab, var(--canvas-text) 8%,  transparent);   /* hover tile */
+  --cc-chrome-fill-on:     color-mix(in oklab, var(--canvas-text) 13%, transparent);   /* active/pressed tile */
+  --cc-chrome-accent-soft: color-mix(in oklab, var(--canvas-accent) 16%, transparent);
+  /* Liquid glass for the two persistent bars (command bar, Top Bar). PLAN.md §F1: a translucent bar
+     was tinted BY the photo, so the backdrop is desaturated before the tint and the wallpaper lends
+     light and shape, never hue. The tint is the theme's opaque page (near-black on dark themes, warm
+     paper on light ones); the sheen is the specular top light. Drawn on a ::before, never on the bar
+     itself — a backdrop root there would starve the blur of the menus that open inside it. */
+  /* 72%, not 55%: at 55% a busy wallpaper (flowers, water) read through the labels. No sheen — one
+     flat material reads cleaner than a lit one (mockups/canvas-composer-glass-v3.html). */
+  --cc-glass-tint:         color-mix(in oklab, var(--node-floor-solid, #121118) 72%, transparent);
+  --cc-glass-sheen:        none;
+  --cc-glass-filter:       blur(18px) saturate(0.45) brightness(0.82);
+  --cc-glass-edge:         inset 0 1px 0 rgb(255 255 255 / 0.08);
+
+  /* ── Completion-toast material (ambient lamplight) ──
+     The "agent finished" card. Same rule as the chrome above: every value derives from
+     --canvas-* so the toast re-skins with the active Artisan theme (and inverts correctly
+     once light themes land) instead of carrying a hardcoded slate palette.
+
+     ONE hue is deliberately NOT theme-derived: --cc-toast-warm, the lamplight ember. It is
+     kept almost entirely OFF the card's face and spent on light instead — the seal's pool,
+     the outer bloom, a breath of it in the top sheen. Everything else (ink, border, signal)
+     follows the theme, so a cyan theme gets a cyan-signalled card, just lit warmly.
+
+     Opacity note: a theme's --canvas-surface-r may carry alpha (glass themes do). The card
+     paints --canvas-bg as its bottom background layer, so the result is effectively opaque
+     over the graph — no blur, no melting into the canvas (the reason glass was dropped). */
+  --cc-toast-warm:        #f0a35e;
+  /* The card body: the theme's raised surface, lifted toward white so it reads as a LIT card
+     sitting above the canvas rather than a hole cut into it. Mixing toward white (not toward
+     --canvas-text) keeps the lift correct in both dark and light themes.
+
+     The division of labour matters: COLOUR comes from theme layers, WARMTH comes from light layers
+     (the halo below and the bloom in the shadow stack). Pigmenting the surface itself was tried and
+     rejected — a theme whose raised surface carries low alpha (0.6-ish) let the ember out-vote the
+     theme's own hue and every card drifted tan. Only a whisper of ember stays in the surface, small
+     enough to survive the card painting it twice for opacity. */
+  --cc-toast-base:        color-mix(in oklab, var(--canvas-surface-r) 92%, #ffffff 8%);
+  --cc-toast-surface:     color-mix(in oklab, var(--cc-toast-base) 98.5%, var(--cc-toast-warm) 1.5%);
+  /* Ambient light INSIDE the card, and it is LIGHT — lit from above, the way a real surface is.
+     An earlier pass washed a broad warm radial across the face; on a dark theme that read as a
+     brown smear that dulled the type and made the right half melt into the canvas. Now the face
+     carries a top-down sheen (with a trace of ember in the first stop, not a wash) and the warmth
+     that used to sit ON the card lives in the bloom AROUND it. */
+  --cc-toast-halo:        radial-gradient(88% 128% at 0% -40%, color-mix(in oklab, var(--cc-toast-warm) 8%, transparent), transparent 60%);
+  /* The top stop is a WARM white, not a neutral one — that trace of ember is what keeps a dark card
+     lamplit rather than clinical, without pigmenting the face. */
+  --cc-toast-sheen:
+    linear-gradient(
+      180deg,
+      color-mix(in oklab, color-mix(in oklab, #ffffff 82%, var(--cc-toast-warm) 18%) 10%, transparent) 0%,
+      color-mix(in oklab, #ffffff 3%, transparent) 38%,
+      transparent 72%
+    );
+  --cc-toast-border:      color-mix(in oklab, var(--canvas-text) 15%, transparent);
+  --cc-toast-border-hi:   color-mix(in oklab, var(--canvas-text) 24%, transparent);
+  /* 11px on a 36px-tall card: radius tracks height (~h/3.2). 14px on the compacted card read
+     bubbly — a tighter corner is what makes a dense row look engineered. */
+  --cc-toast-radius:      11px;
+  /* Shadows carry COLOUR, not just darkness (house rule): a warm near-black, so the card's own
+     lamplight extends into the shade it casts instead of punching a neutral hole. */
+  --cc-toast-shade:       #2a1c0c;
+  --cc-toast-ink:         var(--canvas-text);
+  --cc-toast-ink-muted:   color-mix(in oklab, var(--canvas-text) 52%, transparent);
+  /* 62%, not 78%: on the single-row card the project name sits on the SAME baseline as a 600-weight
+     title, so it needs a wider ink gap than it did as a second line to stop competing with it. */
+  --cc-toast-proj-ink:    color-mix(in oklab, var(--canvas-text) 62%, transparent);
+  --cc-toast-fill:        color-mix(in oklab, var(--canvas-text) 9%, transparent);   /* hover tile (close) */
+  /* Status signal: a same-project finish speaks in the theme's "running/alive" green, a
+     background-project finish in the theme's own accent (it is a "go elsewhere" cue). */
+  --cc-toast-ok:          var(--canvas-status-running);
+  --cc-toast-accent:      var(--canvas-accent);
+  /* Depth, four layers, in the order light actually behaves:
+       1. a half-pixel top highlight — the lit edge
+       2. a half-pixel inset ring — the edge you feel rather than see (replaces a heavier border)
+       3. a tight warm contact shadow — what keeps the card CRISP instead of smoky
+       4. a soft warm drop + bloom — the lift and the ambience
+     An earlier stack led with a 40px blur and read like a smudge. */
+  --cc-toast-shadow:
+    inset 0 0.5px 0 color-mix(in oklab, #ffffff 13%, transparent),
+    inset 0 0 0 0.5px color-mix(in oklab, var(--canvas-text) 9%, transparent),
+    0 1px 2px color-mix(in oklab, var(--cc-toast-shade) 44%, transparent),
+    0 10px 22px -12px color-mix(in oklab, var(--cc-toast-shade) 64%, transparent),
+    0 0 22px -14px color-mix(in oklab, var(--cc-toast-warm) 38%, transparent);
+  --cc-toast-shadow-hover:
+    inset 0 0.5px 0 color-mix(in oklab, #ffffff 18%, transparent),
+    inset 0 0 0 0.5px color-mix(in oklab, var(--canvas-text) 14%, transparent),
+    0 1px 2px color-mix(in oklab, var(--cc-toast-shade) 50%, transparent),
+    0 16px 32px -14px color-mix(in oklab, var(--cc-toast-shade) 70%, transparent),
+    0 0 30px -12px color-mix(in oklab, var(--cc-toast-warm) 54%, transparent);
+  /* Back cards in a collapsed deck: same material, quieter depth. */
+  --cc-toast-shadow-deep:
+    inset 0 0.5px 0 color-mix(in oklab, #ffffff 7%, transparent),
+    inset 0 0 0 0.5px color-mix(in oklab, var(--canvas-text) 7%, transparent),
+    0 8px 18px -14px color-mix(in oklab, var(--cc-toast-shade) 55%, transparent);
+
+  /* ── Sidebar (Fleet panel + rail) ──
+     The comment here used to read "use same tokens as codespace workspace rail", and that was
+     literally true: --canvas-sidebar-text resolved to --ds-workbench-text, which resolve-theme.ts
+     sets from the APP theme's `ui.foreground`. So the Fleet panel wore the CodeSpace theme's ink
+     while sitting on the canvas theme's paper. With a dark app theme and a dark canvas theme the
+     two agreed and nobody noticed; on Garden of Dawn the app theme's pale cream ink landed on
+     cream paper and every row — FLEET, AGENTS, the agent names, WINDOWS — washed out.
+     Only the SELECTED row stayed readable, because that one is painted from --canvas-text.
+
+     These are the same class of bug as the --fg/--accent remap below, and they are fixed the same
+     way: the canvas owns its own colour. 77 consumers across the fleet panel and rail pick this
+     up with no per-component edit.
+
+     `--canvas-sidebar-bg` and `--canvas-sidebar-shadow` are DROPPED, not repointed: neither has a
+     single consumer (verified by grep across src/styles and src/modules). Repointing a dead token
+     would only make the next reader think it matters. */
+  --canvas-sidebar-active:  var(--canvas-surface-r);
+  --canvas-sidebar-hover:   color-mix(in oklab, var(--canvas-text) 7%,  transparent);
+  --canvas-sidebar-text:    var(--canvas-text);
+  --canvas-sidebar-muted:   var(--canvas-text-muted);
+  --canvas-sidebar-quiet:   color-mix(in oklab, var(--canvas-text) 45%, transparent);
+  --canvas-sidebar-border:  var(--canvas-border);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background: var(--canvas-bg);
+  color: var(--canvas-text);
+  overflow: hidden;
+}
+
+/* Status ink on a light theme. Measured on Garden of Dawn's node surface (#fdf7ee): the bare ramp
+   reads 1.07–2.60:1 as text — "waiting" amber was 1.57:1. Mixing each tone 45% toward the theme's
+   own ink lands 5.16–6.80:1 and keeps the hue recognisable; 30% passes too but turns amber olive.
+   Idle has no hue to keep, so it takes the theme's muted text. */
+.codecanvas-shell[data-canvas-mode="light"] {
+  --canvas-status-idle-ink:       var(--canvas-text-muted);
+  --canvas-status-connecting-ink: color-mix(in oklab, var(--canvas-status-connecting) 45%, var(--canvas-text));
+  --canvas-status-running-ink:    color-mix(in oklab, var(--canvas-status-running) 45%, var(--canvas-text));
+  --canvas-status-completed-ink:  color-mix(in oklab, var(--canvas-status-completed) 45%, var(--canvas-text));
+  --canvas-status-error-ink:      color-mix(in oklab, var(--canvas-status-error) 45%, var(--canvas-text));
+  --canvas-status-blocked-ink:    color-mix(in oklab, var(--canvas-status-blocked) 45%, var(--canvas-text));
+}
+
+/* ── React Flow overrides ── */
+.codecanvas-shell .react-flow__background {
+  background: var(--canvas-bg);
+}
+
+/* ── Material axis (ADR-0023) ──
+   A theme declares its node surface treatment via data-canvas-material.
+   "glass" is the implicit default (the base-block --node-glass-* values).
+   "solid" flattens it: opaque surface, no backdrop blur. "grain"/"paper" land later.
+   Shell-level selector (0,2,0) beats the base block (0,1,0). */
+.codecanvas-shell[data-canvas-material="solid"],
+.codecanvas-shell[data-canvas-material="grain"] {
+  --node-resting-filter: none;
+  --node-glass-filter: none;
+  --node-glass-bg: var(--canvas-surface);
+  --node-glass-border: var(--canvas-border);
+  --panel-glass-filter: none;
+  --panel-glass-bg: var(--canvas-surface-r);
+  /* Flat chrome: opaque surface, no backdrop blur — keeps the shared overlay
+     material consistent with the theme's solid node treatment. */
+  --cc-chrome-blur: none;
+  --cc-chrome-bg: color-mix(in oklab, var(--canvas-surface-r) 96%, var(--canvas-accent) 4%);
+}
+/* "grain": flat surfaces (above) + a fine film-grain wash over the canvas area.
+   pointer-events:none keeps the graph fully interactive; the overlay is purely
+   visual. data-canvas-material is mirrored onto .canvas-center by CanvasPage. */
+.canvas-center[data-canvas-material="grain"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+}
+
+/* ── Paper media (Phase 2): full-bleed image/video backdrop ──
+   Mirrors the proven space-fx layering: z-index:-1 inside .canvas-center, with
+   the React Flow background made transparent so the media shows behind the graph.
+   pointer-events:none keeps the canvas interactive. */
+.canvas-paper-media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+  pointer-events: none;
+  object-position: center;
+}
+.canvas-center[data-canvas-paper-media] .react-flow__background { background: transparent; }
+.canvas-center[data-canvas-paper-media] .react-flow__background svg { display: none; }
+
+/* ── Canvas background themes ── */
+.canvas-center[data-canvas-theme="cosmos"] .react-flow__background { background: radial-gradient(ellipse at 30% 70%, #0c0c20, #07070d); }
+.canvas-center[data-canvas-theme="space"] { background: linear-gradient(135deg, #070410, #06040e 50%, #080612); }
+.canvas-space-fx { position: absolute; inset: 0; z-index: -1; pointer-events: none; overflow: hidden; }
+.canvas-center[data-canvas-theme="space"] .canvas-node { --canvas-surface:rgba(10,8,18,0.97); --canvas-surface-r:rgba(16,12,26,0.98); }
+.space-shoot { position: absolute; left: -5%; width: 120px; height: 1px; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.85) 60%, transparent); animation: space-shoot linear infinite; opacity: 0; }
+.canvas-center[data-canvas-theme="mist"]   .react-flow__background { background: radial-gradient(ellipse at 50% 30%, #131828, #0a0a16 50%, #06060e); }
+.canvas-center[data-canvas-theme="aurora"] .react-flow__background { background: linear-gradient(135deg, #041008, #081620 35%, #0c0818 65%, #060412); }
+/* Custom image: full-bleed behind the entire CodeCanvas shell.
+   background-image on a regular <div> renders at device pixel ratio (sharp on
+   Retina) — unlike the SVG-backed react-flow__background which caused blur. */
+.codecanvas-shell[data-canvas-theme="custom"] {
+  background-image: var(--canvas-custom-bg-url);
+  background-size: var(--canvas-custom-bg-fit, cover);
+  background-position: center;
+  background-repeat: no-repeat;
+}
+/* Light themes: the glass lifts the backdrop instead of darkening it, under dark ink. */
+.codecanvas-shell[data-canvas-mode="light"] { --cc-glass-filter: blur(18px) saturate(0.45) brightness(1.08); }
+/* Sidebar becomes a glass panel rather than an opaque dark column. */
+.codecanvas-shell[data-canvas-theme="custom"] .canvas-right-sidebar {
+  background: rgba(0, 0, 0, 0.42);
+  border-color: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(18px) saturate(1.15);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+}
+/* Canvas center is transparent — the shell background shows through. */
+.canvas-center[data-canvas-theme="custom"] { background: transparent; }
+.canvas-center[data-canvas-theme="custom"] .react-flow__background { background: transparent; }
+.canvas-center[data-canvas-theme="custom"] .react-flow__background svg { display: none; }
+
+/* ── Glass token adaptation per theme ── */
+/* Space: very deep, near-void glass */
+.canvas-center[data-canvas-theme="space"] {
+  --node-glass-bg:      rgba(4, 3, 12, 0.72);
+  --panel-glass-bg:     rgba(3, 2, 9, 0.78);
+  --node-glass-inset:   inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 1px 0 0 rgba(255, 255, 255, 0.02);
+}
+/* Mist: slightly lifted, more translucent */
+.canvas-center[data-canvas-theme="mist"] {
+  --node-glass-bg:      rgba(14, 12, 26, 0.54);
+  --panel-glass-bg:     rgba(10, 8, 20, 0.66);
+  --node-glass-inset:   inset 0 1px 0 rgba(255, 255, 255, 0.11), inset 1px 0 0 rgba(255, 255, 255, 0.04);
+}
+/* Aurora: dark with a trace of deep forest */
+.canvas-center[data-canvas-theme="aurora"] {
+  --node-glass-bg:      rgba(4, 12, 8, 0.60);
+  --panel-glass-bg:     rgba(3, 9, 6, 0.72);
+}
+/* Custom image bg: stronger blur, less opacity — let the photo breathe */
+.codecanvas-shell[data-canvas-theme="custom"] {
+  --node-glass-bg:      rgba(0, 0, 0, 0.38);
+  --node-glass-filter:  blur(18px) saturate(1.28) brightness(1.08);
+  --node-glass-border:  rgba(255, 255, 255, 0.13);
+  --node-glass-inset:   inset 0 1px 0 rgba(255, 255, 255, 0.12), inset 1px 0 0 rgba(255, 255, 255, 0.05);
+  --panel-glass-bg:     rgba(0, 0, 0, 0.50);
+  --panel-glass-filter: blur(18px) saturate(1.24) brightness(1.04);
+  --header-glass-grad:  linear-gradient(180deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.016) 100%);
+}
+/* ── Custom bg: Terminal node ──
+   NOTHING here recolours the PTY surface any more, and that is the point.
+   This block used to be the Terminal Node's own "dark prism glass": a private --node-glass-* set,
+   `--canvas-terminal-bg: transparent`, a tinted body, and a translucent host carrying a SECOND
+   blur(18px) on top of the node's own. It made the wallpaper theme the one place where a Terminal
+   Node and a live Agent Node rendered as different materials — the terminal a blurred photo, the
+   agent an opaque floor — and it cost two backdrop-filter passes plus a per-node wallpaper redraw
+   on the exact surface being optimised. Both families now share --node-floor-solid on every theme.
+
+   The header's blur suppression is all that survives: the node shell already owns one
+   backdrop-filter, so a second on .cth-root would double-frost the same pixels. */
+.codecanvas-shell[data-canvas-theme="custom"] .canvas-terminal-node .cth-root {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}

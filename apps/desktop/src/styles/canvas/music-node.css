@@ -1,0 +1,1021 @@
+/* Music node: YouTube tracklist player.
+   Revamp goal: quiet, modern player chrome that remains usable while the node is
+   resized. The node itself is a size container, so compact layouts respond to the
+   canvas node bounds instead of the viewport. The bounded gel layer stays inside
+   this node and includes a reduced-transparency fallback. */
+
+.canvas-music {
+  --music-text: var(--canvas-text, oklch(0.92 0.012 275));
+  --music-muted: var(--canvas-text-muted, oklch(0.72 0.018 275));
+  --music-faint: color-mix(in oklab, var(--music-muted) 54%, transparent);
+  --music-border: color-mix(in oklab, var(--music-text) 12%, transparent);
+  /* THE PANELS FOLLOW THE PAGE, and they did not: these two were a fixed blue-black, while
+     --music-text above correctly follows --canvas-text. On a dark theme the pair agreed by
+     accident; on Garden of Dawn the node rendered the theme's DARK ink on a near-black slab —
+     the whole node read as a black hole punched through a light board, with its tracklist
+     effectively invisible.
+
+     This is the same failure --node-scrim already documents a few files over, and the same
+     remedy: --node-floor-solid is the resolver's opaque per-theme page, so the alphas below are
+     carried over UNCHANGED (56% / 78%) and only the hue moves. On Void the floor is rgb(9,9,14)
+     against the old oklch(0.13-0.18), so the approved look survives; on a light theme the panels
+     become pale and the ink on them stays legible. */
+  --music-panel: color-mix(in oklab, var(--node-floor-solid) 56%, transparent);
+  --music-panel-strong: color-mix(in oklab, var(--node-floor-solid) 78%, transparent);
+  --music-hover: color-mix(in oklab, var(--music-text) 8%, transparent);
+  --music-danger: oklch(0.72 0.16 24);
+
+  container-name: music-node;
+  container-type: size;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  color: var(--music-text);
+  /* Alphas unchanged (0.72 / 0.62); the two stops are now the theme's page rather than a fixed
+     blue-black, so the slab is dark on a dark theme and pale on a light one. */
+  background:
+    radial-gradient(120% 92% at 8% 0%, color-mix(in oklab, var(--node-accent) 22%, transparent), transparent 55%),
+    linear-gradient(135deg,
+      color-mix(in oklab, var(--node-floor-solid) 72%, transparent),
+      color-mix(in oklab, var(--node-floor-solid) 62%, transparent));
+}
+
+.canvas-music::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--music-text) 8%, transparent), transparent 42%),
+    radial-gradient(90% 70% at 100% 8%, color-mix(in oklab, var(--node-accent) 12%, transparent), transparent 62%);
+  backdrop-filter: blur(7px) saturate(1.08) brightness(0.96);
+  -webkit-backdrop-filter: blur(7px) saturate(1.08) brightness(0.96);
+}
+
+.canvas-music::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--music-text) 16%, transparent),
+    inset 0 -1px 0 color-mix(in oklab, var(--node-accent) 16%, transparent);
+}
+
+.canvas-music-header,
+.canvas-music-body {
+  position: relative;
+  z-index: 1;
+}
+
+.canvas-music-header.canvas-node-header {
+  display: block;
+  height: auto;
+  padding: 0;
+  border-bottom: 0;
+  background: transparent;
+}
+.canvas-music-header .cth-row1 {
+  height: 2rem;
+  /* Alpha chain unchanged (0.88 then 82%); only the base moves from a fixed blue-black to the
+     theme's page, so the header bar stops being the one dark strip on a light board. */
+  background: color-mix(in oklab, color-mix(in oklab, var(--node-floor-solid) 88%, transparent) 82%, transparent);
+  border-bottom-color: color-mix(in oklab, var(--music-text) 7%, transparent);
+}
+.canvas-music-node::after {
+  display: none;
+}
+.canvas-music-header .cth-glyph {
+  color: var(--node-accent);
+  font-size: 0.8rem;
+}
+.canvas-music-header .cth-loc {
+  color: color-mix(in oklab, var(--node-accent) 62%, var(--music-muted));
+  font-family: var(--canvas-code, ui-monospace, monospace);
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+.canvas-music-src {
+  border: 1px solid color-mix(in oklab, var(--node-accent) 28%, transparent);
+  border-radius: 999px;
+  padding: 0.08rem 0.36rem;
+  color: color-mix(in oklab, var(--node-accent) 75%, var(--music-text));
+  background: color-mix(in oklab, var(--node-accent) 9%, transparent);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.52rem;
+  line-height: 1.2;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.canvas-music-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  gap: clamp(0.48rem, 1.8cqw, 0.76rem);
+  overflow: hidden;
+  padding: clamp(0.52rem, 2.1cqw, 0.8rem);
+}
+
+/* ── Paste bar ──────────────────────────────────────────────────────────── */
+.canvas-music-paste-wrap {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.28rem;
+}
+.canvas-music-paste {
+  display: flex;
+  align-items: center;
+  min-height: 2.25rem;
+  gap: 0.5rem;
+  border: 1px solid var(--music-border);
+  border-radius: 999px;
+  background: var(--music-panel);
+  box-shadow: inset 0 1px 0 color-mix(in oklab, var(--music-text) 5%, transparent);
+  padding: 0.28rem 0.68rem;
+  transition: border-color 140ms var(--canvas-ease-out, ease-out), background 140ms var(--canvas-ease-out, ease-out);
+}
+.canvas-music-paste:focus-within {
+  border-color: color-mix(in oklab, var(--node-accent) 62%, transparent);
+  background: var(--music-panel-strong);
+}
+.canvas-music-paste--error { border-color: color-mix(in oklab, var(--music-danger) 64%, transparent); }
+.canvas-music-paste svg {
+  width: 0.78rem;
+  height: 0.78rem;
+  color: var(--music-faint);
+  flex: none;
+}
+.canvas-music-paste input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--music-text);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: 0.74rem;
+  letter-spacing: 0.01em;
+}
+.canvas-music-paste input::placeholder {
+  color: var(--music-faint);
+}
+.canvas-music-kbd {
+  flex: none;
+  color: var(--music-faint);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem;
+}
+.canvas-music-spin {
+  width: 0.68rem;
+  height: 0.68rem;
+  flex: none;
+  border: 1.5px solid color-mix(in oklab, var(--node-accent) 18%, transparent);
+  border-top-color: var(--node-accent);
+  border-radius: 50%;
+  animation: canvas-music-spin 700ms linear infinite;
+}
+@keyframes canvas-music-spin { to { transform: rotate(360deg); } }
+.canvas-music-paste-error {
+  margin: 0 0.25rem;
+  color: var(--music-danger);
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+
+/* ── Artwork + fused seek ───────────────────────────────────────────────── */
+.canvas-music-now {
+  display: flex;
+  flex: none;
+  min-height: 0;
+  flex-direction: column;
+  gap: 0.56rem;
+}
+.canvas-music-media {
+  position: relative;
+  height: clamp(7.25rem, 48cqw, min(30cqh, 16rem));
+  flex: none;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--music-text) 13%, transparent);
+  border-radius: clamp(0.75rem, 2.6cqw, 1rem);
+  /* Opaque on purpose — it is the letterbox behind album art — but opaque in the THEME's page,
+     not in a fixed near-black that turns into a hole on a light board. */
+  background: var(--node-floor-solid);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--music-text) 5%, transparent);
+}
+/* The thumbnail is the poster: it shows whenever the video host is not parked over
+   this node (nothing loaded, or the video is in the mini player). */
+.canvas-music-media img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  object-fit: cover;
+}
+/* Landing rect for the session's single video host (music-video-host.ts). Empty by
+   design — the player element belongs to no surface, which is why unmounting this
+   node cannot stop the audio. It stops 10px short of the bottom so the seek rail
+   underneath stays clickable: the host is a body-level fixed element and would
+   otherwise swallow those pointer events. */
+.canvas-music-media-slot {
+  position: absolute;
+  inset: 0 0 10px 0;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.canvas-music-playback-fallback {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.58rem;
+  padding: 1rem;
+  background:
+    linear-gradient(180deg,
+      color-mix(in oklab, var(--node-floor-solid) 86%, transparent),
+      color-mix(in oklab, var(--node-floor-solid) 92%, transparent)),
+    /* `black` here deepened the panel on a dark theme and blackened it on a light one. Mixing
+       toward the page deepens it in both directions instead. */
+    color-mix(in oklab, var(--music-panel-strong) 88%, var(--node-floor-solid));
+  text-align: center;
+}
+.canvas-music-playback-badge {
+  border: 1px solid color-mix(in oklab, var(--music-danger) 42%, transparent);
+  border-radius: 999px;
+  color: var(--music-danger);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  padding: 0.12rem 0.42rem;
+}
+.canvas-music-playback-fallback p {
+  max-width: 28ch;
+  margin: 0;
+  color: var(--music-muted);
+  font-size: 0.72rem;
+  line-height: 1.42;
+}
+.canvas-music-playback-fallback button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.36rem;
+  border: 1px solid color-mix(in oklab, var(--node-accent) 42%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--node-accent) 16%, transparent);
+  color: color-mix(in oklab, var(--node-accent) 78%, var(--music-text));
+  cursor: pointer;
+  font-size: 0.66rem;
+  font-weight: 620;
+  padding: 0.34rem 0.58rem;
+}
+.canvas-music-playback-fallback button:hover,
+.canvas-music-playback-fallback button:focus-visible {
+  background: color-mix(in oklab, var(--node-accent) 24%, transparent);
+  outline: none;
+}
+.canvas-music-playback-fallback button svg {
+  width: 0.68rem;
+  height: 0.68rem;
+}
+.canvas-music-seek {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  height: 1rem;
+  align-items: flex-end;
+  cursor: pointer;
+}
+.canvas-music-seek-rail {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  background: color-mix(in oklab, var(--music-text) 24%, transparent);
+  transition: height 130ms var(--canvas-ease-out, ease-out);
+}
+.canvas-music-seek:hover .canvas-music-seek-rail,
+.canvas-music-seek:focus-visible .canvas-music-seek-rail { height: 5px; }
+.canvas-music-seek-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--node-accent);
+}
+.canvas-music-seek-knob {
+  position: absolute;
+  bottom: -3px;
+  width: 0.56rem;
+  height: 0.56rem;
+  border-radius: 50%;
+  background: var(--node-accent);
+  box-shadow: 0 1px 6px oklch(0.02 0.006 272 / 0.55);
+  transform: translateX(-50%) scale(0);
+  transition: transform 130ms var(--canvas-ease-out, ease-out);
+}
+.canvas-music-seek:hover .canvas-music-seek-knob,
+.canvas-music-seek:focus-visible .canvas-music-seek-knob { transform: translateX(-50%) scale(1); }
+
+/* ── Now-playing meta ───────────────────────────────────────────────────── */
+.canvas-music-meta {
+  display: flex;
+  flex: none;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.22rem;
+  padding: 0 0.12rem;
+}
+.canvas-music-meta h3 {
+  display: -webkit-box;
+  margin: 0;
+  overflow: hidden;
+  color: var(--music-text);
+  font-size: clamp(0.76rem, 2.5cqw, 0.92rem);
+  font-weight: 640;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.canvas-music-meta p {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 0.42rem;
+  margin: 0;
+}
+.canvas-music-artist {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--music-muted);
+  font-size: 0.69rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.canvas-music-dot {
+  width: 0.34rem;
+  height: 0.34rem;
+  flex: none;
+  border-radius: 50%;
+  background: var(--node-accent);
+  opacity: 0;
+  transform: scale(0.45);
+  transition: opacity 200ms var(--canvas-ease-out, ease-out), transform 200ms var(--canvas-ease-out, ease-out);
+}
+.canvas-music-dot--playing {
+  opacity: 1;
+  transform: scale(1);
+  animation: canvas-music-pulse 1.8s ease-in-out infinite;
+}
+@keyframes canvas-music-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--node-accent) 45%, transparent); }
+  50% { box-shadow: 0 0 0 0.36rem color-mix(in oklab, var(--node-accent) 0%, transparent); }
+}
+.canvas-music-now::after {
+  display: none;
+  content: "";
+}
+
+/* ── Transport ──────────────────────────────────────────────────────────── */
+.canvas-music-transport {
+  display: flex;
+  flex: none;
+  align-items: center;
+  align-self: start;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.18rem;
+  max-height: 2.18rem;
+  gap: 0.14rem;
+  min-width: 0;
+  padding: 0.18rem 0.22rem;
+  border: 1px solid color-mix(in oklab, var(--music-text) 8%, transparent);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--music-text) 5%, transparent), transparent),
+    color-mix(in oklab, var(--music-panel-strong) 70%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--music-text) 8%, transparent),
+    0 0.34rem 1rem oklch(0.04 0.012 272 / 0.18);
+}
+.canvas-music-play,
+.canvas-music-tbtn,
+.canvas-music-row-remove {
+  -webkit-tap-highlight-color: transparent;
+}
+.canvas-music-play {
+  display: grid;
+  width: 1.74rem;
+  height: 1.74rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--node-accent) 78%, var(--music-text));
+  border-radius: 999px;
+  background: var(--node-accent);
+  color: oklch(0.16 0.02 72);
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--music-text) 24%, transparent),
+    0 0.26rem 0.72rem color-mix(in oklab, var(--node-accent) 18%, transparent);
+  transition: transform 120ms var(--canvas-ease-out, ease-out), filter 120ms var(--canvas-ease-out, ease-out), box-shadow 120ms var(--canvas-ease-out, ease-out);
+}
+.canvas-music-play:hover {
+  filter: brightness(1.08);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--music-text) 28%, transparent),
+    0 0.3rem 0.82rem color-mix(in oklab, var(--node-accent) 25%, transparent);
+}
+.canvas-music-play:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--node-accent) 70%, transparent);
+  outline-offset: 2px;
+}
+.canvas-music-play:active { transform: scale(0.94); }
+.canvas-music-play:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.35) brightness(0.78);
+  opacity: 0.62;
+  box-shadow: none;
+}
+.canvas-music-play svg { width: 0.74rem; height: 0.74rem; }
+.canvas-music-tbtn {
+  display: grid;
+  width: 1.54rem;
+  height: 1.54rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--music-faint);
+  cursor: pointer;
+  transition: color 120ms var(--canvas-ease-out, ease-out), background 120ms var(--canvas-ease-out, ease-out), border-color 120ms var(--canvas-ease-out, ease-out);
+}
+.canvas-music-tbtn:hover,
+.canvas-music-tbtn:focus-visible {
+  border-color: var(--music-border);
+  background: var(--music-hover);
+  color: var(--music-text);
+  outline: none;
+}
+.canvas-music-tbtn svg { width: 0.72rem; height: 0.72rem; }
+.canvas-music-vol {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  width: clamp(4.4rem, 13cqw, 6.4rem);
+  min-width: 4.4rem;
+  margin-left: 0.12rem;
+  padding: 0 0.18rem;
+}
+.canvas-music-vol svg {
+  width: 0.68rem;
+  height: 0.68rem;
+  color: var(--music-faint);
+  flex: none;
+}
+.canvas-music-vol input[type="range"] {
+  width: 100%;
+  height: 0.24rem;
+  accent-color: var(--node-accent);
+  cursor: pointer;
+  opacity: 0.72;
+  transition: opacity 140ms var(--canvas-ease-out, ease-out);
+}
+.canvas-music-vol:hover input[type="range"],
+.canvas-music-vol:focus-within input[type="range"] {
+  opacity: 1;
+}
+.canvas-music-time {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.28rem;
+  margin-left: auto;
+  min-width: max-content;
+  padding: 0.18rem 0.44rem;
+  border: 1px solid color-mix(in oklab, var(--music-text) 7%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--music-text) 5%, transparent);
+  color: color-mix(in oklab, var(--music-muted) 80%, transparent);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+.canvas-music-time b { color: var(--music-text); font-weight: 560; }
+.canvas-music-time-sep { color: color-mix(in oklab, var(--music-muted) 42%, transparent); }
+
+/* ── Empty state ────────────────────────────────────────────────────────── */
+.canvas-music-empty {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  place-items: center;
+  gap: 0.55rem;
+  padding: 1rem 0.7rem;
+  border: 1px dashed color-mix(in oklab, var(--music-text) 12%, transparent);
+  border-radius: 1rem;
+  background: var(--music-panel);
+  text-align: center;
+}
+.canvas-music-empty svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: var(--music-faint);
+}
+.canvas-music-empty p {
+  max-width: 24ch;
+  margin: 0;
+  color: var(--music-muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+/* ── Tracklist ──────────────────────────────────────────────────────────── */
+.canvas-music-tracklist {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  flex-direction: column;
+  padding-top: 0.18rem;
+}
+.canvas-music-tl-head {
+  display: flex;
+  flex: none;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.4rem;
+  padding: 0 0.14rem 0.35rem;
+}
+.canvas-music-tl-label {
+  color: var(--music-faint);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.54rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.canvas-music-tl-count {
+  color: color-mix(in oklab, var(--node-accent) 80%, var(--music-text));
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.56rem;
+}
+.canvas-music-tl-rows {
+  display: flex;
+  min-height: 0;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.canvas-music-row {
+  display: flex;
+  align-items: center;
+  min-height: 2rem;
+  gap: 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 0.66rem;
+  padding: 0.38rem 0.42rem 0.38rem 0.2rem;
+  cursor: pointer;
+  transition: background 120ms var(--canvas-ease-out, ease-out), border-color 120ms var(--canvas-ease-out, ease-out);
+}
+.canvas-music-row:hover,
+.canvas-music-row:focus-visible {
+  border-color: var(--music-border);
+  background: var(--music-hover);
+  outline: none;
+}
+.canvas-music-row--active {
+  border-color: color-mix(in oklab, var(--node-accent) 24%, transparent);
+  background: color-mix(in oklab, var(--node-accent) 12%, transparent);
+}
+.canvas-music-row--error { cursor: default; }
+.canvas-music-row--error .canvas-music-row-title { opacity: 0.55; }
+
+.canvas-music-row-idx {
+  position: relative;
+  display: grid;
+  width: 1.25rem;
+  flex: none;
+  place-items: center;
+}
+.canvas-music-row-n {
+  color: var(--music-faint);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.6rem;
+  font-variant-numeric: tabular-nums;
+}
+.canvas-music-row--active .canvas-music-row-n { color: color-mix(in oklab, var(--node-accent) 80%, var(--music-text)); }
+.canvas-music-row-grip {
+  display: none;
+  width: 0.72rem;
+  height: 0.72rem;
+  color: var(--music-faint);
+  cursor: grab;
+}
+.canvas-music-row:hover .canvas-music-row-n { display: none; }
+.canvas-music-row:hover .canvas-music-row-grip { display: block; }
+.canvas-music-row-idx .canvas-music-dot { position: absolute; }
+.canvas-music-row:hover .canvas-music-row-idx .canvas-music-dot { display: none; }
+.canvas-music-row-idx:has(.canvas-music-dot--playing) .canvas-music-row-n { visibility: hidden; }
+.canvas-music-row:hover .canvas-music-row-idx:has(.canvas-music-dot--playing) .canvas-music-row-n { visibility: hidden; }
+
+.canvas-music-row-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--music-muted);
+  font-size: 0.72rem;
+  font-weight: 520;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-music-row:hover .canvas-music-row-title,
+.canvas-music-row:focus-visible .canvas-music-row-title,
+.canvas-music-row--active .canvas-music-row-title { color: var(--music-text); }
+.canvas-music-row-edit {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid color-mix(in oklab, var(--node-accent) 52%, transparent);
+  border-radius: 0.46rem;
+  outline: none;
+  background: var(--music-panel-strong);
+  color: var(--music-text);
+  font-size: 0.72rem;
+  padding: 0.2rem 0.42rem;
+}
+.canvas-music-row-dur {
+  flex: none;
+  color: var(--music-faint);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+}
+.canvas-music-row-badge {
+  flex: none;
+  border: 1px solid color-mix(in oklab, var(--music-danger) 32%, transparent);
+  border-radius: 999px;
+  color: var(--music-danger);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.5rem;
+  letter-spacing: 0.06em;
+  padding: 0.06rem 0.32rem;
+}
+.canvas-music-row-remove {
+  display: grid;
+  width: 1.22rem;
+  height: 1.22rem;
+  flex: none;
+  place-items: center;
+  border: 1px solid color-mix(in oklab, var(--music-danger) 0%, transparent);
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in oklab, var(--music-muted) 62%, transparent);
+  cursor: pointer;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.82rem;
+  line-height: 1;
+  opacity: 0;
+  transform: scale(0.86);
+  transition:
+    opacity 120ms var(--canvas-ease-out, ease-out),
+    transform 120ms var(--canvas-ease-out, ease-out),
+    color 120ms var(--canvas-ease-out, ease-out),
+    border-color 120ms var(--canvas-ease-out, ease-out),
+    background 120ms var(--canvas-ease-out, ease-out);
+}
+.canvas-music-row:hover .canvas-music-row-remove,
+.canvas-music-row:focus-within .canvas-music-row-remove,
+.canvas-music-row--active .canvas-music-row-remove {
+  opacity: 1;
+  transform: scale(1);
+}
+.canvas-music-row:hover .canvas-music-row-dur,
+.canvas-music-row:focus-within .canvas-music-row-dur { display: none; }
+.canvas-music-row-remove:hover,
+.canvas-music-row-remove:focus-visible {
+  border-color: color-mix(in oklab, var(--music-danger) 34%, transparent);
+  background: color-mix(in oklab, var(--music-danger) 10%, transparent);
+  color: color-mix(in oklab, var(--music-danger) 88%, var(--music-text));
+  outline: none;
+}
+
+/* Node-size responsive modes. These are container queries, not viewport queries,
+   because CodeCanvas nodes can be independently resized on any screen. */
+@container music-node (min-width: 320px) and (min-aspect-ratio: 1.12) {
+  .canvas-music-body {
+    display: grid;
+    grid-template-columns: minmax(8.5rem, 34cqw) minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: clamp(0.52rem, 1.25cqw, 0.78rem) clamp(0.78rem, 2cqw, 1.22rem);
+  }
+
+  .canvas-music-paste-wrap,
+  .canvas-music-transport {
+    grid-column: 1 / -1;
+    min-width: 0;
+  }
+
+  .canvas-music-paste {
+    min-height: 2rem;
+    background: color-mix(in oklab, var(--music-panel-strong) 78%, transparent);
+  }
+
+  .canvas-music-now {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    grid-template-columns: minmax(8.5rem, 34cqw) minmax(0, 1fr);
+    grid-template-rows: min-content minmax(0, 1fr);
+    align-items: start;
+    min-height: 0;
+    gap: clamp(0.78rem, 2cqw, 1.22rem);
+  }
+
+  .canvas-music-media {
+    grid-row: 1 / 3;
+    width: min(34cqw, 16.5rem);
+    min-width: 8.5rem;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    justify-self: start;
+    border-radius: clamp(0.85rem, 1.8cqw, 1.08rem);
+  }
+
+  .canvas-music-meta {
+    align-self: start;
+    max-width: 38rem;
+    padding-top: 0.12rem;
+  }
+
+  .canvas-music-meta h3 {
+    font-size: clamp(0.92rem, 2.55cqw, 1.5rem);
+    line-height: 1.12;
+    -webkit-line-clamp: 3;
+  }
+
+  .canvas-music-artist {
+    color: color-mix(in oklab, var(--node-accent) 56%, var(--music-muted));
+    font-size: clamp(0.68rem, 1.15cqw, 0.82rem);
+    font-weight: 560;
+  }
+
+  .canvas-music-now::after {
+    display: none;
+  }
+
+  .canvas-music-transport {
+    align-self: start;
+    min-height: clamp(2.04rem, 7.5cqh, 2.34rem);
+    max-height: clamp(2.04rem, 7.5cqh, 2.34rem);
+    padding: 0.18rem 0.26rem;
+  }
+
+  .canvas-music-play {
+    width: clamp(1.62rem, 5.6cqh, 1.86rem);
+    height: clamp(1.62rem, 5.6cqh, 1.86rem);
+  }
+
+  .canvas-music-tbtn {
+    width: clamp(1.42rem, 5cqh, 1.66rem);
+    height: clamp(1.42rem, 5cqh, 1.66rem);
+  }
+
+  .canvas-music-vol input[type="range"] {
+    width: 100%;
+    opacity: 0.72;
+  }
+
+  .canvas-music-vol:hover input[type="range"],
+  .canvas-music-vol:focus-within input[type="range"] {
+    opacity: 1;
+  }
+
+  .canvas-music-tracklist {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: end;
+    display: flex;
+    max-height: min(58%, 9rem);
+    min-height: 3.8rem;
+    overflow: hidden;
+    padding: 0.1rem 0.08rem 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    z-index: 2;
+  }
+
+  .canvas-music-tracklist .canvas-music-tl-head {
+    padding: 0 0.05rem 0.28rem;
+  }
+
+  .canvas-music-tracklist .canvas-music-tl-label,
+  .canvas-music-tracklist .canvas-music-tl-count {
+    color: color-mix(in oklab, var(--music-muted) 58%, transparent);
+    font-size: 0.48rem;
+    letter-spacing: 0.18em;
+  }
+
+  .canvas-music-tracklist .canvas-music-tl-rows {
+    gap: 0;
+  }
+
+  .canvas-music-tracklist .canvas-music-row {
+    min-height: 1.48rem;
+    gap: 0.38rem;
+    padding: 0.16rem 0.12rem;
+    border: 0;
+    border-radius: 0.42rem;
+    background: transparent;
+  }
+
+  .canvas-music-tracklist .canvas-music-row:hover,
+  .canvas-music-tracklist .canvas-music-row:focus-visible {
+    border-color: transparent;
+    background: color-mix(in oklab, var(--music-text) 4%, transparent);
+  }
+
+  .canvas-music-tracklist .canvas-music-row--active {
+    background: color-mix(in oklab, var(--node-accent) 8%, transparent);
+  }
+
+  .canvas-music-tracklist .canvas-music-row-title {
+    color: color-mix(in oklab, var(--music-text) 64%, transparent);
+    font-size: 0.64rem;
+    font-weight: 520;
+  }
+
+  .canvas-music-tracklist .canvas-music-row--active .canvas-music-row-title,
+  .canvas-music-tracklist .canvas-music-row:hover .canvas-music-row-title,
+  .canvas-music-tracklist .canvas-music-row:focus-visible .canvas-music-row-title {
+    color: color-mix(in oklab, var(--music-text) 88%, transparent);
+  }
+
+  .canvas-music-tracklist .canvas-music-row-idx {
+    width: 1rem;
+  }
+
+  .canvas-music-tracklist .canvas-music-row-n {
+    display: block;
+    color: color-mix(in oklab, var(--music-muted) 52%, transparent);
+    font-size: 0.56rem;
+    visibility: visible;
+  }
+
+  .canvas-music-tracklist .canvas-music-row-dur,
+  .canvas-music-tracklist .canvas-music-row-actions,
+  .canvas-music-tracklist .canvas-music-row-grip,
+  .canvas-music-tracklist .canvas-music-row:hover .canvas-music-row-grip,
+  .canvas-music-tracklist .canvas-music-row:focus-visible .canvas-music-row-grip {
+    display: none;
+  }
+
+  .canvas-music-tracklist .canvas-music-row:hover .canvas-music-row-n,
+  .canvas-music-tracklist .canvas-music-row:focus-visible .canvas-music-row-n {
+    display: block;
+  }
+}
+
+@container music-node (min-width: 320px) and (min-aspect-ratio: 1.12) and (max-height: 360px) {
+  .canvas-music-body {
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .canvas-music-paste-wrap {
+    display: none;
+  }
+
+  .canvas-music-now {
+    grid-template-columns: minmax(7.2rem, 30cqw) minmax(0, 1fr);
+    gap: clamp(0.62rem, 1.5cqw, 0.9rem);
+  }
+
+  .canvas-music-media {
+    width: min(30cqw, 12rem);
+    min-width: 7.2rem;
+  }
+
+  .canvas-music-meta h3 {
+    font-size: clamp(0.82rem, 2.1cqw, 1.12rem);
+    -webkit-line-clamp: 2;
+  }
+
+  .canvas-music-tracklist {
+    max-height: min(58%, 6.8rem);
+    min-height: 3rem;
+    padding: 0.05rem 0;
+  }
+
+  .canvas-music-transport {
+    min-height: 2.02rem;
+    max-height: 2.02rem;
+    padding-block: 0.16rem;
+  }
+}
+
+@container music-node (max-width: 360px) and (max-aspect-ratio: 1.11) {
+  .canvas-music-src,
+  .canvas-music-vol,
+  .canvas-music-kbd { display: none; }
+  .canvas-music-body { gap: 0.46rem; padding: 0.54rem; }
+  .canvas-music-paste { min-height: 2rem; padding-inline: 0.58rem; }
+  .canvas-music-media { height: clamp(5.8rem, 42cqw, 8.6rem); border-radius: 0.72rem; }
+  .canvas-music-now { gap: 0.44rem; }
+  .canvas-music-meta h3 { font-size: 0.76rem; -webkit-line-clamp: 1; }
+  .canvas-music-artist { font-size: 0.64rem; }
+  .canvas-music-transport { min-height: 2.04rem; max-height: 2.04rem; padding: 0.16rem 0.2rem; }
+  .canvas-music-play { width: 1.68rem; height: 1.68rem; }
+  .canvas-music-tbtn { width: 1.48rem; height: 1.48rem; }
+  .canvas-music-time { font-size: 0.56rem; }
+  .canvas-music-row { min-height: 1.8rem; gap: 0.38rem; padding-right: 0.32rem; }
+  .canvas-music-row-dur,
+  .canvas-music-row-actions { display: none; }
+}
+
+@container music-node (max-width: 260px) and (max-aspect-ratio: 1.11) {
+  .canvas-music-header .canvas-node-header-label { font-size: 0.66rem; }
+  .canvas-music-paste input { font-size: 0.68rem; }
+  .canvas-music-paste input::placeholder { color: transparent; }
+  .canvas-music-media { height: clamp(4.6rem, 40cqw, 6.4rem); }
+  .canvas-music-meta h3 { font-size: 0.7rem; }
+  .canvas-music-artist,
+  .canvas-music-tl-head { display: none; }
+  .canvas-music-tracklist { padding-top: 0; }
+}
+
+@container music-node (max-height: 430px) and (max-aspect-ratio: 1.11) {
+  .canvas-music-body { gap: 0.46rem; }
+  .canvas-music-paste { min-height: 2rem; }
+  .canvas-music-media { height: clamp(5.2rem, 30cqh, 8rem); }
+  .canvas-music-meta h3 { -webkit-line-clamp: 1; }
+  .canvas-music-tracklist { flex: 0 1 8.6rem; }
+}
+
+@container music-node (max-height: 330px) and (max-aspect-ratio: 1.11) {
+  .canvas-music-body { padding-block: 0.5rem; }
+  .canvas-music-tracklist { display: none; }
+  .canvas-music-media { height: clamp(4.6rem, 28cqh, 6.3rem); }
+  .canvas-music-paste { min-height: 1.84rem; }
+  .canvas-music-paste input { font-size: 0.68rem; }
+}
+
+@container music-node (max-height: 250px) and (max-aspect-ratio: 1.11) {
+  .canvas-music-paste-wrap { display: none; }
+  .canvas-music-now { gap: 0.34rem; }
+  .canvas-music-media { height: clamp(3.4rem, 28cqh, 4.8rem); }
+  .canvas-music-artist,
+  .canvas-music-vol { display: none; }
+  .canvas-music-transport { min-height: 1.96rem; max-height: 1.96rem; }
+  .canvas-music-play { width: 1.58rem; height: 1.58rem; }
+  .canvas-music-tbtn { width: 1.4rem; height: 1.4rem; }
+}
+
+@media (pointer: coarse) {
+  .canvas-music-row { min-height: 2.3rem; }
+  .canvas-music-transport { min-height: 2.36rem; max-height: 2.36rem; }
+  .canvas-music-play { min-width: 1.9rem; min-height: 1.9rem; }
+  .canvas-music-tbtn { min-width: 1.78rem; min-height: 1.78rem; }
+  .canvas-music-row-actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .canvas-music::before {
+    background: color-mix(in oklab, var(--node-floor-solid) 96%, transparent);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-music-dot--playing,
+  .canvas-music-spin { animation: none; }
+  .canvas-music-play,
+  .canvas-music-tbtn,
+  .canvas-music-row,
+  .canvas-music-paste,
+  .canvas-music-seek-rail,
+  .canvas-music-seek-knob,
+  .canvas-music-row-actions { transition: none; }
+}

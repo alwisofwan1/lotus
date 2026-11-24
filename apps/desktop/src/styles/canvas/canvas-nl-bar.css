@@ -1,0 +1,543 @@
+/* CodeCanvas NL Command Bar — resting designs (Slab default / Veil) and the ghost hint odometer.
+   Split from agent-node-persona-nl.css (≤600-line policy):
+   these are all NEW rules from the revamp (plans/nl-command-bar-revamp/PLAN.md), layered on top of
+   the base .canvas-nl-input-row material defined there.
+
+   Quiet comes from SIZE, not from transparency (PLAN.md §3.0) — a feathered, borderless scrim over
+   a photo wallpaper reads as a smudge, not an object. Both rest designs below reuse the row's own
+   solid material; only geometry differs. */
+
+/* ── Slab (default) — 560px solid pill, grows to 620px on focus. The growth is functional, not
+   decorative: it hands the field ~60px more room to read and edit in exactly the moment you are
+   typing into it. (It originally made space for a keyboard-hint chip, since removed as clutter; the
+   growth outlived it because a wider field while engaged was always the real point.) The bar itself
+   stays centred — its existing translateX(-50%) is untouched — so only its width changes. ── */
+.canvas-nl-bar[data-docked][data-rest="slab"] {
+  width: min(calc(600px + var(--canvas-nl-frames-extra)), calc(64% + var(--canvas-nl-frames-extra)));
+}
+.canvas-nl-bar[data-docked][data-rest="slab"]:has(.canvas-nl-input-row:focus-within) {
+  width: min(calc(660px + var(--canvas-nl-frames-extra)), calc(64% + var(--canvas-nl-frames-extra)));
+}
+
+/* ── Focus choreography ──
+   The growth had NO transition: the bar snapped the full 60px on the very first frame (measured —
+   rest 560 → frame 0 620) while its contents eased in behind it. The container jumped and its
+   contents glided, which is what read as "not smooth". Putting the width on a timeline makes the
+   growth one continuous gesture instead of a jump.
+
+   The bar is centred, so the 60px is spent symmetrically — 30px out of each side — which reads as the
+   bar breathing rather than sliding sideways.
+
+   Deliberately NOT --canvas-ease-out here. That curve is cubic-bezier(0.16, 1, 0.3, 1), an expo-out:
+   measured on this very tween it covered 83% of the distance in the first 60ms of 260ms, so the box
+   still arrived like a snap with a slow tail. Expo-out is right for colour and opacity, where there is
+   no travel to perceive; a geometry tween needs its motion spread across the duration to read as
+   motion at all. This curve puts it near 55% at the same 60ms mark. */
+.canvas-nl-bar[data-docked] {
+  --canvas-nl-ease-geometry: cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: width 280ms var(--canvas-nl-ease-geometry);
+}
+
+/* The focus signal itself: an accent hairline plus a soft 3px halo, and the resting shadow deepens a
+   touch so the bar reads as having come forward. The old signal moved the border from 9% to 15% ink
+   and nothing else — imperceptible over a bright wallpaper, which is the one place it matters most. */
+.canvas-nl-bar[data-docked] .canvas-nl-input-row {
+  transition:
+    border-color 200ms var(--canvas-ease-out),
+    box-shadow 240ms var(--canvas-ease-out);
+}
+.canvas-nl-bar[data-docked][data-rest="slab"] .canvas-nl-input-row:focus-within {
+  border-color: color-mix(in oklab, var(--canvas-accent) 38%, transparent);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    var(--cc-chrome-shadow, 0 10px 30px -18px rgb(0 0 0 / 0.9)),
+    0 0 0 3px color-mix(in oklab, var(--canvas-accent) 9%, transparent);
+}
+
+/* A pill: the radius is half a single-line row (one control tile + the inset above and below), so a
+   multiline field keeps the same corners instead of turning into a capsule-shaped blob. */
+/* Geometry and ground from mockups/canvas-composer-glass-v3.html: a 46px pill on a neutral grey glass,
+   lifted a step off the theme floor so it reads as a surface over the wallpaper, not a hole in it. */
+.canvas-nl-bar[data-docked] .canvas-nl-input-row {
+  min-height: 46px;
+  border-radius: 23px;
+  padding-left: 0.5rem;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 8px 28px rgb(0 0 0 / 0.28);
+}
+.canvas-nl-bar[data-docked] .canvas-nl-input-row::before {
+  background-color: color-mix(in oklab, color-mix(in oklab, var(--node-floor-solid, #121118) 90%, white) 80%, transparent);
+}
+
+/* Hand attention to the caret: the prompt steps back slightly once the field is live, the way a
+   placeholder should. Scoped to [data-empty="true"] on purpose — without that guard this selector
+   (0,3,0) outranks .canvas-nl-hint[data-empty="false"] (0,2,0) and a ghost line would bleed through
+   behind the user's own typing. */
+.canvas-nl-input-row:focus-within .canvas-nl-hint[data-empty="true"] {
+  opacity: 0.72;
+}
+
+/* ── Veil — a bottom status strip, not a floating pill. At rest the row spans the window (both
+   edges pinned — deliberate spread, not accidental slack in a pill) on a bottom-anchored gradient
+   (.canvas-nl-veil, below); engaging gathers it into the same centred 620px solid pill Slab uses. ── */
+/* How much room the strip gives up on the right so it clears the bottom-right corner controls.
+   MEASURED, not guessed: --canvas-corner-bar-w is published by CanvasCornerControlBar via a
+   ResizeObserver (usePublishedElementWidth). The first version reserved a flat 172px derived from
+   .canvas-zoom-control alone, but the real widget is .canvas-corner-bar — wider, and variable (its
+   memory button is conditional on an open project, its zoom label grows with the percentage). So the
+   strip sat on top of the zoom buttons and you could not click them. The fallback is deliberately
+   generous: if the observer never runs, overlap is worse than a slightly short strip.
+     + 18px  the corner panel's own right margin (controls.css .canvas-corner-panel)
+     + 20px  a breathing gap so the two never look glued together */
+.canvas-nl-bar[data-docked][data-rest="veil"] {
+  --nl-strip-clear: calc(var(--canvas-corner-bar-w, 220px) + 38px);
+  /* Overrides the default centred translateX(-50%) with both edges pinned to the frame. */
+  left: 0;
+  right: 0;
+  width: auto;
+  transform: none;
+}
+.canvas-nl-bar[data-docked][data-rest="veil"] .canvas-nl-input-row {
+  width: calc(100vw - var(--nl-strip-clear) - 30px);
+  margin-right: var(--nl-strip-clear);
+  /* Centred at BOTH rest and gathered, on purpose: `align-self` is not an animatable property, so
+     letting it flip stretch→center on engage snapped the row's left edge 545px across the window in
+     a single frame while the width tweened behind it. Measured, not guessed. Now only width and
+     margin-right change, and both interpolate. */
+  align-self: center;
+  /* The surface itself lives on ::before and fades via opacity — `background-image` is a discrete
+     property, so animating none→gradients popped the theme layers in instantly while everything
+     else eased. The row keeps no fill of its own. */
+  background-color: transparent;
+  background-image: none;
+  border-color: transparent;
+  box-shadow: none;
+  /* Same reasoning as Slab's growth: the geometry legs get the spread-out curve, the colour legs keep
+     the canvas expo-out. */
+  transition:
+    width 300ms var(--canvas-nl-ease-geometry, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    margin-right 300ms var(--canvas-nl-ease-geometry, cubic-bezier(0.22, 0.61, 0.36, 1)),
+    border-color 200ms var(--canvas-ease-out), box-shadow 240ms var(--canvas-ease-out);
+}
+/* The glass itself is the shared .canvas-nl-input-row::before (agent-node-persona-nl.css); the strip
+   only hides it at rest and fades it in when the row gathers. */
+.canvas-nl-bar[data-docked][data-rest="veil"] .canvas-nl-input-row::before {
+  opacity: 0;
+  transition: opacity 200ms var(--canvas-ease-out);
+}
+/* Gathers to the centred 620px pill on FOCUS ONLY — never on hover.
+   Hover cannot drive a layout change on a window-wide element: gathering moves the row out from
+   under the pointer (the left edge travels 545px, the controls cluster ~120px), which cancels
+   :hover, which restores the wide row, which puts the pointer back inside — a ~300ms flicker loop
+   anywhere outside the gathered box. That was the reported "glitch at the far ends", and both ends
+   were the same bug. Focus is sticky and deliberate, so it cannot oscillate. */
+.canvas-nl-bar[data-docked][data-rest="veil"] .canvas-nl-input-row:focus-within {
+  width: min(620px, calc(100vw - 48px));
+  margin-right: 0;
+  border-color: var(--cc-chrome-border, rgba(255, 255, 255, 0.09));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.08), var(--cc-chrome-shadow, 0 10px 30px -18px rgb(0 0 0 / 0.9));
+}
+.canvas-nl-bar[data-docked][data-rest="veil"] .canvas-nl-input-row:focus-within::before { opacity: 1; }
+
+/* The gradient veil — contrast for the strip's content, since it carries no fill/border of its own
+   at rest. Rendered by CanvasNlCommandBar as a child of .canvas-nl-bar, immediately before
+   .canvas-nl-input-row, so plain DOM order already paints it behind the row with no z-index game.
+
+   .canvas-nl-bar is `position: absolute; left: 50%; transform: translateX(-50%)` — that transform
+   makes the bar its own containing block, so a percentage/edge-based child (`left: 0; right: 0`)
+   would only span the BAR's own (narrow) box, not the window, as the first draft of this rule
+   assumed. `width: 100vw` sidesteps that entirely — a viewport unit ignores the containing block —
+   so the centred left: 50%/translateX(-50%) pair re-centres a full-viewport-wide box regardless of
+   how wide the bar itself is. */
+.canvas-nl-veil {
+  position: absolute;
+  left: 50%;
+  /* .canvas-nl-bar sits `bottom: 22px` off the true window edge; reach past it (150px strip + the
+     22px gap) so the gradient still touches the real bottom instead of floating above it. */
+  bottom: -22px;
+  transform: translateX(-50%);
+  width: 100vw;
+  height: 172px;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(
+    to top,
+    rgba(3, 4, 8, 0.74) 0%,
+    rgba(3, 4, 8, 0.44) 38%,
+    rgba(3, 4, 8, 0.16) 68%,
+    transparent 100%
+  );
+  transition: opacity 260ms var(--canvas-ease-out);
+}
+.canvas-nl-bar[data-rest="veil"] .canvas-nl-veil { opacity: 1; }
+
+/* ── The veil on a LIGHT theme ──
+   The gradient above is a near-black scrim, and that is not a colour choice — it is the strip's
+   ONLY contrast device, since the resting row carries no fill and no border. It was authored while
+   every canvas theme was dark, so "knock the wallpaper back" and "go darker" were the same
+   instruction. On a light theme they are opposite: --canvas-text is dark ink (#1f2720 on Garden of
+   Dawn), and laying it over rgba(3,4,8,0.74) measures about 1.4:1 against the wallpaper behind.
+   That is the whole bug — with Command bar set to Bottom strip, the bar was not faint, it was
+   dark-on-dark, and the user reported it as simply not being there.
+
+   So the scrim inverts to the theme's own page instead of merely lightening. Built from
+   --node-floor-solid, which is opaque by contract, with alpha applied per stop.
+
+   The stops are HEAVIER than the dark set (88/62/26 against 74/44/16), and deliberately: this
+   wallpaper is bright and busy exactly where the strip sits — sun on water — so a light wash has
+   to cover more of it to give dark ink a ground. note-node.css documents the same asymmetry from
+   the other side. */
+.codecanvas-shell[data-canvas-mode="light"] .canvas-nl-veil {
+  background: linear-gradient(
+    to top,
+    color-mix(in oklab, var(--node-floor-solid) 88%, transparent) 0%,
+    color-mix(in oklab, var(--node-floor-solid) 62%, transparent) 38%,
+    color-mix(in oklab, var(--node-floor-solid) 26%, transparent) 68%,
+    transparent 100%
+  );
+}
+/* Focus only, matching the gather trigger — a hover-keyed veil fade would flicker in lockstep with
+   the row it belongs to. */
+.canvas-nl-bar[data-rest="veil"]:has(.canvas-nl-input-row:focus-within) .canvas-nl-veil {
+  opacity: 0.45;
+}
+
+/* ── Veil at rest must not eat the canvas ──
+   The resting strip is ~1500×36px of DELIBERATELY invisible chrome (no fill, no border) laid across
+   the bottom of the board, and .canvas-nl-bar stops pointerdown from propagating. So every click in
+   that dead space was swallowed before it could reach the node underneath it — you could see a node
+   through the strip and not be able to click it. Make the strip pointer-transparent and hand events
+   back only to the parts that are actually visible. Slab is unaffected: it is a real 560px surface,
+   so nothing about it is invisible-but-clickable. */
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) {
+  pointer-events: none;
+}
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .canvas-nl-input,
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .canvas-nl-icon,
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .canvas-nl-voice-actions,
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .canvas-nl-target,
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .canvas-nl-docked,
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .ws-live-strip,
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .ws-live-summary,
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .canvas-nl-confirm,
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .canvas-nl-alert,
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .canvas-voice-tool-trace {
+  pointer-events: auto;
+}
+/* The textarea spans the whole 1fr column, so re-enabling it would hand the dead space straight back.
+   Its hit area is capped instead — a deliberate trade-off, and the number is the whole argument:
+   everything inside the cap is a click that focuses the field, everything past it is a click that
+   reaches the canvas node underneath. 44rem is roomy enough to read and edit a long command in strip
+   mode (the earlier 26rem felt cramped) while still leaving the majority of a wide strip clickable. */
+.canvas-nl-bar[data-docked][data-rest="veil"]:not(:has(.canvas-nl-input-row:focus-within)) .canvas-nl-input {
+  max-width: 44rem;
+}
+/* Explicitly invisible for Slab — belt and braces on top of the opacity: 0 default above. */
+.canvas-nl-bar[data-rest="slab"] .canvas-nl-veil { opacity: 0; }
+
+/* ── Ghost hint — a positioned span behind the <textarea> (a real ::placeholder can't be
+   animated). Shares column 1 with .canvas-nl-input via grid (see .canvas-nl-input-row in
+   agent-node-persona-nl.css), so it always matches the input's exact box with no wrapper element
+   and no dependency on the widths of the mic/docked cluster, which live in their own implicit
+   columns. Hidden the moment the field is non-empty. ── */
+.canvas-nl-hint {
+  grid-column: 1;
+  grid-row: 1;
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  pointer-events: none;
+  overflow: hidden;
+  font-family: var(--canvas-nl-font);
+  font-size: var(--ds-t-body);
+  /* Muted, not quiet: the quiet ink (66% of muted) vanished over a bright wallpaper. */
+  color: var(--cc-chrome-ink-muted, rgba(255, 255, 255, 0.6));
+  transition: opacity 0.18s ease;
+}
+.canvas-nl-hint[data-empty="false"] { opacity: 0; }
+
+/* Two lines ALWAYS exist and move together, so the slot is never empty mid-swap — a single-element
+   version left the slot blank for the whole ~380ms transition (PLAN.md §3.0). */
+.canvas-nl-hint-slot {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 1.4em;
+  overflow: hidden;
+  /* A phrase longer than the slot fades instead of hard-clipping — the rotation set is built at
+     runtime from live agent names, so a long one is always possible. */
+  mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 20px), transparent 100%);
+}
+.canvas-nl-hint-line {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.3em;
+  white-space: nowrap;
+  transition: transform 400ms var(--canvas-ease-out), opacity 340ms var(--canvas-ease-out);
+}
+.canvas-nl-hint-line[data-phase="out"]  { transform: translateY(-100%); opacity: 0; }
+.canvas-nl-hint-line[data-phase="in"]   { transform: translateY(100%);  opacity: 0; }
+.canvas-nl-hint-line[data-phase="hold"] { transform: translateY(0);     opacity: 1; }
+
+/* ── Words — each word leaves/lands on its own beat instead of the line moving as a block. The
+   line itself stops animating (transform/opacity neutralised) and each .canvas-nl-hint-word gets
+   its own staggered transition. Transform + opacity ONLY: a filter repaint on persistent chrome is
+   exactly the cost class canvas-surface-performance.css.test.ts already bans, and the per-word
+   stagger carries the effect without blur. ── */
+.canvas-nl-hint-line[data-phase] {
+  transition: none;
+  opacity: 1;
+  transform: none;
+}
+.canvas-nl-hint-word {
+  display: inline-block;
+  transition: transform 400ms var(--canvas-ease-out), opacity 300ms var(--canvas-ease-out);
+  transition-delay: calc(var(--i, 0) * 36ms);
+}
+.canvas-nl-hint-line[data-phase="out"] .canvas-nl-hint-word { transform: translateY(-105%); opacity: 0; }
+.canvas-nl-hint-line[data-phase="in"]  .canvas-nl-hint-word { transform: translateY(105%);  opacity: 0; }
+.canvas-nl-hint-line[data-phase="hold"] .canvas-nl-hint-word {
+  transform: none;
+  opacity: 1;
+  /* The arriving line waits out most of the departing one, so the swap reads as one exchange
+     rather than two lines visibly crossing. */
+  transition-delay: calc(90ms + var(--i, 0) * 36ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Collapses to a plain opacity fade with no stagger and no spatial cue. */
+  .canvas-nl-hint-line,
+  .canvas-nl-hint-word {
+    transition: opacity 260ms linear !important;
+    transition-delay: 0s !important;
+    transform: none !important;
+  }
+}
+
+/* Tone — moved here from .canvas-nl-input::placeholder (agent-node-persona-nl.css), since the
+   visible copy lives in this ghost layer now. `think` is new: a muted neutral (not an accent) for
+   while the model is resolving, distinct from the accent-tinted `live` (an active voice session). */
+.canvas-nl-hint[data-tone="ok"]    .canvas-nl-hint-line { color: oklch(0.84 0.07 165 / 0.96); }
+.canvas-nl-hint[data-tone="error"] .canvas-nl-hint-line { color: oklch(0.78 0.1 25 / 0.95); }
+.canvas-nl-hint[data-tone="live"]  .canvas-nl-hint-line { color: color-mix(in oklab, var(--canvas-accent) 82%, var(--canvas-text, var(--cc-chrome-ink, #f2eff5))); }
+.canvas-nl-hint[data-tone="think"] .canvas-nl-hint-line { color: color-mix(in oklab, var(--cc-chrome-ink-quiet, rgba(255, 255, 255, 0.5)) 70%, transparent); }
+
+
+
+
+
+@media (prefers-reduced-motion: reduce) {
+  /* A width tween is a moving box, which is exactly what reduced-motion asks us not to do. The bar
+     still resizes — it just arrives there instead of travelling. The focus signal (colour + shadow)
+     keeps its fade, since that carries no motion. */
+  .canvas-nl-bar[data-docked] { transition: none !important; }
+}
+
+/* ── Shared voice parts (plans/composer-voice-ux, tickets 07–08) — the Composer Target, the voice
+   slot (mic · Live Voice · Send) and the listening row, drawn by the same components as the Code
+   composer. Their rules live in composer-voice.css (imported just before this file) and read the
+   shell's --ws-* tokens, which exist only under .ws-shell; here they are mapped onto the canvas
+   chrome, so the parts draw themselves and the bar only places them. Same values as the shell. ── */
+.canvas-nl-bar {
+  --ws-r-pill: 999px;
+  --ws-dur: 120ms;
+  --ws-ease: var(--canvas-ease-out, cubic-bezier(0.2, 0, 0.2, 1));
+  --ws-ease-spring: cubic-bezier(0.34, 1.32, 0.52, 1);
+  --ws-hover: var(--cc-chrome-fill, color-mix(in oklab, var(--canvas-text) 10%, transparent));
+  --ws-surface-quiet: var(--cc-chrome-fill, color-mix(in oklab, var(--canvas-text) 8%, transparent));
+}
+
+/* The target ("→ Lotus" / "→ Rowan", ahead of the field: where Enter sends what is typed or heard)
+   takes its own leading column, so the text well (hint + textarea, or the listening row) moves to
+   column 2 only while it shows. While listening the ✕ that drops the turn sits in front of it. */
+/* max-content, not auto: on a narrow row an auto track shrank below the chip and the text was typed
+   on top of it. The chip is bounded (its label caps at 16ch), so the text column is the one that gives. */
+.canvas-nl-input-row[data-target="true"] {
+  grid-template-columns: max-content minmax(0, 1fr);
+}
+.canvas-nl-input-row[data-target="true"] > .canvas-nl-input,
+.canvas-nl-input-row[data-target="true"] > .canvas-nl-hint,
+.canvas-nl-input-row[data-target="true"] > .canvas-nl-live-row {
+  grid-column: 2;
+}
+.canvas-nl-target {
+  grid-column: 1;
+  grid-row: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+/* It labels the first line, so it stays there while a multiline field grows underneath. */
+.canvas-nl-input-row[data-multiline="true"] > .canvas-nl-target { align-self: start; }
+.canvas-nl-target .ws-composer-target { align-self: center; }
+/* A label, not a chip: on the bar's own glass a filled pill read as a second bar inside the first.
+   Command mode keeps its fill — it changes what Enter does, so it should look different. */
+.canvas-nl-target .ws-composer-target:not([data-command="true"]) {
+  background: transparent;
+  padding-inline: 2px 4px;
+  color: var(--cc-chrome-ink, var(--canvas-text));
+}
+.canvas-nl-target .ws-composer-target-label { max-width: 16ch; }
+.canvas-nl-target-note {
+  font-size: var(--ds-t-micro);
+  white-space: nowrap;
+  color: var(--text-muted);
+  /* Reads as one chip, "→ Lotus · auto": pulled in against the label it qualifies. */
+  margin-left: -2px;
+}
+.canvas-nl-target-note::before { content: "· "; }
+
+/* Send is round like the pill it sits in; it only exists once there is text, so it never competes at rest. */
+.canvas-nl-bar .ws-round-button[data-variant="send"] { border-radius: 999px; }
+/* The target chip is neutral, arrow included, so the prompt is the loudest thing. */
+.canvas-nl-bar .ws-composer-target-to { color: var(--cc-chrome-ink-quiet, var(--text-muted)); }
+
+/* ── Docked nav: [project] [1 ▾] [⋯] (CanvasDockedNav). One hairline from the prompt, no other
+   dividers; the ⋯ menu reuses the Frame menu's surface so the two read as one family. ── */
+.canvas-nl-docked-sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 1.125rem;
+  margin: 0 0.25rem;
+  background: var(--cc-chrome-border, color-mix(in oklab, var(--canvas-text) 12%, transparent));
+}
+.canvas-docked-nav { display: inline-flex; align-items: center; gap: 0.125rem; min-width: 0; }
+/* One type size and one face across the whole docked bar. The target (11px), project (12px), Frame
+   (13px, body face) and the field (13px, theme face) each came from their own component's default,
+   so four sizes and two faces sat on one line. Weight is the only thing that separates a label from
+   what you type. */
+.canvas-nl-bar[data-docked] :is(.ws-composer-target, .canvas-project-trigger, .canvas-frame-chip--compact, .canvas-docked-dock-count, .canvas-nl-input, .canvas-nl-hint) {
+  font-family: var(--canvas-nl-font);
+  font-size: 0.875rem;
+  letter-spacing: 0;
+}
+.canvas-nl-bar[data-docked] :is(.ws-composer-target, .canvas-project-trigger, .canvas-frame-chip--compact, .canvas-docked-dock-count) {
+  font-weight: 500;
+  line-height: 1;
+}
+
+/* The ⋯ menu: plain text rows on the bar's own glass, a check for what is on, hairlines between groups. */
+.canvas-docked-nav .canvas-frame-menu {
+  min-width: 13rem;
+  padding: 0.3rem;
+  border-radius: 14px;
+  background: var(--cc-glass-tint);
+  -webkit-backdrop-filter: var(--cc-glass-filter);
+  backdrop-filter: var(--cc-glass-filter);
+}
+.canvas-docked-nav .canvas-frame-menu-item {
+  min-height: 2rem;
+  padding: 0 0.6rem;
+  font-family: var(--canvas-nl-font);
+  font-size: var(--ds-t-body);
+}
+.canvas-docked-nav .canvas-frame-menu-item[aria-checked="true"]::after {
+  content: "✓";
+  margin-left: auto;
+  padding-left: 0.75rem;
+  color: var(--cc-chrome-ink, var(--canvas-text));
+}
+/* No project → the Memory / Sessions slot is empty; keep one hairline, not two. */
+.canvas-docked-nav-slot:empty + .canvas-docked-nav-sep { display: none; }
+
+/* Dock: the waiting count is plain text beside the icon, not a coloured badge. */
+.canvas-docked-dock { display: inline-flex; align-items: center; gap: 0.3rem; width: auto; padding: 0 0.5rem; }
+.canvas-docked-dock-count {
+  font-variant-numeric: tabular-nums;
+  color: var(--cc-chrome-ink, var(--canvas-text));
+}
+.canvas-frame-chip--compact {
+  gap: 0.2rem;
+  padding: 0 0.35rem 0 0.5rem;
+  font-family: var(--canvas-font-body, system-ui, sans-serif);
+  font-variant-numeric: tabular-nums;
+}
+.canvas-frame-chip-chev { color: var(--cc-chrome-ink-quiet, currentColor); }
+a.canvas-frame-menu-item { text-decoration: none; }
+/* Sessions row: an agent is waiting on you — the reason to open the list, visible before you do. */
+.canvas-docked-nav-needs-you {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fbbf24;
+  box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.18);
+}
+.canvas-docked-nav-kbd {
+  margin-left: auto;
+  font: inherit;
+  font-size: 0.7rem;
+  color: var(--cc-chrome-ink-quiet, var(--text-muted));
+}
+/* Memory / Sessions popovers, portalled in by CanvasCornerControls (command-bar layout); they open
+   above the bar's right end. Zoom stays in the corner — sliding it open under the pointer got in the
+   way of the Frame and ⋯ buttons. */
+.canvas-nl-docked { position: relative; }
+.canvas-docked-corner-pop {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px);
+  z-index: 40;
+}
+/* The ⋯ menu's slot for the Memory / Sessions rows: no box of its own, so they are the menu's rows. */
+.canvas-docked-nav-slot { display: contents; }
+
+.canvas-docked-nav-sep {
+  display: block;
+  height: 1px;
+  margin: 0.25rem 0.3rem;
+  background: var(--cc-chrome-border, color-mix(in oklab, var(--canvas-text) 12%, transparent));
+}
+
+/* The listening row: what was heard, in the field's own face, where the field was. */
+.canvas-nl-live-row {
+  grid-column: 1;
+  grid-row: 1;
+  max-height: 160px;
+  overflow-y: auto;
+  font-family: var(--canvas-nl-font);
+  font-size: var(--ds-t-body);
+  line-height: 1.4;
+  color: var(--cc-chrome-ink, var(--canvas-text));
+}
+
+/* Live Voice's status line takes the listening row's place but is a status, not words heard: one
+   line, upright, in the quiet ink — and the error in the status ramp (ADR-0023). */
+.canvas-nl-live-voice {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-style: normal;
+  font-size: var(--ds-t-body);
+  color: var(--cc-chrome-ink-quiet, var(--text-muted));
+}
+.canvas-nl-live-voice[data-state="error"] { color: var(--canvas-status-error-ink); }
+
+/* The strip and the summary line sit in the bar's column like the confirm and alert rows do. */
+.canvas-nl-bar .ws-live-strip {
+  background: var(--cc-chrome-bg);
+  border: 1px solid var(--cc-chrome-border);
+  border-radius: var(--cc-chrome-radius, 12px);
+  color: var(--cc-chrome-ink, var(--canvas-text));
+}
+.canvas-nl-bar .ws-live-summary {
+  align-self: center;
+  color: var(--cc-chrome-ink-quiet, var(--text-muted));
+}
+
+/* Waveform, timer and the slot, as one cell: the slot shows one to three buttons and the grid must
+   not grow a column per button. */
+.canvas-nl-voice-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+

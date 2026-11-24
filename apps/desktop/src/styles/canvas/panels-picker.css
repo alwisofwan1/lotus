@@ -1,0 +1,78 @@
+/* CodeCanvas project picker dialog. Split from panels.css (≤600-line policy). */
+
+/* ── Project picker dialog ── */
+.canvas-picker-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.canvas-picker-dialog {
+  background: var(--canvas-surface);
+  border: 1px solid var(--canvas-border-str);
+  border-radius: 1rem;
+  padding: 1.75rem;
+  width: min(26rem, calc(100vw - 2rem));
+  box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.canvas-picker-title {
+  font-size: var(--ds-t-lede);
+  font-weight: 600;
+  color: var(--canvas-text);
+  margin: 0;
+}
+
+.canvas-picker-label {
+  font-size: var(--ds-t-body);
+  color: var(--canvas-text-muted);
+  margin-bottom: 0.375rem;
+  display: block;
+}
+
+.canvas-picker-input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--canvas-border-str);
+  border-radius: 0.5rem;
+  color: var(--canvas-text);
+  font-size: var(--ds-t-body);
+  font-family: var(--font-mono, monospace);
+  outline: none;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.canvas-picker-input:focus {
+  border-color: var(--canvas-accent);
+  box-shadow: 0 0 0 2px var(--canvas-focus-ring);
+}
+
+.canvas-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.canvas-picker-confirm {
+  padding: 0.45rem 1.25rem;
+  border-radius: 9999px;
+  border: none;
+  background: var(--canvas-accent);
+  color: var(--accent-fg, #050506);
+  font-size: var(--ds-t-body);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.canvas-picker-confirm:hover { opacity: 0.88; }
+.canvas-picker-confirm:disabled { opacity: 0.4; cursor: default; }
+

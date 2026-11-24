@@ -1,0 +1,93 @@
+---
+/**
+ * The download CTA: both builds as real links, so it works with no JavaScript and on
+ * platforms we do not build for (both shown, macOS first).
+ *
+ * public/download-os.js runs while the HTML is parsed, before first paint, and puts the
+ * visitor's platform first. It only reorders and swaps which pill is the white one; both
+ * links stay in the page.
+ */
+import { download } from "../copy";
+---
+
+<div class:list={["dl", Astro.props.class]}>
+  <div class="dl-row">
+    <a class="btn btn-lg" data-os="mac" href={download.mac.href}>{download.mac.label}</a>
+    <a class="btn btn-lg btn-ghost" data-os="win" href={download.win.href}>{download.win.label}</a>
+  </div>
+  <p class="dl-more"><a href={download.all.href}>{download.all.label}</a></p>
+  <p class="dl-hint">{download.hint} <a href={download.install.href}>{download.install.label}</a></p>
+</div>
+<script is:inline src="/download-os.js"></script>
+
+<style>
+  .dl {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.9rem;
+    margin-top: 2rem;
+  }
+  .dl-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+  }
+  .dl[data-os="win"] [data-os="win"] {
+    order: -1;
+  }
+  .btn-lg {
+    padding: 0.85rem 1.5rem;
+    font-size: 0.97rem;
+  }
+  .dl-more a {
+    font-size: 0.875rem;
+    color: var(--dim);
+    border-bottom: 1px solid var(--hair-2);
+  }
+  .dl-more a:hover {
+    color: var(--ink);
+  }
+  .dl-hint {
+    font-size: 0.75rem;
+    color: var(--faint);
+    max-width: 52ch;
+  }
+  .dl-hint a {
+    color: var(--dim);
+    border-bottom: 1px solid var(--hair-2);
+  }
+  /* `start`: the hero's left-aligned column. */
+  .dl.start {
+    align-items: flex-start;
+    margin-top: 0;
+  }
+  .dl.start .dl-row {
+    justify-content: flex-start;
+    align-items: center;
+    gap: 1.4rem;
+  }
+  /* In the narrow column the other platform is a text link, not a second pill. The OS
+     script moves .btn-ghost to whichever link is not the visitor's, so this follows it. */
+  .dl.start .btn-ghost {
+    padding: 0.2rem 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: var(--dim);
+    font-size: 0.9rem;
+    border-bottom: 1px solid var(--hair-2);
+  }
+  .dl.start .btn-ghost:hover {
+    color: var(--ink);
+    transform: none;
+  }
+  @media (max-width: 560px) {
+    .dl-row,
+    .dl-row .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>

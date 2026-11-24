@@ -1,0 +1,196 @@
+/* CodeSpace stylesheet. The CodeSpace page and its `.codespace-shell` root are gone (9ab0b1e3);
+   what is left styles parts that still render elsewhere: the Fleet view in Code mode, the drop
+   states of a terminal pane, and the terminal file-drop overlay. Their tokens are declared on
+   :root, not on a shell element, so they resolve wherever those parts mount. Every colour
+   derives from the design-system workbench tokens (resolve-theme.ts). */
+:root {
+  --cs-bg: var(--ds-workbench-bg);
+  --cs-surface: var(--ds-workbench-surface);
+  --cs-surface-hover: var(--ds-workbench-surface-hover);
+  /* Read from script too: the pooled terminal slot's background and the default xterm theme
+     (terminal-v2-pooled-*.ts) take it from the document element. */
+  --cs-terminal-bg: var(--ds-workbench-terminal-bg);
+  --cs-text: var(--ds-workbench-text);
+  --cs-text-secondary: var(--ds-workbench-text-secondary);
+  --cs-text-muted: var(--ds-workbench-text-muted);
+  --cs-text-quiet: var(--ds-workbench-text-quiet);
+  --cs-border: var(--ds-workbench-border);
+  --cs-accent: var(--ds-workbench-accent);
+  --cs-shadow-edge: var(--ds-workbench-shadow-edge);
+  --cs-popover-bg: var(--ds-workbench-popover-bg);
+  --cs-popover-border: var(--ds-workbench-popover-border);
+  --cs-popover-shadow: var(--ds-workbench-popover-shadow);
+  --cs-success: var(--ds-success);
+  --cs-warning: var(--ds-warning);
+  --cs-danger: var(--ds-danger);
+}
+
+/* ── Cross-region task drag-and-drop ── */
+
+/* Terminal cell: accepted drop target. Ink, as every selection is (mockup T5): no hue. */
+.terminal-pane.is-task-drop-target {
+  outline: 1.5px solid color-mix(in srgb, var(--cs-accent) 72%, transparent);
+  outline-offset: -1px;
+  box-shadow:
+    0 0 0 3px color-mix(in srgb, var(--cs-accent) 18%, transparent),
+    inset 0 0 32px color-mix(in srgb, var(--cs-accent) 8%, transparent);
+}
+
+/* Terminal cell: rejected drop target (no agent / no live session) */
+.terminal-pane.is-task-drop-rejected {
+  outline: 1.5px solid color-mix(in srgb, var(--cs-danger) 55%, transparent);
+  outline-offset: -1px;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cs-danger) 12%, transparent);
+  opacity: 0.65;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-pane.is-task-drop-target,
+  .terminal-pane.is-task-drop-rejected {
+    transition: none;
+  }
+}
+
+.terminal-file-drop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--cs-warning) 10%, transparent), transparent 34%),
+    color-mix(in srgb, var(--cs-bg) 46%, transparent);
+}
+
+.terminal-file-drop-frame {
+  position: absolute;
+  inset: 8px;
+  border: 1px solid color-mix(in srgb, var(--cs-warning) 42%, transparent);
+  border-radius: 14px;
+  pointer-events: none;
+  box-shadow:
+    var(--cs-shadow-edge),
+    inset 0 0 36px color-mix(in srgb, var(--cs-warning) 5.5%, transparent);
+}
+
+.terminal-file-drop-frame::before,
+.terminal-file-drop-frame::after {
+  content: "";
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-color: color-mix(in srgb, var(--cs-warning) 74%, transparent);
+  pointer-events: none;
+}
+
+.terminal-file-drop-frame::before {
+  left: -1px;
+  top: -1px;
+  border-left: 1px solid color-mix(in srgb, var(--cs-warning) 74%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--cs-warning) 74%, transparent);
+  border-top-left-radius: 14px;
+}
+
+.terminal-file-drop-frame::after {
+  right: -1px;
+  bottom: -1px;
+  border-right: 1px solid color-mix(in srgb, var(--cs-warning) 74%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--cs-warning) 74%, transparent);
+  border-bottom-right-radius: 14px;
+}
+
+.terminal-file-drop-card,
+.terminal-file-drop-notice {
+  border: 1px solid var(--cs-popover-border);
+  border-radius: 16px;
+  background: var(--cs-popover-bg);
+  color: var(--cs-text);
+  box-shadow:
+    var(--cs-shadow-edge),
+    var(--cs-popover-shadow);
+}
+
+.terminal-file-drop-card {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  max-width: min(360px, calc(100% - 44px));
+  padding: 10px 12px 10px 10px;
+}
+
+.terminal-file-drop-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 12px;
+  color: var(--cs-warning);
+  background: color-mix(in srgb, var(--cs-warning) 14%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cs-warning) 24%, transparent);
+}
+
+.terminal-file-drop-copy {
+  min-width: 0;
+}
+
+.terminal-file-drop-title {
+  font-size: 12px;
+  font-weight: 680;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: var(--cs-text);
+}
+
+.terminal-file-drop-detail {
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10.5px;
+  font-weight: 450;
+  line-height: 1.35;
+  color: var(--cs-text-muted);
+}
+
+.terminal-file-drop-cancel {
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  height: 26px;
+  padding: 0 10px;
+  margin-left: 4px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 590;
+  color: var(--cs-danger);
+  background: color-mix(in srgb, var(--cs-danger) 12%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--cs-danger) 24%, transparent);
+}
+
+.terminal-file-drop-notice {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 90;
+  max-width: min(420px, calc(100vw - 36px));
+  cursor: pointer;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.terminal-file-drop-notice.is-success {
+  border-color: color-mix(in srgb, var(--cs-success) 38%, transparent);
+}
+
+.terminal-file-drop-notice.is-error {
+  border-color: color-mix(in srgb, var(--cs-danger) 46%, transparent);
+}

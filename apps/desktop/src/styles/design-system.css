@@ -1,0 +1,664 @@
+:root {
+  /* Pre-paint fallbacks: theme-bootstrap writes every palette variable inline on <html> before
+     first paint, so these show only if it fails. They are the Dark palette, value for value
+     (root-fallbacks.css.test.ts); globals.css aliases its own palette variables to them. */
+  --ds-canvas: #0f0e0c; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-bg: #161513; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-bg-soft: #0f0e0c; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-surface: #1e1b19; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-surface-raised: #252220; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-overlay: #2c2a26; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-hairline: #403c39; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-text: #f7f3ee; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-text-secondary: #c9c3bc; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-text-muted: #9d9790; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-text-quiet: #77726d; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-success: #82cf98; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-warning: #ebc070; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-danger: #f28881; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-info: #8cbde8; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-accent: #f3efec; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-accent-text: #0f0e0c; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-border: rgba(247,243,238,0.11); /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-border-subtle: rgba(247,243,238,0.065); /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-stone: rgba(243,239,236,0.12); /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-shadow-ink: #000000; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-shadow-edge: rgba(247,243,238,0.085) 0 0 0 0.5px inset; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-shadow-soft: rgba(0,0,0,0.34) 0 0 1px, rgba(0,0,0,0.22) 0 12px 30px; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-shadow-lift: rgba(0,0,0,0.26) 0 16px 36px; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-focus-ring: rgba(243,239,236,0.5); /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-workbench-popover-bg: #2c2a26; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-workbench-popover-border: rgba(247,243,238,0.16); /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-workbench-popover-shadow: rgba(0,0,0,0.28) 0 2px 6px, rgba(0,0,0,0.34) 0 14px 36px; /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --bubble-ai-bg: rgba(37,34,32,0.42); /* color-literal-ok: pre-paint fallback, the Dark palette */
+  --ds-radius-card: 16px;
+  --ds-radius-control: 10px;
+  --ds-radius-pill: 9999px;
+
+  /* ── TYPE SCALE ──
+     Six steps, ratio ≈1.16, floor 11px. One scale for the whole app: the CodeCanvas settings
+     modal and this design system were two independent typographic systems, in two different
+     units, sharing no value — the canvas stylesheets held 70+ distinct `font-size` values
+     (runs like 0.615 / 0.62 / 0.625 / 0.63 / 0.64rem), and the /settings components held ~250
+     arbitrary Tailwind pixel sizes down to `text-[9.5px]`. Neither was wrong in any single
+     place. The problem was that every size was an independent decision, so the next one always
+     was too.
+
+     WHY IT LIVES HERE and not in styles/canvas/theme.css, where it was first written:
+     `styles/canvas/index.css` is imported by app/canvas/page.tsx alone, so a token declared on
+     `.codecanvas-shell` is unreachable from /settings. This file and globals.css come from the
+     root layout, so `:root` here is the only place both surfaces can see. That is also why the
+     names lost their `--canvas-` prefix: the scale was never a canvas concept.
+
+     WHY THE RATIO IS TIGHT. Dense chrome, not a reading column. A 1.25 ratio opens gaps these
+     panels have no room for; 1.16 keeps six usable steps inside 11-24px.
+
+     WHY THE FLOOR IS 11px. The old floors were 6.4px (0.4rem) on the canvas and 8px on
+     /settings, with uppercase runs at 8px/0.16em — and tracking that wide makes small caps
+     HARDER to read, not easier, so the two failures compounded. 11px is the smallest size that
+     still resolves as tracked caps in a macOS WKWebView.
+
+     SCOPE: FIXED CHROME, NOT NODE INTERIORS. Panels, modals, rails, sheets, toolbars, the Fleet
+     panel and the Run Inspector all take these steps. The insides of a canvas NODE do not, and
+     that is a boundary rather than unfinished work: React Flow transforms only what `nodeTypes`
+     and `edgeTypes` render (every one of those components lives under
+     modules/codecanvas/components/nodes|edges), so a node's text is scaled by the user's zoom.
+     An 8px chip inside a node is 16px at 200%, which is how it is actually read — the fixed 11px
+     floor below is a claim about surfaces that never scale, and applying it to nodes would grow
+     ~200 labels by 20-80% inside fixed-width cards to fix a problem the zoom already solves.
+     Node text keeps its own small register, alongside the `hud` bucket that formalises part of
+     it. If node density is ever revisited, that is a design decision about the canvas, not a
+     tokens cleanup — do it deliberately and look at it.
+
+     NOT THEMEABLE, deliberately. A theme chooses FACES (fonts.display/body/mono/hud in the
+     Artisan theme engine); sizes are the app's own rhythm, and letting a theme move them would
+     mean every layout has to survive every theme's scale. The one size axis a user does control
+     is `--canvas-node-text-size` in styles/canvas/theme.css — and note that it is node CONTENT
+     (Markdown, chat), not chrome. Keep that boundary: content scales, chrome does not.
+
+     Roles, so a call site can pick without measuring:
+       micro   eyebrows, section labels, badges, chips, kbd caps, quiet chrome. Uppercase WHEN
+               IT IS A LABEL, and then always with --ds-tr-caps — but a window title is micro and
+               is not uppercase, which is why size and caps are separate tokens
+       meta    row descriptions, help text, footers, tab subtitles, inline buttons
+       body    row titles, rail items, input text — the working size of a settings panel
+       lede    card and hero titles inside content, runner names, subsection heads
+       head    the one panel title in a section header
+       display the places where a single value IS the content: the theme hero in the canvas
+               Style tab, and the pairing code in Mobile Access. Both are read at a glance from
+               across a desk — the code is typed into a phone keypad — so they answer to a
+               different rule than chrome does. A third use is a design decision, not a size pick */
+  --ds-t-micro:   0.6875rem;  /* 11px */
+  --ds-t-meta:    0.75rem;    /* 12px */
+  --ds-t-body:    0.8125rem;  /* 13px */
+  --ds-t-lede:    0.9375rem;  /* 15px */
+  --ds-t-head:    1.125rem;   /* 18px */
+  --ds-t-display: 1.5rem;     /* 24px */
+
+  /* Two line-heights and one tracking value, for the same reason as the sizes: the files held
+     dozens of one-off 1.45 / 1.5 / 1.55 / 1.6 / 1.65 values that encode nothing. `tight` is for
+     anything that must not wrap onto a second line at its own size; `body` is for anything that
+     can. A companion `--ds-tr-head` for negative heading tracking was drafted and dropped — it
+     had zero consumers, and a token nothing reads is a claim the codebase does not back. */
+  --ds-lh-tight:  1.2;
+  --ds-lh-body:   1.5;
+  --ds-tr-caps:   0.07em;
+}
+
+/* ── Type-scale classes ────────────────────────────────────────────────────
+   Both surfaces carry a large part of their typography in Tailwind utilities — `text-sm`,
+   `text-xs`, and arbitrary values like `text-[10.5px]` and `text-[0.6875rem]`. Two authoring
+   surfaces for one scale means every change has to be made twice and, in practice, was only
+   ever made once. These classes are how a component names a step instead of a number.
+
+   No specificity trick is needed and none is used: `@import "tailwindcss"` puts every utility
+   in `@layer utilities`, and unlayered rules beat layered ones regardless of specificity, so
+   these win over any `text-*` left on the same element. (An earlier draft scoped them under
+   `.canvas-settings-surface` to force the win by specificity. That was reasoning about the
+   wrong mechanism — worth recording, because the scoped version would have worked and left the
+   real rule unlearned.)
+
+   SIZE ONLY. A `line-height` here would silently beat the `leading-none` that gives a badge its
+   pill height and the `leading-relaxed` that gives a description its measure. Line-height stays
+   on the element, where it is a per-element box decision; the --ds-lh-* tokens are for
+   stylesheet rules. Colour and weight stay at the call site for the same reason. */
+.ds-t-micro   { font-size: var(--ds-t-micro); }
+.ds-t-meta    { font-size: var(--ds-t-meta); }
+.ds-t-body    { font-size: var(--ds-t-body); }
+.ds-t-lede    { font-size: var(--ds-t-lede); }
+.ds-t-head    { font-size: var(--ds-t-head); }
+.ds-t-display { font-size: var(--ds-t-display); }
+
+/* Uppercase treatment, kept separate from size so the two compose. `micro` is not always
+   uppercase and an uppercase run is not always micro. The call sites spelled this as
+   `uppercase tracking-wide` (0.025em) and `tracking-wider` (0.05em) while the stylesheets used
+   0.02em-0.16em for the same job; one value now answers all of them. */
+.ds-caps { text-transform: uppercase; letter-spacing: var(--ds-tr-caps); }
+
+[data-theme-type="dark"] {
+  color-scheme: dark;
+}
+
+[data-theme-type="light"] {
+  color-scheme: light;
+}
+
+.ds-theme-mode-card:focus-visible {
+  outline: 2px solid var(--ds-focus-ring);
+  outline-offset: 2px;
+}
+
+.ds-theme-mode-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+/* Card chrome is drawn with the app's current tokens; the preview inside with its own mode's. */
+.ds-theme-mode-card {
+  display: grid;
+  gap: 0.5rem;
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  background: var(--ds-surface);
+  color: var(--ds-text);
+  padding: 0.5rem;
+  text-align: left;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.ds-theme-mode-card:hover {
+  border-color: var(--ds-hairline);
+}
+
+/* 1px border + 0.5px ring = the 1.5px ink ring of the mockup. */
+.ds-theme-mode-card[data-selected="true"] {
+  border-color: var(--ds-accent);
+  box-shadow: 0 0 0 0.5px var(--ds-accent);
+}
+
+.ds-theme-mode-preview {
+  position: relative;
+  display: flex;
+  height: 5.25rem;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.ds-theme-mode-preview::after {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: var(--ds-shadow-edge);
+  content: "";
+  pointer-events: none;
+}
+
+.ds-theme-preview-shell {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  background: var(--ds-bg);
+}
+
+.ds-theme-preview-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  width: 24%;
+  padding: 0.625rem 0.375rem;
+  background: var(--ds-canvas);
+  box-shadow: -1px 0 0 var(--ds-border-subtle) inset;
+}
+
+.ds-theme-preview-sidebar span {
+  width: 70%;
+  height: 3px;
+  border-radius: var(--ds-radius-pill);
+  background: var(--ds-text-quiet);
+}
+
+.ds-theme-preview-panel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+  padding: 0.625rem 0.5rem 0.5rem;
+}
+
+.ds-theme-preview-heading,
+.ds-theme-preview-muted,
+.ds-theme-preview-card-line,
+.ds-theme-preview-card-status {
+  display: block;
+  border-radius: var(--ds-radius-pill);
+}
+
+.ds-theme-preview-heading {
+  width: 55%;
+  height: 4px;
+  background: var(--ds-text);
+}
+
+.ds-theme-preview-muted {
+  width: 80%;
+  height: 3px;
+  background: var(--ds-text-muted);
+}
+
+.ds-theme-preview-card {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.1875rem;
+  margin-top: 0.25rem;
+  border: 1px solid var(--ds-border);
+  border-radius: 4px;
+  background: var(--ds-surface);
+  padding: 0.375rem;
+}
+
+.ds-theme-preview-card-line {
+  width: 50%;
+  height: 3px;
+  background: var(--ds-text-secondary);
+}
+
+.ds-theme-preview-card-status {
+  width: 30%;
+  height: 3px;
+  background: var(--ds-success);
+}
+
+.ds-theme-mode-card-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.125rem 0.25rem 0.125rem 0.375rem;
+}
+
+.ds-theme-mode-card-body {
+  display: grid;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+
+.ds-theme-mode-card-name {
+  color: var(--ds-text);
+  font-size: var(--ds-t-body);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.ds-theme-mode-card-desc {
+  color: var(--ds-text-muted);
+  font-size: var(--ds-t-micro);
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+}
+
+.ds-theme-mode-card-check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  border-radius: var(--ds-radius-pill);
+  box-shadow: 0 0 0 1.5px var(--ds-hairline) inset;
+}
+
+.ds-theme-mode-card[data-selected="true"] .ds-theme-mode-card-check {
+  background: var(--ds-accent);
+  color: var(--ds-accent-text);
+  box-shadow: none;
+}
+
+@media (max-width: 640px) {
+  .ds-theme-mode-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .ds-setting-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .ds-setting-row-control {
+    align-self: flex-start;
+  }
+}
+
+/* ══ THINKING PILL ════════════════════════════════════════════════════════
+   Skin for ThinkingLoader (components/ui/thinking-loader.tsx). The component only moves; colours
+   come from two hooks a surface can remap — `--ui-thinking-dim` for the resting ink and
+   `--ui-thinking-bright` for the light that sweeps across the label — so the pill follows whatever
+   theme the surface is in. No blur, no backdrop: see styles/AGENTS.md.
+
+   The skin defaults sit in :where(), at zero specificity, so a surface class always wins. This file
+   loads AFTER globals.css (app/layout.tsx), so at equal specificity these defaults would silently
+   override `.codechat-thinking` — measured in a browser, not assumed. */
+:where(.ui-thinking) {
+  --ui-thinking-dim: color-mix(in srgb, var(--fg) 46%, transparent);
+  --ui-thinking-bright: var(--fg);
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--fg) 3%, transparent);
+}
+
+.ui-thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: 100%;
+  min-height: 2rem;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 9999px;
+  padding: 0 0.875rem;
+  color: var(--ui-thinking-dim);
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.ui-thinking__icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  animation: ui-thinking-spin 1s linear infinite;
+}
+
+/* One grid cell, so the outgoing and incoming label overlap during the hand-over. */
+.ui-thinking__labels {
+  display: grid;
+  min-width: 0;
+}
+
+.ui-thinking__label {
+  grid-area: 1 / 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background-image: linear-gradient(
+    90deg,
+    var(--ui-thinking-dim) 0%,
+    var(--ui-thinking-bright) 50%,
+    var(--ui-thinking-dim) 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: ui-thinking-sweep 2s linear infinite;
+}
+
+.ui-thinking__detail {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+
+@keyframes ui-thinking-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes ui-thinking-sweep {
+  from { background-position: 200% center; }
+  to { background-position: -200% center; }
+}
+
+/* The component also sets data-motion="reduced"; the media query covers first paint. */
+.ui-thinking[data-motion="reduced"] .ui-thinking__icon,
+.ui-thinking[data-motion="reduced"] .ui-thinking__label {
+  animation: none;
+}
+.ui-thinking[data-motion="reduced"] .ui-thinking__label {
+  background: none;
+  color: var(--ui-thinking-bright);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ui-thinking__icon,
+  .ui-thinking__label { animation: none; }
+  .ui-thinking__label { background: none; color: var(--ui-thinking-bright); }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NUMBER STEPPER — components/ui/number-stepper.tsx
+   − value + on Lotus tokens. The value is a real input whose own text is transparent at rest; the
+   rolling digits sit over it (aria-hidden) and are removed while an edit is in progress, so what
+   you type is what you see. Keyed on [data-rolling], not :focus — an arrow key steps a focused
+   field and rolls, and hiding by focus drew the text twice. Skin defaults sit in :where() so a surface class always wins (see the thinking pill).
+   ═══════════════════════════════════════════════════════════════════════════ */
+:where(.ui-stepper) {
+  border-color: var(--border);
+  background: var(--bg-elevated);
+  color: var(--fg);
+}
+
+.ui-stepper {
+  display: inline-flex;
+  align-items: stretch;
+  height: 28px;
+  border-width: 1px;
+  border-style: solid;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.ui-stepper:focus-within {
+  border-color: var(--accent);
+}
+
+.ui-stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  color: var(--text-secondary, currentColor);
+  transition: background-color 120ms ease, color 120ms ease;
+}
+
+.ui-stepper__btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--fg);
+}
+
+.ui-stepper__btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.ui-stepper__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.ui-stepper__field {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  min-width: 72px;
+  padding: 0 8px;
+  border-inline: 1px solid var(--border-sub);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The input and the digits drawn over it share this box, so they line up exactly. */
+.ui-stepper__value {
+  position: relative;
+  display: inline-flex;
+  width: 5ch;
+}
+
+.ui-stepper__input {
+  width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  padding: 0;
+  color: inherit;
+  caret-color: var(--accent);
+  font: inherit;
+  text-align: right;
+}
+
+.ui-stepper__value[data-rolling] .ui-stepper__input {
+  color: transparent;
+}
+
+/* Drawn over the input's own (transparent) text, right-aligned to the same box. */
+.ui-stepper__digits {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  pointer-events: none;
+  line-height: 1;
+}
+
+.ui-stepper__digit {
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+}
+
+.ui-stepper__column {
+  display: flex;
+  flex-direction: column;
+}
+
+.ui-stepper__column > span {
+  height: 1em;
+  line-height: 1;
+}
+
+.ui-stepper__unit {
+  color: var(--text-muted, currentColor);
+  font-size: var(--ds-t-micro);
+}
+
+/* Optional mode, empty: the meaning ("20 · default", "no cap") is drawn in flow and sizes the box;
+   the input lies over it, so a click or a keystroke still lands in a real field. */
+.ui-stepper__value[data-empty] {
+  width: auto;
+  min-width: 5ch;
+}
+
+.ui-stepper__value[data-empty] .ui-stepper__input {
+  position: absolute;
+  inset: 0;
+}
+
+.ui-stepper__empty {
+  color: var(--text-muted, currentColor);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Theme switch crossfade (Theme 08/15), started by runThemeTransition in
+   lib/design-system/theme-transition.ts. The UA default for the root is already a crossfade; this
+   only shortens it. Reduced motion never reaches here — the switch runs without a transition. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 260ms;
+  animation-timing-function: cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* A switch the user pressed: the new theme grows as a circle from the control, over a still old
+   page. runThemeTransition sets the attribute and the --ds-reveal-* point and radius. */
+:root[data-theme-reveal]::view-transition-old(root) {
+  animation: none;
+}
+
+:root[data-theme-reveal]::view-transition-new(root) {
+  animation: ds-theme-reveal 480ms cubic-bezier(0.65, 0, 0.35, 1) both;
+  mix-blend-mode: normal;
+}
+
+@keyframes ds-theme-reveal {
+  from {
+    clip-path: circle(0 at var(--ds-reveal-x, 50%) var(--ds-reveal-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--ds-reveal-r, 150%) at var(--ds-reveal-x, 50%) var(--ds-reveal-y, 50%));
+  }
+}
+
+/* While a theme applies, no element animates its own colour change: the switch is animated as a
+   whole, and ~130 transitions starting at once only cost it frames. */
+:root[data-theme-switching] *,
+:root[data-theme-switching] *::before,
+:root[data-theme-switching] *::after {
+  transition: none !important;
+}
+
+/*
+  Menus — one look for every floating list (2026-10-25).
+
+  Declared on :root, not on `.ws-shell`: some menus are portalled to <body> (the chat composer's),
+  so a token that only the shell carries would be missing there. Each family's own stylesheet
+  reads these and sets nothing of its own for the corner, the inset, the row or the hover:
+  menus.css.test.ts holds every family to that.
+
+  The dither lives here too, for the same reason; the shell's `--ws-dither-rule` / `-fill` are
+  aliases of these.
+*/
+:root {
+  --ds-dither-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='4'%3E%3Cpath d='M0 0h1v1H0zM2 0h1v1H2zM4 0h1v1H4zM6 0h1v1H6zM8 0h1v1H8zM10 0h1v1H10zM12 0h1v1H12zM14 0h1v1H14zM16 0h1v1H16zM18 0h1v1H18zM20 0h1v1H20zM22 0h1v1H22zM24 0h1v1H24zM26 0h1v1H26zM28 0h1v1H28zM30 0h1v1H30zM32 0h1v1H32zM34 0h1v1H34zM36 0h1v1H36zM38 0h1v1H38zM40 0h1v1H40zM42 0h1v1H42zM44 0h1v1H44zM46 0h1v1H46zM48 0h1v1H48zM50 0h1v1H50zM52 0h1v1H52zM54 0h1v1H54zM56 0h1v1H56zM58 0h1v1H58zM60 0h1v1H60zM62 0h1v1H62zM64 0h1v1H64zM66 0h1v1H66zM68 0h1v1H68zM70 0h1v1H70zM72 0h1v1H72zM74 0h1v1H74zM76 0h1v1H76zM78 0h1v1H78zM80 0h1v1H80zM84 0h1v1H84zM88 0h1v1H88zM92 0h1v1H92zM96 0h1v1H96zM100 0h1v1H100zM104 0h1v1H104zM108 0h1v1H108zM112 0h1v1H112zM116 0h1v1H116zM120 0h1v1H120zM124 0h1v1H124zM128 0h1v1H128zM132 0h1v1H132zM1 1h1v1H1zM5 1h1v1H5zM9 1h1v1H9zM13 1h1v1H13zM17 1h1v1H17zM21 1h1v1H21zM25 1h1v1H25zM29 1h1v1H29zM33 1h1v1H33zM0 2h1v1H0zM2 2h1v1H2zM4 2h1v1H4zM6 2h1v1H6zM8 2h1v1H8zM10 2h1v1H10zM12 2h1v1H12zM14 2h1v1H14zM16 2h1v1H16zM18 2h1v1H18zM20 2h1v1H20zM22 2h1v1H22zM24 2h1v1H24zM26 2h1v1H26zM28 2h1v1H28zM30 2h1v1H30zM32 2h1v1H32zM34 2h1v1H34zM36 2h1v1H36zM38 2h1v1H38zM40 2h1v1H40zM42 2h1v1H42zM44 2h1v1H44zM46 2h1v1H46zM48 2h1v1H48zM50 2h1v1H50zM52 2h1v1H52zM54 2h1v1H54zM56 2h1v1H56zM58 2h1v1H58zM62 2h1v1H62zM66 2h1v1H66zM70 2h1v1H70zM74 2h1v1H74zM78 2h1v1H78zM82 2h1v1H82zM86 2h1v1H86zM90 2h1v1H90zM94 2h1v1H94zM98 2h1v1H98zM102 2h1v1H102zM3 3h1v1H3zM7 3h1v1H7zM11 3h1v1H11zM15 3h1v1H15z'/%3E%3C/svg%3E");
+  --ds-dither-ink: color-mix(in oklab, var(--ds-text) 16%, transparent);
+  --ds-dither-rule: var(--ds-dither-mask) 0 0 / 160px 4px no-repeat;
+  --ds-dither-fill: var(--ds-dither-mask) 0 0 / 160px 4px repeat-y;
+
+  --ds-menu-radius: 12px;
+  --ds-menu-pad: 5px;
+  /* Concentric with the menu: its corner minus the inset. */
+  --ds-menu-item-radius: 7px;
+  --ds-menu-item-pad: 6px 8px;
+  --ds-menu-item-h: 30px;
+  --ds-menu-font: var(--ds-t-meta);
+  --ds-menu-hover: color-mix(in oklab, var(--ds-text) 7%, transparent);
+  --ds-menu-in: ds-menu-in 140ms cubic-bezier(0.2, 0, 0.2, 1) both;
+}
+
+@keyframes ds-menu-in {
+  from { opacity: 0; transform: scale(0.98); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --ds-menu-in: none; }
+}
+
+/* ── RUNNER BRAND palette ──
+   Vendor colours, used for the row icon of an agent whose runner we recognise. Authored values,
+   supplied with the request; each is the vendor's own primary.
+
+   Only `claude`, `chatgpt` and `cursor` are reachable today — those are the runners
+   runner-visual-identity.ts resolves. The rest are defined because the palette was given as a set
+   and a new runner should be a one-line change, not a colour hunt. They render nothing until a
+   runner claims them.
+
+   `grok` is the one that needs a light-mode branch: its primary is a near-white zinc, which is a
+   brand colour on a black product and an invisible one on paper. The vendor's own dark neutral is
+   the honest substitute — same palette, other end (the canvas sets it, agent-node-graph.css).
+
+   On :root, not .codecanvas-shell, since the Code rail draws agent logos in these colours too. */
+:root {
+  --ai-claude-primary:   #d97757; /* color-literal-ok: vendor brand colour, same in every theme */
+  --ai-chatgpt-primary:  #10a37f; /* color-literal-ok: vendor brand colour, same in every theme */
+  --ai-cursor-primary:   #3b82f6; /* color-literal-ok: vendor brand colour, same in every theme */
+  --ai-grok-primary:     #e4e4e7; /* color-literal-ok: vendor brand colour; the canvas swaps it in its light mode */
+  --ai-opencode-primary: #4d90fe; /* color-literal-ok: vendor brand colour, same in every theme */
+  --ai-gemini-primary:   #1a73e8; /* color-literal-ok: vendor brand colour, same in every theme */
+  --ai-kimi-primary:     #007cff; /* color-literal-ok: vendor brand colour, same in every theme */
+  --ai-gemini-gradient:  linear-gradient(135deg, #4285f4, #9b72cb 55%, #d96570); /* color-literal-ok: Gemini's sparkle gradient */
+}

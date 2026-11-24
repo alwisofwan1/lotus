@@ -1,0 +1,93 @@
+{
+  "paneId": "ss-1",
+  "runner": "codex",
+  "capabilities": {
+    "turns": "expected",
+    "text": "expected",
+    "streaming": "expected",
+    "reasoning": "partial",
+    "toolCalls": "expected",
+    "toolStatus": "expected",
+    "diff": "partial",
+    "output": "expected",
+    "permission": "expected",
+    "plan": "never",
+    "subagent": "never",
+    "usage": "expected",
+    "mode": "never"
+  },
+  "source": "file",
+  "turns": [
+    {
+      "turnId": "01a04386-f058-7131-ac96-3bd57c646e61",
+      "startedAt": 1787839311000,
+      "parts": [
+        {
+          "id": "01a04387-01a9-7e33-90ac-e780ac5b5d57",
+          "ts": 1787839316393,
+          "seq": 1,
+          "provenance": "native",
+          "type": "user_message",
+          "text": "Run exactly this shell command and report its output: mkdir -p /tmp/lotus-probe-x && echo made"
+        },
+        {
+          "id": "msg_0080937e4bc9ee6c016a90435ee1d487d09bc5a56cdda89ec4",
+          "ts": 1787839326899,
+          "seq": 9,
+          "provenance": "native",
+          "type": "assistant_text",
+          "text": "Running that exact command now.",
+          "state": "done",
+          "truncated": false
+        },
+        {
+          "id": "exec-b3b2f0d0-16fd-433f-8d7b-a3b5ede0c24e",
+          "ts": 1787839367320,
+          "seq": 11,
+          "provenance": "native",
+          "type": "tool_call",
+          "toolCallId": "exec-b3b2f0d0-16fd-433f-8d7b-a3b5ede0c24e",
+          "toolName": "exec",
+          "title": "mkdir -p /tmp/lotus-probe-x && echo made",
+          "kind": "execute",
+          "status": "completed",
+          "locations": [],
+          "output": {
+            "text": "made\n",
+            "truncated": false,
+            "exitCode": 0
+          }
+        },
+        {
+          "id": "msg_0080937e4bc9ee6c016a9043aa126c87d09f67026dbfc31c79",
+          "ts": 1787839402023,
+          "seq": 19,
+          "provenance": "native",
+          "type": "assistant_text",
+          "text": "```text\nmade\n```",
+          "state": "done",
+          "truncated": false
+        },
+        {
+          "id": "result-01a04386-f058-7131-ac96-3bd57c646e61",
+          "ts": 1787839402000,
+          "seq": 20,
+          "provenance": "native",
+          "type": "result",
+          "isError": false,
+          "durationMs": 90317,
+          "usage": {
+            "input": 46436,
+            "output": 133,
+            "cachedRead": 19968,
+            "cachedWrite": 0
+          }
+        }
+      ],
+      "endedAt": 1787839402000,
+      "stopReason": "end_turn"
+    }
+  ],
+  "hasMore": false,
+  "totalEver": 5
+}

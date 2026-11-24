@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Lotus mark for the Android 12+ splash screen.
+
+     Android draws `windowSplashScreenAnimatedIcon` over the launch window on API 31+,
+     and **falls back to the launcher icon when nothing is named** — which on this app
+     was still the stock Flutter logo on a white squircle, sitting in the middle of the
+     dark floor. Found by launching the release build on a real phone, not by reading
+     the theme.
+
+     Geometry mirrors `features/shared/lotus_mark.dart` at 0.66 scale: the outer third
+     of a splash icon can be masked, so the mark is kept inside the safe zone. Stroked
+     in one ink, like everywhere else — see that file for why it is never filled. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="100" android:viewportHeight="100">
+    <group android:pivotX="50" android:pivotY="50" android:rotation="0">
+        <path android:pathData="M44.885,35.150 a5.115,11.220 0 1,0 10.230,0 a5.115,11.220 0 1,0 -10.230,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="1.254"
+            android:strokeAlpha="0.82" />
+    </group>
+    <group android:pivotX="50" android:pivotY="50" android:rotation="45">
+        <path android:pathData="M44.885,35.150 a5.115,11.220 0 1,0 10.230,0 a5.115,11.220 0 1,0 -10.230,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="1.254"
+            android:strokeAlpha="0.82" />
+    </group>
+    <group android:pivotX="50" android:pivotY="50" android:rotation="90">
+        <path android:pathData="M44.885,35.150 a5.115,11.220 0 1,0 10.230,0 a5.115,11.220 0 1,0 -10.230,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="1.254"
+            android:strokeAlpha="0.82" />
+    </group>
+    <group android:pivotX="50" android:pivotY="50" android:rotation="135">
+        <path android:pathData="M44.885,35.150 a5.115,11.220 0 1,0 10.230,0 a5.115,11.220 0 1,0 -10.230,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="1.254"
+            android:strokeAlpha="0.82" />
+    </group>
+    <group android:pivotX="50" android:pivotY="50" android:rotation="180">
+        <path android:pathData="M44.885,35.150 a5.115,11.220 0 1,0 10.230,0 a5.115,11.220 0 1,0 -10.230,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="1.254"
+            android:strokeAlpha="0.82" />
+    </group>
+    <group android:pivotX="50" android:pivotY="50" android:rotation="225">
+        <path android:pathData="M44.885,35.150 a5.115,11.220 0 1,0 10.230,0 a5.115,11.220 0 1,0 -10.230,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="1.254"
+            android:strokeAlpha="0.82" />
+    </group>
+    <group android:pivotX="50" android:pivotY="50" android:rotation="270">
+        <path android:pathData="M44.885,35.150 a5.115,11.220 0 1,0 10.230,0 a5.115,11.220 0 1,0 -10.230,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="1.254"
+            android:strokeAlpha="0.82" />
+    </group>
+    <group android:pivotX="50" android:pivotY="50" android:rotation="315">
+        <path android:pathData="M44.885,35.150 a5.115,11.220 0 1,0 10.230,0 a5.115,11.220 0 1,0 -10.230,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="1.254"
+            android:strokeAlpha="0.82" />
+    </group>
+    <path android:pathData="M47.228,50.000 a2.772,2.772 0 1,0 5.544,0 a2.772,2.772 0 1,0 -5.544,0"
+        android:strokeColor="#F7F2EA" android:strokeWidth="1.254"
+        android:strokeAlpha="0.82" />
+</vector>

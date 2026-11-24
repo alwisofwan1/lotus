@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-emit-canvas-browser-annotation"
+description = "Allows Canvas browser child webviews to emit selected annotation metadata and staged visual attachment paths."
+commands.allow = ["emit_canvas_browser_annotation"]

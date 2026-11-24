@@ -1,0 +1,637 @@
+{
+  "type": "object",
+  "properties": {
+    "outcome": {
+      "type": "string",
+      "enum": [
+        "intents",
+        "answer",
+        "error"
+      ]
+    },
+    "intents": {
+      "anyOf": [
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "create_node"
+                  },
+                  "nodeType": {
+                    "type": "string",
+                    "enum": [
+                      "terminal",
+                      "note",
+                      "plan",
+                      "task",
+                      "context",
+                      "critic",
+                      "human-gate",
+                      "team",
+                      "music"
+                    ],
+                    "description": "Kind of node to create."
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Optional initial text (e.g. a note's body)."
+                  }
+                },
+                "required": [
+                  "action",
+                  "nodeType"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "arrange"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "focus"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Name of the node to focus."
+                  }
+                },
+                "required": [
+                  "action",
+                  "target"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "dispatch"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Visible name of the live agent to dispatch to. Prefer visible names over runner labels."
+                  },
+                  "task": {
+                    "type": "string",
+                    "description": "The full message for the agent — a task to do or a question to answer, copied verbatim."
+                  }
+                },
+                "required": [
+                  "action",
+                  "target",
+                  "task"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "snapshot_browser"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Optional visible name of the live agent whose browser to snapshot."
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "say_to_agent"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Visible name of the live agent to talk to. Prefer visible names over runner labels."
+                  },
+                  "message": {
+                    "type": "string",
+                    "description": "Exact short conversational message to send, not an instruction wrapper."
+                  }
+                },
+                "required": [
+                  "action",
+                  "target",
+                  "message"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "close"
+                  },
+                  "target": {
+                    "description": "A node name (string) for a single node, or a collective filter object.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "description": "Exact/partial node name for a single node."
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "byType",
+                              "selection"
+                            ]
+                          },
+                          "nodeType": {
+                            "type": "string",
+                            "enum": [
+                              "terminal",
+                              "note",
+                              "plan",
+                              "task",
+                              "context",
+                              "critic",
+                              "human-gate",
+                              "team",
+                              "music",
+                              "browser",
+                              "terminal",
+                              "agent"
+                            ]
+                          },
+                          "quantifier": {
+                            "type": "string",
+                            "enum": [
+                              "all",
+                              "count"
+                            ]
+                          },
+                          "count": {
+                            "type": "number"
+                          }
+                        },
+                        "required": [
+                          "kind"
+                        ]
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "action",
+                  "target"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "close_all"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "spawn_agent"
+                  },
+                  "runner": {
+                    "type": "string",
+                    "enum": [
+                      "claude",
+                      "codex",
+                      "cursor"
+                    ],
+                    "description": "Which runner/CLI to launch. Defaults to claude."
+                  },
+                  "model": {
+                    "type": "string",
+                    "description": "Optional model id to pin (e.g. \"opus\"). Claude-family runners only; others use the CLI default."
+                  },
+                  "brief": {
+                    "type": "string",
+                    "description": "Optional first task the agent starts on once live."
+                  },
+                  "count": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50,
+                    "description": "How many agents of this runner to launch. Defaults to 1."
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "draw_diagram"
+                  },
+                  "topic": {
+                    "type": "string",
+                    "description": "Short subject of the diagram, for the frame title."
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "TB",
+                      "LR"
+                    ],
+                    "description": "Flow direction: top-to-bottom (default) or left-to-right."
+                  },
+                  "diagramType": {
+                    "type": "string",
+                    "description": "Optional kind, e.g. \"flowchart\", \"architecture\", \"sequence\"."
+                  },
+                  "graph": {
+                    "type": "object",
+                    "description": "The diagram content YOU generate. Emit relationships, not coordinates.",
+                    "properties": {
+                      "nodes": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "description": "Unique slug."
+                            },
+                            "label": {
+                              "type": "string",
+                              "description": "Text inside the shape."
+                            },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "process",
+                                "decision",
+                                "terminator",
+                                "note"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "label"
+                          ]
+                        }
+                      },
+                      "edges": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "from": {
+                              "type": "string"
+                            },
+                            "to": {
+                              "type": "string"
+                            },
+                            "label": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "from",
+                            "to"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "nodes"
+                    ]
+                  }
+                },
+                "required": [
+                  "action",
+                  "topic",
+                  "graph"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "run_task"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Name of the task node to run."
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "single",
+                      "team"
+                    ],
+                    "description": "single = one agent (default); team = the engineering team."
+                  }
+                },
+                "required": [
+                  "action",
+                  "target"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "open_browser"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "Optional URL to open (defaults to a blank page)."
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Optional terminal name to attach or focus the browser on."
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "navigate_browser"
+                  },
+                  "url": {
+                    "type": "string",
+                    "description": "URL or site name to navigate to, e.g. https://youtube.com or YouTube."
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Optional browser node name, e.g. \"Browser 1\". Omit to use the selected browser."
+                  }
+                },
+                "required": [
+                  "action",
+                  "url"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "recover"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Name of the terminal or browser to recover."
+                  }
+                },
+                "required": [
+                  "action",
+                  "target"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "make_lead"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Name of the live agent to make the lead orchestrator."
+                  }
+                },
+                "required": [
+                  "action",
+                  "target"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "create_frame"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Optional name for the new Frame."
+                  },
+                  "members": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Names of the nodes to put in the Frame."
+                  }
+                },
+                "required": [
+                  "action",
+                  "members"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "move_to_frame"
+                  },
+                  "targets": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Names of the nodes to move."
+                  },
+                  "frame": {
+                    "type": "string",
+                    "description": "Name of the destination Frame."
+                  },
+                  "frameIndex": {
+                    "type": "number",
+                    "description": "1-based Frame number, instead of a name."
+                  }
+                },
+                "required": [
+                  "action",
+                  "targets"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "leave_frame"
+                  },
+                  "targets": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Names of the nodes to take out of their Frame."
+                  },
+                  "frame": {
+                    "type": "string",
+                    "description": "Optional: only if they are in this Frame."
+                  },
+                  "frameIndex": {
+                    "type": "number",
+                    "description": "Optional 1-based Frame number, instead of a name."
+                  }
+                },
+                "required": [
+                  "action",
+                  "targets"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "go_to_frame"
+                  },
+                  "frame": {
+                    "type": "string",
+                    "description": "Name of the Frame."
+                  },
+                  "frameIndex": {
+                    "type": "number",
+                    "description": "1-based Frame number, instead of a name."
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "switch_project"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Name of the project to switch to.",
+                    "enum": [
+                      "Lotus"
+                    ]
+                  }
+                },
+                "required": [
+                  "action",
+                  "target"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "open_page"
+                  },
+                  "page": {
+                    "type": "string",
+                    "enum": [
+                      "settings",
+                      "canvases"
+                    ],
+                    "description": "Which app page to open."
+                  }
+                },
+                "required": [
+                  "action",
+                  "page"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "new_project"
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "const": "close_project"
+                  },
+                  "target": {
+                    "type": "string",
+                    "description": "Optional project name. Omit to close the current project."
+                  }
+                },
+                "required": [
+                  "action"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "answer": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "error": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "outcome",
+    "intents",
+    "answer",
+    "error"
+  ],
+  "additionalProperties": false
+}

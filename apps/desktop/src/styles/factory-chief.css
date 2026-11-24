@@ -1,0 +1,59 @@
+/* The Chief of Staff on the Factory page (ADR-0056): its pane. Its count and line live on its tab. */
+
+.fa-chief { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(280px, 1.4fr); gap: 20px; align-items: start; }
+.fa-chief-heading { margin: 14px 0 6px; color: var(--text-secondary); font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+.fa-chief-inbox > .fa-chief-heading:first-child { margin-top: 0; }
+.fa-chief-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.fa-chief-quiet { margin: 0; color: var(--text-muted); font-size: 12px; }
+
+.fa-chief-item {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ws-line);
+  border-left: 2px solid var(--factory-needs-you);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.fa-chief-item:hover, .fa-chief-item[data-selected="true"] { background: var(--ws-hover); }
+.fa-chief-item:focus-visible { outline: 1px solid var(--ws-focus-line); outline-offset: 1px; }
+.fa-chief-item-title { font-size: 13px; }
+.fa-chief-item-reason { color: var(--text-muted); font-size: 12px; }
+.fa-chief-watching { padding: 4px 10px; color: var(--text-muted); font-size: 12px; }
+
+.fa-chief-detail-title { margin: 0; color: var(--fg); font-size: 14px; font-weight: 500; }
+.fa-chief-detail-repo { margin: 2px 0 10px; color: var(--text-muted); font-size: 12px; }
+.fa-chief-detail-reason { margin: 0 0 12px; color: var(--fg); font-size: 13px; }
+.fa-chief-actions { display: flex; gap: 8px; }
+.fa-chief-danger { color: var(--factory-failing); }
+.fa-chief-error { margin: 8px 0 0; color: var(--factory-failing); font-size: 12px; }
+.fa-chief-log { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; font-size: 12px; color: var(--text-secondary); }
+.fa-chief-log li { display: flex; gap: 10px; }
+.fa-chief-log-at { flex: 0 0 72px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 720px) {
+  .fa-chief { grid-template-columns: 1fr; }
+}
+
+/* CoS 5: the feedback batch, each label editable. */
+.fa-chief-feedback { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; padding: 0; list-style: none; }
+.fa-chief-feedback-item { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border: 1px solid var(--ws-line); border-radius: 6px; }
+.fa-chief-feedback-item[data-unsure="true"] { border-left: 2px solid var(--factory-needs-you); }
+.fa-chief-feedback-item[data-counts="false"] { opacity: 0.7; }
+.fa-chief-feedback-meta { color: var(--text-muted); font-size: 12px; }
+.fa-chief-feedback-body { color: var(--fg); font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fa-chief-feedback-label { align-self: flex-start; padding: 2px 6px; border: 1px solid var(--ws-line); border-radius: 4px; background: transparent; color: var(--fg); font: inherit; font-size: 12px; }
+.fa-chief-feedback-unsure { color: var(--factory-needs-you); font-size: 12px; }
+
+/* CoS 8: Accept or Decline a spec change. */
+.fa-chief-spec-change { display: flex; flex-direction: column; gap: 6px; }
+.fa-chief-criteria { width: 100%; font-size: 13px; }
+.fa-chief-quiet { display: flex; align-items: center; gap: 8px; }
+.fa-chief-quiet-mark { --fa-seg-track: transparent; --fa-seg-ink: var(--factory-ready); flex: none; width: 12px; height: 12px; }

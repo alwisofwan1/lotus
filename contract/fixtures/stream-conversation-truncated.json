@@ -1,0 +1,6 @@
+{
+  "type": "conversation.truncated",
+  "paneId": "p-2",
+  "requestedFromCursor": 1,
+  "oldestCursor": 21
+}

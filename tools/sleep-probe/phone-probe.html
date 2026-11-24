@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Lotus tailnet probe</title>
+<!--
+  Part B of plans/lotus-pocket/issues/02-uji-tidur-macos-dan-tailnet.md, runnable
+  today — no Flutter needed.
+
+  It works because `/m/stream` authenticates with a `?token=` QUERY PARAM rather than
+  a bearer header (adapters/mobile/index.ts:89), so a plain phone browser can open the
+  production WebSocket. HTTP routes need a header and stay out of reach cross-origin,
+  which is why the token is pasted in rather than paired here.
+
+  It deliberately does NOT reconnect on its own unless you ask it to. "Does the
+  connection recover by itself?" is the question this measures, and a helpful
+  auto-reconnect would answer it wrong.
+-->
+<style>
+  :root { color-scheme: dark light; --bg:#0b0d10; --fg:#e6e9ef; --dim:#8b93a1; --line:#1e2430;
+          --ok:#34d399; --warn:#fbbf24; --bad:#f87171; --mono: ui-monospace, "SF Mono", Menlo, monospace; }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#fbfbfd; --fg:#14171c; --dim:#5d6673; --line:#e2e6ee; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; padding:16px calc(12px + env(safe-area-inset-right)) calc(16px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+         background:var(--bg); color:var(--fg); font:15px/1.45 -apple-system, system-ui, sans-serif; }
+  h1 { font-size:15px; margin:0 0 12px; letter-spacing:.04em; text-transform:uppercase; color:var(--dim); font-weight:600; }
+  label { display:block; font-size:12px; color:var(--dim); margin:10px 0 4px; }
+  input { width:100%; padding:10px; font:14px var(--mono); background:transparent; color:var(--fg);
+          border:1px solid var(--line); border-radius:8px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  button { flex:1 1 auto; min-height:44px; min-width:96px; padding:0 14px; font:600 14px inherit;
+           background:transparent; color:var(--fg); border:1px solid var(--line); border-radius:8px; }
+  button:active { background:var(--line); }
+  button.primary { border-color:currentColor; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(88px,1fr)); gap:10px; margin:16px 0 4px; }
+  .stat { border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .stat b { display:block; font:600 20px var(--mono); }
+  .stat span { font-size:11px; color:var(--dim); }
+  #state { font:600 13px var(--mono); padding:8px 10px; border-radius:8px; border:1px solid var(--line); margin-top:12px; }
+  #state.open { color:var(--ok); } #state.closed { color:var(--bad); } #state.connecting { color:var(--warn); }
+  #log { margin-top:12px; border-top:1px solid var(--line); font:12px/1.5 var(--mono); }
+  #log div { padding:5px 0; border-bottom:1px solid var(--line); display:flex; gap:8px; }
+  #log time { color:var(--dim); flex:0 0 62px; }
+  .t-hello{color:var(--ok)} .t-close{color:var(--bad)} .t-open{color:var(--ok)}
+  .t-note{color:var(--warn)} .t-err{color:var(--bad)}
+  details { margin-top:14px; } summary { color:var(--dim); font-size:13px; }
+</style>
+</head>
+<body>
+<h1>Lotus tailnet probe</h1>
+
+<label for="url">Host — tailnet address and mobile port</label>
+<input id="url" inputmode="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="100.x.y.z:8787">
+
+<label for="token">Device token (minted on the mac, see the ticket)</label>
+<input id="token" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="paste token">
+
+<div class="row">
+  <button id="connect" class="primary">Connect</button>
+  <button id="disconnect">Disconnect</button>
+</div>
+<div class="row">
+  <button id="resume">Resume (timed)</button>
+  <button id="auto">Auto-reconnect: off</button>
+</div>
+
+<div id="state" class="closed">closed</div>
+
+<div class="stats">
+  <div class="stat"><b id="s-hello">—</b><span>connect→hello</span></div>
+  <div class="stat"><b id="s-resume">—</b><span>resume→reply</span></div>
+  <div class="stat"><b id="s-frames">0</b><span>frames</span></div>
+  <div class="stat"><b id="s-since">—</b><span>since last frame</span></div>
+  <div class="stat"><b id="s-drops">0</b><span>drops</span></div>
+  <div class="stat"><b id="s-uptime">—</b><span>this session</span></div>
+</div>
+
+<div class="row">
+  <button id="copy">Copy log</button>
+  <button id="clear">Clear</button>
+</div>
+
+<details>
+  <summary>What this measures, and what it cannot</summary>
+  <p style="color:var(--dim);font-size:13px">
+    Every line is stamped from a monotonic clock, so a phone that suspends the tab shows the
+    gap rather than hiding it. <b>Drops</b> counts socket closes — a WebSocket does not
+    reconnect itself, so a drop that never recovers is the finding, not a bug in this page.
+    Turn <b>Auto-reconnect</b> on only after you have recorded the raw behaviour once.
+    Pairing is not here: <code>/m/pair</code> needs a header this page cannot send
+    cross-origin, so the token is minted on the mac.
+  </p>
+</details>
+
+<div id="log"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const store = {
+  get(k, d) { try { return localStorage.getItem("probe:" + k) ?? d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem("probe:" + k, v); } catch { /* private mode */ } },
+};
+
+// Fragment wins over storage, so a URL handed over from the mac works first try and
+// the token never reaches the static server's access log.
+const frag = new URLSearchParams(location.hash.slice(1));
+$("url").value = frag.get("host") ?? store.get("url", "");
+$("token").value = frag.get("token") ?? store.get("token", "");
+
+let ws = null, frames = 0, drops = 0, lastFrameAt = null, openedAt = null;
+let connectStartedAt = null, resumeSentAt = null, auto = false, sessionStartedAt = null;
+
+const now = () => performance.now();
+const secs = (ms) => (ms / 1000).toFixed(ms < 10_000 ? 2 : 1) + "s";
+
+function log(kind, text) {
+  const row = document.createElement("div");
+  const t = document.createElement("time");
+  t.textContent = new Date().toLocaleTimeString([], { hour12: false });
+  const body = document.createElement("span");
+  body.className = "t-" + kind;
+  body.textContent = text;
+  row.append(t, body);
+  $("log").prepend(row);
+  while ($("log").children.length > 400) $("log").lastChild.remove();
+}
+
+function setState(cls, text) {
+  $("state").className = cls;
+  $("state").textContent = text;
+}
+
+function connect() {
+  if (ws && (ws.readyState === 0 || ws.readyState === 1)) return;
+  const host = $("url").value.trim().replace(/^wss?:\/\//, "").replace(/\/+$/, "");
+  const token = $("token").value.trim();
+  if (!host || !token) { log("err", "host and token are both required"); return; }
+  store.set("url", host); store.set("token", token);
+
+  connectStartedAt = now();
+  if (sessionStartedAt === null) sessionStartedAt = now();
+  setState("connecting", "connecting to " + host);
+  log("note", "connecting");
+
+  try {
+    ws = new WebSocket(`ws://${host}/m/stream?token=${encodeURIComponent(token)}`);
+  } catch (e) {
+    log("err", "could not open socket: " + e.message);
+    return;
+  }
+
+  ws.onopen = () => {
+    openedAt = now();
+    setState("open", "open — " + host);
+    log("open", `socket open after ${secs(openedAt - connectStartedAt)}`);
+  };
+
+  ws.onmessage = (ev) => {
+    frames += 1;
+    lastFrameAt = now();
+    $("s-frames").textContent = String(frames);
+
+    let msg;
+    try { msg = JSON.parse(ev.data); } catch { log("err", "unparseable frame"); return; }
+
+    if (msg.type === "hello" && connectStartedAt !== null) {
+      $("s-hello").textContent = secs(lastFrameAt - connectStartedAt);
+      const caps = msg.hostCaps?.features ?? [];
+      log("hello", `hello — ${msg.hostId} (${msg.mode}), ${caps.length} features`);
+      // The §7 no. 10 answer, visible from the phone: a VPS host omits these.
+      log("note", "features: " + caps.join(" "));
+      return;
+    }
+
+    if ((msg.type === "cell.output" || msg.type === "cell.truncated") && resumeSentAt !== null) {
+      $("s-resume").textContent = secs(lastFrameAt - resumeSentAt);
+      resumeSentAt = null;
+    }
+
+    const detail =
+      msg.type === "cell.output" ? `${msg.paneId} +${(msg.chunk ?? "").length}B @${msg.byteOffset}` :
+      msg.type === "cell.truncated" ? `${msg.paneId} asked ${msg.requestedFromByte}, served ${msg.servedFromByte}` :
+      msg.type === "fleet.changed" ? `${(msg.cells ?? []).length} cells` :
+      msg.type === "notification" ? (msg.event?.status ?? msg.event?.kind ?? "") : "";
+    log("frame", `${msg.type}${detail ? " — " + detail : ""}`);
+  };
+
+  ws.onerror = () => log("err", "socket error");
+
+  ws.onclose = (ev) => {
+    drops += 1;
+    $("s-drops").textContent = String(drops);
+    const lived = openedAt === null ? 0 : now() - openedAt;
+    setState("closed", `closed (code ${ev.code})`);
+    log("close", `closed code=${ev.code} after ${secs(lived)}${ev.reason ? " — " + ev.reason : ""}`);
+    openedAt = null;
+    ws = null;
+    if (auto) {
+      log("note", "auto-reconnect in 2s");
+      setTimeout(connect, 2000);
+    }
+  };
+}
+
+$("connect").onclick = connect;
+$("disconnect").onclick = () => { auto = false; $("auto").textContent = "Auto-reconnect: off"; ws?.close(1000, "manual"); };
+
+$("resume").onclick = () => {
+  if (!ws || ws.readyState !== 1) { log("err", "not open"); return; }
+  const paneId = prompt("paneId to resume (see the fleet.changed frame)");
+  if (!paneId) return;
+  resumeSentAt = now();
+  ws.send(JSON.stringify({ type: "resume", paneId, fromByte: 0 }));
+  log("note", `resume ${paneId} fromByte=0`);
+};
+
+$("auto").onclick = () => {
+  auto = !auto;
+  $("auto").textContent = "Auto-reconnect: " + (auto ? "on" : "off");
+  log("note", "auto-reconnect " + (auto ? "on — recovery time is now being measured" : "off"));
+};
+
+$("copy").onclick = async () => {
+  const lines = [...$("log").children].map((r) => r.textContent.replace(/\s+/g, " ").trim()).reverse();
+  const header = [
+    `# Lotus tailnet probe — ${new Date().toISOString()}`,
+    `host=${$("url").value.trim()} frames=${frames} drops=${drops}`,
+    `connect→hello=${$("s-hello").textContent} resume→reply=${$("s-resume").textContent}`,
+    `ua=${navigator.userAgent}`,
+    "",
+  ].join("\n");
+  try {
+    await navigator.clipboard.writeText(header + lines.join("\n"));
+    log("note", "log copied");
+  } catch {
+    log("err", "clipboard blocked — select the text manually");
+  }
+};
+
+$("clear").onclick = () => {
+  $("log").textContent = "";
+  frames = 0; drops = 0; sessionStartedAt = null;
+  for (const id of ["s-hello", "s-resume", "s-since", "s-uptime"]) $(id).textContent = "—";
+  $("s-frames").textContent = "0"; $("s-drops").textContent = "0";
+};
+
+// One ticker for both live counters. "Since last frame" is the number to watch while
+// walking off WiFi: it keeps climbing long before the socket admits it is gone.
+setInterval(() => {
+  $("s-since").textContent = lastFrameAt === null ? "—" : secs(now() - lastFrameAt);
+  $("s-uptime").textContent = sessionStartedAt === null ? "—" : secs(now() - sessionStartedAt);
+}, 250);
+</script>
+</body>
+</html>

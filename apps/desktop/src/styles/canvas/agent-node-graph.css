@@ -1,0 +1,1284 @@
+/* CodeCanvas agent workflow chrome — wires, run graph control, inbox, reply box, run history. Split from agent-node.css (≤600-line policy). */
+
+/* ── Agent workflow wires — dashed, directional, color-coded by meaning ── */
+.codecanvas-shell .react-flow__edge.canvas-wire--context {
+  --canvas-edge-stroke: rgba(251, 191, 36, 0.42);
+  --canvas-edge-stroke-soft: rgba(251, 191, 36, 0.16);
+  --canvas-edge-stroke-active: rgba(251, 191, 36, 0.9);
+  --canvas-edge-glow-active: rgba(251, 191, 36, 0.28);
+}
+.codecanvas-shell .react-flow__edge.canvas-wire--triggers {
+  --canvas-edge-stroke: rgba(52, 211, 153, 0.42);
+  --canvas-edge-stroke-soft: rgba(52, 211, 153, 0.18);
+  --canvas-edge-stroke-active: rgba(52, 211, 153, 0.9);
+  --canvas-edge-glow-active: rgba(52, 211, 153, 0.3);
+}
+.codecanvas-shell .react-flow__edge.canvas-wire--orchestrates {
+  --canvas-edge-stroke: rgba(129, 140, 248, 0.44);
+  --canvas-edge-stroke-soft: rgba(129, 140, 248, 0.18);
+  --canvas-edge-stroke-active: rgba(165, 180, 252, 0.92);
+  --canvas-edge-glow-active: rgba(129, 140, 248, 0.3);
+}
+.codecanvas-shell .react-flow__edge.canvas-wire--data-flow {
+  --canvas-edge-stroke: rgba(251, 191, 36, 0.42);
+  --canvas-edge-stroke-soft: rgba(251, 191, 36, 0.18);
+  --canvas-edge-stroke-active: rgba(251, 191, 36, 0.9);
+  --canvas-edge-glow-active: rgba(251, 191, 36, 0.28);
+}
+.codecanvas-shell .react-flow__edge.canvas-wire--agent-link {
+  --canvas-edge-stroke: rgba(196, 181, 253, 0.38);
+  --canvas-edge-stroke-soft: rgba(196, 181, 253, 0.15);
+  --canvas-edge-stroke-active: rgba(221, 214, 254, 0.86);
+  --canvas-edge-glow-active: rgba(196, 181, 253, 0.24);
+}
+/* Edge meaning label */
+.codecanvas-shell .react-flow__edge .react-flow__edge-textwrapper .react-flow__edge-text {
+  fill:color-mix(in oklab, var(--canvas-text) 70%, transparent);
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.codecanvas-shell .react-flow__edge .react-flow__edge-textbg {
+  fill:rgba(12, 10, 18, 0.78);
+}
+
+/* ── Run graph control (Fitur [3]) — floating bottom-right ───────────────── */
+.canvas-run-control-wrap {
+  position: absolute;
+  right: 18px;
+  bottom: 72px;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.625rem;
+}
+.canvas-run-control {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.canvas-run-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+  color:color-mix(in oklab, #052e1a var(--ink-blend), var(--canvas-text));
+  background:linear-gradient(180deg, #4ade80, #22c55e);
+  border:1px solid rgba(34, 197, 94, 0.5);
+  border-radius: 9px;
+  padding: 0.5rem 0.95rem;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(34, 197, 94, 0.28);
+  transition: filter 120ms ease, opacity 120ms ease;
+}
+.canvas-run-btn:hover { filter: brightness(1.08); }
+.canvas-run-btn:disabled { opacity: 0.7; cursor: default; }
+.canvas-run-btn--resume {
+  color:var(--canvas-text);
+  background:linear-gradient(180deg, #6366f1, #4f46e5);
+  border-color:rgba(99, 102, 241, 0.5);
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.28);
+}
+.canvas-run-btn--inspect {
+  color:color-mix(in oklab, var(--canvas-text) 92%, transparent);
+  background:rgba(12, 10, 18, 0.9);
+  border-color:color-mix(in oklab, var(--canvas-text) 16%, transparent);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+.canvas-run-btn--inspect:hover { background:rgba(22, 18, 32, 0.95); }
+/* Time-travel replay action — lives inside the Run History overlay (not an always-on pill). */
+.agent-history-replay {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0.7rem 0.5rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color:color-mix(in oklab, rgba(165, 180, 252, 0.95) var(--ink-blend), var(--canvas-text));
+  background:rgba(99, 102, 241, 0.12);
+  border:1px solid rgba(99, 102, 241, 0.32);
+  border-radius: 7px;
+  padding: 0.32rem 0.6rem;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+.agent-history-replay:hover { background:rgba(99, 102, 241, 0.22); }
+.canvas-run-summary {
+  border:1px solid rgba(245, 242, 239, 0.1);
+  border-radius: 9999px;
+  padding: 0.35rem 0.6rem;
+  background:rgba(12, 10, 18, 0.72);
+  color:color-mix(in oklab, var(--canvas-text) 66%, transparent);
+  font-size: var(--ds-t-micro);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  align-self: center;
+  cursor: pointer;
+}
+.canvas-run-summary:hover { color:color-mix(in oklab, var(--canvas-text) 90%, transparent); border-color:color-mix(in oklab, var(--canvas-text) 18%, transparent); }
+.canvas-run-spin { animation: canvas-run-spin 0.9s linear infinite; }
+@keyframes canvas-run-spin { to { transform: rotate(360deg); } }
+.canvas-run-error {
+  font-size: var(--ds-t-micro);
+  color:color-mix(in oklab, rgba(248, 113, 113, 0.95) var(--ink-blend), var(--canvas-text));
+  background:rgba(12, 10, 18, 0.86);
+  border:1px solid rgba(248, 113, 113, 0.3);
+  border-radius: 7px;
+  padding: 0.35rem 0.6rem;
+  max-width: 240px;
+}
+.canvas-run-inspector {
+  width: min(520px, calc(100vw - 48px));
+  max-height: min(560px, calc(100vh - 120px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color:color-mix(in oklab, var(--canvas-text) 92%, transparent);
+  background:rgba(8, 7, 14, 0.94);
+  border:1px solid rgba(245, 242, 239, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.42), inset 0 1px 0 rgba(255,255,255,0.07);
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+}
+.canvas-run-inspector-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid rgba(245, 242, 239, 0.08);
+}
+.canvas-run-inspector-eyebrow {
+  display: block;
+  margin-bottom: 0.125rem;
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color:color-mix(in oklab, var(--canvas-text) 42%, transparent);
+}
+.canvas-run-inspector-title {
+  margin: 0;
+  font-size: var(--ds-t-lede);
+  font-weight: 650;
+  letter-spacing: 0.01em;
+}
+.canvas-run-inspector-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  border:1px solid transparent;
+  border-radius: 0.45rem;
+  color:color-mix(in oklab, var(--canvas-text) 50%, transparent);
+  background:transparent;
+  cursor: pointer;
+}
+.canvas-run-inspector-close:hover,
+.canvas-run-inspector-close:focus-visible {
+  outline: none;
+  color:color-mix(in oklab, var(--canvas-text) 90%, transparent);
+  background:rgba(245, 242, 239, 0.07);
+  border-color:color-mix(in oklab, var(--canvas-text) 10%, transparent);
+}
+.canvas-run-inspector-error,
+.canvas-run-inspector-empty {
+  margin: 0.75rem;
+  padding: 0.6rem 0.7rem;
+  border-radius: 0.55rem;
+  font-size: var(--ds-t-meta);
+  line-height: 1.45;
+}
+.canvas-run-inspector-error {
+  color:color-mix(in oklab, rgba(248, 113, 113, 0.96) var(--ink-blend), var(--canvas-text));
+  background:rgba(127, 29, 29, 0.16);
+  border:1px solid rgba(248, 113, 113, 0.24);
+}
+.canvas-run-inspector-empty {
+  color:color-mix(in oklab, var(--canvas-text) 54%, transparent);
+  background:rgba(245, 242, 239, 0.04);
+  border:1px solid rgba(245, 242, 239, 0.08);
+}
+.canvas-run-inspector-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.375rem;
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid rgba(245, 242, 239, 0.07);
+}
+.canvas-run-inspector-metrics span {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.45rem 0.5rem;
+  border:1px solid rgba(245, 242, 239, 0.08);
+  border-radius: 0.55rem;
+  background:rgba(245, 242, 239, 0.035);
+}
+.canvas-run-inspector-metrics strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-t-meta);
+  font-weight: 650;
+}
+.canvas-run-inspector-metrics em {
+  font-style: normal;
+  font-size: var(--ds-t-micro);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color:color-mix(in oklab, var(--canvas-text) 40%, transparent);
+}
+.canvas-run-inspector-list {
+  list-style: none;
+  margin: 0;
+  padding: 0.45rem;
+  overflow: auto;
+}
+.canvas-run-inspector-row { border-radius: 0.55rem; }
+.canvas-run-inspector-rowline {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.45rem;
+  border-radius: 0.55rem;
+  background:transparent;
+  border:0;
+  color:inherit;
+  font: inherit;
+  text-align: left;
+}
+button.canvas-run-inspector-rowline { cursor: pointer; transition: background 110ms ease; }
+button.canvas-run-inspector-rowline:hover { background:rgba(245, 242, 239, 0.045); }
+button.canvas-run-inspector-rowline:focus-visible {
+  outline: 1px solid rgba(196, 181, 253, 0.55);
+  outline-offset: -1px;
+}
+.canvas-run-inspector-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 9999px;
+  background:rgba(245, 242, 239, 0.32);
+  flex-shrink: 0;
+}
+.canvas-run-inspector-row[data-state="completed"] .canvas-run-inspector-dot,
+.canvas-run-inspector-row[data-state="passed"] .canvas-run-inspector-dot { background:#34d399; box-shadow: 0 0 10px rgba(52, 211, 153, 0.36); }
+.canvas-run-inspector-row[data-state="running"] .canvas-run-inspector-dot,
+.canvas-run-inspector-row[data-state="starting"] .canvas-run-inspector-dot { background:#60a5fa; box-shadow: 0 0 10px rgba(96, 165, 250, 0.38); }
+.canvas-run-inspector-row[data-state="failed"] .canvas-run-inspector-dot { background:#f87171; box-shadow: 0 0 10px rgba(248, 113, 113, 0.38); }
+.canvas-run-inspector-row[data-state="blocked"] .canvas-run-inspector-dot { background:#fbbf24; box-shadow: 0 0 10px rgba(251, 191, 36, 0.32); }
+.canvas-run-inspector-node-main { display: flex; flex-direction: column; gap: 0.12rem; min-width: 0; flex: 1; }
+.canvas-run-inspector-node-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ds-t-meta); font-weight: 600; }
+.canvas-run-inspector-node-detail { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ds-t-micro); color:color-mix(in oklab, var(--canvas-text) 43%, transparent); }
+.canvas-run-inspector-state {
+  flex-shrink: 0;
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 0.12rem 0.42rem;
+  border-radius: 999px;
+  border:1px solid rgba(245, 242, 239, 0.14);
+  background:rgba(245, 242, 239, 0.06);
+  color:color-mix(in oklab, var(--canvas-text) 62%, transparent);
+}
+.canvas-run-inspector-row[data-state="completed"] .canvas-run-inspector-state,
+.canvas-run-inspector-row[data-state="passed"] .canvas-run-inspector-state {
+  color:color-mix(in oklab, #6ee7b7 var(--ink-blend), var(--canvas-text)); border-color:rgba(52, 211, 153, 0.4); background:rgba(52, 211, 153, 0.12);
+}
+.canvas-run-inspector-row[data-state="failed"] .canvas-run-inspector-state {
+  color:color-mix(in oklab, #fca5a5 var(--ink-blend), var(--canvas-text)); border-color:rgba(248, 113, 113, 0.4); background:rgba(248, 113, 113, 0.12);
+}
+.canvas-run-inspector-row[data-state="blocked"] .canvas-run-inspector-state {
+  color:color-mix(in oklab, #fcd34d var(--ink-blend), var(--canvas-text)); border-color:rgba(251, 191, 36, 0.4); background:rgba(251, 191, 36, 0.12);
+}
+.canvas-run-inspector-row[data-state="running"] .canvas-run-inspector-state,
+.canvas-run-inspector-row[data-state="starting"] .canvas-run-inspector-state {
+  color:color-mix(in oklab, #93c5fd var(--ink-blend), var(--canvas-text)); border-color:rgba(96, 165, 250, 0.4); background:rgba(96, 165, 250, 0.12);
+}
+@media (prefers-reduced-motion: reduce) { .canvas-run-spin { animation: none; } }
+
+/* ── Needs-you lane (plans/honest-agent-status/ Slice 4) ──────────────────────
+   Pinned ABOVE the Agent Inbox and outside every scroll container. `.canvas-inbox` is
+   `flex: 0 1 clamp(7rem,32vh,18rem)` with a scrolling child, so a "pinned" group inside it scrolls
+   away on a busy board — which is the one thing this lane must never do. Hence `flex: 0 0 auto`,
+   no scroll of its own, and a hard cap enforced by the row count upstream rather than by overflow.
+
+   Violet is the attention colour: the same oklch value the card badge ships (`data-s="ask"` in
+   agent-node-persona-nl.css). Deliberately NOT animated. */
+.canvas-needs-you {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.44rem 0.6rem 0.5rem;
+  background:oklch(0.78 0.16 295 / 0.07);
+  border-bottom: 1px solid oklch(0.78 0.16 295 / 0.22);
+  box-shadow: inset 3px 0 0 oklch(0.78 0.16 295 / 0.65);
+}
+/* Empty: one dimmed header row, ~23px. It stays MOUNTED rather than unmounting, because a lane that
+   appears from nowhere shifts every row beneath it at the moment the operator reaches for one. */
+.canvas-needs-you[data-empty="true"] {
+  gap: 0;
+  padding: 0.34rem 0.6rem 0.36rem;
+  background:transparent;
+  border-bottom: 1px solid var(--canvas-sidebar-border, rgba(255, 255, 255, 0.08));
+  box-shadow: none;
+}
+.canvas-needs-you-header {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  color:oklch(0.82 0.13 295);
+}
+.canvas-needs-you[data-empty="true"] .canvas-needs-you-header {
+  color:color-mix(in oklab, var(--canvas-text) 30%, transparent);
+}
+.canvas-needs-you-title {
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+.canvas-needs-you-count {
+  font-size: var(--ds-t-micro);
+  border-radius: 999px;
+  padding: 0 0.32rem;
+  line-height: 1.7;
+  background:oklch(0.78 0.16 295 / 0.2);
+  color:oklch(0.9 0.08 295);
+}
+.canvas-needs-you[data-empty="true"] .canvas-needs-you-count {
+  background:color-mix(in oklab, var(--canvas-text) 6%, transparent);
+  color:color-mix(in oklab, var(--canvas-text) 34%, transparent);
+}
+/* The chord is an affordance, not a control: it teaches that mod+J exists. Suppressed while empty
+   by the component, since there would be nowhere to land. */
+.canvas-needs-you-chord {
+  margin-left: auto;
+  font-size: var(--ds-t-micro);
+  letter-spacing: 0.04em;
+  color:oklch(0.72 0.06 295);
+}
+.canvas-needs-you-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+/* Same padding as `.canvas-inbox-item` so the lane and the panel below read as one list. */
+.canvas-needs-you-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.4rem;
+  border:none;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: left;
+  background:oklch(0.78 0.16 295 / 0.1);
+  box-shadow: inset 0 0 0 1px oklch(0.78 0.16 295 / 0.24);
+  transition: background 110ms ease;
+}
+.canvas-needs-you-row:hover {
+  background:oklch(0.78 0.16 295 / 0.16);
+}
+.canvas-needs-you-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 1px oklch(0.78 0.16 295 / 0.24), 0 0 0 2px oklch(0.78 0.16 295 / 0.35);
+}
+.canvas-needs-you-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  background:oklch(0.78 0.16 295);
+  box-shadow: 0 0 6px oklch(0.78 0.16 295 / 0.55);
+}
+.canvas-needs-you-name {
+  font-size: var(--ds-t-micro);
+  color:var(--canvas-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* S5: a Dock app's ask names its source before its title, muted, so the name stays the read.
+   A square dot tells it from an agent (a process) without a second colour. */
+.canvas-needs-you-source {
+  margin-right: 0.35rem;
+  color:color-mix(in oklab, var(--canvas-text) 52%, transparent);
+}
+.canvas-needs-you-row:not([data-source="agent"]) .canvas-needs-you-dot {
+  border-radius: 2px;
+}
+.canvas-needs-you-age {
+  margin-left: auto;
+  font-size: var(--ds-t-micro);
+  color:oklch(0.8 0.1 295);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Agent Inbox (Fitur [5]) — monitoring panel in the right sidebar ─────── */
+.canvas-inbox {
+  flex: 0 1 clamp(7rem, 32vh, 18rem);
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem 0.55rem;
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.canvas-inbox-title {
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  /* Was a violet tint. Violet is now the attention colour and nothing else — the needs-you badge on
+     the card and the pinned lane below share it, and a decorative violet inches away made the
+     semantic one ambiguous (plans/honest-agent-status/ Slice 4, route A). The replacement is the
+     token `.canvas-sidebar-label` ("PROCESSES") already uses, so this heading now matches the panel
+     it lives in instead of standing apart from it. */
+  color:var(--canvas-sidebar-muted, color-mix(in oklab, var(--canvas-text) 42%, transparent));
+}
+.canvas-inbox-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
+  scrollbar-width: thin;
+  /* Neutral, for the same reason as the title: chrome must not borrow the attention hue. */
+  scrollbar-color:color-mix(in oklab, var(--canvas-text) 18%, transparent);
+}
+.canvas-inbox-group { display: flex; flex-direction: column; gap: 0.18rem; }
+.canvas-inbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color:color-mix(in oklab, var(--canvas-text) 42%, transparent);
+  margin-top: 0.2rem;
+}
+.canvas-inbox-label--running { color:color-mix(in oklab, rgba(52, 211, 153, 0.85) var(--ink-blend), var(--canvas-text)); }
+.canvas-inbox-label--errors { color:color-mix(in oklab, rgba(248, 113, 113, 0.85) var(--ink-blend), var(--canvas-text)); }
+.canvas-inbox-label--completed { color:color-mix(in oklab, rgba(96, 165, 250, 0.85) var(--ink-blend), var(--canvas-text)); }
+.canvas-inbox-count {
+  font-size: var(--ds-t-micro);
+  background:color-mix(in oklab, var(--canvas-text) 8%, transparent);
+  border-radius: 999px;
+  padding: 0 0.32rem;
+  color:color-mix(in oklab, var(--canvas-text) 60%, transparent);
+}
+.canvas-inbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.28rem 0.4rem;
+  border-radius: 7px;
+  cursor: pointer;
+  transition: background 110ms ease;
+  text-align: left;
+}
+.canvas-inbox-item:hover { background:color-mix(in oklab, var(--canvas-text) 5%, transparent); }
+.canvas-inbox-name {
+  font-size: var(--ds-t-micro);
+  color:var(--canvas-text, var(--canvas-text));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.canvas-inbox-scroll::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+.canvas-inbox-scroll::-webkit-scrollbar-track,
+.canvas-inbox-scroll::-webkit-scrollbar-corner {
+  background:transparent;
+}
+.canvas-inbox-scroll::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  border:3px solid transparent;
+  border-radius: 9999px;
+  background:rgba(247, 242, 234, 0.16);
+  background-clip: padding-box;
+}
+.canvas-inbox-scroll::-webkit-scrollbar-thumb:hover {
+  background:rgba(247, 242, 234, 0.34);
+  background-clip: padding-box;
+}
+
+
+/* ── Agent reply box (Fitur [6] HITL) — resume the session with a follow-up ── */
+.agent-card-reply {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.4rem 0.6rem 0;
+}
+.agent-card-reply-input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  font-size: 0.66rem;
+  color:var(--canvas-text, var(--canvas-text));
+  background:color-mix(in oklab, var(--node-floor-solid) 30%, transparent);
+  border:1px solid color-mix(in oklab, var(--canvas-text) 12%, transparent);
+  border-radius: 7px;
+  padding: 0.32rem 0.5rem;
+  outline: none;
+  transition: border-color 120ms ease;
+}
+.agent-card-reply-input:focus { border-color:rgba(196, 181, 253, 0.5); }
+.agent-card-reply-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color:color-mix(in oklab, #c4b5fd var(--ink-blend), var(--canvas-text));
+  background:rgba(139, 92, 246, 0.18);
+  border:1px solid rgba(139, 92, 246, 0.4);
+  border-radius: 7px;
+  padding: 0.32rem 0.42rem;
+  cursor: pointer;
+  transition: background 120ms ease, opacity 120ms ease;
+}
+.agent-card-reply-send:hover { background:rgba(139, 92, 246, 0.3); }
+.agent-card-reply-send:disabled { opacity: 0.4; cursor: default; }
+
+/* Per-node governance — read-only badge (Tier 4 [10]) */
+.agent-card-meta-left { display: inline-flex; align-items: center; gap: 0.4rem; flex: 1 1 auto; min-width: 0; overflow: hidden; }
+.agent-card-readonly {
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color:color-mix(in oklab, rgba(251, 191, 36, 0.95) var(--ink-blend), var(--canvas-text));
+  background:rgba(251, 191, 36, 0.1);
+  border:1px solid rgba(251, 191, 36, 0.28);
+  border-radius: 4px;
+  padding: 0.04rem 0.28rem;
+  flex-shrink: 0;
+}
+
+/* ── Agent run history (Tier 4 [11]) — trace overlay ────────────────────── */
+.agent-btn--history {
+  color:color-mix(in oklab, var(--canvas-text) 55%, transparent);
+  background:color-mix(in oklab, var(--canvas-text) 5%, transparent);
+  border:1px solid color-mix(in oklab, var(--canvas-text) 12%, transparent);
+  padding: 0.28rem 0.5rem;
+}
+.agent-btn--history:hover { background:color-mix(in oklab, var(--canvas-text) 10%, transparent); color:var(--canvas-text, var(--canvas-text)); }
+.agent-history {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  background:rgba(14, 12, 20, 0.97);
+  border-radius: var(--canvas-node-radius);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+.agent-history-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0.5rem 0.6rem;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.agent-history-title { font-size: 0.66rem; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color:color-mix(in oklab, rgba(196,181,253,0.85) var(--ink-blend), var(--canvas-text)); }
+.agent-history-empty { font-size: 0.7rem; color:color-mix(in oklab, var(--canvas-text) 40%, transparent); padding: 0.8rem 0.6rem; }
+.agent-history-list { list-style: none; margin: 0; padding: 0.3rem; overflow: auto; }
+.agent-history-row { border-radius: 7px; }
+.agent-history-summary {
+  display: flex; align-items: center; gap: 0.45rem; width: 100%;
+  padding: 0.35rem 0.45rem; border-radius: 7px; cursor: pointer; text-align: left;
+  transition: background 110ms ease;
+}
+.agent-history-summary:hover { background:color-mix(in oklab, var(--canvas-text) 5%, transparent); }
+.agent-history-dot { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
+.agent-history-dot--completed { background:#60a5fa; }
+.agent-history-dot--error { background:#f87171; }
+.agent-history-dot--stopped { background:color-mix(in oklab, var(--canvas-text) 40%, transparent); }
+.agent-history-kind { font-size: 0.64rem; color:var(--canvas-text, var(--canvas-text)); text-transform: capitalize; }
+.agent-history-dur { font-size: 0.58rem; color:color-mix(in oklab, var(--canvas-text) 45%, transparent); font-family: var(--font-mono, ui-monospace, monospace); margin-left: auto; }
+.agent-history-usage { font-size: 0.56rem; color:color-mix(in oklab, rgba(165,180,252,0.8) var(--ink-blend), var(--canvas-text)); font-family: var(--font-mono, ui-monospace, monospace); }
+.agent-history-outcome { font-size: 0.56rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+.agent-history-outcome--completed { color:color-mix(in oklab, #60a5fa var(--ink-blend), var(--canvas-text)); }
+.agent-history-outcome--error { color:color-mix(in oklab, #f87171 var(--ink-blend), var(--canvas-text)); }
+.agent-history-outcome--stopped { color:color-mix(in oklab, var(--canvas-text) 50%, transparent); }
+.agent-history-actions {
+  margin: 0.1rem 0.3rem 0.4rem;
+  padding: 0.4rem 0.5rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem; line-height: 1.5; color:color-mix(in oklab, var(--canvas-text) 70%, transparent);
+  white-space: pre-wrap; word-break: break-word;
+  background:color-mix(in oklab, var(--node-floor-solid) 30%, transparent); border:1px solid color-mix(in oklab, var(--canvas-text) 6%, transparent);
+  border-radius: 7px; max-height: 140px; overflow: auto;
+}
+
+
+/* Needs-you row body: name over headline. Two lines only when there IS a headline — the composer
+   returns null for an agent that has run no tools, and a reserved blank line would make the lane's
+   rows two different heights for nothing (plans/agent-headlines/ Slice 4). */
+.canvas-needs-you-body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 0;
+}
+.canvas-needs-you-headline {
+  font-size: var(--ds-t-micro);
+  line-height: 1.35;
+  color:oklch(0.74 0.07 295);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.canvas-fleet {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* Header stays put while the list scrolls: the count is the one number worth never losing. */
+.canvas-fleet-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.5rem 0.65rem 0.4rem;
+  border-bottom: 1px solid var(--canvas-border, rgba(255, 255, 255, 0.08));
+}
+
+.canvas-fleet-title {
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color:var(--canvas-sidebar-text, color-mix(in oklab, var(--canvas-text) 92%, transparent));
+}
+
+.canvas-fleet-count {
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  /* Digits line up as agents come and go, so the number never jitters sideways. */
+  font-variant-numeric: tabular-nums;
+  color:var(--canvas-sidebar-muted, color-mix(in oklab, var(--canvas-text) 50%, transparent));
+}
+
+.canvas-fleet-empty {
+  margin: 0;
+  padding: 0.7rem 0.65rem;
+  font-size: var(--ds-t-micro);
+  line-height: 1.45;
+  color:var(--canvas-sidebar-muted, color-mix(in oklab, var(--canvas-text) 50%, transparent));
+}
+
+.canvas-fleet-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0.3rem 0.35rem 0.45rem;
+}
+
+/* A hairline between bands rather than around each one: the grouping is real information
+   (agents / windows / cards), and a rule states it without drawing four boxes. */
+.canvas-fleet-section + .canvas-fleet-section {
+  margin-top: 0.4rem;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--canvas-border, rgba(255, 255, 255, 0.07));
+}
+
+.canvas-fleet-section-title {
+  padding: 0.2rem 0.3rem 0.25rem;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color:var(--canvas-sidebar-muted, color-mix(in oklab, var(--canvas-text) 42%, transparent));
+}
+
+.canvas-fleet-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+}
+
+.canvas-fleet-focus {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  /* 44px. The 26px this replaces was a sidebar measurement, carried over unchanged to a panel
+     260-380px wide — two lines of type compressed into the height of one, in a column with room to
+     spare. It also has to survive the board's zoom: this panel is a `ViewportPortal` child, so it
+     scales with pan and zoom like a node, and 26px of row at 60% zoom is not a list any more. */
+  /* Three lines now: who it is, what it is for, what it is doing. */
+  min-height: 3.5rem;
+  /* Left padding clears the status stripe below. */
+  padding: 0.3rem 0.4rem 0.3rem 0.55rem;
+  border:none;
+  border-radius: 6px;
+  background:transparent;
+  color:inherit;
+  text-align: left;
+  cursor: pointer;
+  /* The stripe below is positioned against this button. Without it the pseudo-element resolved
+     against `.canvas-fleet-row` instead — the same place by accident, since the button is the
+     row's first flex child, but only by accident. */
+  position: relative;
+  /* Promotion moves three things at once — the seat's fill, its two inset lips, and the row's ink.
+     Only `background` was listed, so a promote half-eased and half-snapped. The bloom on the row
+     already crossfades over 280ms; these match it so the whole row settles as one gesture. */
+  transition:
+    background 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Status, on the edge the name starts from — now a 1px hairline rather than the 2px bar this
+   replaces, and a real element rather than a pseudo.
+ *
+ * WHY IT SHRANK. The bar was the loudest thing in a panel built from 1px rules and sub-10% light,
+ * and its square ends fought the row's 6px corner. One pixel is the weight the rest of this surface
+ * is drawn at.
+ *
+ * WHY IT IS NO LONGER SHARED WITH SELECTION. It used to be written by a hero rule AND by five
+ * status rules, and the hero rule shipped last, so it won: a row you had selected that was also
+ * RUNNING silently stopped reporting that it was running. Selection now lives on the row's own
+ * surface (the seat, below) and spends no hue at all, which leaves this pixel free to mean exactly
+ * one thing. A selected running agent can finally say both.
+ *
+ * WHY IT IS AN ELEMENT. It contains the travelling segment, and a pseudo-element cannot have a
+ * child. Clipping the traveller against the row instead would need `overflow: hidden` on
+ * `.canvas-fleet-row`, which would eat the focus ring `.canvas-fleet-focus:focus-visible` draws
+ * outside the button. One span per row is the cheaper trade. */
+.canvas-fleet-edge {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+  color:transparent;
+  /* Lit nearly end to end, softening only in the last couple of percent so the hairline never cuts
+     square against the row's radius. */
+  background:linear-gradient(180deg, transparent 2%, currentColor 14%, currentColor 86%, transparent 98%);
+  /* `color`, not `background`. A gradient does not interpolate, so the `transition: background`
+     this replaces was dead the moment the flat 2px bar became a gradient — every status change
+     snapped. Driving the whole edge (fill, glow, and the traveller's shadow) from one animatable
+     `color` gives the cross-fade back, and keeps the three from ever drifting apart. */
+  transition:
+    color 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* A breath of glow, so the hairline reads as lit rather than drawn.
+   These hues stay literal ON PURPOSE. The run-state ramp is theme-INDEPENDENT (ADR-0023 §2b): the
+   resolver emits the same colours for every theme, and a theme may not remap them. Everything on
+   this surface that is not a state follows the theme; a state never does, or "running" would mean
+   a different colour per theme. */
+.canvas-fleet-row[data-status] .canvas-fleet-edge { box-shadow: 0 0 6px -1px currentColor; }
+.canvas-fleet-row[data-status="running"] .canvas-fleet-edge,
+.canvas-fleet-row[data-status="connecting"] .canvas-fleet-edge { color:color-mix(in oklab, #fbbf24 var(--ink-blend), var(--canvas-text)); }
+.canvas-fleet-row[data-status="completed"] .canvas-fleet-edge { color:color-mix(in oklab, #34d399 var(--ink-blend), var(--canvas-text)); }
+.canvas-fleet-row[data-status="error"] .canvas-fleet-edge { color:color-mix(in oklab, #f87171 var(--ink-blend), var(--canvas-text)); }
+/* Violet is reserved: it means a human is needed, and nothing else
+   (`plans/honest-agent-status/` Slice 4). */
+.canvas-fleet-row[data-status="needs-you"] .canvas-fleet-edge { color:color-mix(in oklab, #a78bfa var(--ink-blend), var(--canvas-text)); }
+/* A stalled agent keeps a lit edge and loses its hue: still a cell with a state, no longer one
+   claiming to be at work. Themed, because "no hue" is the theme's own ink, not a fixed grey. */
+.canvas-fleet-row[data-status="stalled"] .canvas-fleet-edge {
+  color:color-mix(in oklab, var(--canvas-text, var(--canvas-text)) 34%, transparent);
+}
+
+/* ── The travelling segment ────────────────────────────────────────────────────────────────────
+ *
+ * The lit edge above is the STATE and never moves. This is the ACTIVITY, and it lives on top of it.
+ * Keeping the two apart is the whole point: a hung agent holds an amber edge while being visibly
+ * still, which one element doing both jobs could not express.
+ *
+ * It is NOT a loop. It runs once per `data-beat`, which the panel sets when a row's displayed
+ * headline actually changes — so a busy agent pulses, a quiet one ticks over, and one that has
+ * stopped producing is motionless while its status still reads `running`. That stillness is
+ * information the panel had no way to show before the timeout flipped the cell to `stalled`.
+ *
+ * Costed deliberately: 1px wide, `transform` and `opacity` only, and idle between beats. A quiet
+ * fleet animates nothing at all. Ambient per-row treatments were tried first and abandoned — the
+ * failure was AREA, not motion: six 56px clouds fill a 280px column and drown both the type and the
+ * selected row, where nine 1px strips do not. */
+.canvas-fleet-edge > span {
+  position: absolute;
+  left: -1px;
+  right: -1px;
+  height: 40%;
+  /* The status hue lifted toward the theme's own ink, rather than a fixed warm white. Two things
+     fall out of this: the traveller is legible on a light theme instead of invisible, and the
+     needs-you variant that used to be declared separately is simply what this expression already
+     produces — one rule fewer, and one fewer place for the two to drift apart. */
+  background:linear-gradient(180deg, transparent,
+    color-mix(in oklab, currentColor 42%, var(--canvas-text, #f7f2ea)), transparent);
+  box-shadow: 0 0 10px 1px currentColor;
+  opacity: 0;
+  will-change: transform, opacity;
+}
+.canvas-fleet-row[data-beat="true"] .canvas-fleet-edge > span {
+  animation: canvas-fleet-travel 1s cubic-bezier(0.32, 0, 0.3, 1) 1;
+}
+/* An agent asking for a human is not waiting on output, so it can never earn a beat. It loops
+   instead — the one sustained motion in the panel, spent on the one row that wants something.
+   One rule, not two: the hue and the loop share a selector, and splitting them left a reader (and
+   `cssRule` in the tests) finding whichever half came first. */
+.canvas-fleet-row[data-status="needs-you"] .canvas-fleet-edge > span {
+  animation: canvas-fleet-travel 2.4s ease-in-out infinite;
+}
+@keyframes canvas-fleet-travel {
+  0%   { transform: translateY(-110%); opacity: 0; }
+  14%  { opacity: 1; }
+  86%  { opacity: 1; }
+  100% { transform: translateY(260%); opacity: 0; }
+}
+/* Motion goes; the lit edge stays, because it is the state. Nothing about which agent is in which
+   condition depends on the traveller. */
+@media (prefers-reduced-motion: reduce) {
+  .canvas-fleet-edge > span { animation: none !important; opacity: 0; }
+}
+
+/* The row you are already looking at — light falling from its stripe, not a slab laid on it.
+ *
+ * What this replaces was `var(--canvas-sidebar-active, rgba(255,255,255,0.085))`, under a comment
+ * describing a subtle 8.5% wash. It never painted one. `--canvas-sidebar-active` resolves to
+ * `var(--bg-elevated, #1a1a24)`, and `--bg-elevated` is defined nowhere in this app — every use of
+ * it in the stylesheets is a read with a fallback, and `resolve-theme.ts` does not write it. So the
+ * hero row painted an OPAQUE `#1a1a24` over a translucent glass panel: a foreign rectangle sitting
+ * on the surface rather than a row of it lit up. The sibling token `--canvas-sidebar-hover` IS
+ * written at runtime, which is why hover behaved and selection did not.
+ *
+ * The shape is borrowed from the reference: a soft bloom entering from the leading edge and dying
+ * out across the row, boundary irregular rather than ruled. Two radials at different centres and
+ * radii are what make the edge organic; the linear underneath keeps the far end of the row still
+ * reading as selected once the bloom has gone.
+ *
+ * The HUE is not borrowed. The reference glows orange, and orange is already `#fbbf24` in this
+ * list — the running state. `--canvas-accent` is the theme's own accent and is never a status
+ * colour, so the bloom follows the theme and cannot be mistaken for a state. It is also the colour
+ * of the hero's stripe, which makes the stripe read as where the light is coming from.
+ *
+ * On the row rather than the button, and faded through opacity, because a multi-layer gradient does
+ * not interpolate from "none" — painted straight on, every promote would snap it on. `::before`
+ * paints ahead of the row's element children, so the name and headline stay on top of it. */
+.canvas-fleet-row::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  /* Light ADDS; it does not lie on top.
+   *
+   * The first version alpha-composited a pale colour over the panel, and alpha-compositing pale
+   * over dark can only ever produce grey — so the lit row read as a grey rectangle with a soft
+   * right edge rather than as something glowing. `plus-lighter` adds the layer's light to what is
+   * already there: the unlit end of the row stays exactly as dark as every other row, and the lit
+   * end brightens without going milky. Unsupported values fall back to `normal`, which is the
+   * previous behaviour, so there is nothing to guard.
+   *
+   * One blended element per row and only ever one of them visible. That matters on a canvas whose
+   * motion code is built around how expensive compositing is here (`canvas-motion.ts`), which is
+   * also why the bloom is four flat gradients and not a blur. */
+  mix-blend-mode: plus-lighter;
+  transition: opacity 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  background:/* The core, sitting on the stripe and falling away in five stops rather than three — the
+       visible boundary in the first attempt was a ramp too short to hide its own end. */
+    radial-gradient(
+      92% 132% at -2% 50%,
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 20%, transparent) 0%,
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 11%, transparent) 21%,
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 5%, transparent) 43%,
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 1.5%, transparent) 67%,
+      transparent 88%
+    ),
+    /* A second source, taller and set in from the edge, so the falloff is never one clean curve.
+       This is what keeps the boundary organic rather than ruled. */
+    radial-gradient(
+      54% 210% at 15% 20%,
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 8%, transparent) 0%,
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 2%, transparent) 46%,
+      transparent 78%
+    ),
+    /* A trace all the way across, so the far end still reads as selected once the bloom has gone. */
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 4%, transparent),
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 1.5%, transparent) 40%,
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 0.8%, transparent) 100%
+    ),
+    /* The top edge catches the light — but only where there IS light. A box-shadow hairline ran the
+       full width and drew the row as a card pasted onto the list; a 1px gradient that dies with the
+       bloom reads as an edge being lit. */
+    linear-gradient(
+      90deg,
+      color-mix(in oklab, var(--canvas-accent, #f5f2ef) 15%, transparent),
+      transparent 44%
+    ) no-repeat top / 100% 1px;
+}
+
+/* Held back from full: the bloom is now one of three things saying "this row", not the only one,
+   and at full strength it competed with the lit status edge beside it. */
+.canvas-fleet-row[data-hero="true"]::before {
+  opacity: 0.55;
+}
+
+/* ── The seat ──────────────────────────────────────────────────────────────────────────────────
+ *
+ * Selection is now a DEPTH, not a mark: the row is pressed a hairline into the panel, shadow along
+ * its top edge and light along its bottom. It spends no hue, so it can never be mistaken for a
+ * state and never has to take the status edge away from status.
+ *
+ * A full-perimeter hairline was tried before this and rejected — it drew the row as a card pasted
+ * onto the list. This closes no rectangle. */
+.canvas-fleet-row[data-hero="true"] .canvas-fleet-focus {
+  /* Built from the theme, not from black and white.
+     The recess shows more of the GROUND the panel floats above — so a warm theme recesses warm
+     and a cool one recesses cool, where the flat `rgba(0,0,0,.28)` this replaces punched the same
+     neutral hole through every one of them. The light along the bottom lip is the theme's own
+     foreground, the same way every other lit edge on this surface is built.
+
+     The percentages are carried over UNCHANGED from the literals — 28 and 55 — and that is the
+     point: the ground is near enough to black on the default palette that the same alpha
+     reproduces the approved look exactly while following every other one. Reaching for a rounder
+     number here would have been a redesign wearing a refactor's clothes; the first draft of this
+     line used 62 and 78 and was visibly heavier than what was signed off.
+
+     THE GROUND IS --node-floor-solid, NOT --canvas-bg, and this line said --canvas-bg until the
+     difference was measured. --canvas-bg is `paper.fill`, which is a flat #050506 on Void and a
+     GRADIENT on the other six built-ins; color-mix() with a gradient is invalid at
+     computed-value time, so the whole declaration was dropped and the recess painted nothing.
+     The reasoning above — "`--canvas-bg` is #07070d" — was true of the palette it was written
+     against and of no other, which is exactly why the bug survived review. --node-floor-solid is
+     the same ground resolved as an opaque colour on every theme (Void: rgb(9,9,14), so the
+     approved look is preserved to within a rounding error). Its own bridge in theme.css carries
+     the matching warning. */
+  background:color-mix(in oklab, var(--node-floor-solid) 28%, transparent);
+  box-shadow:
+    inset 0 1px 1px color-mix(in oklab, var(--node-floor-solid) 55%, transparent),
+    inset 0 -1px 0 color-mix(in oklab, var(--canvas-text, #f7f2ea) 8%, transparent);
+}
+
+/* Selection's second channel, and it is not decoration. With one agent working the seat alone is
+   plenty; with six lit rows in a 280px column the selected row sank into them. Ink is the only
+   channel left that costs no hue. */
+.canvas-fleet-row[data-hero="true"] .canvas-fleet-name {
+  /* The theme's brightest legitimate ink. The literal it replaces was a warm white that stayed
+     warm-white on a cool theme, which is the one place selection could look pasted on. */
+  color:var(--canvas-text, var(--canvas-text));
+}
+.canvas-fleet-row[data-hero="true"] .canvas-fleet-detail {
+  color:color-mix(in oklab, var(--canvas-sidebar-text, var(--canvas-text)) 78%, transparent);
+}
+
+.canvas-fleet-row:hover .canvas-fleet-focus {
+  background:var(--canvas-sidebar-hover, color-mix(in oklab, var(--canvas-text) 5.5%, transparent));
+}
+
+.canvas-fleet-focus:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 1.5px var(--canvas-accent, #f5f2ef);
+}
+
+/* Fleet rename replaces the focus button instead of nesting an input inside it. The geometry stays
+   identical, so entering edit mode never shifts neighbouring rows or moves the pointer target. */
+.canvas-fleet-rename {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 3.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.3rem 2.8rem 0.3rem 0.55rem;
+}
+
+.canvas-fleet-rename-input {
+  min-width: 0;
+  width: 100%;
+  padding: 0.25rem 0.4rem;
+  border:1px solid color-mix(in oklab, var(--canvas-accent, #f5f2ef) 48%, transparent);
+  border-radius: 5px;
+  outline: none;
+  background:color-mix(in oklab, var(--node-floor-solid) 48%, transparent);
+  color:var(--canvas-text, var(--canvas-text));
+  font: 600 0.78rem/1.35 var(--canvas-font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+  text-overflow: ellipsis;
+}
+
+.canvas-fleet-rename-input:focus-visible {
+  box-shadow: 0 0 0 1.5px var(--canvas-accent, #f5f2ef);
+}
+
+/* RUNNER BRAND palette: defined on :root in design-system.css (the Code rail uses it too). Only
+   grok's light-mode branch is canvas-specific, because the canvas has its own light/dark mode. */
+.codecanvas-shell[data-canvas-mode="light"] {
+  --ai-grok-primary:     #27272a;
+}
+
+/* The vendor logo is a MASK filled with the row's colour, not an <img>, so it takes the brand tint.
+   Same mechanism as the persona badge. `--fleet-logo` is set inline per row by RowMark. */
+.canvas-fleet-logo {
+  display: block;
+  background:currentColor;
+  -webkit-mask: var(--fleet-logo) center / contain no-repeat;
+  mask: var(--fleet-logo) center / contain no-repeat;
+}
+
+/* ── Row icon takes its NODE TYPE's identity colour ──
+   Every mark used to be one muted grey, so the Fleet said what a row was only in words while the
+   board said it in colour. --canvas-type-* is the canonical table (theme.css); node-shell.css
+   sets each node's --node-accent from the same names, so a row's icon and its node cannot drift.
+
+   `currentColor` is what the lucide glyphs inherit, so one `color` per type does the whole job.
+   The fallback keeps an unrecognised type on the old muted grey rather than dropping to black. */
+.canvas-fleet-row[data-type="agent"]      .canvas-fleet-mark { color:var(--canvas-type-agent); }
+.canvas-fleet-row[data-type="terminal"]   .canvas-fleet-mark { color:var(--canvas-type-terminal); }
+.canvas-fleet-row[data-type="browser"]    .canvas-fleet-mark { color:var(--canvas-type-browser); }
+.canvas-fleet-row[data-type="note"]       .canvas-fleet-mark { color:var(--canvas-type-note); }
+.canvas-fleet-row[data-type="task"]       .canvas-fleet-mark { color:var(--canvas-type-task); }
+.canvas-fleet-row[data-type="plan"]       .canvas-fleet-mark { color:var(--canvas-type-plan); }
+.canvas-fleet-row[data-type="critic"]     .canvas-fleet-mark { color:var(--canvas-type-critic); }
+.canvas-fleet-row[data-type="human-gate"] .canvas-fleet-mark { color:var(--canvas-type-human-gate); }
+.canvas-fleet-row[data-type="team"]       .canvas-fleet-mark { color:var(--canvas-type-team); }
+.canvas-fleet-row[data-type="skill"]      .canvas-fleet-mark { color:var(--canvas-type-skill); }
+.canvas-fleet-row[data-type="skills"]     .canvas-fleet-mark { color:var(--canvas-type-skills); }
+.canvas-fleet-row[data-type="context"]    .canvas-fleet-mark { color:var(--canvas-type-context); }
+
+/* Brand OUTRANKS node type: two agents share a node type but not a tool, and the logo already says
+   so. These selectors have exactly the same specificity as the type rules above (class + attribute
+   + class), so this block only wins by being written AFTER them — order is the whole mechanism
+   here, not a formatting preference. Moving it up silently restores the type colour everywhere. */
+.canvas-fleet-row[data-brand="claude"]  .canvas-fleet-mark { color:var(--ai-claude-primary); }
+.canvas-fleet-row[data-brand="chatgpt"] .canvas-fleet-mark { color:var(--ai-chatgpt-primary); }
+.canvas-fleet-row[data-brand="cursor"]  .canvas-fleet-mark { color:var(--ai-cursor-primary); }
+
+.canvas-fleet-mark {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 1.05rem;
+  color:var(--canvas-sidebar-muted, color-mix(in oklab, var(--canvas-text) 55%, transparent));
+}
+
+.canvas-fleet-logo {
+  width: 13px;
+  height: 13px;
+  opacity: 0.9;
+}
+
+.canvas-fleet-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.04rem;
+}
+
+.canvas-fleet-name {
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+  /* Sentence case, and tracking down from 0.045em.
+     Uppercase was inherited from the sidebar, where the column was chrome. Here it costs twice:
+     capitals plus tracking spend the width this panel was widened to have, and a name in capitals
+     is read letter by letter rather than recognised by its shape — which is the whole job of a
+     list you scan. The DOM always held the true text, so nothing about search or the accessible
+     name changes. */
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color:var(--canvas-sidebar-text, color-mix(in oklab, var(--canvas-text) 94%, transparent));
+  transition: color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* A state is metadata about the row; an ask is its content. Same slot, so the state sits a step
+   quieter and in italic — enough that the eye separates an instruction from a status before reading
+   either, without adding a label that would cost more width than it explains. */
+/* The third line: what it is doing, and for how long.
+   A step quieter and in italic, because a state is metadata about the row while the line above is
+   its content — enough that the eye separates them before reading either, without a label costing
+   more width than it explains. Tabular figures so a ticking duration cannot shuffle the line
+   sideways under a reader. */
+.canvas-fleet-state {
+  font-size: var(--ds-t-micro);
+  line-height: 1.3;
+  font-style: italic;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color:color-mix(in oklab, var(--canvas-sidebar-text, var(--canvas-text)) 44%, transparent);
+}
+
+.canvas-fleet-detail {
+  font-size: var(--ds-t-micro);
+  line-height: 1.35;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* Mixed from the theme's own foreground, NOT `--canvas-sidebar-muted`.
+     This line used to read `var(--canvas-sidebar-muted, rgba(247,242,234,0.55))` with a comment
+     saying the 0.55 raised it from the sidebar's 0.42 because "this surface carries a photograph".
+     The raise never happened: `resolve-theme.ts` writes `--ds-workbench-text-muted` on every theme
+     change, so `--canvas-sidebar-muted` is always defined and the fallback never applied. The line
+     has been rendering at 0.42 the whole time — the exact value it was meant to escape.
+     A `color-mix` cannot silently fall back, and it follows a light theme's dark foreground. */
+  color:color-mix(in oklab, var(--canvas-sidebar-text, var(--canvas-text)) 62%, transparent);
+  transition: color 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-fleet-focus .cth-dot {
+  flex: 0 0 auto;
+  margin-left: auto;
+  transition: margin-right 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The dot sat 6.4-11.4px from the row's right edge; the close button spans 4.5-22.9px from the
+   same edge, so hovering a row covered its status exactly when the operator was interacting with
+   it. The row makes room instead of the two sharing a slot — and only on hover, so a resting list
+   spends no width on a gutter for a button that is not there. */
+.canvas-fleet-row:hover .canvas-fleet-focus .cth-dot,
+.canvas-fleet-row:focus-within .canvas-fleet-focus .cth-dot {
+  margin-right: 1.3rem;
+}
+
+/* Rename is a positive action, revealed before close so the row does not read as a list of things
+   to destroy. It remains separately tab-reachable with its own focus ring. */
+.canvas-fleet-rename-action {
+  position: absolute;
+  right: 1.58rem;
+  display: grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border:none;
+  border-radius: 5px;
+  background:transparent;
+  color:var(--canvas-sidebar-muted, color-mix(in oklab, var(--canvas-text) 50%, transparent));
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 160ms cubic-bezier(0.22, 1, 0.36, 1), color 140ms ease, background 140ms ease;
+}
+
+.canvas-fleet-row:hover .canvas-fleet-rename-action,
+.canvas-fleet-row:focus-within .canvas-fleet-rename-action {
+  opacity: 1;
+}
+
+.canvas-fleet-rename-action:hover {
+  background:var(--canvas-sidebar-hover, color-mix(in oklab, var(--canvas-text) 5.5%, transparent));
+  color:var(--canvas-sidebar-text, color-mix(in oklab, var(--canvas-text) 94%, transparent));
+}
+
+.canvas-fleet-rename-action:focus-visible {
+  opacity: 1;
+  outline: none;
+  box-shadow: 0 0 0 1.5px var(--canvas-accent, #f5f2ef);
+}
+
+.canvas-fleet-row:has(.canvas-fleet-rename-action):hover .canvas-fleet-focus .cth-dot,
+.canvas-fleet-row:has(.canvas-fleet-rename-action):focus-within .canvas-fleet-focus .cth-dot {
+  margin-right: 2.6rem;
+}
+
+/* Revealed on hover or keyboard focus. A permanent column of close buttons reads as a list of
+   things to destroy, which is not what this panel is for. */
+.canvas-fleet-close {
+  position: absolute;
+  right: 0.28rem;
+  display: grid;
+  place-items: center;
+  width: 1.15rem;
+  height: 1.15rem;
+  border:none;
+  border-radius: 5px;
+  background:transparent;
+  color:var(--canvas-sidebar-muted, color-mix(in oklab, var(--canvas-text) 50%, transparent));
+  opacity: 0;
+  cursor: pointer;
+  transition: opacity 160ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.canvas-fleet-row:hover .canvas-fleet-close {
+  opacity: 1;
+}
+
+.canvas-fleet-close:hover {
+  background:var(--canvas-sidebar-hover, color-mix(in oklab, var(--canvas-text) 5.5%, transparent));
+  color:var(--canvas-sidebar-text, color-mix(in oklab, var(--canvas-text) 94%, transparent));
+}
+
+/* One rule per selector. Splitting the reveal across a grouped selector and a second block for the
+   ring left `.canvas-fleet-close:focus-visible` declared twice — both applied, but the next reader
+   had to find both to know what focus does. */
+.canvas-fleet-close:focus-visible {
+  opacity: 1;
+  outline: none;
+  box-shadow: 0 0 0 1.5px var(--canvas-accent, #f5f2ef);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-fleet-focus,
+  .canvas-fleet-close {
+    transition: none;
+  }
+}
+
+/* ── Jump labels ──────────────────────────────────────────────────────────────
+   plans/codecanvas-hotkeys/ S7. A badge on each cell, typed to go there. Read, never clicked, so it
+   stays out of the pointer's way entirely — the one overlay on this canvas for which that is the
+   right answer. */
+.canvas-jump-label {
+  position: absolute;
+  z-index: 20;
+  pointer-events: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.05em;
+  /* Nudged off the cell's corner so it reads as a tag ON the node rather than part of its chrome. */
+  transform: translate(-0.35rem, -0.55rem);
+  padding: 0.08rem 0.3rem;
+  border-radius: 4px;
+  /* Amber, and it can be: this is a transient mode nothing else is on screen for. Violet stays
+     reserved for "a human is needed" (plans/honest-agent-status/ Slice 4) and the status dots keep
+     their own hues. */
+  background:#f2b34a;
+  color:color-mix(in oklab, #1a1204 var(--ink-blend), var(--canvas-text));
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+/* The part already typed: kept visible so progress is readable, receded so the remaining letter is
+   what the eye lands on. */
+.canvas-jump-label-done {
+  opacity: 0.42;
+}
+

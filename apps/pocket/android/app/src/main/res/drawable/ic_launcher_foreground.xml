@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher icon's foreground, and — on this phone — the splash icon too.
+
+     Same mark as `features/shared/lotus_mark.dart`, refitted to the adaptive-icon
+     canvas: 108 units, of which only the middle 66 are reliably visible once a
+     launcher applies its mask. The mark is 60 across, so it clears that with room.
+
+     The stroke is 2.2 rather than the 1.9 the app draws, because this is read at 48dp
+     on a home screen and not at 74dp on a splash — a contour that is correct at one
+     size disappears at the other.
+
+     Reused as `monochrome`, which is the whole argument for stroke art here: a themed
+     icon is tinted by the system, and a silhouette would have had to be drawn twice. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <group android:pivotX="54.0" android:pivotY="54.0" android:rotation="0">
+        <path android:pathData="M48.114,36.911 a5.886,12.911 0 1,0 11.772,0 a5.886,12.911 0 1,0 -11.772,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="2.2" android:strokeAlpha="0.88" />
+    </group>
+    <group android:pivotX="54.0" android:pivotY="54.0" android:rotation="45">
+        <path android:pathData="M48.114,36.911 a5.886,12.911 0 1,0 11.772,0 a5.886,12.911 0 1,0 -11.772,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="2.2" android:strokeAlpha="0.88" />
+    </group>
+    <group android:pivotX="54.0" android:pivotY="54.0" android:rotation="90">
+        <path android:pathData="M48.114,36.911 a5.886,12.911 0 1,0 11.772,0 a5.886,12.911 0 1,0 -11.772,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="2.2" android:strokeAlpha="0.88" />
+    </group>
+    <group android:pivotX="54.0" android:pivotY="54.0" android:rotation="135">
+        <path android:pathData="M48.114,36.911 a5.886,12.911 0 1,0 11.772,0 a5.886,12.911 0 1,0 -11.772,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="2.2" android:strokeAlpha="0.88" />
+    </group>
+    <group android:pivotX="54.0" android:pivotY="54.0" android:rotation="180">
+        <path android:pathData="M48.114,36.911 a5.886,12.911 0 1,0 11.772,0 a5.886,12.911 0 1,0 -11.772,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="2.2" android:strokeAlpha="0.88" />
+    </group>
+    <group android:pivotX="54.0" android:pivotY="54.0" android:rotation="225">
+        <path android:pathData="M48.114,36.911 a5.886,12.911 0 1,0 11.772,0 a5.886,12.911 0 1,0 -11.772,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="2.2" android:strokeAlpha="0.88" />
+    </group>
+    <group android:pivotX="54.0" android:pivotY="54.0" android:rotation="270">
+        <path android:pathData="M48.114,36.911 a5.886,12.911 0 1,0 11.772,0 a5.886,12.911 0 1,0 -11.772,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="2.2" android:strokeAlpha="0.88" />
+    </group>
+    <group android:pivotX="54.0" android:pivotY="54.0" android:rotation="315">
+        <path android:pathData="M48.114,36.911 a5.886,12.911 0 1,0 11.772,0 a5.886,12.911 0 1,0 -11.772,0"
+            android:strokeColor="#F7F2EA" android:strokeWidth="2.2" android:strokeAlpha="0.88" />
+    </group>
+    <path android:pathData="M50.810,54.000 a3.190,3.190 0 1,0 6.380,0 a3.190,3.190 0 1,0 -6.380,0"
+        android:strokeColor="#F7F2EA" android:strokeWidth="2.2" android:strokeAlpha="0.88" />
+</vector>

@@ -1,0 +1,22 @@
+{
+  "name": "remotion-lotus-hero",
+  "private": true,
+  "description": "Marketing video for apps/web — the two-surface explainer. See README.",
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render LotusDemo out/lotus-demo.mp4",
+    "still": "remotion still LotusDemo out/hero.png --frame=735",
+    "render:preview": "remotion render LotusDemo out/lotus-demo-preview.mp4 --scale=0.5"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.471",
+    "@remotion/google-fonts": "4.0.471",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.471"
+  },
+  "devDependencies": {
+    "@types/react": "^19",
+    "typescript": "^5"
+  }
+}

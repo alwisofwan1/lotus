@@ -1,0 +1,13 @@
+{
+  "type": "conversation",
+  "paneId": "p-1",
+  "agentType": "claude",
+  "update": {
+    "kind": "text",
+    "turnId": "t-9f2a1c",
+    "partId": "t-9f2a1c-text",
+    "delta": " shim now.",
+    "seq": 5
+  },
+  "cursor": 3
+}

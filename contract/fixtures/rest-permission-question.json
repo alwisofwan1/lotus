@@ -1,0 +1,39 @@
+{
+  "paneId": "p-1",
+  "awaiting": true,
+  "question": [
+    {
+      "question": "Tabs or spaces?",
+      "header": "Indentation",
+      "options": [
+        {
+          "key": "1",
+          "label": "Spaces",
+          "description": "Indent with spaces."
+        },
+        {
+          "key": "2",
+          "label": "Tabs",
+          "description": "Indent with tab characters."
+        }
+      ]
+    }
+  ],
+  "prompt": {
+    "question": "Tabs or spaces?",
+    "ask": "question",
+    "options": [
+      {
+        "key": "1",
+        "label": "Spaces",
+        "selected": false
+      },
+      {
+        "key": "2",
+        "label": "Tabs",
+        "selected": false
+      }
+    ]
+  },
+  "readback": "Tabs or spaces? 1 Spaces, 2 Tabs"
+}

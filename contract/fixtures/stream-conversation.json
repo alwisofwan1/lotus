@@ -1,0 +1,36 @@
+{
+  "type": "conversation",
+  "paneId": "p-1",
+  "agentType": "claude",
+  "update": {
+    "kind": "part",
+    "turnId": "t-9f2a1c",
+    "part": {
+      "id": "b41c07d2",
+      "ts": 1785664800000,
+      "seq": 3,
+      "provenance": "hook",
+      "type": "tool_call",
+      "toolCallId": "b41c07d2",
+      "toolName": "Bash",
+      "title": "rm src/legacy/shim.ts",
+      "kind": "execute",
+      "status": "completed",
+      "locations": [
+        {
+          "path": "src/legacy/shim.ts"
+        }
+      ],
+      "diff": {
+        "files": [
+          {
+            "path": "src/legacy/shim.ts",
+            "op": "modify",
+            "deletions": 34
+          }
+        ]
+      }
+    }
+  },
+  "cursor": 1
+}

@@ -1,0 +1,377 @@
+/* ===================================================================
+   Terminal cell — pane header system
+   -------------------------------------------------------------------
+   Production-grade header for each terminal pane in the codespace
+   workspace. Replaces the legacy `claude` + `live` chips with a quiet,
+   information-dense address bar:
+
+     • Path-line (default)   — tinted ~/ tile + ghost-and-leaf
+                               breadcrumb trail with `›` separators.
+     • Title-line (agents)   — auto-generated conversation title text
+                               + workspace slug, swapped in once Claude
+                               has summarised turn 1.
+     • Status dot            — single mode-switching pulse fusing
+                               runtime activity (live/starting/exited)
+                               with title lifecycle (generating/idle/
+                               failed). One indicator, six states.
+     • Manual trigger pill   — `[title]` / `[retry title]`. Visible
+                               on hover only; mostly invisible once
+                               the auto-trigger lands in slice 3.
+
+   All tokens are theme-aware via `color-mix(in oklab, …)` against
+   `--fg`, `--accent`, `--text-muted`; status dots are the --ds-success /
+   --ds-warning / --ds-danger each theme tunes. Light-theme overrides
+   included.
+   Animations respect `prefers-reduced-motion`.
+   =================================================================== */
+
+/* ── Path line ────────────────────────────────────────────────────── */
+
+.terminal-cell-pathline {
+  gap: 6px;
+  font-feature-settings: "ss01" on, "tnum" on, "calt" off;
+}
+
+.terminal-cell-path-tile {
+  --tile-tint:  color-mix(in oklab, var(--accent) 14%, transparent);
+  --tile-edge:  color-mix(in oklab, var(--accent) 30%, transparent);
+  --tile-glyph: color-mix(in oklab, var(--accent) 65%, var(--fg) 35%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: var(--tile-tint);
+  box-shadow: inset 0 0 0 0.5px var(--tile-edge);
+  color: var(--tile-glyph);
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  user-select: none;
+  transition: background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+}
+
+.terminal-cell-path-tile[data-tile-kind="root"] {
+  --tile-tint:  color-mix(in oklab, var(--text-muted) 12%, transparent);
+  --tile-edge:  color-mix(in oklab, var(--text-muted) 26%, transparent);
+  --tile-glyph: color-mix(in oklab, var(--fg) 65%, transparent);
+}
+
+.terminal-pane-focused .terminal-cell-path-tile {
+  --tile-tint: color-mix(in oklab, var(--accent) 22%, transparent);
+  --tile-edge: color-mix(in oklab, var(--accent) 44%, transparent);
+}
+
+.terminal-cell-path-trail {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.terminal-cell-path-segment {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.terminal-cell-path-segment .terminal-cell-path-text {
+  display: inline-block;
+  max-width: 16ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: color-mix(in oklab, var(--fg) 40%, transparent);
+  letter-spacing: 0.005em;
+  transition: color 200ms ease, max-width 200ms ease;
+}
+
+.terminal-cell-path-segment.is-leaf {
+  flex-shrink: 0;
+}
+
+.terminal-cell-path-segment.is-leaf .terminal-cell-path-text {
+  color: color-mix(in oklab, var(--fg) 88%, transparent);
+  max-width: 36ch;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.terminal-pane-focused .terminal-cell-path-segment.is-leaf .terminal-cell-path-text {
+  color: var(--fg);
+}
+
+.terminal-cell-path-segment.is-ellipsis .terminal-cell-path-text {
+  color: color-mix(in oklab, var(--fg) 26%, transparent);
+  letter-spacing: 0.12em;
+}
+
+.terminal-cell-path-segment.is-bare {
+  margin-left: 0;
+}
+
+.terminal-cell-path-sep {
+  display: inline-block;
+  margin: 0 5px;
+  color: color-mix(in oklab, var(--fg) 22%, transparent);
+  font-weight: 300;
+  font-size: 11px;
+  line-height: 1;
+  user-select: none;
+}
+
+[data-theme-type="light"] .terminal-cell-path-segment .terminal-cell-path-text {
+  color: color-mix(in oklab, var(--fg) 50%, transparent);
+}
+
+[data-theme-type="light"] .terminal-cell-path-segment.is-leaf .terminal-cell-path-text {
+  color: color-mix(in oklab, var(--fg) 92%, transparent);
+}
+
+[data-theme-type="light"] .terminal-cell-path-sep {
+  color: color-mix(in oklab, var(--fg) 28%, transparent);
+}
+
+/* ── Status dot ───────────────────────────────────────────────────── */
+
+.terminal-cell-status-dot {
+  --dot-color: color-mix(in oklab, var(--fg) 35%, transparent);
+  position: relative;
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  margin: 0 6px 0 0;
+  border-radius: 999px;
+  background: var(--dot-color);
+  box-shadow: 0 0 0 0 color-mix(in oklab, var(--dot-color) 60%, transparent);
+  transition: background 200ms ease, box-shadow 200ms ease, opacity 200ms ease;
+}
+
+/* Static on purpose. "live" is the resting state of every running agent pane, so a pulse here ran
+   for every pane, for hours, and — animating box-shadow — repainted each one every frame. */
+.terminal-cell-status-dot.is-live {
+  --dot-color: var(--ds-success);
+}
+
+.terminal-cell-status-dot.is-starting {
+  --dot-color: var(--ds-warning);
+}
+
+.terminal-cell-status-dot.is-starting::after {
+  animation: terminal-cell-status-dot-pulse 1.1s ease-in-out infinite;
+}
+
+.terminal-cell-status-dot.is-generating {
+  --dot-color: var(--ds-warning);
+}
+
+.terminal-cell-status-dot.is-generating::after {
+  animation: terminal-cell-status-dot-pulse 0.8s ease-in-out infinite;
+}
+
+.terminal-cell-status-dot.is-idle {
+  --dot-color: color-mix(in oklab, var(--fg) 38%, transparent);
+}
+
+.terminal-cell-status-dot.is-exited {
+  --dot-color: color-mix(in oklab, var(--fg) 22%, transparent);
+  opacity: 0.7;
+}
+
+/* The pulse is a ring on ::after that only scales and fades — transform and opacity stay on the
+   compositor. Animating the dot's own box-shadow repainted it every frame. */
+.terminal-cell-status-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--dot-color);
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes terminal-cell-status-dot-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.55;
+  }
+  100% {
+    transform: scale(2.33);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-cell-status-dot {
+    opacity: 0.9;
+  }
+
+  .terminal-cell-status-dot::after {
+    animation: none;
+  }
+}
+
+/* ── Conversation title text ─────────────────────────────────────── */
+
+.terminal-cell-title-text {
+  display: inline-block;
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-feature-settings: "ss01" on, "tnum" on, "calt" off;
+  font-size: 10.5px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  color: color-mix(in oklab, var(--fg) 88%, transparent);
+  text-align: left;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 200ms ease, opacity 200ms ease;
+}
+
+.terminal-cell-title-text:hover {
+  color: var(--fg);
+}
+
+.terminal-pane-focused .terminal-cell-title-text {
+  color: var(--fg);
+}
+
+[data-theme-type="light"] .terminal-cell-title-text {
+  color: color-mix(in oklab, var(--fg) 90%, transparent);
+}
+
+/* ── Title skeleton (loading shimmer) ─────────────────────────────── */
+
+.terminal-cell-title-skeleton {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 140px;
+  height: 9px;
+  border-radius: 3px;
+  background: linear-gradient(
+    90deg,
+    color-mix(in oklab, var(--fg) 8%, transparent) 0%,
+    color-mix(in oklab, var(--fg) 18%, transparent) 50%,
+    color-mix(in oklab, var(--fg) 8%, transparent) 100%
+  );
+  background-size: 200% 100%;
+  animation: terminal-cell-title-skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes terminal-cell-title-skeleton {
+  0%   { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .terminal-cell-title-skeleton {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* ── Workspace slug (right-side identity) ─────────────────────────── */
+
+.terminal-cell-workspace-slug {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding-left: 8px;
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-feature-settings: "ss01" on;
+  font-size: 9.5px;
+  line-height: 1;
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0.02em;
+  color: color-mix(in oklab, var(--fg) 32%, transparent);
+  user-select: none;
+  white-space: nowrap;
+  max-width: 22ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+}
+
+.terminal-cell-workspace-slug::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 2px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--fg) 28%, transparent);
+}
+
+.terminal-pane-focused .terminal-cell-workspace-slug {
+  color: color-mix(in oklab, var(--fg) 50%, transparent);
+}
+
+[data-theme-type="light"] .terminal-cell-workspace-slug {
+  color: color-mix(in oklab, var(--fg) 42%, transparent);
+}
+
+/* ── Manual title-trigger pill ────────────────────────────────────── */
+
+.terminal-cell-title-trigger {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: 8px;
+  padding: 1px 6px;
+  border: none;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--accent) 12%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--accent) 24%, transparent);
+  color: color-mix(in oklab, var(--accent) 65%, var(--fg) 35%);
+  font-family: var(--font-geist-mono, ui-monospace, monospace);
+  font-feature-settings: "ss01" on;
+  font-size: 9px;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 180ms ease, background 180ms ease, box-shadow 180ms ease, color 180ms ease;
+}
+
+.terminal-pane-header:hover .terminal-cell-title-trigger,
+.terminal-pane-focused .terminal-cell-title-trigger {
+  opacity: 0.85;
+}
+
+.terminal-cell-title-trigger:hover {
+  opacity: 1;
+  background: color-mix(in oklab, var(--accent) 22%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--accent) 42%, transparent);
+  color: color-mix(in oklab, var(--accent) 75%, var(--fg) 25%);
+}
+
+.terminal-cell-title-trigger[data-state="failed"] {
+  background: color-mix(in oklab, var(--ds-danger) 14%, transparent);
+  box-shadow: inset 0 0 0 0.5px color-mix(in oklab, var(--ds-danger) 30%, transparent);
+  color: color-mix(in oklab, var(--ds-danger) 70%, var(--fg) 30%);
+}

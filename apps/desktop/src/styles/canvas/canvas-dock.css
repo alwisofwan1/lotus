@@ -1,0 +1,190 @@
+/* The Canvas Dock (plans/canvas-dock/, revised 2026-10-16; .pen section 17).
+   One panel on the right, its App Rail on the OUTER right edge — the mirror of the Tool Rail on
+   the left — Close on top of the rail. Text stays left-to-right; this is not dir="rtl".
+   Widths: 452 (column 400 + rail 52); ⌘\ grows it leftward to fill the window, 16px off each
+   edge. The rail never moves. */
+.canvas-dock {
+  --canvas-dock-rail: 52px;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  /* Above the docked command bar and the corner controls. */
+  bottom: 84px;
+  z-index: 34;
+  display: flex;
+  width: 452px;
+  max-width: calc(100% - 32px);
+  overflow: hidden;
+  /* Opaque on every theme (.pen section 19, option A). It was the chrome glass — 72% plus a blur —
+     and the hosted apps paint 4-6% tints, so the wallpaper and the list showed through a popup.
+     Each ground is the theme's opaque floor with the raised surface's colour laid over it; the
+     rgb(from …) strips that surface's own alpha, so no theme can make these see-through.
+     sunk = rail and sidebars, ground = the Dock and its lists, raised = popups and menus. */
+  --dock-tint: rgb(from var(--canvas-surface-r, rgba(28, 25, 22, 0.86)) r g b / 1);
+  --dock-ground: color-mix(in oklab, var(--dock-tint) 82%, var(--node-floor-solid, #16151d));
+  --dock-sunk: color-mix(in oklab, var(--dock-tint) 41%, var(--node-floor-solid, #16151d));
+  --dock-raised: color-mix(in oklab, #ffffff 5%, var(--dock-ground));
+  --dock-scrim: color-mix(in oklab, var(--node-floor-solid, #16151d) 72%, transparent);
+  background: var(--dock-ground);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: 1px solid var(--cc-chrome-border, rgba(255, 255, 255, 0.09));
+  border-radius: var(--cc-chrome-radius, 13px);
+  box-shadow: var(--cc-chrome-shadow, 0 14px 34px -10px rgb(0 0 0 / 0.3));
+  animation: canvas-dock-in var(--canvas-motion-overlay, 220ms) var(--canvas-ease-out-expo, ease-out);
+  transition:
+    width var(--canvas-motion-move, 320ms) var(--canvas-ease-out-expo, ease-out),
+    top var(--canvas-motion-move, 320ms) var(--canvas-ease-out-expo, ease-out);
+}
+/* Widened, the Dock reaches the left edge, where macOS draws the window buttons (zone bottom ≈ 33px).
+   It starts below them with a clean gap: 50px, the canvas's CANVAS_TITLEBAR_SAFE_TOP. */
+.canvas-dock[data-wide] { width: calc(100% - 32px); top: 50px; }
+@keyframes canvas-dock-in {
+  from { opacity: 0; transform: translateX(12px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* The hosted surface owns its own layout; .ws-shell gives it the shell's tokens and a flex column. */
+/* (0,2,0) so these beat .ws-shell's own token block, which sits on the same element. */
+.ws-shell.canvas-dock-body {
+  /* The app tokens are tints and glass over the canvas (theme.css); in the Dock they are grounds.
+     --bg carries the list card and its sticky bands, so on the ground they finally hide what
+     scrolls under them. Ink on a --fg fill keeps its own token (--rs-on-fg, below). */
+  --bg: var(--dock-ground);
+  --bg-elevated: var(--dock-raised);
+  --ws-surface-raised: var(--dock-raised);
+  --ws-surface-float: var(--dock-raised);
+}
+.canvas-dock-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  /* --bg here is a 6% tint, and --canvas-bg / --bg-elevated can be glass too, so neither is a
+     ground. --node-floor-solid is the resolver's opaque per-theme page (the command sheet's recipe):
+     - menus and the overlay pane sit on it, with the theme's raised surface laid over as a tint;
+     - ink on a --fg fill (a primary button, a switch's thumb) takes it instead of --bg. */
+  --au-float-ground: var(--node-floor-solid, #16151d);
+  --au-float-tint: linear-gradient(var(--canvas-surface-r, rgba(28, 25, 22, 0.86)), var(--canvas-surface-r, rgba(28, 25, 22, 0.86)));
+  --rs-on-fg: var(--node-floor-solid, #16151d);
+}
+
+/* Fleet in the Dock: the focus rail's rows and needs-you lane, on the Dock's ground instead of their own glass. */
+.canvas-dock-fleet {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  color: var(--canvas-text, #f7f2ea);
+}
+/* Code in the Dock (plans/canvas-code/ S2). The workbench derives its panel tokens from --bg-card
+   and --bg-sidebar (globals.css .codespace-panel-surface), which on the canvas are a 4% tint and
+   glass (theme.css). So the ⌘P palette drew see-through over the code, and the selection popover's
+   rgb(from var(--bg-card) … / 0.97) kept the tint's colour — the canvas ink — at 97%: a white bar.
+   (0,2,0) beats .codespace-panel-surface on the same element; var() resolves there. */
+.canvas-dock .canvas-dock-code {
+  --bg: var(--dock-ground);
+  --bg-card: var(--dock-raised);
+  --bg-sidebar: var(--dock-ground);
+  --bg-hover: color-mix(in oklab, var(--canvas-text, #fff) 7%, var(--dock-ground));
+  --codespace-panel-surface: var(--dock-ground);
+  --codespace-panel-surface-raised: var(--dock-raised);
+  background: var(--dock-ground);
+}
+/* The sidebar is sunk, like Tasks' nav; the editor column stays on the ground. */
+.canvas-dock .canvas-dock-code-side { background: var(--dock-sunk); }
+
+/* Factory (S3) and Tasks (S4) in the Dock: the hosted surface fills the body, as Automation does. */
+.canvas-dock-factory,
+.canvas-dock-tasks {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+.canvas-dock-factory > *,
+.canvas-dock-tasks > * { flex: 1 1 auto; min-height: 0; }
+.canvas-dock-empty { margin: 24px 20px; color: color-mix(in oklab, var(--canvas-text, #f7f2ea) 60%, transparent); }
+.canvas-dock-fleet .canvas-needs-you {
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--canvas-border, rgba(255, 255, 255, 0.08));
+}
+
+.canvas-dock-rail {
+  flex: 0 0 var(--canvas-dock-rail);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 8px 0;
+  background: var(--dock-sunk);
+  border-left: 1px solid var(--cc-chrome-border, rgba(255, 255, 255, 0.09));
+}
+
+/* Tasks in the Dock: the sidebar is sunk; a popup is a raised card over a scrim, so the rows under
+   it go quiet instead of reading through it (the New task overlap, 2026-10-19). */
+.canvas-dock .tk-nav { background: var(--dock-sunk); }
+/* Tasks' own fields are wells painted with --bg, which is the ground here, so on the list they
+   would vanish into it. Sunk keeps them a step darker on the ground and on a raised card alike.
+   (Automation and Factory fields carry their own tint or none, so they are untouched.) */
+.canvas-dock :is(.tk-input, .tk-vault-field, .tk-pick-trigger, .tk-seg) { background: var(--dock-sunk); }
+.canvas-dock .tk-modal-backdrop { background: var(--dock-scrim); }
+.canvas-dock .tk-modal {
+  background: var(--dock-raised);
+  border-color: var(--cc-chrome-border-hi, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.7);
+}
+/* Factory's New run sheet, the same way: its card was --ws-surface, which is the 4% --bg-card tint
+   here, so the Runs tabs and rows read through the title and the ticket list (2026-10-20). */
+.canvas-dock .fa-modal-backdrop { background: var(--dock-scrim); }
+.canvas-dock .fa-modal {
+  background: var(--dock-raised);
+  border-color: var(--cc-chrome-border-hi, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.7);
+}
+.canvas-dock .fa-issue-list { background: var(--dock-sunk); }
+.canvas-dock-rail-spacer { flex: 1 1 auto; }
+.canvas-dock-rail-div { width: 18px; height: 1px; margin: 4px 0; background: var(--cc-chrome-border, rgba(255, 255, 255, 0.10)); }
+.canvas-dock-rail-btn {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: var(--cc-chrome-radius-sm, 8px);
+  background: transparent;
+  color: var(--cc-chrome-ink-muted, #97939f);
+  cursor: pointer;
+  transition: background var(--canvas-motion-fast, 130ms) var(--canvas-ease-out), color var(--canvas-motion-fast, 130ms) var(--canvas-ease-out);
+}
+.canvas-dock-rail-btn:hover { background: var(--cc-chrome-fill, color-mix(in srgb, var(--canvas-text, #fff) 8%, transparent)); color: var(--cc-chrome-ink, #eae8f0); }
+.canvas-dock-rail-btn:focus-visible { outline: 2px solid var(--canvas-accent, #e8663d); outline-offset: 1px; }
+/* Same pressed tile as the Tool Rail: a soft raised fill, never a loud pill. */
+.canvas-dock-rail-btn[aria-pressed="true"] {
+  background: var(--cc-chrome-fill-on, color-mix(in srgb, var(--canvas-text, #fff) 13%, transparent));
+  color: var(--cc-chrome-ink, #fff);
+  box-shadow: inset 0 0 0 1px var(--cc-chrome-border-hi, color-mix(in srgb, var(--canvas-text, #fff) 12%, transparent));
+}
+
+/* The count badge — violet is the attention colour and nothing else (agent-node-graph.css). */
+.canvas-cc-dock { position: relative; }
+.canvas-dock-badge {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  min-width: 15px;
+  height: 15px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: oklch(0.78 0.16 295);
+  color: oklch(0.2 0.03 295);
+  font: 600 9.5px/15px var(--font-sans, ui-sans-serif, system-ui, sans-serif);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-dock { animation: none; transition: none; }
+}

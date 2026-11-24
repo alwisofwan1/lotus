@@ -1,0 +1,30 @@
+{
+  "name": "@lotus/host",
+  "version": "0.1.0",
+  "description": "Remote control bridge for Lotus Claude Agent Teams — Telegram, Slack, and more",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node --import tsx/esm src/index.ts",
+    "build": "tsc --noEmit",
+    "build:vps": "test -f dist/lotus-sessiond-linux-x64 || { echo 'dist/lotus-sessiond-linux-x64 is missing: run apps/desktop/scripts/build-sessiond-linux.sh (or bun run host:build:vps from the repo root)' >&2; exit 1; }; bun build src/index.ts dist/lotus-sessiond-linux-x64 --compile --target=bun-linux-x64 --define LOTUS_BUILD_ID=\"\\\"$(git describe --always --dirty --tags 2>/dev/null || git rev-parse --short HEAD)-$(git log -1 --format=%cs)\\\"\" --outfile=dist/lotus-remote-bin-linux-x64",
+    "build:bundle": "bun build src/index.ts --target=node --define LOTUS_BUILD_ID=\"\\\"$(git describe --always --dirty --tags 2>/dev/null || git rev-parse --short HEAD)-$(git log -1 --format=%cs)\\\"\" --outfile=dist/lotus-remote.mjs --format=esm --minify --external=node-pty && bun build src/index.ts --target=node --compile --define LOTUS_BUILD_ID=\"\\\"$(git describe --always --dirty --tags 2>/dev/null || git rev-parse --short HEAD)-$(git log -1 --format=%cs)\\\"\" --outfile=dist/lotus-remote-bin --external=node-pty",
+    "postinstall": "chmod +x node_modules/node-pty/prebuilds/*/spawn-helper 2>/dev/null; exit 0",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "node-pty": "^1.1.0",
+    "ws": "^8.21.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}

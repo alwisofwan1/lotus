@@ -1,0 +1,10 @@
+/* Self-hosted whiteboard fonts (Excalidraw parity, offline-safe — no CDN at runtime).
+   Excalifont is Excalidraw's official hand-drawn face (OFL-1.1), bundled from public/fonts.
+   Nunito / Lilita One / Comic Mono are imported as @fontsource packages in app/layout.tsx. */
+@font-face {
+  font-family: "Excalifont";
+  src: url("/fonts/Excalifont-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}

@@ -1,0 +1,261 @@
+/* CodeCanvas node semantic-zoom (glyph/overview LOD), attachments, intake notice, and shared header/body chrome. Split from node-shell.css (≤600-line policy). */
+
+/* ── Semantic zoom: glyph and overview tiers ────────────────────────────────
+   When zoomed out far enough the whole node collapses to a solid status block.
+   The glass chrome is dropped so the block reads cleanly at a distance. */
+.canvas-node--glyph {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.canvas-node--glyph::before,
+.canvas-node--glyph::after { display: none; }
+
+.canvas-node--overview .canvas-node-handle {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.canvas-node--overview .canvas-node-glyph-cover {
+  background: transparent;
+}
+
+.canvas-node-glyph {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--canvas-node-radius);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: canvas-glyph-in 140ms ease-out;
+}
+@keyframes canvas-glyph-in {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.canvas-node-glyph-initials {
+  font-family: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
+  font-weight: 700;
+  font-size: 2.1rem;
+  letter-spacing: 0.06em;
+  color:color-mix(in oklab, var(--canvas-text) 88%, transparent);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  user-select: none;
+}
+
+/* Tones mirror the live agent status palette (running=green, connecting=amber …). */
+.canvas-node-glyph--active  { background: linear-gradient(160deg, #34d399, #059669); box-shadow: 0 0 22px rgba(52, 211, 153, 0.4); }
+.canvas-node-glyph--pending { background: linear-gradient(160deg, #fbbf24, #d97706); box-shadow: 0 0 20px rgba(251, 191, 36, 0.38); }
+.canvas-node-glyph--done    { background: linear-gradient(160deg, #60a5fa, #2563eb); box-shadow: 0 0 20px rgba(96, 165, 250, 0.38); }
+.canvas-node-glyph--error   { background: linear-gradient(160deg, #f87171, #dc2626); box-shadow: 0 0 20px rgba(248, 113, 113, 0.38); }
+.canvas-node-glyph--idle    { background: linear-gradient(160deg, #475569, #334155); }
+.canvas-node-glyph--neutral { background: linear-gradient(160deg, #64748b, #475569); }
+
+.canvas-node--overview .canvas-node-glyph {
+  border-color: color-mix(in oklab, var(--node-accent) 38%, transparent);
+  box-shadow: none;
+}
+.canvas-node--overview .canvas-node-glyph-initials {
+  font-size: 1.45rem;
+  opacity: 0.76;
+}
+.canvas-node--overview.canvas-browser-node .canvas-node-glyph {
+  background: linear-gradient(160deg, #dbeafe, #93c5fd);
+}
+.canvas-node--overview.canvas-terminal-node .canvas-node-glyph {
+  background: linear-gradient(160deg, color-mix(in oklab, var(--node-accent) 52%, #111827), #111827);
+}
+.canvas-node--overview.canvas-task-node .canvas-node-glyph,
+.canvas-node--overview.canvas-plan-node .canvas-node-glyph {
+  background: linear-gradient(160deg, color-mix(in oklab, var(--node-accent) 55%, #334155), #334155);
+}
+
+/* Canvas Attachment strip — held image attachments on a Note/Agent node. */
+.canvas-attachment-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  padding: 0.4rem 0.5rem 0.5rem;
+}
+.canvas-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  max-width: 12rem;
+  padding: 0.18rem 0.34rem;
+  border-radius: 0.4rem;
+  font-size: 0.6rem;
+  color:color-mix(in oklab, var(--canvas-text) 78%, transparent);
+  background: rgba(96, 165, 250, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.22);
+}
+.canvas-attachment-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-attachment-remove {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  color:color-mix(in oklab, var(--canvas-text) 50%, transparent);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+.canvas-attachment-remove:hover { color:color-mix(in oklab, var(--canvas-text) 90%, transparent); }
+
+/* Canvas Intake notice — transient toast for rejected/captured drops & pastes. Anchored
+   TOP-center just below the top bar (the bottom is owned by the NL command bar, which used to
+   cover it). Ultra-minimalist: a hairline pill with a single accent dot; click to dismiss. */
+.canvas-intake-notice {
+  position: absolute;
+  top: 3.6rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  max-width: min(30rem, 66vw);
+  padding: 0.42rem 0.72rem 0.42rem 0.62rem;
+  border-radius: 0.65rem;
+  font-size: var(--ds-t-meta);
+  line-height: 1.4;
+  color:color-mix(in oklab, var(--canvas-text) 90%, transparent);
+  background: rgba(16, 13, 21, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 6px 22px -6px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  cursor: pointer;
+  animation: canvas-intake-notice-in 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+/* A quiet coral status dot — matches the canvas accent, signals "something happened". */
+.canvas-intake-notice::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--canvas-accent, #e8663d);
+  box-shadow: 0 0 8px -1px var(--canvas-accent, #e8663d);
+}
+.canvas-intake-notice:hover { border-color:color-mix(in oklab, var(--canvas-text) 18%, transparent); }
+@keyframes canvas-intake-notice-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-intake-notice { animation: none; }
+}
+
+/* Terminal keeps its xterm host mounted (runtime pauses rendering) and covers it
+   with the glyph — so the session is never orphaned by a zoom-threshold crossing. */
+.canvas-node-glyph-cover {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  border-radius: var(--canvas-node-radius);
+  overflow: hidden;
+}
+
+/* The active block gently breathes so live agents stand out at overview zoom. */
+.canvas-node-glyph--active::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: canvas-glyph-pulse 1.8s ease-in-out infinite;
+}
+@keyframes canvas-glyph-pulse {
+  0%, 100% { box-shadow: inset 0 0 18px 2px rgba(52, 211, 153, 0.25); }
+  50% { box-shadow: inset 0 0 30px 6px rgba(52, 211, 153, 0.5); }
+}
+
+.canvas-node-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--canvas-header-h);
+  padding: 0 0.625rem;
+  background: transparent;
+  border-bottom: 1px solid var(--canvas-border, rgba(255,255,255,0.08));
+  flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  position: relative;
+  z-index: 1;
+}
+
+.canvas-node-header:active { cursor: grabbing; }
+
+.canvas-node-header-label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--canvas-text-muted);
+  letter-spacing: 0.02em;
+}
+
+.canvas-node-header-label svg {
+  width: 0.875rem;
+  height: 0.875rem;
+  flex-shrink: 0;
+}
+
+.canvas-node-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 9999px;
+  border: none;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+  padding: 0;
+}
+
+.canvas-node-close:hover,
+.canvas-node-close:focus-visible {
+  background: rgba(255,255,255,0.08);
+  color: var(--canvas-text);
+  outline: none;
+  box-shadow: 0 0 0 1px var(--canvas-focus-ring);
+}
+
+/* Header action cluster — keeps Focus + Close snug together at the right edge of a
+   space-between header instead of the two spreading apart. */
+.canvas-node-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
+/* Focus action reuses the close button's shape; quiet violet hover (never the close red). */
+.canvas-node-focus:hover,
+.canvas-node-focus:focus-visible {
+  background: rgba(139, 124, 246, 0.16);
+  color: #c4b5fd;
+  box-shadow: none;
+}
+
+.canvas-node-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}

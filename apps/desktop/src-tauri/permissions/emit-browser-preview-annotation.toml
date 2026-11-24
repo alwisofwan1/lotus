@@ -1,0 +1,5 @@
+[[permission]]
+identifier = "allow-browser-preview-emit-annotation"
+description = "Allows the embedded browser preview to emit selected annotation metadata."
+commands.allow = ["browser_preview_emit_annotation"]
+

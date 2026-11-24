@@ -1,0 +1,29 @@
+/* NL command delivery — a single full-viewport <canvas> paints the comet dispatch effect (launch
+   charge → arced comet whose tail follows its head → caret-anchored impact → node ack border). All
+   motion, colour and geometry live in the canvas driver + dispatch-comet.ts; the CSS only positions
+   the canvas and pins the live-agent landing anchor. */
+.canvas-command-delivery-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 96;
+  display: block;
+  pointer-events: none;
+}
+
+/* The live-agent anchor: repositioned by LiveAgentNode to the live xterm cursor row (the real prompt),
+   not the node's bottom edge — a TUI status footer sits below the prompt. `top`/`height` are set at
+   runtime from the cursor; the canvas overlay re-measures this element every frame so the landing
+   tracks the prompt through typing, resize, scroll, collapse, auto-arrange and LOD. */
+.canvas-node-body--delivery-anchored {
+  position: relative;
+}
+
+.canvas-live-agent-delivery-target {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 1.4rem;
+  pointer-events: none;
+  opacity: 0;
+}

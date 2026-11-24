@@ -1,0 +1,29 @@
+{
+  "type": "hello",
+  "hostId": "vps",
+  "hostLabel": "VPS",
+  "mode": "standalone",
+  "hostCaps": {
+    "protocol": 1,
+    "features": [
+      "fleet",
+      "dispatch",
+      "input",
+      "stop",
+      "tasks",
+      "stream",
+      "device-refresh",
+      "device-renew",
+      "result",
+      "spawn",
+      "close",
+      "spawn-tuning",
+      "permission",
+      "transcript",
+      "conversation",
+      "conversation-stream",
+      "projects-create",
+      "projects-browse"
+    ]
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "paneId": "p-9",
+  "cwd": null,
+  "closing": {
+    "text": "I removed the shim and updated the three call sites. The last one",
+    "truncated": true,
+    "at": 1785664802000
+  },
+  "changes": null,
+  "reason": "no_cwd"
+}

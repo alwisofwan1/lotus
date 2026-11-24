@@ -1,0 +1,21 @@
+[package]
+name = "lotus-pty"
+version = "0.1.0"
+edition = "2021"
+description = "PTY session engine for Lotus: spawn, output pipeline, ring, screen, process tree. Must not depend on tauri: the session daemon (ADR-0067) links it as is."
+publish = false
+
+[dependencies]
+portable-pty = "0.8"
+vt100 = "0.16"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["sync"] }
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+] }

@@ -1,0 +1,695 @@
+/*
+  Factory — the tones and the few shapes the Factory module adds on top of the shell and the
+  resource kit. The hex values are the canvas STATUS_TONES (running / blocked / completed /
+  error), copied here because the canvas defines them only inside its own scope and the sidebar
+  sits outside it. Change them there and here together.
+*/
+:root {
+  --factory-working: #34d399;
+  --factory-needs-you: #fb923c;
+  --factory-ready: #60a5fa;
+  --factory-failing: #f87171;
+  --factory-stopped: var(--text-muted);
+}
+
+/* The sidebar badge: orange, because it is the one count that asks for you. */
+.ws-rail-count[data-tone="needs-you"] {
+  background: color-mix(in oklab, var(--factory-needs-you) 18%, transparent);
+  color: var(--factory-needs-you);
+}
+
+/* A run's state as one dot: the colour is the whole message. */
+.fa-glyph {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--factory-stopped);
+}
+.fa-glyph[data-group="working"] {
+  background: var(--factory-working);
+  animation: fa-breathe 2.4s ease-in-out infinite;
+}
+.fa-glyph[data-group="needs-you"] { background: var(--factory-needs-you); }
+.fa-glyph[data-group="ready"] { background: var(--factory-ready); }
+
+@keyframes fa-breathe {
+  50% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fa-glyph[data-group="working"] { animation: none; }
+}
+
+.fa-group-label {
+  margin: 18px 0 6px;
+  font-size: var(--ds-t-micro);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.fa-group-label[data-group="needs-you"] { color: var(--factory-needs-you); }
+.fa-time { font-variant-numeric: tabular-nums; }
+
+/* The page's frame, like the other resource surfaces: a bordered column that fades in over the work area. */
+.fa-column {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+  background: var(--bg);
+}
+.ws-column-overlay > .fa-body { animation: fa-surface-in 200ms var(--ws-ease); }
+@keyframes fa-surface-in {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-column-overlay > .fa-body { animation: none; }
+}
+
+/* The detail pane. */
+.fa-detail { display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
+.fa-detail > .rs-dhead, .fa-detail > .rs-section { align-self: stretch; }
+/* The stage strip at full size, labelled (round 5). */
+.fa-detail-strip { align-self: stretch; }
+.fa-detail-strip .fa-bar { margin: 0; }
+/* Build and check repeat per try: one 16px tile per allowed try, under the strip. */
+.fa-tries { display: flex; align-items: center; gap: 10px; margin: 10px 0 0; color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.fa-tries-tag { font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
+.fa-tries-cells { display: inline-flex; gap: 4px; }
+.fa-try {
+  --fa-seg-track: color-mix(in srgb, var(--fg) 5%, transparent);
+  --fa-seg-ink: color-mix(in srgb, var(--fg) 20%, transparent);
+  display: block; width: 16px; height: 16px; overflow: hidden;
+}
+.fa-try[data-status="done"] { --fa-seg-track: var(--factory-ready); --fa-seg-ink: rgb(255 255 255 / 0.22); }
+.fa-try[data-status="active"] { --fa-seg-ink: var(--factory-working); }
+.fa-try[data-status="needs-you"] { --fa-seg-track: color-mix(in srgb, var(--factory-needs-you) 16%, transparent); --fa-seg-ink: var(--factory-needs-you); }
+.fa-try[data-status="failed"] { --fa-seg-track: color-mix(in srgb, var(--factory-failing) 16%, transparent); --fa-seg-ink: var(--factory-failing); }
+.fa-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  cursor: pointer;
+}
+.fa-link:hover { color: var(--fg); text-decoration: underline; }
+.fa-status { color: var(--text-secondary); }
+.fa-status[data-group="working"] { color: var(--factory-working); }
+.fa-status[data-group="needs-you"] { color: var(--factory-needs-you); }
+.fa-status[data-group="ready"] { color: var(--factory-ready); }
+.fa-sentence { margin: 0; color: var(--fg); }
+.fa-error { margin: 0; color: var(--factory-failing); font-size: var(--ds-t-small, 12px); }
+.fa-well {
+  margin: 0;
+  padding: 10px 12px;
+  max-height: 240px;
+  overflow: auto;
+  border-radius: 6px;
+  background: var(--ws-surface-quiet);
+  border-left: 2px solid var(--factory-failing);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fa-full { margin-top: 8px; }
+.fa-full > summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; }
+.fa-full > .fa-well { margin-top: 6px; max-height: 420px; border-left-color: var(--ws-line); }
+.fa-pr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--ws-line);
+  border-radius: 8px;
+  color: var(--factory-ready);
+}
+.fa-pr-name { color: var(--fg); }
+.fa-pr-state { margin-left: auto; color: var(--text-muted); font-size: 12px; }
+/* A Factory PR's Revision Runs (CoS 6), oldest first. */
+.fa-rounds { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.fa-round { display: grid; grid-template-columns: auto auto 1fr; gap: 8px; align-items: baseline; font-size: 12px; }
+.fa-round-name { color: var(--fg); }
+.fa-round-state { color: var(--text-muted); }
+.fa-round[data-tone="ok"] .fa-round-state { color: var(--factory-ready); }
+.fa-round[data-tone="bad"] .fa-round-state { color: var(--factory-needs-you); }
+.fa-round-line { color: var(--text-secondary); overflow-wrap: anywhere; }
+
+/* Runs list beside the opened run. */
+/* One bar of chrome (round 6): mark, title, the views as a segmented control, then the actions. */
+.fa-head { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; min-height: 52px; padding: 8px 10px 8px 16px; border-bottom: 1px solid var(--ws-line); }
+.fa-head-mark { --fa-seg-track: transparent; --fa-seg-ink: var(--fg); flex: none; width: 16px; height: 16px; opacity: 0.85; }
+.fa-head-title { margin: 0; color: var(--fg); font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
+.fa-head-tabs { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.fa-head-tabs .rs-tabs { padding: 3px; border: 1px solid var(--ws-line); border-radius: 9px; background: color-mix(in srgb, var(--fg) 3%, transparent); }
+.fa-head-tabs .rs-tab { height: 26px; border-radius: 7px; color: var(--text-muted); font-weight: 400; white-space: nowrap; }
+.fa-head-tabs .rs-tab:hover { color: var(--fg); }
+.fa-head-tabs .rs-tab[aria-selected="true"] { background: var(--ws-surface-raised, var(--ws-surface-quiet)); box-shadow: inset 0 0 0 1px var(--ws-line); color: var(--fg); font-weight: 500; }
+.fa-head-tabs .rs-tab-count { padding: 0 6px; border-radius: 999px; background: var(--ws-hover); font-weight: 600; line-height: 16px; }
+.fa-head-tabs .rs-tab-count[data-tone="attention"] { background: color-mix(in srgb, var(--factory-needs-you) 16%, transparent); color: var(--factory-needs-you); }
+.fa-head-gap { flex: 1 1 auto; }
+.fa-head-new { flex: none; }
+/* List | line | detail. The line is the drag target: 9px wide to grab, 1px to see, cream while held. */
+.fa-split { flex: 1 1 auto; min-height: 0; }
+.fa-split-panel { display: flex; flex-direction: column; min-width: 0; }
+.fa-split-panel > .rs-scroll { flex: 1 1 auto; min-height: 0; }
+.fa-detail-pane { padding: 16px 20px 20px; }
+.fa-resize { position: relative; flex: 0 0 9px; margin: 0 -4px; z-index: 2; cursor: col-resize; outline: none; }
+.fa-resize::before { content: ""; position: absolute; inset: 0 4px; background: var(--ws-line); transition: background 120ms var(--ws-ease), inset 120ms var(--ws-ease); }
+.fa-resize[data-separator="hover"]::before, .fa-resize[data-separator="focus"]::before { inset: 0 3px; background: color-mix(in srgb, var(--accent, var(--fg)) 55%, transparent); transition-delay: 150ms; }
+.fa-resize[data-separator="active"]::before { inset: 0 3px; background: var(--accent, var(--fg)); transition-delay: 0ms; }
+@media (prefers-reduced-motion: reduce) { .fa-resize::before { transition: none; } }
+.rs-row:has(.fa-row-title[data-open="true"]) { background: var(--ws-hover); }
+
+/* The detail meta: link · status · time · spend, each kept apart by a quiet dot. */
+.fa-meta { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; }
+.fa-meta > * + *::before { content: "·"; margin-right: 8px; color: var(--text-muted); }
+
+/* Where the run is: its stages, coloured by the canvas status tones. */
+.fa-bar { align-self: stretch; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; margin: 4px 0 10px; padding: 0; list-style: none; }
+/* Each stage is a pixel strip (round 5, "Dither steps"): the texture is the status (FactoryStageBar
+   draws it), these only colour it. --fa-seg-track is the flat fill under the texture, --fa-seg-ink
+   the texture's pixels. --fa-seg-base is the surface's text colour, so the canvas can swap it. */
+.fa-bar { --fa-seg-base: var(--fg); }
+.fa-bar-seg {
+  --fa-seg-track: color-mix(in srgb, var(--fa-seg-base) 5%, transparent);
+  --fa-seg-ink: color-mix(in srgb, var(--fa-seg-base) 20%, transparent);
+  display: flex; flex-direction: column; gap: 6px; color: var(--text-muted); font-size: 11px;
+}
+.fa-bar-seg[data-status="done"] { --fa-seg-track: var(--factory-ready); --fa-seg-ink: rgb(255 255 255 / 0.22); color: var(--text-secondary); }
+.fa-bar-seg[data-status="active"] { --fa-seg-ink: var(--factory-working); color: var(--fg); }
+.fa-bar-seg[data-status="needs-you"] { --fa-seg-track: color-mix(in srgb, var(--factory-needs-you) 16%, transparent); --fa-seg-ink: var(--factory-needs-you); color: var(--fg); }
+.fa-bar-seg[data-status="failed"] { --fa-seg-track: color-mix(in srgb, var(--factory-failing) 16%, transparent); --fa-seg-ink: var(--factory-failing); color: var(--factory-failing); }
+.fa-seg-px { position: relative; display: block; height: var(--fa-strip-h, 9px); overflow: hidden; }
+.fa-seg-svg { display: block; width: 100%; height: 100%; }
+.fa-seg-track { fill: var(--fa-seg-track); }
+.fa-seg-ink { fill: var(--fa-seg-ink); }
+/* The front is drawn twice across a double-wide SVG; sliding it half its width loops the march. In
+   whole steps, so it moves like pixels, not like a gradient. Reduced motion holds it at rest. */
+.fa-seg-svg[data-front] { width: 200%; transform: translateX(-50%); animation: fa-dither-march 2.4s steps(10) infinite; }
+@keyframes fa-dither-march {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) { .fa-seg-svg[data-front] { animation: none; } }
+.fa-steps { margin: 0; padding: 0; list-style: none; font-size: 12px; }
+.fa-steps > li { display: grid; grid-template-columns: 1fr 52px 52px 56px; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--ws-line); }
+.fa-steps > li[data-running="true"] .fa-step-name { color: var(--factory-working); }
+.fa-step-try, .fa-step-cost { color: var(--text-muted); }
+.fa-step-cost, .fa-steps .fa-time { text-align: right; font-variant-numeric: tabular-nums; }
+.fa-note { margin: 0 0 6px; color: var(--text-muted); font-size: 11px; }
+.fa-summary { margin: 0; white-space: pre-wrap; }
+
+/* Intake (FI2): the spec agent's questions, and the spec waiting for Approve. */
+.fa-intake { display: flex; flex-direction: column; gap: 14px; }
+.fa-question { margin: 0; padding: 0; border: 0; display: flex; flex-direction: column; gap: 6px; }
+.fa-question > legend { margin-bottom: 6px; padding: 0; color: var(--fg); font-weight: 500; }
+.fa-choice { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.fa-recommended {
+  padding: 0 6px;
+  border-radius: 4px;
+  background: color-mix(in oklab, var(--factory-ready) 16%, transparent);
+  color: var(--factory-ready);
+  font-size: 11px;
+}
+.fa-own { align-self: flex-start; font-size: 12px; color: var(--text-secondary); }
+.fa-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ws-line);
+  border-radius: 6px;
+  background: var(--ws-surface-quiet);
+  color: var(--fg);
+  font: inherit;
+  font-size: 12px;
+  resize: vertical;
+}
+.fa-spec-edit { font-family: var(--font-mono, ui-monospace, monospace); line-height: 1.5; }
+.fa-intake-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.fa-intake-actions .fa-note { margin: 0; }
+.fa-spec {
+  max-height: 480px;
+  overflow: auto;
+  padding: 4px 14px;
+  border: 1px solid var(--ws-line);
+  border-radius: 8px;
+  line-height: 1.55;
+}
+.fa-spec h1 { font-size: 15px; }
+.fa-spec h2 { font-size: 13px; margin-top: 16px; }
+.fa-spec h3 { font-size: 12px; color: var(--text-secondary); }
+.fa-spec ul, .fa-spec ol { padding-left: 20px; }
+.fa-brainstorm { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.fa-brainstorm .fa-note { margin: 0; }
+.fa-brainstorm .rs-button { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Triage (FI3): size, score, verdict, the nine ratings, duplicates. */
+.fa-triage { display: flex; flex-direction: column; gap: 10px; }
+.fa-triage-block {
+  padding: 8px 12px;
+  border: 1px solid color-mix(in oklab, var(--factory-needs-you) 40%, transparent);
+  border-radius: 8px;
+}
+.fa-triage-head { margin: 0 0 4px; color: var(--factory-needs-you); font-weight: 500; }
+.fa-triage-list { margin: 0; padding-left: 18px; }
+.fa-mono { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; }
+.fa-triage-facts { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; }
+.fa-triage-facts dt { color: var(--text-muted); }
+.fa-triage-facts dd { margin: 0; }
+.fa-readiness { border-collapse: collapse; font-size: 12px; }
+.fa-readiness th { padding: 2px 16px 2px 0; color: var(--text-secondary); font-weight: 400; text-align: left; }
+.fa-readiness td { padding: 2px 0; }
+.fa-readiness td[data-level="clear"] { color: var(--factory-ready); }
+.fa-readiness td[data-level="partial"] { color: var(--text-secondary); }
+.fa-readiness td[data-level="missing"] { color: var(--factory-needs-you); }
+
+/* Board: one column per place a run can be. Columns keep their width and scroll sideways. */
+.fa-board-band { box-sizing: border-box; padding: 16px 24px 24px; }
+.fa-columns { display: flex; align-items: flex-start; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
+.fa-col { --fa-tone: var(--text-muted); display: flex; flex-direction: column; gap: 8px; flex: 1 1 200px; min-width: 200px; }
+.fa-col[data-column="building"], .fa-col[data-column="checking"] { --fa-tone: var(--factory-working); }
+.fa-col[data-column="needs-you"] { --fa-tone: var(--factory-needs-you); }
+.fa-col[data-column="ready"] { --fa-tone: var(--factory-ready); }
+.fa-col-label { display: flex; align-items: baseline; gap: 6px; margin: 0; color: var(--text-secondary); font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+.fa-col-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--fa-tone); align-self: center; }
+.fa-col-count { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fa-cards { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.fa-card { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--ws-line); border-radius: 8px; }
+.fa-card:hover, .fa-card[data-open="true"] { background: var(--ws-hover); }
+.fa-card[data-column="needs-you"] { border-color: color-mix(in srgb, var(--factory-needs-you) 45%, transparent); background: color-mix(in srgb, var(--factory-needs-you) 7%, transparent); }
+.fa-card-title { padding: 0; border: 0; background: none; color: var(--fg); font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+/* The whole card is the title's click target; the Open button sits above it. */
+.fa-card-title::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+span.fa-card-title { cursor: default; }
+.fa-card .fa-bar { margin: 2px 0 0; }
+.fa-card .fa-bar-seg { gap: 0; font-size: 0; line-height: 0; }
+/* The issue card sits in no column, so it has no --fa-tone: it keeps the stage colours. */
+.fa-card .fa-bar-seg[data-status="done"] { --fa-seg-track: var(--fa-tone, var(--factory-ready)); }
+.fa-card .fa-bar-seg[data-status="active"] { --fa-seg-ink: var(--fa-tone, var(--factory-working)); }
+/* Past stages are the column tone, faded, so the stage it is on stands out; Ready is all one tone. */
+.fa-card[data-column]:not([data-column="ready"]) .fa-bar-seg[data-status="done"] { --fa-seg-track: color-mix(in srgb, var(--fa-tone) 45%, transparent); }
+.fa-card-line { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.fa-card-meta { margin: 0; color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.fa-card-repo { margin: 0; color: var(--text-muted); font-size: 11px; }
+.fa-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fa-card-action { position: relative; z-index: 1; margin-left: auto; }
+.fa-card-action[data-column="needs-you"] { border-color: transparent; background: var(--factory-needs-you); color: #1a1a1a; font-weight: 600; }
+/* A folded column: empty, or Done until asked for. */
+.fa-rail { box-sizing: border-box; flex: 0 0 132px; min-width: 0; width: 132px; gap: 4px; padding: 12px; border: 1px solid var(--ws-line); border-radius: 10px; background: transparent; color: inherit; font: inherit; text-align: left; }
+button.fa-rail { cursor: pointer; }
+button.fa-rail:hover { background: var(--ws-hover); }
+button.fa-rail:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.fa-rail-hint { color: var(--text-muted); font-size: 11px; }
+
+/* The small Factory card in a GitHub issue's properties column. */
+.fa-issue-card { gap: 8px; }
+.fa-issue-card-title { display: flex; align-items: center; gap: 8px; margin: 0; color: var(--fg); font-size: 13px; font-weight: 500; }
+.fa-issue-card .fa-bar { margin: 0; }
+.fa-issue-card .fa-bar-seg { gap: 4px; font-size: 10px; line-height: normal; }
+.fa-issue-card-action { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; }
+.fa-issue-card .fa-error { margin: 0; }
+
+/* New run sheet: drawn over the Factory panel, not the whole window. */
+.fa-body { position: relative; }
+.fa-modal-backdrop { position: absolute; inset: 0; z-index: 20; display: flex; align-items: flex-start; justify-content: center; padding: 56px 16px 16px; background: color-mix(in srgb, #000 55%, transparent); }
+.fa-modal { box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; width: min(100%, 620px); max-height: calc(100% - 32px); padding: 16px 18px; border: 1px solid var(--ws-line); border-radius: 12px; background: var(--ws-surface, var(--bg)); box-shadow: 0 18px 48px rgb(0 0 0 / 0.35); }
+.fa-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.fa-modal-sub { margin: 2px 0 0; color: var(--text-muted); font-size: 12px; }
+.fa-modal-head h2 { margin: 0; color: var(--fg); font-size: 15px; font-weight: 600; }
+.fa-modal-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.fa-modal-row .rs-search { flex: 1 1 200px; }
+.fa-field { display: flex; flex-direction: column; gap: 4px; color: var(--text-muted); font-size: 11px; }
+/* Not a NumberStepper's own input: its box and font come from .ui-stepper (design-system.css). */
+.fa-field select, .fa-field input:not(.ui-stepper__input) { min-width: 140px; padding: 5px 8px; border: 1px solid var(--ws-line); border-radius: 6px; background: transparent; color: var(--fg); font: inherit; font-size: 13px; }
+.fa-field-value { margin: 0; padding: 6px 0; color: var(--text-secondary); font-size: 12px; }
+.fa-field-hint { margin: 0; color: var(--text-muted); font-size: 11px; }
+.fa-issue-list { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-height: 0; max-height: 340px; overflow-y: auto; margin: 0; padding: 4px; border: 1px solid var(--ws-line); border-radius: 8px; list-style: none; }
+.fa-issue { border-radius: 8px; }
+.fa-issue[data-picked="true"] { background: var(--ws-hover); }
+.fa-issue > label { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 8px; cursor: pointer; }
+.fa-issue > label:hover { background: var(--ws-hover); }
+.fa-issue[data-busy="true"] > label { cursor: default; opacity: 0.55; }
+.fa-issue[data-busy="true"] > label:hover { background: transparent; }
+.fa-issue-reason { margin: 0; padding: 0 8px 8px 34px; color: var(--factory-failing); font-size: 11px; }
+.fa-issue-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 0 13px; }
+.fa-issue-all { display: inline-flex; align-items: center; gap: 10px; color: var(--text-secondary); font-size: 12px; cursor: pointer; }
+/* A real checkbox, drawn: the native one is the accessible control. */
+.fa-tick { appearance: none; flex: none; display: grid; place-content: center; width: 16px; height: 16px; margin: 0; border: 1px solid var(--ws-line-strong, var(--ws-line)); border-radius: 4px; background: transparent; cursor: inherit; }
+.fa-tick::after { content: ""; width: 8px; height: 4px; border: solid var(--rs-on-fg, var(--bg)); border-width: 0 0 2px 2px; transform: translateY(-1px) rotate(-45deg); opacity: 0; }
+.fa-tick:checked { border-color: var(--fg); background: var(--fg); }
+.fa-tick:checked::after { opacity: 1; }
+.fa-tick:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+/* A labelled chip: the caption, then its control. Used for the source and for the run settings. */
+.fa-pick { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; border-radius: 8px; background: var(--ws-hover); color: var(--fg); font-size: 12px; }
+.fa-pick-key { color: var(--text-muted); font-size: 11px; white-space: nowrap; }
+.fa-pick select { max-width: 200px; padding: 2px 4px; border: 0; background: transparent; color: var(--fg); font: inherit; font-weight: 600; cursor: pointer; }
+.fa-pick select:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); border-radius: 4px; }
+.fa-pick-cap { color: var(--text-muted); font-size: 10px; white-space: nowrap; }
+/* In the sheet every pick is one control tall, so the strips line up with the search and with Start;
+   the stepper sits flush inside its pick instead of drawing a second box. */
+.fa-modal .fa-pick { box-sizing: border-box; height: var(--rs-control-h, 32px); padding: 0 4px 0 10px; }
+.fa-modal .fa-pick .ui-stepper { height: 24px; border-color: transparent; background: transparent; }
+.fa-modal .fa-pick .ui-stepper__field { min-width: 56px; }
+.fa-run-settings { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.fa-run-go { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.fa-issue-num { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.fa-issue-title { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--fg); text-overflow: ellipsis; white-space: nowrap; }
+.fa-issue-note { color: var(--factory-working); font-size: 11px; }
+.fa-issue-empty { padding: 16px 12px; color: var(--text-muted); font-size: 12px; }
+.fa-modal-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid var(--ws-line); }
+
+/* A run as a canvas node (#146). Canvas tokens first: the node sits inside the canvas scope. */
+.fa-node {
+  --fa-node-text: var(--canvas-text, var(--fg));
+  --fa-node-muted: var(--canvas-text-muted, var(--text-secondary));
+  display: flex; flex-direction: column; gap: 8px; height: 100%; padding: 12px 14px;
+  color: var(--fa-node-text); font-size: 13px;
+}
+.fa-node p { margin: 0; }
+.fa-node-title { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.fa-node-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fa-node-sentence { color: var(--fa-node-muted); line-height: 1.4; }
+.fa-node .fa-bar { margin: 2px 0 0; }
+/* The strip's quiet colours follow the node's text, as the rest of the node does. */
+.fa-node .fa-bar { --fa-seg-base: var(--fa-node-text); }
+.fa-node .fa-bar-seg { color: var(--fa-node-muted); }
+.fa-node .fa-bar-seg:is([data-status="active"], [data-status="needs-you"]) { color: var(--fa-node-text); }
+.fa-node-meta { margin-top: auto !important; color: var(--fa-node-muted); font-size: 12px; }
+.fa-node-action { align-self: flex-start; }
+.fa-node[data-group="needs-you"] .fa-node-action { border-color: color-mix(in srgb, var(--factory-needs-you) 55%, transparent); color: var(--factory-needs-you); }
+
+/* The Done group's heading opens and closes it (#147). */
+.fa-group-toggle { padding: 0; border: 0; background: none; color: inherit; font: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; }
+.fa-group-toggle::before { content: "▸ "; }
+.fa-group-toggle[aria-expanded="true"]::before { content: "▾ "; }
+
+/* Agents (FI5): one repo's factory, its roles in run order, each edited beside the list. */
+.fa-agents { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; }
+.fa-agents-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 40px; padding: 6px 16px; border-bottom: 1px solid var(--ws-line); font-size: 12px; }
+.fa-repo-select select { padding: 4px 8px; border: 1px solid var(--ws-line-strong); border-radius: var(--ws-r-control); background: transparent; color: var(--fg); font: inherit; font-weight: 500; }
+.fa-agents-gap { flex: 1 1 auto; }
+.fa-unpushed-pill { padding: 2px 8px; border: 1px solid color-mix(in srgb, var(--factory-needs-you) 45%, transparent); border-radius: 999px; background: color-mix(in srgb, var(--factory-needs-you) 10%, transparent); color: var(--factory-needs-you); font-size: 11px; cursor: default; }
+.fa-agents-base { color: var(--text-muted); }
+/* A repo with no factory of its own: Lotus keeps one on this Mac (#169). */
+.fa-agents-private { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: 12px; cursor: default; }
+.fa-agents-base { cursor: default; }
+.fa-agents-bar .fa-repo-select select { padding: 3px 8px; border-color: var(--ws-line); font-size: 12px; }
+/* The views sit in the sub-row as underlined text, quieter than the page's segmented control. */
+.fa-agents-bar .rs-tabs { gap: 16px; }
+.fa-agents-bar .rs-tab { height: 28px; padding: 0 1px; border-radius: 0; background: none; color: var(--text-muted); font-size: 12.5px; font-weight: 400; }
+.fa-agents-bar .rs-tab:hover { color: var(--fg); }
+.fa-agents-bar .rs-tab[aria-selected="true"] { background: none; box-shadow: inset 0 -1.5px 0 var(--fg); color: var(--fg); font-weight: 500; }
+.fa-agents-bar .rs-tab:focus-visible { box-shadow: 0 0 0 1px var(--ws-focus-line); }
+.fa-agents-bar .rs-tab-count[data-tone="attention"] { padding: 0 5px; border-radius: 999px; background: color-mix(in srgb, var(--factory-needs-you) 16%, transparent); color: var(--factory-needs-you); line-height: 15px; }
+.fa-agents-band { box-sizing: border-box; padding: 16px 24px 24px; }
+.fa-agents-list { display: flex; flex-direction: column; gap: 8px; }
+.fa-agents-list > .fa-group-label { display: flex; align-items: baseline; gap: 8px; margin-top: 8px; }
+.fa-agents-note { margin: 0; color: var(--text-muted); font-size: 12px; }
+.fa-agents-alert { margin: 0; color: var(--factory-failing); font-size: 12px; }
+.fa-agents-file { color: var(--text-muted); font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.fa-agent-step { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ws-hover); color: var(--text-secondary); font-size: 11px; font-variant-numeric: tabular-nums; }
+.fa-unpushed { display: inline-flex; align-items: center; gap: 4px; color: var(--factory-needs-you); font-size: 11px; font-weight: 400; }
+.fa-unpushed::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.fa-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border: 1px solid var(--ws-line); border-radius: 999px; color: var(--text-secondary); font-size: 11px; white-space: nowrap; }
+.fa-chip[data-muted="true"] { color: var(--text-muted); }
+.fa-chip[data-bad="true"] { border-color: var(--factory-failing); color: var(--factory-failing); }
+.fa-chip[data-full="true"] { border-color: color-mix(in srgb, var(--factory-needs-you) 40%, transparent); color: var(--factory-needs-you); }
+.fa-push-note { display: flex; align-items: flex-start; gap: 8px; margin: 8px 0 0; padding: 10px 12px; border: 1px dashed var(--ws-line-strong); border-radius: 8px; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
+
+/* The pane: one role's model, skills, MCP, limits and prompt. */
+.fa-agent-pane { container-type: inline-size; display: flex; flex-direction: column; gap: 4px; }
+.fa-agent-pane .rs-dhead-meta { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-left: 0; }
+.fa-input { box-sizing: border-box; width: 100%; padding: 7px 10px; border: 1px solid var(--ws-line); border-radius: 8px; background: color-mix(in srgb, var(--fg) 2%, transparent); color: var(--fg); font: inherit; font-size: 13px; }
+.fa-input:focus-visible, .fa-textarea:focus-visible { outline: none; border-color: var(--ws-line-strong); box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.fa-pane-hint { margin: 4px 0 0; color: var(--text-muted); font-size: 11.5px; line-height: 1.45; }
+.fa-pane-hint[data-tone="attention"] { color: var(--factory-needs-you); }
+.fa-agent-pane .fa-input + .fa-input { margin-top: 6px; }
+/* The role form (round 6): a label column (name + why) and the control beside it, one hairline apart.
+   Narrow, the label sits above. */
+.fa-form-row { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 8px 24px; padding: 16px 0; border-top: 1px solid var(--ws-line); }
+.fa-form-label h3 { margin: 0; color: var(--fg); font-size: 13px; font-weight: 500; }
+.fa-form-label p { margin: 3px 0 0; color: var(--text-muted); font-size: 11.5px; line-height: 1.4; }
+.fa-form-control { display: flex; flex-direction: column; align-items: stretch; gap: 8px; min-width: 0; }
+.fa-form-control > select.fa-input { max-width: 420px; }
+@container (max-width: 520px) { .fa-form-row { grid-template-columns: minmax(0, 1fr); } }
+.fa-disclose { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; border: 0; background: none; color: var(--text-muted); font: inherit; font-size: 12px; cursor: pointer; }
+.fa-disclose:hover { color: var(--fg); }
+.fa-disclose:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); border-radius: 4px; }
+.fa-disclose svg { transition: transform 120ms var(--ws-ease, ease); }
+.fa-disclose[aria-expanded="true"] svg { transform: rotate(90deg); }
+.fa-disclose-note { color: var(--text-muted); opacity: 0.7; font-size: 11px; }
+/* A real checkbox, drawn as a switch: the native input stays the accessible control. */
+.fa-switch-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 1px solid var(--ws-line); border-radius: 10px; background: color-mix(in srgb, var(--fg) 2%, transparent); cursor: pointer; }
+.fa-switch { appearance: none; position: relative; flex: none; width: 30px; height: 18px; margin: 1px 0 0; border-radius: 999px; background: color-mix(in srgb, var(--fg) 14%, transparent); cursor: pointer; transition: background 140ms var(--ws-ease, ease); }
+.fa-switch::before { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--text-secondary); transition: transform 140ms var(--ws-ease, ease), background 140ms var(--ws-ease, ease); }
+.fa-switch:checked { background: var(--fg); }
+.fa-switch:checked::before { transform: translateX(12px); background: var(--bg); }
+.fa-switch:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+@media (prefers-reduced-motion: reduce) { .fa-switch, .fa-switch::before, .fa-disclose svg { transition: none; } }
+.fa-switch-text, .fa-prompt-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+.fa-switch-text .fa-pane-hint, .fa-prompt-text .fa-pane-hint { margin: 0; }
+.fa-switch-label { color: var(--fg); font-size: 13px; font-weight: 500; }
+.fa-access { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border: 1px solid var(--ws-line); border-radius: 999px; color: var(--text-secondary); font-size: 11px; }
+.fa-access[data-full="true"] { border-color: color-mix(in srgb, var(--factory-needs-you) 40%, transparent); color: var(--factory-needs-you); }
+.fa-prompt-reset { align-self: flex-start; }
+.fa-form-control > .ui-stepper { align-self: flex-start; }
+.fa-form-control > .fa-capmap { margin-top: 0; }
+.fa-pane-line { margin: 0; color: var(--fg); font-size: 12px; }
+.fa-pane-foot { position: sticky; bottom: -20px; display: flex; flex-direction: column; gap: 8px; margin: 4px -20px -20px; padding: 12px 20px 16px; border-top: 1px solid var(--ws-line); background: var(--ws-surface, var(--bg)); }
+.fa-pane-actions { display: flex; align-items: center; gap: 8px; }
+
+/* The catalog picker: this Mac's skills or MCP servers, under the Add button. */
+.fa-picker { position: absolute; top: -8px; left: 50%; transform: translateX(-50%); width: min(100%, 380px); box-sizing: border-box; z-index: 10; display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--ds-workbench-popover-border); border-radius: 10px; background: var(--ds-workbench-popover-bg); box-shadow: var(--ds-workbench-popover-shadow); }
+.fa-picker-search { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--ws-line); border-radius: 6px; color: var(--text-muted); }
+.fa-picker-search input { flex: 1 1 auto; min-width: 0; border: 0; background: transparent; color: var(--fg); font: inherit; font-size: 13px; outline: none; }
+.fa-picker-search .fa-pane-hint { margin: 0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fa-picker-filters { display: flex; flex-wrap: wrap; gap: 4px; }
+.fa-filter { padding: 2px 10px; border: 1px solid var(--ws-line); border-radius: 999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 11px; cursor: pointer; }
+.fa-filter[aria-pressed="true"] { border-color: transparent; background: var(--fg); color: var(--bg); }
+.fa-picker-list { max-height: 280px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.fa-picker-empty { padding: 12px 8px; }
+.fa-picker-item { display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 6px 8px; border: 0; border-radius: 6px; background: none; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.fa-picker-item:hover, .fa-picker-item:focus-visible { background: var(--ws-hover); outline: none; }
+.fa-check { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; margin-top: 2px; border: 1px solid var(--ws-line-strong); border-radius: 4px; }
+.fa-check[data-on="true"] { border-color: transparent; background: var(--fg); color: var(--bg); }
+.fa-picker-text { flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.fa-picker-line { overflow: hidden; color: var(--text-muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.fa-picker-foot { display: flex; align-items: center; gap: 6px; margin: 0; padding-top: 8px; border-top: 1px solid var(--ws-line); color: var(--text-muted); font-size: 11px; }
+.fa-tag-name { color: var(--fg); font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; }
+.fa-tag-src { flex: none; min-width: 0; overflow: hidden; color: var(--text-muted); font-size: 11px; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Settings views: the sub-nav sits above whichever view is open. */
+.fa-prompt-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--ws-line); border-radius: 10px; color: var(--text-muted); }
+.fa-pane-state { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: 12px; }
+.fa-pane-state[data-dirty="true"]::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.fa-pane-state[data-dirty="true"] { color: var(--factory-needs-you); }
+
+/* Pipeline: the five roles as the flow of a ticket. Wide, a row; narrow (an editor is open), a stack. */
+.fa-pipeline { display: flex; flex-direction: column; gap: 14px; max-width: 760px; }
+.fa-pipeline-intro { padding: 0 10px; }
+.fa-pipeline-intro h2 { margin: 0 0 3px; color: var(--fg); font-size: 14px; font-weight: 600; }
+.fa-pipeline-intro p { margin: 0; color: var(--text-muted); font-size: 12px; }
+/* The rail (round 6): one row per role, top to bottom in run order. */
+.fa-pipeline-steps { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.fa-pipeline-item { display: flex; min-width: 0; }
+.fa-role-card, .fa-summary-card { box-sizing: border-box; display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 12px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--fg); font: inherit; text-align: left; transition: background 160ms var(--ws-ease, ease), border-color 160ms var(--ws-ease, ease); }
+.fa-role-card, button.fa-summary-card { cursor: pointer; }
+.fa-role-card:hover:not(:disabled), button.fa-summary-card:hover { background: var(--ws-hover); }
+.fa-role-card[data-open="true"], .fa-summary-card[data-open="true"] { border-color: var(--ws-line); background: var(--ws-surface-raised, var(--ws-hover)); }
+.fa-role-card:focus-visible, .fa-summary-card:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.fa-role-card:disabled { opacity: 0.5; cursor: default; }
+/* The state tile: 4×3 pixels of the stage strip's texture. Neutral when ready; it only takes a hue to ask. */
+.fa-role-tile { --fa-seg-track: transparent; --fa-seg-ink: color-mix(in srgb, var(--fg) 55%, transparent); flex: none; width: 23px; height: 17px; margin-top: 2px; }
+.fa-role-tile[data-state="attention"] { --fa-seg-track: color-mix(in srgb, var(--factory-needs-you) 12%, transparent); --fa-seg-ink: var(--factory-needs-you); }
+.fa-role-tile[data-state="later"] { --fa-seg-ink: color-mix(in srgb, var(--fg) 30%, transparent); }
+.fa-role-card[data-open="true"] .fa-role-tile[data-state="ready"] { --fa-seg-ink: var(--fg); }
+.fa-role-main, .fa-summary-main { display: flex; flex: 1 1 auto; flex-direction: column; gap: 3px; min-width: 0; }
+.fa-role-top { display: flex; align-items: center; gap: 8px; }
+.fa-role-top .fa-agent-step { width: auto; height: auto; background: none; color: var(--text-muted); font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; }
+.fa-role-name { font-size: 13px; font-weight: 600; text-transform: capitalize; }
+.fa-role-status { margin-left: auto; color: var(--text-muted); font-size: 11px; }
+.fa-role-status[data-state="ready"] { display: inline-flex; align-items: center; gap: 5px; }
+.fa-role-status[data-state="ready"]::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--factory-ready); }
+.fa-role-status[data-state="attention"] { color: var(--factory-needs-you); }
+.fa-role-does { color: var(--text-secondary); font-size: 12.5px; line-height: 1.4; }
+/* One quiet meta line: model · skills · MCP · access, kept apart by dots. */
+.fa-role-chips { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 6px; color: var(--text-muted); font-size: 11.5px; }
+.fa-role-chips > * + *::before { content: "·"; margin-right: 6px; color: var(--text-muted); }
+.fa-role-chips .fa-chip { padding: 0; border: 0; border-radius: 0; color: inherit; font-size: inherit; }
+.fa-role-chips .fa-chip[data-bad="true"] { color: var(--factory-failing); }
+.fa-role-chips .fa-chip[data-full="true"] { color: var(--factory-needs-you); }
+.fa-role-model { color: var(--text-secondary); }
+.fa-role-model[data-default="true"] { color: var(--text-muted); }
+.fa-role-go { flex: none; align-self: center; color: var(--text-muted); opacity: 0; transition: opacity 120ms var(--ws-ease, ease); }
+.fa-role-card:hover:not(:disabled) .fa-role-go, button.fa-summary-card:hover .fa-role-go, [data-open="true"] > .fa-role-go { opacity: 1; }
+.fa-pipeline-summary { display: flex; flex-direction: column; gap: 2px; padding-top: 10px; border-top: 1px solid var(--ws-line); }
+.fa-summary-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; background: var(--ws-hover); color: var(--text-secondary); }
+.fa-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.fa-summary-title { font-size: 13px; font-weight: 500; }
+.fa-summary-text { color: var(--text-muted); font-size: 12px; }
+.fa-summary-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 3px; }
+.fa-summary-command { align-self: flex-start; max-width: 100%; overflow: hidden; margin: 2px 0; padding: 2px 7px; border-radius: 6px; background: var(--ws-hover); font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Integrations: counts, then one row per warning. */
+.fa-integrations { display: flex; flex-direction: column; gap: 12px; }
+.fa-integrations-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.fa-integrations-head h2 { margin: 0 0 4px; color: var(--fg); font-size: 15px; font-weight: 600; }
+.fa-integrations-head p { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.fa-integrations-count { margin: 0; color: var(--fg); font-size: 13px; }
+.fa-group-label[data-tone="warn"] { color: var(--factory-needs-you); }
+.fa-warning-rows { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.fa-warning-row { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--factory-needs-you) 35%, transparent); border-radius: 10px; }
+.fa-warning-row > svg { flex: none; margin-top: 2px; color: var(--factory-needs-you); }
+.fa-warning-text { flex: 1 1 auto; min-width: 0; }
+.fa-warning-text code { color: var(--fg); font-size: 12px; }
+.fa-warning-text p { margin: 2px 0 0; color: var(--text-secondary); font-size: 12px; line-height: 1.45; }
+.fa-warning-text .fa-warning-detail { color: var(--text-muted); white-space: pre-wrap; overflow-wrap: anywhere; }
+.fa-warning-row .rs-button { flex: none; display: inline-flex; align-items: center; gap: 4px; }
+.fa-warning-row[data-open="true"] .rs-button svg { transform: rotate(180deg); }
+.fa-integrations-info > summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; }
+
+/* Capability map: tiles on wires into the agent. The comet loops quietly along each wire. */
+.fa-capmap { --factory-comet-a: #38bdf8; --factory-comet-b: #8b5cf6; display: flex; flex-direction: column; align-items: center; gap: 8px; overflow-x: clip; }
+.fa-capmap { align-self: stretch; margin-top: 14px; }
+.fa-capmap-fit { position: relative; width: 100%; display: flex; justify-content: center; align-items: flex-start; }
+.fa-capmap-stage { flex: none; width: 616px; transform-origin: top center; position: relative; display: flex; align-items: center; justify-content: center; }
+.fa-capmap-col { display: flex; flex-direction: column; gap: 14px; width: 168px; flex: none; }
+.fa-capmap-side { display: flex; flex-direction: column; gap: 14px; margin: 0; padding: 0; list-style: none; }
+.fa-capmap-row { box-sizing: border-box; display: flex; align-items: center; gap: 10px; height: 44px; margin: 0; padding: 0; border: 0; background: none; color: var(--fg); font: inherit; text-align: left; }
+.fa-capmap-row[data-side="left"] { justify-content: flex-end; text-align: right; }
+.fa-capmap-button { width: 100%; cursor: pointer; }
+.fa-capmap-button:disabled { opacity: 0.5; cursor: default; }
+.fa-capmap-button:focus-visible { outline: none; }
+.fa-capmap-button:focus-visible .fa-capmap-tile { box-shadow: 0 0 0 2px var(--ws-focus-line); }
+li[data-side] > .fa-capmap-row { width: 100%; }
+.fa-capmap-tile { position: relative; flex: none; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; border: 1px solid var(--ws-line-strong); border-radius: 12px; background: var(--ws-surface-quiet, transparent); color: var(--text-secondary); font-size: 12px; transition: border-color 160ms var(--ws-ease, ease); }
+.fa-capmap-row[data-kind="add"] .fa-capmap-tile, .fa-capmap-row[data-kind="more"] .fa-capmap-tile, .fa-capmap-row[data-kind="none"] .fa-capmap-tile { border-style: dashed; color: var(--text-muted); }
+.fa-capmap-button:hover:not(:disabled) .fa-capmap-tile { border-color: var(--fg); color: var(--fg); }
+.fa-capmap-row[data-kind="shared"] .fa-capmap-tile { border-style: dashed; }
+.fa-capmap-row[data-kind="missing"] .fa-capmap-tile, .fa-capmap-row[data-kind="missing"] .fa-capmap-name { border-color: var(--factory-failing); color: var(--factory-failing); }
+.fa-capmap-lock { position: absolute; right: 3px; bottom: 3px; color: var(--text-muted); }
+.fa-capmap-remove { position: absolute; top: -6px; right: -6px; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; padding: 0; border: 1px solid var(--ws-line-strong); border-radius: 50%; background: var(--ws-surface, var(--bg)); color: var(--text-secondary); cursor: pointer; opacity: 0; }
+.fa-capmap-row:hover .fa-capmap-remove, .fa-capmap-remove:focus-visible { opacity: 1; }
+.fa-capmap-remove:hover { color: var(--factory-failing); }
+.fa-capmap-label { display: flex; flex-direction: column; min-width: 0; }
+.fa-capmap-name { overflow: hidden; font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+/* Actions and placeholders are words, not names: only a real skill or server keeps the code font. */
+.fa-capmap-row:is([data-kind="add"], [data-kind="more"], [data-kind="none"]) .fa-capmap-name { font-family: inherit; }
+.fa-capmap-cap { color: var(--text-muted); font-size: 10px; }
+.fa-capmap-hub-cell { position: relative; flex: none; }
+.fa-capmap-wires { position: absolute; inset: 0; overflow: visible; }
+.fa-capmap-wire { fill: none; stroke: var(--ws-line-strong); stroke-width: 1.25; stroke-linecap: round; }
+.fa-capmap-wire[data-state="add"] { stroke: var(--ws-line); stroke-dasharray: 3 4; }
+.fa-capmap-wire[data-state="shared"] { stroke-dasharray: 4 4; }
+.fa-capmap-wire[data-state="missing"] { stroke: var(--factory-failing); stroke-dasharray: 3 4; }
+.fa-capmap-stop-a { stop-color: var(--factory-comet-a); }
+.fa-capmap-stop-b { stop-color: var(--factory-comet-b); }
+.fa-capmap-comet { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-dasharray: 18 100; stroke-dashoffset: 18; opacity: 0; animation: fa-comet 2800ms cubic-bezier(0.4, 0, 0.2, 1) infinite both; }
+@keyframes fa-comet {
+  0% { stroke-dashoffset: 18; opacity: 0; }
+  8% { opacity: 1; }
+  45% { stroke-dashoffset: -100; opacity: 1; }
+  52%, 100% { stroke-dashoffset: -100; opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .fa-capmap-comet { display: none; } }
+.fa-capmap-hub { position: absolute; box-sizing: border-box; display: flex; align-items: center; justify-content: center; border: 1px solid var(--ws-line-strong); border-radius: 50%; background: var(--ws-surface-quiet, transparent); }
+.fa-capmap-core { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 50%; background: linear-gradient(135deg, var(--factory-comet-a), var(--factory-comet-b)); color: #fff; }
+.fa-capmap-hub-label { position: absolute; left: 0; right: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; }
+.fa-capmap-role { color: var(--fg); font-size: 13px; font-weight: 600; }
+.fa-capmap-access { display: inline-flex; align-items: center; gap: 4px; color: var(--text-muted); font-size: 10px; }
+.fa-capmap-access[data-access="full"] { color: var(--factory-needs-you); }
+.fa-capmap-model { max-width: 100%; overflow: hidden; color: var(--text-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.fa-capmap-refusal { margin: 0; padding: 8px 10px; border: 1px solid var(--factory-failing); border-radius: 8px; color: var(--factory-failing); font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; line-height: 1.5; }
+
+/* Run detail: one NEXT STEP card, then the timeline (Planes round 6). */
+.fa-next { align-self: stretch; display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 14px 16px; border: 1px solid var(--ws-line); border-radius: 10px; background: var(--ws-surface-quiet, transparent); }
+.fa-next[data-tone="needs-you"] { border-color: color-mix(in srgb, var(--factory-needs-you) 55%, transparent); }
+.fa-next-tag { color: var(--text-muted); font-size: 10px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+.fa-next[data-tone="needs-you"] .fa-next-tag { color: var(--factory-needs-you); }
+/*
+  Run timeline: one summary line that folds the list, then a rail of marks. The mark's shape says the
+  state (check, cross, bang, dash, spinner), so tone colour is never the only signal. The right
+  column is only durations, in mono so the digits line up.
+*/
+.fa-timeline { --fa-mark: 12px; align-self: stretch; display: flex; flex-direction: column; border: 1px solid var(--ws-line); border-radius: 12px; background: color-mix(in oklab, var(--fg) 2%, transparent); }
+.fa-timeline-head { display: grid; grid-template-columns: var(--fa-mark) minmax(0, 1fr) auto; align-items: center; gap: 14px; width: 100%; padding: 12px 14px; border: 0; border-radius: 12px; background: transparent; color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.fa-timeline-head:hover { background: var(--ws-hover); }
+.fa-timeline-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ws-focus-line); }
+.fa-timeline[data-open="true"] .fa-timeline-head { border-radius: 12px 12px 0 0; }
+.fa-timeline-head .fa-event-mark { margin-top: 0; }
+.fa-timeline-summary { overflow: hidden; font-size: var(--ds-t-body); font-weight: 500; line-height: var(--ds-lh-tight); text-overflow: ellipsis; white-space: nowrap; }
+.fa-timeline-chevron { color: var(--text-muted); transition: transform 180ms cubic-bezier(0.25, 1, 0.5, 1); }
+.fa-timeline:not([data-open="true"]) .fa-timeline-chevron { transform: rotate(-90deg); }
+.fa-timeline-list { margin: 0; padding: 2px 14px 6px; list-style: none; }
+
+.fa-event, .fa-event-more { position: relative; display: grid; grid-template-columns: var(--fa-mark) minmax(0, 1fr) auto; gap: 0 14px; padding-bottom: 14px; }
+/* The rail: from under this mark to the top of the next one. */
+.fa-event::before, .fa-event-more::before { content: ""; position: absolute; top: calc(var(--fa-mark) + 8px); bottom: 0; left: calc(var(--fa-mark) / 2 - 0.5px); width: 1px; background: color-mix(in oklab, var(--fg) 18%, transparent); }
+.fa-event:last-child::before { display: none; }
+.fa-event-more { align-items: center; padding-bottom: 12px; }
+.fa-event-more .fa-link { justify-self: start; font-size: var(--ds-t-meta); }
+
+/* A mark is a 4×4 tile of the stage strip's texture (round 5) under its glyph. Where a glyph sits, the
+   tile is the solid tone with the texture faint in it, so the glyph reads; live and skipped stay light. */
+.fa-event-mark {
+  --fa-seg-track: color-mix(in oklab, var(--fg) 88%, transparent);
+  --fa-seg-ink: color-mix(in oklab, var(--bg) 22%, transparent);
+  position: relative; display: grid; place-items: center; width: var(--fa-mark); height: var(--fa-mark); margin-top: 4px; overflow: hidden; border-radius: 2px; color: var(--bg);
+}
+.fa-event-mark > .fa-seg-svg { position: absolute; inset: 0; }
+.fa-event-mark > :not(.fa-seg-svg) { position: relative; }
+.fa-event-mark[data-tone="ok"] { --fa-seg-track: var(--factory-ready); }
+.fa-event-mark[data-tone="bad"] { --fa-seg-track: var(--factory-failing); }
+.fa-event-mark[data-tone="wait"] { --fa-seg-track: var(--factory-needs-you); }
+.fa-event-mark[data-tone="live"] { --fa-seg-track: color-mix(in srgb, var(--fg) 5%, transparent); --fa-seg-ink: var(--factory-working); }
+.fa-event-mark:is([data-tone="skipped"], [data-tone="more"]) { --fa-seg-track: color-mix(in srgb, var(--fg) 5%, transparent); --fa-seg-ink: color-mix(in srgb, var(--fg) 34%, transparent); color: var(--text-muted); }
+.fa-event-bang { font-size: 9px; font-weight: 800; line-height: 1; }
+/* The live mark is the strip's front, so the strip's reduced-motion rule already holds it. */
+@media (prefers-reduced-motion: reduce) {
+  .fa-timeline-chevron { transition: none; }
+}
+
+.fa-event-body { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.fa-event-label { color: var(--fg); font-size: var(--ds-t-body); font-weight: 500; line-height: var(--ds-lh-body); }
+.fa-event-meta { color: var(--text-muted); font-size: var(--ds-t-meta); line-height: var(--ds-lh-body); overflow-wrap: anywhere; }
+.fa-event-span { padding-top: 2px; color: var(--text-muted); font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--ds-t-meta); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fa-event[data-tone="bad"] .fa-event-label { color: var(--factory-failing); }
+.fa-event[data-tone="bad"] .fa-event-meta { color: color-mix(in oklab, var(--factory-failing) 80%, var(--text-muted)); }
+.fa-event[data-tone="wait"] .fa-event-meta { color: var(--factory-needs-you); }
+.fa-event[data-tone="live"] .fa-event-meta { color: var(--factory-working); }
+.fa-event[data-tone="skipped"] .fa-event-label { color: var(--text-muted); text-decoration: line-through; text-decoration-color: color-mix(in oklab, var(--text-muted) 70%, transparent); }
+
+/* Runs list: filter chips, a stage bar under each title, the action at the row's end. */
+.fa-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+/* Runs and Board: the repo filter (#167) beside the group chips. */
+.fa-filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 14px; }
+.fa-filter-bar .fa-chips { margin-bottom: 0; }
+.fa-filter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--ws-line); border-radius: 999px; background: transparent; color: var(--text-secondary); font: inherit; font-size: 12px; cursor: pointer; }
+.fa-filter-chip:hover { background: var(--ws-hover); }
+.fa-filter-chip[aria-pressed="true"] { border-color: var(--ws-line-strong); background: var(--ws-hover); color: var(--fg); }
+.fa-filter-chip:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.fa-chip-count { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+.fa-row-bar { display: block; margin: 2px 0 6px; }
+.fa-row-bar .fa-bar { margin: 0; }
+.fa-row-bar .fa-bar-seg { gap: 0; font-size: 0; line-height: 0; }
+.fa-row-line { display: block; }
+.fa-row-line[data-group="needs-you"] { color: var(--factory-needs-you); }
+.fa-row-end { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 4px; color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.fa-row-action[data-group="needs-you"] { border-color: transparent; background: var(--fg); color: var(--bg); }
+
+/* ── Empty states (round 6): a still field of dots behind the message, faded out at the edges ── */
+.rs-empty[data-art] { position: relative; overflow: hidden; isolation: isolate; }
+.rs-empty[data-art] > :not(.fa-empty-art) { position: relative; }
+.fa-empty-art {
+  --fa-seg-track: transparent;
+  --fa-seg-ink: color-mix(in srgb, var(--fg) 14%, transparent);
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  mask-image: radial-gradient(ellipse 60% 70% at 50% 50%, transparent 30%, #000 100%); /* color-literal-ok: mask alpha only, the colour is never painted */
+}

@@ -1,0 +1,7 @@
+{
+  "taskId": "clone_1",
+  "state": "done",
+  "step": "registering",
+  "name": "tkt-worker",
+  "path": "/home/op/lotus-workspaces/tkt-worker"
+}

@@ -1,0 +1,206 @@
+{
+  "cells": [
+    {
+      "paneId": "p-1",
+      "workspaceId": "ws-lotus",
+      "agentType": "claude",
+      "runnerLabel": "acme",
+      "profileId": "initech",
+      "title": "Chase",
+      "status": "live",
+      "isAlive": true,
+      "cwd": "/Users/op/code/lotus",
+      "workspaceLabel": "Lotus",
+      "lastOutputPreview": "Running tests…",
+      "headline": "clean up the legacy files",
+      "sessionId": "sess-1",
+      "turn": "needs-input",
+      "turnAgeMs": 4000,
+      "gating": "asks",
+      "model": "claude-opus-5-5",
+      "branch": "feat/pocket-context"
+    },
+    {
+      "paneId": "p-2",
+      "workspaceId": "ws-lotus",
+      "agentType": "codex",
+      "runnerLabel": "Codex",
+      "title": "Marshall",
+      "status": "live",
+      "isAlive": true,
+      "cwd": "/Users/op/code/lotus",
+      "workspaceLabel": "Lotus",
+      "sessionId": "sess-2",
+      "gating": "runner_cannot",
+      "usage": {
+        "status": "allowed_warning",
+        "window": "five_hour",
+        "resetsAt": 1788763800
+      }
+    }
+  ],
+  "projects": [
+    {
+      "workspaceId": "ws-lotus",
+      "name": "Lotus",
+      "path": "/Users/op/code/lotus",
+      "lastOpenedAt": 1754700000000
+    },
+    {
+      "workspaceId": "ws-terax",
+      "name": "terax-ai",
+      "path": "/Users/op/code/terax-ai",
+      "lastOpenedAt": 1754600000000
+    }
+  ],
+  "runners": [
+    {
+      "id": "claude",
+      "name": "Claude",
+      "claudeFamily": false,
+      "custom": false,
+      "pinsTuning": false,
+      "models": [
+        {
+          "id": "fable",
+          "label": "fable"
+        },
+        {
+          "id": "opus",
+          "label": "opus"
+        },
+        {
+          "id": "sonnet",
+          "label": "sonnet",
+          "default": true
+        },
+        {
+          "id": "haiku",
+          "label": "haiku"
+        }
+      ],
+      "efforts": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "permissions": [
+        {
+          "id": "plan",
+          "label": "plan"
+        },
+        {
+          "id": "manual",
+          "label": "manual",
+          "default": true
+        },
+        {
+          "id": "acceptEdits",
+          "label": "accept edits"
+        },
+        {
+          "id": "bypassPermissions",
+          "label": "bypass"
+        }
+      ],
+      "profiles": [
+        {
+          "id": "default",
+          "label": "default"
+        },
+        {
+          "id": "initech",
+          "label": "initech"
+        }
+      ]
+    },
+    {
+      "id": "codex",
+      "name": "Codex",
+      "claudeFamily": false,
+      "custom": false,
+      "pinsTuning": false,
+      "models": [
+        {
+          "id": "gpt-5.4-codex",
+          "label": "5.4-codex",
+          "default": true
+        }
+      ],
+      "efforts": [
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+      ],
+      "permissions": [
+        {
+          "id": "read-only",
+          "label": "read only"
+        },
+        {
+          "id": "auto",
+          "label": "auto",
+          "defaultHeadless": true
+        },
+        {
+          "id": "full-access",
+          "label": "full access",
+          "default": true
+        }
+      ],
+      "headless": true,
+      "chatInTerminal": false
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "claudeFamily": false,
+      "custom": false,
+      "pinsTuning": false,
+      "headless": true,
+      "terminal": false,
+      "chatInTerminal": false
+    }
+  ],
+  "workspaces": [
+    {
+      "workspaceId": "ws-lotus",
+      "cellCount": 1,
+      "providers": [
+        "claude"
+      ]
+    }
+  ],
+  "activeTasks": [],
+  "hostCaps": {
+    "protocol": 1,
+    "features": [
+      "fleet",
+      "dispatch",
+      "input",
+      "stop",
+      "tasks",
+      "stream",
+      "device-refresh",
+      "device-renew",
+      "result",
+      "spawn",
+      "close",
+      "spawn-tuning",
+      "transcript",
+      "permission",
+      "stt",
+      "conversation",
+      "pty-size",
+      "structured-spawn",
+      "conversation-stream"
+    ]
+  },
+  "hostId": "mac",
+  "hostLabel": "MacBook",
+  "mode": "client"
+}

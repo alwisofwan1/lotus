@@ -1,0 +1,2 @@
+# Factory Run gate (ADR-0049 §7): run in the run's worktree; exit 0 = green.
+gate = "tools/gates.sh"

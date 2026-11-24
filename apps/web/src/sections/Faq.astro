@@ -1,0 +1,85 @@
+---
+/** Short answers to what a first-time visitor asks. Plain `<details>`, no script. */
+import { faq } from "../copy";
+---
+
+<section class="block" id="faq" aria-labelledby="faq-title">
+  <div class="shell split">
+    <div data-reveal>
+      <span class="tag">{faq.kicker}</span>
+      <h2 id="faq-title">{faq.heading}</h2>
+    </div>
+    <div class="list" data-reveal>
+      {
+        faq.items.map((f) => (
+          <details>
+            <summary>{f.q}</summary>
+            <p>{f.a}</p>
+          </details>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .block {
+    padding-block: var(--step);
+  }
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: clamp(2rem, 6vw, 5rem);
+    align-items: start;
+  }
+  .split > * {
+    min-width: 0;
+  }
+  h2 {
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    letter-spacing: -0.04em;
+    margin: 1rem 0 0;
+  }
+  .list {
+    max-width: 780px;
+  }
+  details {
+    border-top: 1px solid var(--hair);
+  }
+  details:last-child {
+    border-bottom: 1px solid var(--hair);
+  }
+  summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 1.2rem 0;
+    font-weight: 500;
+    font-size: 16.5px;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary::after {
+    content: "+";
+    color: var(--faint);
+    font: 400 18px/1 var(--font-mono);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  details[open] summary::after {
+    transform: rotate(45deg);
+  }
+  details p {
+    padding: 0 0 1.3rem;
+    color: var(--dim);
+    font-size: 15px;
+    max-width: 62ch;
+  }
+  @media (max-width: 860px) {
+    .split {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

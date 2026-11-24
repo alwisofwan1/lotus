@@ -1,0 +1,9 @@
+Excalifont — Excalidraw's official hand-drawn font.
+
+Copyright (c) Excalidraw. Licensed under the SIL Open Font License, Version 1.1 (OFL-1.1).
+Full license: https://openfontlicense.org/
+
+Source: https://plus.excalidraw.com/excalifont
+File: Excalifont-Regular.woff2 (bundled here for offline, self-hosted rendering).
+
+Used in the CodeCanvas whiteboard as the "hand-drawn" font family (--canvas-hand).

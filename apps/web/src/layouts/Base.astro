@@ -1,0 +1,165 @@
+---
+/**
+ * The only <html> shell on the site. Owns <head>, social metadata, icons, the
+ * font preload and the CSP.
+ *
+ * Fonts: Archivo (display and prose since 2026-11-07), JetBrains Mono
+ * (labels, data, citations — where the mono face earns its place rather than as a
+ * display font). DESIGN.md names Waldenburg for display, but it is proprietary and
+ * absent from this repo — see PLAN.md Fase 1. Archivo replaced Schibsted Grotesk in
+ * the glass pass; the reasoning sits on `--font-display` in global.css.
+ *
+ * All three are self-hosted since 2026-09-30 (styles/fonts.css). Before that they
+ * came from Google Fonts, the one external host the page loaded from; now the page
+ * loads nothing from any other origin, and the CSP says so.
+ */
+import "../styles/fonts.css";
+import "../styles/global.css";
+// The display face sets the hero headline, which is the LCP element. Preloading it
+// starts the download with the HTML instead of after the CSS is parsed. `?url`
+// resolves to the same fingerprinted file the @font-face url() points at.
+import displayFont from "../assets/fonts/archivo-latin-wght.woff2?url";
+import { site, structuredData } from "../copy";
+
+interface Props {
+  title?: string;
+  description?: string;
+  /** Keep this page out of search results (the 404). */
+  noindex?: boolean;
+}
+
+const { title = site.documentTitle, description = site.description, noindex = false } = Astro.props;
+
+// Absolute URLs, because Open Graph requires them. `Astro.site` comes from
+// astro.config.mjs, which is the single place the origin is written down.
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+const ogImage = new URL("og.png", Astro.site).href;
+const home = new URL("/", Astro.site).href;
+
+// One graph, three nodes that point at each other by @id. Every field is a fact the
+// page already states; the forbidden-claims rules bind this block as much as copy
+// (see structuredData in copy.ts and test/seo-head.test.ts): no offers, no rating,
+// no downloadUrl, the two platforms that are built.
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${home}#organization`,
+      name: site.name,
+      url: home,
+      logo: new URL("icon-512.png", Astro.site).href,
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${home}#website`,
+      name: site.name,
+      url: home,
+      inLanguage: "en",
+      publisher: { "@id": `${home}#organization` },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${home}#software`,
+      name: site.name,
+      description: site.description,
+      applicationCategory: structuredData.category,
+      operatingSystem: structuredData.os,
+      url: home,
+      image: ogImage,
+      publisher: { "@id": `${home}#organization` },
+    },
+  ],
+};
+
+// Astro inlines its own <style> tags, so style-src needs 'unsafe-inline'.
+// script-src stays 'self' only — this site ships no third-party script, and Fase 3
+// kept it that way: Buttondown's plain form needs form-action, not script-src. If a
+// change here needs 'unsafe-inline' on script-src, that is a signal the change is
+// wrong. The privacy notice states this as a fact about the site, so the CSP and
+// that page have to be changed together or one of them becomes a lie.
+const csp = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "img-src 'self' data:",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
+  "connect-src 'self'",
+  // Buttondown is named here because the waitlist form posts across origins, and
+  // `form-action` does NOT fall back to `default-src` — leaving it at 'self' silently
+  // blocked every signup. Verified in a browser rather than reasoned about: the
+  // console said "Sending form data to 'https://buttondown.com/...' violates the
+  // following Content Security Policy directive: form-action 'self'. The request has
+  // been blocked." One destination, not a wildcard.
+  "form-action 'self' https://buttondown.com",
+  // frame-ancestors is DELIBERATELY absent: browsers ignore it in a <meta> CSP and
+  // log an error for it. It is delivered as a real HTTP header from public/_headers,
+  // which is the only place it works.
+  "object-src 'none'",
+].join("; ");
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta http-equiv="Content-Security-Policy" content={csp} />
+
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta
+      name="robots"
+      content={noindex ? "noindex, follow" : "index, follow, max-image-preview:large"}
+    />
+    {/* Dark is the site; light is only an explicit choice (global.css), so dark
+        is listed first — it is what the browser paints before the CSS lands. */}
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content={site.themeColor} />
+
+    {/* A noindex page has no canonical URL: the 404 is served at whatever path was
+        mistyped, and /404/ does not exist, so naming it would point at a dead address. */}
+    {!noindex && <link rel="canonical" href={canonical} />}
+
+    {/* The social card is not decoration here. issues/06 planned a launch that is
+        100% channel-driven, so nearly every visitor arrives from a link pasted into
+        X, Reddit, Slack or Discord — the card is the first thing they see. This page
+        previously declared `summary_large_image` while shipping no image at all,
+        which promises a large card and renders a blank one. Source for the PNG:
+        scripts/og-card.html. */}
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="en_US" />
+    <meta property="og:site_name" content={site.name} />
+    {!noindex && <meta property="og:url" content={canonical} />}
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={site.ogImageAlt} />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={site.ogImageAlt} />
+
+    {/* Rendered by scripts/brand-icons.py. No favicon.svg: the new brand exists
+        only as raster art, so there is no vector mark to serve. */}
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+    <link rel="icon" type="image/png" href="/icon-32.png" sizes="32x32" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <link rel="preload" href={displayFont} as="font" type="font/woff2" crossorigin />
+    {/* A data block, not executable JS. Browsers do not apply `script-src` to
+        `application/ld+json`, so this does not need a CSP relaxation — verified
+        against the live page's console rather than assumed. */}
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(jsonLd)} />
+    <slot name="head" />
+  </head>
+
+  <body>
+    <slot />
+  </body>
+</html>

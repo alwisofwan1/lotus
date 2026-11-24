@@ -1,0 +1,524 @@
+/* CodeCanvas — Settings Modal
+   Aesthetic: Void Glass — liquid crystal desktop panel
+   Scoped violet tokens, macOS-style chrome, full maximize support. */
+
+/* ── Scoped design tokens ───────────────────────────────────────────── */
+.canvas-settings-surface {
+  /* Theme-aware source tokens. The modal renders INSIDE .codecanvas-shell, so the active
+     Artisan theme's --canvas-* tokens inherit here — the whole panel recolours with the theme
+     instead of being pinned to the solid global --ds-* surface. Each source has a global-app
+     fallback then a hex, so every color-mix() below always resolves (raw-CSS reads stay sane,
+     and the modal survives if rendered outside a themed shell). */
+  /* Graphite (2026-11-07): Settings is app chrome, so it reads the APP palette (--ds-*, set on
+     <html> by theme-bootstrap and following General › Appearance), not the canvas theme. One
+     look on every canvas theme, and light mode comes from the app, not from the canvas. */
+  --cc-accent-src:    var(--ds-accent, #f3efec);
+  --cc-ink-src:       var(--ds-text, #f7f3ee);
+  --cc-ink-muted-src: var(--ds-text-muted, #9d9790);
+  --cc-chrome-border: var(--ds-border, rgba(247, 243, 238, 0.11));
+  --cc-chrome-fill:   color-mix(in oklab, var(--cc-ink-src) 6%, transparent);
+
+  /* Accent family — derived from the active canvas theme's accent. */
+  --cc-tint:          var(--cc-accent-src);
+  --cc-accent:        var(--cc-tint);
+  --cc-accent-fg:     var(--accent-fg, #ffffff);
+  --cc-accent-hi:     color-mix(in oklab, var(--cc-tint) 78%, var(--cc-ink-src) 22%);
+  --cc-accent-strong: color-mix(in oklab, var(--cc-tint) 84%, #000000 16%);
+  --cc-accent-lo:     color-mix(in oklab, var(--cc-tint) 12%, transparent);
+  --cc-accent-soft:   color-mix(in oklab, var(--cc-tint) 18%, transparent);
+  --cc-accent-bdr:    color-mix(in oklab, var(--cc-tint) 30%, transparent);
+  --cc-accent-glow:   0 0 0 3px color-mix(in oklab, var(--cc-tint) 18%, transparent);
+  --cc-scroll:        color-mix(in oklab, var(--cc-tint) 22%, transparent);
+
+  /* Surfaces + text — layered from the canvas ink/bg so tints match the theme (dark OR light). */
+  /* INK-DERIVED, NOT BACKGROUND-DERIVED, and that is a bug fix rather than a preference.
+     These two read `color-mix(in oklab, var(--cc-bg-src) 42%, transparent)`, where --cc-bg-src
+     was --canvas-bg, i.e. `paper.fill`. (That source token is gone now: it had no other reader,
+     and a token nothing consumes is a claim the code does not back.) On six of the seven built-in themes paper.fill is a
+     GRADIENT, not a colour — only Void is a flat #050506. color-mix() with a gradient is invalid
+     at computed-value time, so --cc-well resolved to nothing and every `background: var(--cc-well)`
+     painted transparent: the settings inputs had no well at all on six themes, which reads as a
+     borderless field rather than as a bug.
+
+     It is the same trap the panel surface a few lines down already documents for its own
+     `background-image`, and the same one note-node.css records for color-mix(). Deriving from the
+     theme's INK instead keeps the recess valid everywhere and tracks light/dark polarity, which
+     is what the switch track and the segmented well already do. */
+  --cc-well:          color-mix(in oklab, var(--cc-ink-src) 9%, transparent);
+  --cc-well-bar:      color-mix(in oklab, var(--cc-ink-src) 13%, transparent);
+  --cc-s1:            color-mix(in oklab, var(--cc-ink-src) 8%, transparent);
+  --cc-s2:            color-mix(in oklab, var(--cc-ink-src) 5%, transparent);
+  --cc-s3:            color-mix(in oklab, var(--cc-ink-src) 3.5%, transparent);
+  --cc-bdr:           color-mix(in oklab, var(--cc-ink-src) 8%, transparent);
+  --cc-bdr-str:       color-mix(in oklab, var(--cc-ink-src) 14%, transparent);
+  --cc-text:          var(--cc-ink-src);
+  --cc-muted:         var(--cc-ink-muted-src);
+  --cc-quiet:         color-mix(in oklab, var(--cc-ink-src) 32%, transparent);
+
+  /* Re-map the app's generic card tokens to the modal's own ink-derived surface, scoped to the
+     settings modal. Every settings row/list (SettingToggleRow, Segmented/Select, the Runners &
+     Agents lists, Voice controls) styles its card with `bg-(--bg-card)` + `border-(--border-sub)`;
+     the app defaults are a cool opaque #10101c that clashes with the warm modal surface and reads
+     as a heavy grey block. Pointing them at a faint, theme-matched translucent lift + hairline makes
+     every card read as one clean, ultra-minimal system — no per-component edits. */
+  --bg-card:          color-mix(in oklab, var(--cc-ink-src) 4%, transparent);
+  --border-sub:       color-mix(in oklab, var(--cc-ink-src) 9%, transparent);
+
+  /* Undo theme.css's APP-TOKEN ISOLATION for this panel. The wrapper is `.codecanvas-shell`, so
+     there --fg / --text-muted / --bg-hover … point at --canvas-text, and over the canvas that is
+     the Canvas Style ink (--ct-*). Graphite paints the panel from the APP palette, so a dark canvas
+     theme on a light app put near-white row text on a near-white sheet (Agents, Accounts, …), while
+     Code/Chat looked fine because they inject no --ct-* and --canvas-text falls back to the app. */
+  --fg:               var(--cc-ink-src);
+  --fg-muted:         var(--cc-ink-muted-src);
+  --text-muted:       var(--cc-ink-muted-src);
+  --text-secondary:   var(--ds-text-secondary, color-mix(in oklab, var(--cc-ink-src) 72%, transparent));
+  --accent:           var(--cc-accent-src);
+  --accent-fg:        var(--ds-accent-text, #ffffff);
+  --border:           var(--cc-chrome-border);
+  --bg:               color-mix(in oklab, var(--cc-ink-src) 6%, transparent);
+  --bg-elevated:      var(--ds-surface-raised, var(--ds-bg, #161513));
+  --bg-hover:         color-mix(in oklab, var(--cc-ink-src) 7%, transparent);
+  --scrollbar:        color-mix(in oklab, var(--cc-ink-src) 22%, transparent);
+
+  /* The theme's body face. Until now the modal inherited the browser's system sans: nothing in
+     this file or its neighbours ever named a family, so `fonts.body` reached the panel through
+     exactly one declaration (a single button in settings-modal-style.css). Declared on the
+     surface rather than per-component so every row, label and input inherits it.
+
+     The remap in theme.css means `var(--font-mono)` inside this panel is already the theme mono,
+     so the mono call sites below need no edit — they were always ASKING the right question and
+     only ever got the wrong answer. */
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --cc-err:           #f87171;
+  --cc-ok:            #86efac;
+  --cc-warn:          #fcd34d;
+  /* Compact metrics (revamp 2026-07-04): tighter chrome + rail. */
+  --cc-chrome-h:      32px;
+  --cc-rail-w:        196px;
+}
+
+/* ── Backdrop ───────────────────────────────────────────────────────── */
+.canvas-settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 140;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  /* Soft-focus surround (revamp 2026-07-04): a neutral dim + a gentle blur so the busy canvas
+     behind the modal reads calm and clean while the opaque panel stays the focus. Hardened: the dim
+     is a plain rgba (NOT color-mix over --canvas-bg, which can be a non-colour in photo themes and
+     would invalidate the whole `background` declaration). Blur stays well under the perf cap. */
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(14px) saturate(1.05);
+  -webkit-backdrop-filter: blur(14px) saturate(1.05);
+  animation: cc-backdrop-in 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: padding 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.canvas-settings-backdrop[data-maximized="true"] { padding: 0; }
+
+/* Lotus Settings mounts in the app shell, outside the canvas. Its wrapper carries the
+   `codecanvas-shell` class only so the Canvas Style tokens (theme.css) are in scope — the canvas
+   injects its Canvas Style as `--ct-*`, other modes leave them unset and the tokens fall back to the
+   app's Appearance (`--ds-workbench-*`). `display: contents` drops the wrapper's box, so none of the
+   shell's own layout (full size, flex, paper background, overflow) applies. */
+.codecanvas-shell.lotus-settings-scope { display: contents; }
+
+/* ── Modal surface ──────────────────────────────────────────────────── */
+.canvas-settings-surface {
+  display: grid;
+  grid-template-rows: var(--cc-chrome-h) 1fr;
+  grid-template-columns: var(--cc-rail-w) 1fr;
+  grid-template-areas:
+    "chrome chrome"
+    "rail   content";
+
+  width: min(90vw, 960px);
+  height: min(84dvh, 640px);
+  max-width: none;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: 14px;
+
+  /* Graphite: one opaque sheet from the app palette. No accent glow, sheen or canvas tint;
+     depth comes from the layered shadow and a 0.5px dark ring. The opaque hex stays on its own
+     background-color so the panel can never go see-through; the app colour rides in the
+     droppable background-image (a lone colour cannot be an image, hence the flat gradient). */
+  background-color: #161513;
+  background-image: linear-gradient(var(--ds-bg, #161513), var(--ds-bg, #161513));
+  border: 1px solid var(--cc-chrome-border);
+  box-shadow:
+    0 0 0 0.5px rgba(0, 0, 0, 0.6),
+    0 30px 80px -20px rgba(0, 0, 0, 0.65),
+    0 10px 24px -12px rgba(0, 0, 0, 0.5);
+
+  animation: cc-surface-in 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition:
+    width 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    height 320ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-radius 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.canvas-settings-surface[data-maximized="true"] {
+  width: 100vw;
+  height: 100dvh;
+  border-radius: 0;
+  border-color: transparent;
+}
+
+/* ── Window chrome bar ──────────────────────────────────────────────── */
+.cs-chrome {
+  grid-area: chrome;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 0.5rem;
+  /* Borderless + transparent so the chrome melts into the glass surface (modern/minimal). */
+  border-bottom: 1px solid color-mix(in oklab, var(--cc-ink-src) 4%, transparent);
+  background: transparent;
+  user-select: none;
+}
+
+.cs-chrome-title {
+  grid-column: 2;
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  color: var(--cc-quiet);
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.cs-chrome-actions {
+  grid-column: 3;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.cs-chrome-btn {
+  display: grid;
+  place-items: center;
+  width: 1.6rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cc-quiet);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.cs-chrome-btn:hover {
+  background: var(--cc-chrome-fill, var(--cc-s1));
+  color: var(--cc-text);
+}
+
+.cs-chrome-btn:active { transform: scale(0.93); }
+
+.cs-chrome-btn--close:hover {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+}
+
+/* ── Left rail ──────────────────────────────────────────────────────── */
+.canvas-settings-rail {
+  grid-area: rail;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-height: 0;
+  padding: 0.7rem 0.5rem;
+  border-right: 1px solid color-mix(in oklab, var(--cc-ink-src) 5%, transparent);
+  background: none;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.canvas-settings-rail::-webkit-scrollbar { display: none; }
+
+/* One flat list; About is pushed to the bottom as a quiet footer item. */
+.canvas-settings-rail-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1875rem;
+  min-height: 100%;
+}
+.canvas-settings-rail-item[data-section-id="about"] { margin-top: auto; }
+
+.canvas-settings-rail-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cc-muted);
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease, color 120ms ease;
+  width: 100%;
+}
+
+.canvas-settings-rail-item:hover {
+  background: var(--cc-chrome-fill, var(--cc-s1));
+  color: var(--cc-text);
+}
+
+/* Selected: a quiet neutral pill, nothing else. */
+.canvas-settings-rail-item[data-selected="true"] {
+  background: color-mix(in oklab, var(--cc-ink-src) 8%, transparent);
+  color: var(--cc-text);
+}
+
+.canvas-settings-rail-item-label {
+  font-size: var(--ds-t-body);
+  font-weight: 520;
+  line-height: var(--ds-lh-tight);
+  letter-spacing: -0.005em;
+}
+
+/* ── Content pane ───────────────────────────────────────────────────── */
+.canvas-settings-content {
+  grid-area: content;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.canvas-settings-content-head {
+  flex-shrink: 0;
+  padding: 1.2rem 1.6rem 0.35rem;
+}
+
+.canvas-settings-content-title {
+  margin: 0;
+  font-size: var(--ds-t-head);
+  font-weight: 660;
+  letter-spacing: -0.025em;
+  color: var(--cc-text);
+  line-height: var(--ds-lh-tight);
+}
+
+.canvas-settings-content-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.85rem 1.6rem 1.6rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cc-scroll) transparent;
+}
+
+/* ── Shared section primitives ──────────────────────────────────────── */
+
+/* Canvas theme gallery group labels: caption case like every other label in Settings. */
+.lotus-settings-scope .cc-theme-group-label { font-size: var(--ds-t-meta); font-weight: 500; letter-spacing: 0; text-transform: none; }
+
+/* ══ FOCUS ═══════════════════════════════════════════════════════════════
+   One ring for every focusable control in the panel.
+
+   PRODUCT.md targets WCAG 2.1 AA, which includes 2.4.7 Focus Visible, and the panel was failing
+   it broadly: of ~52 interactive elements across 19 components, exactly two carried a focus
+   style, and eleven actively removed the browser's own with a Tailwind `outline-none` and put
+   nothing back. `.cc-field` did the same in CSS — `outline: none` plus a 1px border-colour swap
+   on :focus, which is not a focus indicator so much as a hint.
+
+   WHY IT IS ONE RULE RATHER THAN A CLASS. A class only protects the components that remember to
+   use it, and the switch already proved how that ends: four copies, one of them fixed. A
+   descendant rule covers the control added next week without it knowing this file exists — the
+   same argument the app-token isolation block in theme.css makes for colour.
+
+   It beats any `outline-none` left behind, because Tailwind's utilities live in @layer utilities
+   and unlayered rules win over layered ones regardless of specificity. The call sites were
+   cleaned up anyway, so the two never actually disagree.
+
+   :focus-visible, not :focus — a mouse click on a toggle should not leave a ring behind. */
+.canvas-settings-surface :is(button, input, select, textarea, a[href], [tabindex]):focus-visible {
+  outline: 2px solid var(--canvas-accent);
+  outline-offset: 2px;
+}
+
+/* ── Glass card primitive (used by subsections) ─────────────────────── */
+.cc-card {
+  border: 1px solid var(--cc-bdr);
+  border-radius: 10px;
+  background: var(--cc-s3);
+  overflow: hidden;
+}
+
+/* ── Inline alert (warn / error) ────────────────────────────────────── */
+.cc-alert {
+  margin: 0;
+  padding: 0.625rem 0.875rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  font-size: var(--ds-t-meta);
+  line-height: var(--ds-lh-body);
+}
+.cc-alert--error { border-color: rgba(248, 113, 113, 0.22); background: rgba(127, 29, 29, 0.12); color: var(--cc-err); }
+.cc-alert--warn  { border-color: rgba(251, 191, 36, 0.24); background: rgba(251, 191, 36, 0.08); color: var(--cc-warn); }
+
+.cc-empty {
+  margin: 0;
+  padding: 1rem;
+  font-size: var(--ds-t-meta);
+  line-height: var(--ds-lh-body);
+  color: var(--cc-muted);
+  text-align: center;
+}
+
+/* ── Shared form-field primitive (Agents + Templates) ───────────────── */
+.cc-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.cc-field--wide { grid-column: 1 / -1; }
+
+.cc-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.625rem 0.6875rem;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 8px;
+  background: var(--cc-s3);
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+.cc-field:focus-within { border-color: var(--cc-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--cc-tint) 10%, transparent); }
+.cc-field[data-missing="true"] { border-color: rgba(251, 191, 36, 0.30); background: rgba(251, 191, 36, 0.04); }
+.cc-field[data-missing="true"]:focus-within { border-color: rgba(251, 191, 36, 0.50); box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.09); }
+
+.cc-field-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.375rem;
+  color: var(--cc-text);
+  font-size: var(--ds-t-body);
+  font-weight: 540;
+}
+.cc-field-label em { color: var(--cc-quiet); font-style: normal; font-weight: 500; }
+.cc-field-label small {
+  border-radius: 4px;
+  background: var(--cc-s1);
+  color: var(--cc-quiet);
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  padding: 0.175rem 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: var(--ds-tr-caps);
+  white-space: nowrap;
+}
+.cc-field[data-missing="true"] .cc-field-label small { background: rgba(251, 191, 36, 0.14); color: var(--cc-warn); }
+.cc-field-help { font-size: var(--ds-t-meta); color: var(--cc-quiet); line-height: var(--ds-lh-body); }
+
+.cc-field input,
+.cc-field select,
+.cc-field textarea {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 6px;
+  background: var(--cc-well);
+  color: var(--cc-text);
+  font-size: var(--ds-t-body);
+  padding: 0.4375rem 0.5625rem;
+  transition: border-color 120ms ease;
+}
+.cc-field textarea { resize: vertical; min-height: 3.75rem; line-height: 1.55; }
+.cc-field input:focus,
+.cc-field select:focus,
+.cc-field textarea:focus { border-color: var(--cc-accent); }
+.cc-field input::placeholder,
+.cc-field textarea::placeholder { color: var(--cc-quiet); }
+
+/* ── Agents tab — form card + roster list ───────────────────────────── */
+.cc-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.625rem;
+  padding: 0.875rem;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 10px;
+  background: var(--cc-s3);
+}
+.cc-form-title {
+  grid-column: 1 / -1;
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: var(--ds-tr-caps);
+  text-transform: uppercase;
+  color: var(--cc-accent-hi);
+  opacity: 0.85;
+}
+.cc-form-actions { grid-column: 1 / -1; display: flex; gap: 0.5rem; align-items: center; }
+
+.cc-agent-teamload { display: flex; flex-direction: column; gap: 0.375rem; align-items: flex-start; }
+.cc-agent-hint { margin: 0; font-size: var(--ds-t-meta); color: var(--cc-muted); }
+.cc-agent-hint code { font-family: var(--font-mono, ui-monospace, monospace); color: var(--cc-accent-hi); }
+
+.cc-agent-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+.cc-agent-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.625rem 0.6875rem;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 9px;
+  background: var(--cc-s3);
+  transition: border-color 140ms ease, background 140ms ease;
+}
+.cc-agent-row:hover { border-color: var(--cc-bdr-str); background: var(--cc-s2); }
+.cc-agent-row[data-editing="true"] { border-color: var(--cc-accent-bdr); background: var(--cc-accent-lo); }
+.cc-agent-row-top { display: flex; align-items: center; justify-content: space-between; gap: 0.625rem; }
+.cc-agent-row-main { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+.cc-agent-name { font-size: var(--ds-t-body); font-weight: 600; color: var(--cc-text); }
+.cc-agent-model { font-size: var(--ds-t-micro); color: var(--cc-muted); font-family: var(--font-mono, ui-monospace, monospace); }
+.cc-agent-actions { display: flex; align-items: center; gap: 0.15rem; flex-shrink: 0; }
+
+.cc-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cc-muted);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.cc-icon-btn:hover { background: var(--cc-s1); color: var(--cc-text); border-color: var(--cc-bdr); }
+.cc-icon-btn[aria-pressed="true"] { background: var(--cc-accent-lo); border-color: var(--cc-accent-bdr); color: var(--cc-accent-hi); }
+.cc-icon-btn--danger { color: rgba(248, 113, 113, 0.75); }
+.cc-icon-btn--danger:hover { background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.18); color: #fca5a5; }
+
+.cc-agent-preview {
+  margin: 0;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 7px;
+  background: var(--cc-well);
+  color: var(--cc-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-meta);
+  line-height: var(--ds-lh-body);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 13rem;
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cc-scroll) transparent;
+}
+
+

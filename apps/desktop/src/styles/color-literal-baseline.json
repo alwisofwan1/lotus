@@ -1,0 +1,17 @@
+{
+  "src/app/globals.css": 0,
+  "src/app/terminal-cell-header.css": 0,
+  "src/styles/automation.css": 0,
+  "src/styles/codespace.css": 0,
+  "src/styles/composer-voice.css": 0,
+  "src/styles/connectors.css": 0,
+  "src/styles/design-system.css": 0,
+  "src/styles/factory-chief.css": 0,
+  "src/styles/factory-settings.css": 0,
+  "src/styles/factory.css": 12,
+  "src/styles/music-mini-player.css": 0,
+  "src/styles/pane-veil.css": 0,
+  "src/styles/resource-kit.css": 0,
+  "src/styles/tasks.css": 0,
+  "src/styles/workspace-shell.css": 0
+}

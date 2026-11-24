@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "389291352626",
+    "project_id": "lotus-pocket",
+    "storage_bucket": "lotus-pocket.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:389291352626:android:6a38493eaddcf67961122b",
+        "android_client_info": {
+          "package_name": "com.serayu.lotus_pocket"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBKOV0I21a2qE1q_8_hRvPZds6ww-ZCR2U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

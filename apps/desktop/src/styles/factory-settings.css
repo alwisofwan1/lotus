@@ -1,0 +1,47 @@
+/* Factory configuration: task-first setup, verification policy and reversible local removal. */
+.fa-configuration { max-width: 760px; margin: 8px 0 32px; color: var(--fg); }
+.fa-config-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; margin-bottom: 16px; }
+.fa-config-heading h2 { margin: 0 0 8px; font-size: 24px; font-weight: 600; line-height: 1.25; letter-spacing: -0.02em; }
+.fa-config-heading p, .fa-config-scope, .fa-config-description, .fa-config-management p { margin: 0; max-width: 70ch; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+.fa-config-status { flex: none; border: 1px solid var(--ws-line-strong); border-radius: 999px; padding: 4px 9px; color: var(--text-secondary); font-size: 11px; }
+.fa-config-scope { padding-bottom: 24px; border-bottom: 1px solid var(--ws-line); }
+.fa-configuration form { display: flex; flex-direction: column; gap: 12px; margin-top: 24px; }
+.fa-configuration h3 { margin: 0; font-size: 16px; font-weight: 600; line-height: 1.4; }
+.fa-config-discovery, .fa-config-unverified { margin: 0; color: var(--text-secondary); font-size: 12px; line-height: 1.5; }
+.fa-check-options { display: flex; flex-direction: column; gap: 0; min-width: 0; margin: 4px 0; padding: 0; border: 0; }
+.fa-check-options legend { margin-bottom: 8px; color: var(--text-secondary); font-size: 12px; font-weight: 500; }
+.fa-check-option { display: flex; align-items: flex-start; gap: 12px; padding: 12px 10px; border-bottom: 1px solid var(--ws-line); cursor: pointer; }
+.fa-check-option:has(input:checked) { background: var(--ws-hover); border-radius: 6px; }
+.fa-check-option input { flex: none; margin-top: 3px; }
+.fa-check-option span { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.fa-check-option strong { font-size: 13px; font-weight: 500; }
+.fa-check-option code { font-family: var(--font-mono, ui-monospace, monospace); color: var(--text-secondary); font-size: 12px; overflow-wrap: anywhere; }
+.fa-check-option small { color: var(--text-secondary); font-size: 11px; line-height: 1.5; }
+.fa-configuration .fa-field input { min-height: 38px; font-family: var(--font-mono, ui-monospace, monospace); font-size: 13px; }
+.fa-config-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-top: 4px; }
+.fa-config-feedback { margin: 12px 0; color: var(--text-secondary); font-size: 13px; line-height: 1.6; }
+.fa-config-management { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--ws-line); }
+.fa-remove-config { color: var(--factory-failing); }
+.fa-integrations-section { max-width: 760px; margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--ws-line); }
+.fa-integrations-section > .fa-group-label { margin: 0 0 12px; }
+.fa-integrations-section details { margin-top: 10px; }
+.fa-integrations-section summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; }
+.fa-integrations-section li { padding-block: 4px; line-height: 1.6; overflow-wrap: anywhere; }
+.fa-configuration input:focus-visible, .fa-configuration button:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+.fa-try-checks { display: flex; flex-direction: column; gap: 12px; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--ws-line); }
+.fa-check-verdict { padding: 4px 9px; border: 1px solid var(--ws-line-strong); border-radius: 999px; color: var(--fg); font-size: 12px; font-weight: 500; }
+.fa-check-confirmation { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--ws-line-strong); border-radius: 8px; }
+.fa-check-context { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: 8px 16px; margin: 0; font-size: 12px; line-height: 1.6; }
+.fa-check-context dt { color: var(--text-secondary); }
+.fa-check-context dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.fa-try-checks code { font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; overflow-wrap: anywhere; }
+.fa-check-output summary { cursor: pointer; color: var(--text-secondary); font-size: 12px; }
+.fa-check-output pre { max-height: 260px; overflow: auto; padding: 12px; border: 1px solid var(--ws-line); border-radius: 6px; background: var(--ws-hover); color: var(--fg); font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
+.fa-check-output pre:focus-visible, .fa-check-output summary:focus-visible { outline: 2px solid var(--fg); outline-offset: 3px; }
+@media (max-width: 640px) {
+  .fa-config-heading { flex-direction: column; gap: 12px; }
+  .fa-config-heading h2 { font-size: 21px; }
+  .fa-config-actions { align-items: flex-start; flex-direction: column; }
+  .fa-check-context { grid-template-columns: 1fr; gap: 4px; }
+  .fa-check-context dd { margin-bottom: 8px; }
+}

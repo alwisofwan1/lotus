@@ -1,0 +1,482 @@
+/* CodeCanvas TerminalNode surface and xterm viewport styling. */
+
+/* ── Terminal Node ── */
+.canvas-terminal-node {
+  /* Fill the ReactFlow wrapper so NodeResizer drag (which mutates the wrapper's
+     width/height) flows down to .canvas-terminal-host → ResizeObserver → fit().
+     Initial 560×360 comes from the node's width/height in useCanvasNodes. A fixed
+     px size here pins the host and silently breaks resize — same fill contract as
+     the skill/skills nodes below. */
+  width: 100%;
+  height: 100%;
+  /* Adaptive Ink (ADR-0033 follow-up): the Terminal Node shares the EXACT same calm
+     surface as the live Terminal Agent — --node-surface (node-shell.css) — so the two
+     read as one frosted material instead of a dark slab sitting beside translucent
+     glass. --node-surface is theme-derived (a deep neutral ink + a faint per-kind
+     accent tint) and already carries its own light-theme branch, so the terminal
+     follows every theme AND mode for free, with no separate floor to drift. */
+  /* OPAQUE FLOOR (plans/canvas-terminal-opaque-floor). xterm runs with allowTransparency:false
+     and paints --node-floor-solid itself, so the CSS floor has to be that SAME colour — a
+     different value here reads as a seam where xterm's grid meets the viewport. The token is a
+     literal rgb() resolved in JS (terminal-floor.ts), never a color-mix: paper.fill is a
+     gradient on four of five themes and color-mix() with a gradient is invalid. */
+  --canvas-terminal-bg: var(--node-floor-solid);
+  --canvas-terminal-edge: color-mix(in oklab, var(--canvas-text) 8%, transparent);
+  --canvas-terminal-scroll-track: color-mix(in oklab, var(--canvas-text) 6%, transparent);
+  --canvas-terminal-scroll-thumb: color-mix(in oklab, var(--node-accent) 22%, transparent);
+  --canvas-terminal-scroll-thumb-hover: color-mix(in oklab, var(--node-accent) 38%, transparent);
+}
+
+.canvas-terminal-node .canvas-node-body {
+  /* No inset padding: the viewport fills the body edge-to-edge, exactly like the
+     live agent. The old 2px frame read as a lighter "transparent border" ring
+     because that strip only got the node frost while the viewport interior got the
+     frost PLUS the --node-surface tint. Flush = one seamless material. */
+  background: transparent;
+  position: relative;
+  border-radius: 0 0 calc(var(--canvas-node-radius) - 1px) calc(var(--canvas-node-radius) - 1px);
+  /* Suppress browser native selection so it cannot compete with xterm's own
+     canvas-drawn selection model. xterm renders its own highlight; the browser
+     must not layer an additional text-selection rectangle on top. */
+  user-select: none;
+}
+
+.canvas-terminal-viewport {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  isolation: isolate;
+  border-radius: 0 0 calc(var(--canvas-node-radius) - 2px) calc(var(--canvas-node-radius) - 2px);
+  /* No inset top hairline: it was a line inside the node, and it double-drew the header's own
+     bottom border. The header/body seam is a luminance step now (see .cth-row1). */
+}
+
+/* Adaptive Ink surface — Terminal Node. The node itself owns the backdrop blur
+   (node-shell.css, shared with .canvas-agent-node); the viewport just carries the
+   translucent --node-surface tint on top, exactly like the agent viewport. No own
+   backdrop-filter here (that would double-blur), no vignette, no accent inset. */
+.canvas-terminal-node .canvas-terminal-viewport {
+  background: var(--canvas-terminal-bg);
+}
+
+/* (The per-node wallpaper backdrop is GONE — component and CSS both. It painted a blurred copy of
+   the wallpaper at z-index 0 beneath the xterm host, which was reachable only while xterm ran
+   transparent. Both node families now paint an opaque floor over the whole grid, so the layer
+   could not be seen at all, and it was charging a full wallpaper redraw plus a blur(11px) filter
+   per terminal node on the surface this work exists to make cheaper.) */
+
+.canvas-terminal-host {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+}
+
+.canvas-terminal-host > .xterm {
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Opaque floor for live agents (ADR-0033 → canvas-terminal-opaque-floor) ──
+   Was a 34% ink wash under a TRANSPARENT xterm, which forced per-cell alpha compositing and
+   pinned the node to WebKit's DOM renderer. xterm now owns the ground and paints this same
+   colour, which is what frees both the DOM and WebGL renderers to take their background-run
+   fast path. The vignette stays dropped: the surface is an even, quiet tone. */
+.canvas-agent-node .canvas-terminal-viewport {
+  background: var(--node-floor-solid);
+}
+
+/* NO glass rim. A 7px gutter of --node-surface around the opaque core was tried here so photo
+   wallpapers would still move at the edges, and it was removed after seeing it render: on a
+   BRIGHT paper (Lakeside Day) the gutter reads as a light halo, and once the selection ring is
+   drawn on top the node shows three nested frames. It only ever looked right on the dark photo
+   it was designed against. PRODUCT.md lists "glass effects used as ornament" as an
+   anti-reference, and a gutter that works on half the themes is exactly that. */
+.canvas-agent-node .canvas-terminal-viewport::after {
+  display: none;
+}
+
+.canvas-terminal-recovery {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  padding: 1rem;
+  background:
+    radial-gradient(ellipse at 50% 42%, color-mix(in oklab, oklch(0.64 0.21 25) 14%, transparent), transparent 46%),
+    rgba(5, 6, 13, 0.86);
+  color: var(--canvas-text);
+  text-align: center;
+}
+
+.canvas-terminal-recovery-title {
+  margin: 0;
+  color:color-mix(in oklab, var(--canvas-text) 78%, transparent);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.canvas-terminal-recovery-sub {
+  max-width: 18rem;
+  margin: 0;
+  color:color-mix(in oklab, var(--canvas-text) 44%, transparent);
+  font-size: 0.64rem;
+  line-height: 1.45;
+}
+
+.canvas-terminal-recovery-btn {
+  margin-top: 0.15rem;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(from var(--canvas-accent) r g b / 0.32);
+  border-radius: 0.55rem;
+  background: rgba(from var(--canvas-accent) r g b / 0.10);
+  color: rgba(from var(--canvas-accent) r g b / 0.9);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 140ms ease-out, border-color 140ms ease-out, transform 100ms ease-out;
+}
+
+.canvas-terminal-recovery-btn:hover {
+  border-color: rgba(from var(--canvas-accent) r g b / 0.48);
+  background: rgba(from var(--canvas-accent) r g b / 0.16);
+}
+
+.canvas-terminal-recovery-btn:active {
+  transform: scale(0.98);
+}
+
+.canvas-terminal-recovery-btn:focus-visible {
+  outline: 2px solid rgba(from var(--canvas-accent) r g b / 0.42);
+  outline-offset: 2px;
+}
+
+.canvas-terminal-node .xterm,
+.canvas-terminal-node .xterm-viewport,
+.canvas-terminal-node .xterm-screen {
+  /* NO `background-color: transparent` here any more. The Terminal Node runs
+     allowTransparency:false like the live agent, so xterm PAINTS --node-floor-solid itself; forcing
+     these layers transparent punched the floor straight back out and put per-cell alpha
+     compositing back on the DOM renderer's critical path. The viewport carries the same literal
+     colour underneath (--canvas-terminal-bg), so there is no seam to hide.
+     `width: auto` stays: xterm sizes .xterm-screen in px from its own measurement, and a stale
+     value survives a node resize until the next fit(). */
+  width: auto !important;
+}
+
+/* xterm uses a real scrollable viewport for history and measures around that
+   native gutter. Make the gutter belong to the terminal surface instead of
+   appearing as an opaque black rail, then reveal only a slim thumb on intent. */
+.canvas-terminal-node .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: transparent var(--canvas-terminal-bg);
+  scrollbar-gutter: stable;
+}
+
+.canvas-terminal-node .xterm-viewport::-webkit-scrollbar {
+  width: 10px !important;
+  background: var(--canvas-terminal-bg) !important;
+}
+.canvas-terminal-node .xterm-viewport::-webkit-scrollbar-track,
+.canvas-terminal-node .xterm-viewport::-webkit-scrollbar-corner {
+  background: var(--canvas-terminal-bg) !important;
+}
+.canvas-terminal-node .xterm-viewport::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  border: 3px solid var(--canvas-terminal-bg);
+  border-radius: 9999px;
+  background-color: transparent !important;
+  background-clip: padding-box;
+}
+.canvas-terminal-node:hover .xterm-viewport::-webkit-scrollbar-thumb,
+.canvas-terminal-node:focus-within .xterm-viewport::-webkit-scrollbar-thumb {
+  background-color: var(--canvas-terminal-scroll-thumb) !important;
+}
+.canvas-terminal-node:hover .xterm-viewport::-webkit-scrollbar-track,
+.canvas-terminal-node:focus-within .xterm-viewport::-webkit-scrollbar-track {
+  background: var(--canvas-terminal-scroll-track) !important;
+}
+.canvas-terminal-node:hover .xterm-viewport {
+  scrollbar-color: var(--canvas-terminal-scroll-thumb) var(--canvas-terminal-bg);
+}
+.canvas-terminal-node .xterm-viewport::-webkit-scrollbar-thumb:hover {
+  background-color: var(--canvas-terminal-scroll-thumb-hover) !important;
+}
+
+/* Runtime status dot in the terminal header */
+.canvas-terminal-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--canvas-text) 18%, transparent);
+  flex-shrink: 0;
+  transition: background var(--canvas-motion-dot, 200ms) ease, box-shadow var(--canvas-motion-dot, 200ms) ease;
+}
+.canvas-terminal-dot--live     { background: #34d399; }
+.canvas-terminal-dot--starting { background: #fbbf24; animation: canvas-dot-pulse 1.2s ease-in-out infinite; }
+.canvas-terminal-dot--exited   { background: color-mix(in oklab, var(--canvas-text) 18%, transparent); }
+.canvas-terminal-dot--failed   { background: #f87171; }
+
+@keyframes canvas-dot-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Spawn sheen — the "background shimmer" from the revamp mockup ──────────────
+   When a Terminal Node or Live Agent is born, one band of light crosses its glass, once. It is
+   the moment the panel reads as a physical surface rather than a rectangle that appeared.
+
+   Why a wrapper element and not just a pseudo on the node: `.canvas-node` is deliberately
+   overflow:visible so floating panels (Worktree/Skills) can spill past its bounds, so the node
+   cannot clip the sweep itself. This layer does the clipping instead — inset:0 with the node's
+   own radius — and the band lives on its ::before, oversized well past every edge so it can
+   travel entirely on `transform`.
+
+   That constraint is the whole design. The node carries a backdrop-filter, so any
+   non-compositable property in these keyframes would re-blur the backdrop on every single
+   frame, on the most-seen transition in the app. Transform + opacity only — the same bar the
+   enter/leave keyframes in node-shell.css are held to. */
+.canvas-node-sheen {
+  position: absolute;
+  inset: 0;
+  z-index: 4; /* above the header (1) and the xterm host (2); below the drop frame (8) */
+  border-radius: inherit;
+  overflow: hidden;
+  pointer-events: none;
+}
+.canvas-node-sheen::before {
+  content: "";
+  position: absolute;
+  /* Overhung far past every edge so the band is fully off-panel at both ends of its travel. */
+  top: -30%;
+  bottom: -30%;
+  left: -70%;
+  right: -70%;
+  opacity: 0;
+  background: linear-gradient(
+    103deg,
+    transparent 40%,
+    color-mix(in oklab, #fff 7%, transparent) 47%,
+    color-mix(in oklab, #fff 15%, transparent) 50%,
+    color-mix(in oklab, #fff 7%, transparent) 53%,
+    transparent 60%
+  );
+  transform: translate3d(-34%, 0, 0);
+  animation: canvas-node-sheen 1150ms var(--canvas-ease-out-expo, cubic-bezier(0.16, 0.7, 0.3, 1)) backwards;
+  /* Rides the same stagger the node landing uses (--canvas-enter-delay is stamped per node by
+     the enter burst in useCanvasNodes), so a batch spawn flows instead of flashing at once. The
+     extra 130ms lets the node finish arriving before the light finds it. */
+  animation-delay: calc(var(--canvas-motion-enter-delay, 0ms) + var(--canvas-enter-delay, 0ms) + 130ms);
+}
+@keyframes canvas-node-sheen {
+  0%   { opacity: 0; transform: translate3d(-34%, 0, 0); }
+  16%  { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(34%, 0, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-node-sheen::before { animation: none; opacity: 0; }
+}
+
+/* ── CanvasTerminalHeader (.cth-*) ── */
+.cth-root {
+  flex-shrink: 0;
+  cursor: grab;
+  user-select: none;
+  border-radius: calc(var(--canvas-node-radius) - 1px) calc(var(--canvas-node-radius) - 1px) 0 0;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  /* Canvas Terminal idiom (ADR-0033): monospace chrome, no glass bevel. Reads the THEME mono
+     token (--canvas-font-mono, JetBrains Mono via resolve-canvas-theme.ts) — NOT --canvas-code,
+     which is the whiteboard shape font (Comic Mono, Excalidraw parity). An Artisan theme's
+     fonts.mono choice must reach this header. */
+  font-family: var(--canvas-font-mono, ui-monospace, "SF Mono", Menlo, monospace);
+}
+.cth-root:active { cursor: grabbing; }
+
+.cth-row1 {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 2rem;
+  padding: 0 0.25rem 0 0.5rem;
+  /* Canvas Terminal revamp — NO LINES INSIDE THE NODE. The header carries no fill of its own:
+     it is the node's bare glass, and the only thing separating it from the body is that the
+     body adds an ink floor on top of that same glass. Over a photo wallpaper a hairline reads
+     as a crack across the panel; a luminance step reads as depth. Both the accent-tinted
+     bottom border and the opaque --node-header-bg bar (a dark gradient with an accent glow
+     pooled top-left) are gone for exactly that reason. */
+  background: transparent;
+  position: relative;
+  z-index: 1;
+}
+
+.cth-identity {
+  display: flex;
+  align-items: center;
+  gap: 0.34rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Status-aware dot — replaces the static white circle */
+.cth-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--canvas-text) 22%, transparent);
+  flex-shrink: 0;
+  transition: background var(--canvas-motion-dot, 200ms) ease, box-shadow var(--canvas-motion-dot, 200ms) ease;
+}
+.cth-dot--live     { background: #34d399; box-shadow: 0 0 5px rgba(52,211,153,0.55); }
+.cth-dot--starting { background: #fbbf24; animation: canvas-dot-pulse 1.2s ease-in-out infinite; }
+.cth-dot--exited   { background: color-mix(in oklab, var(--canvas-text) 16%, transparent); }
+.cth-dot--failed   { background: #f87171; box-shadow: 0 0 4px rgba(248,113,113,0.45); }
+/* Terminal Activity (ADR 0004): idle is quiet/muted, running glows green */
+.cth-dot--idle     { background: color-mix(in oklab, var(--canvas-text) 26%, transparent); box-shadow: none; }
+.cth-dot--running  {
+  background: #34d399;
+  animation: cth-run-pulse 1.6s ease-in-out infinite;
+}
+
+.cth-glyph { flex-shrink: 0; color: var(--node-accent); font-size: 0.72rem; line-height: 1; }
+.cth-name {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--canvas-text);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  cursor: text;
+}
+.cth-name-input {
+  min-width: 0;
+  width: min(10rem, 42%);
+  padding: 0.16rem 0.32rem;
+  border: 1px solid color-mix(in oklab, var(--node-accent) 52%, transparent);
+  border-radius: 4px;
+  outline: none;
+  background: color-mix(in oklab, var(--node-floor-solid) 46%, transparent);
+  color: var(--canvas-text);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+.cth-name-input:focus-visible {
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--node-accent) 72%, transparent);
+}
+.cth-sep { flex-shrink: 0; color: color-mix(in oklab, var(--canvas-text) 26%, transparent); }
+/* cwd / worktree — muted inline context that truncates before the action bar. */
+.cth-loc {
+  min-width: 0;
+  font-size: 0.625rem;
+  color: color-mix(in oklab, var(--canvas-text) 44%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cth-loc--worktree {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.24rem;
+  color: color-mix(in oklab, var(--node-accent) 82%, var(--canvas-text));
+}
+.cth-loc--worktree svg { flex-shrink: 0; color: var(--node-accent); opacity: 0.85; }
+
+/* Breathing glow + label fade while a cell is actively working. */
+@keyframes cth-run-pulse {
+  0%, 100% { box-shadow: 0 0 4px 0 rgba(52, 211, 153, 0.45); }
+  50%      { box-shadow: 0 0 7px 1.5px rgba(52, 211, 153, 0.75); }
+}
+/* Opacity breathe for the headless agent's running status badge (agent-node.css). */
+@keyframes cth-run-fade {
+  0%, 100% { opacity: 0.65; }
+  50%      { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cth-dot--running,
+  .codecanvas-shell .react-flow__edge.animated .react-flow__edge-path { animation: none; }
+}
+
+.cth-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.0625rem;
+  flex-shrink: 0;
+}
+
+.cth-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.375rem;
+  padding: 0 0.4rem;
+  border-radius: 0.25rem;
+  border: none;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 32%, transparent);
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, box-shadow 100ms ease;
+  white-space: nowrap;
+}
+.cth-action:hover         { background: color-mix(in oklab, var(--canvas-text) 8%, transparent); color: color-mix(in oklab, var(--canvas-text) 78%, transparent); }
+.cth-action--active {
+  background: color-mix(in oklab, var(--node-accent) 10%, transparent);
+  color: var(--node-accent);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--node-accent) 24%, transparent);
+}
+.cth-action--active:hover {
+  background: color-mix(in oklab, var(--node-accent) 16%, transparent);
+  color: color-mix(in oklab, var(--node-accent) 78%, var(--canvas-text));
+}
+.cth-action--active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0.15rem;
+  width: 0.35rem;
+  height: 1px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.85;
+  transform: translateX(-50%);
+}
+
+/* × kill button — larger glyph, no bold weight so it reads as an icon */
+.cth-action--kill {
+  font-size: 0.875rem;
+  font-weight: 300;
+  letter-spacing: 0;
+  padding: 0 0.35rem;
+  color: color-mix(in oklab, var(--canvas-text) 24%, transparent);
+}
+.cth-action--kill:hover { background: rgba(239,68,68,0.14); color: #ef4444; }
+
+/* Focus action — icon button, quiet violet on hover (matches the agent persona focus action) */
+.cth-action--focus { padding: 0 0.35rem; }
+.cth-action--focus:hover { background: rgba(139, 124, 246, 0.16); color: #c4b5fd; }
+
+/* Divider between WT/SK and kill */
+.cth-actions-sep {
+  width: 1px;
+  height: 0.875rem;
+  background: var(--canvas-border);
+  margin: 0 0.125rem;
+  flex-shrink: 0;
+}
+
+/* (Row-2 path + worktree indicator removed — cwd/branch is now inline in .cth-loc.) */

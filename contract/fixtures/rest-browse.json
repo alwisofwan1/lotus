@@ -1,0 +1,36 @@
+{
+  "roots": [
+    {
+      "name": "lotus-workspaces",
+      "path": "/home/op/lotus-workspaces"
+    },
+    {
+      "name": "kerja",
+      "path": "/home/op/kerja"
+    }
+  ],
+  "page": {
+    "path": "/home/op/kerja",
+    "parent": null,
+    "entries": [
+      {
+        "name": "tkt-backend",
+        "path": "/home/op/kerja/tkt-backend",
+        "isRepo": true,
+        "branch": "feat/payments",
+        "children": 12,
+        "isProject": false
+      },
+      {
+        "name": "notes",
+        "path": "/home/op/kerja/notes",
+        "isRepo": false,
+        "branch": null,
+        "children": 4,
+        "isProject": true
+      }
+    ],
+    "takeable": true,
+    "whyNot": null
+  }
+}

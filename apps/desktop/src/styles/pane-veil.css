@@ -1,0 +1,58 @@
+/*
+  The focus-mode veil over a shell terminal pane (`PaneBody`, `pane-reveal-veil.ts`).
+
+  Focus mode on/off makes the agent repaint the pane, and shown raw that is black → half-drawn →
+  redrawn. The veil covers it in the terminal's own background, with the CodeCanvas spawn sheen
+  (`.canvas-node-sheen`, styles/canvas/terminal-node.css) sweeping across while the agent redraws
+  underneath, and fades once the output is quiet.
+
+  Its own file on purpose: workspace-shell.css is held flat — no gradients, no colour literals
+  (shell-tokens.css.test.ts). This sheen is the one deliberate exception, asked for 2026-10-02 to
+  replace a harsh flash; it is only ever mounted for the few hundred ms of a repaint. The colour
+  still comes from the theme (`--fg`), so a light theme gets a dark sheen.
+
+  Transform and opacity only, so the sweep never makes the terminal underneath repaint.
+*/
+
+.ws-pane-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 240ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+.ws-pane-veil[data-phase="out"] { opacity: 0; }
+
+.ws-pane-veil::before {
+  content: "";
+  position: absolute;
+  /* Overhung far past every edge so the band is fully off-pane at both ends of its travel. */
+  top: -30%;
+  bottom: -30%;
+  left: -70%;
+  right: -70%;
+  background: linear-gradient(
+    103deg,
+    transparent 40%,
+    color-mix(in oklab, var(--fg) 5%, transparent) 47%,
+    color-mix(in oklab, var(--fg) 11%, transparent) 50%,
+    color-mix(in oklab, var(--fg) 5%, transparent) 53%,
+    transparent 60%
+  );
+  transform: translate3d(-34%, 0, 0);
+  animation: ws-pane-veil-sheen 900ms cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+
+@keyframes ws-pane-veil-sheen {
+  0%   { opacity: 0; transform: translate3d(-34%, 0, 0); }
+  20%  { opacity: 1; }
+  100% { opacity: 0; transform: translate3d(34%, 0, 0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-pane-veil { transition-duration: 0ms; }
+  .ws-pane-veil::before { animation: none; opacity: 0; }
+}

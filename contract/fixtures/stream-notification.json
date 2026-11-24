@@ -1,0 +1,18 @@
+{
+  "type": "notification",
+  "event": {
+    "kind": "agent_stop",
+    "pane_id": "p-1",
+    "agent_type": "claude",
+    "event": "tool-pre",
+    "tool_target": "rm src/legacy/shim.ts",
+    "title": "Bash",
+    "body": "Do you want to run this command?",
+    "status": "needs-input",
+    "user_prompt": "clean up the legacy files",
+    "lines_added": 0,
+    "lines_removed": 34,
+    "cwd": "/Users/op/code/lotus",
+    "timestamp": 1785664800000
+  }
+}

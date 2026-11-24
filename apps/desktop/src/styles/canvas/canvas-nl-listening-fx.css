@@ -1,0 +1,140 @@
+/* ══════════════════════════════════════════════════════════════════════════════════════════════
+   NL command bar — spectrum-reactive "listening" border (PLAN: E · Hairline).
+
+   While the mic is capturing, the pill's border becomes an accent hairline whose brightness AROUND the
+   frame tracks the live voice spectrum: CanvasNlCommandBar writes a conic-gradient built from ~14
+   frequency bands into --nl-spectrum (and an average level into --nl-level) each animation frame, with
+   the rotation angle advanced inside the gradient string itself. When no spectrum arrives (transcribing,
+   or a batch STT provider with no live tap) the ring falls back to a static drift gradient and the halo
+   keeps a gentle breathe, so the frame still reads "on".
+
+   WKWebView constraints (the desktop engine) — learned the hard way, do not regress:
+   • The masked ring must be ONE element with its background painted directly on it: composited children
+     (transform-animated "rotor" layers) escape or break parent masks in WebKit. Rotation therefore lives
+     in the gradient's `from` angle, driven by JS per frame.
+   • Mask declaration order is load-bearing: the `mask`/`-webkit-mask` shorthands RESET the composite
+     longhands, so both composites must come AFTER them (same order as the proven
+     .codespace-start-action-primary::before block in globals.css).
+   • No `filter` on masked elements — the halo glow is a plain box-shadow element instead.
+   • Hue keys off the theme's WIRE accent (palette.accent → vivid per theme). The chrome/text accent
+     token resolves to near-white (#f5f2ef) in every built-in theme and disappears as a thin border.
+   • No backdrop blur here — the docked-mode dropdown-blur fix (row → ::before backdrop root) is
+     untouched. The overlay is pointer-transparent and paints only the border band + outer halo.
+   ══════════════════════════════════════════════════════════════════════════════════════════════ */
+
+.canvas-nl-fx {
+  --nl-fx-accent: var(--canvas-wire-active, #22d3ee);
+  /* Alt accent — the treble end of the spectrum. Derived from the primary in oklch so every theme gets a
+     companion hue without a second theme token; electric-blue-dominant for the holographic HUD (Jarvis)
+     read: cyan → arc-reactor blue → white-hot peaks. */
+  --nl-fx-accent-alt: color-mix(in oklch, var(--nl-fx-accent) 20%, #4f46e5);
+  /* Overall glow strength (0..~1.6). A future Settings toggle can lower/raise this per user taste. */
+  --nl-fx-intensity: 1;
+  position: absolute;
+  inset: -1px; /* sit exactly on the pill's own border line */
+  border-radius: var(--cc-chrome-radius, 14px);
+  pointer-events: none;
+  opacity: 0;
+  transform: scale(0.97);
+  transition: opacity 0.34s var(--canvas-ease-out, ease), transform 0.42s cubic-bezier(0.22, 1.4, 0.36, 1);
+}
+/* Enter when a capture / transcription is active. */
+.canvas-nl-input-row[data-voice] .canvas-nl-fx {
+  opacity: 1;
+  transform: none;
+}
+/* Transcribing is a calmer, dimmer state than active listening — "working, not hearing". */
+.canvas-nl-input-row[data-voice="transcribing"] .canvas-nl-fx {
+  opacity: 0.42;
+}
+
+/* ── Ring: the spectrum hairline, masked to a thin border band (single static-layer element). ── */
+.canvas-nl-fx-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.25px; /* band thickness — a crisp holographic line, not a bezel */
+  /* Presence follows the voice: near-silent sinks to a faint hairline, loud speech hits full brightness
+     — a wide floor-to-ceiling swing (E) so quiet-vs-loud actually reads as two different states, plus a
+     brief extra kick on syllable onsets (D) so it doesn't just track a smoothed average. */
+  opacity: calc(0.42 + 0.58 * var(--nl-level, 0.3) + 0.16 * var(--nl-onset, 0));
+  /* Live spectrum when present; otherwise a static aurora anchored at the mic side (90deg — see
+     spectrumToConicGradient's default anchorDeg) so the resting look agrees with the live one: `from
+     -90deg` puts relative 180deg (this gradient's brightest, purest-primary stop) at absolute 90deg. */
+  background: var(
+    --nl-spectrum,
+    conic-gradient(
+      from -90deg,
+      color-mix(in oklab, var(--nl-fx-accent-alt) 35%, transparent) 0deg,
+      color-mix(in oklab, var(--nl-fx-accent) 72%, transparent) 90deg,
+      var(--nl-fx-accent) 180deg,
+      color-mix(in oklab, var(--nl-fx-accent) 72%, transparent) 270deg,
+      color-mix(in oklab, var(--nl-fx-accent-alt) 35%, transparent) 360deg
+    )
+  );
+  mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+  -webkit-mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+  mask-composite: exclude;
+  -webkit-mask-composite: xor;
+}
+
+/* ── Halo: unmasked box-shadow glow; strength follows the live voice level. Three shells:
+      a tight accent bloom, a wide alt-accent wash, and an interior spill (inset) so the light
+      reads as if it leaks INTO the glass, not just around it. ── */
+.canvas-nl-fx-halo {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  /* The halo stays a step behind the line: bright enough to read holographic, dim enough that the
+     ring's own per-band coloring stays the star. Blur/spread grow on a syllable onset (D, --nl-onset)
+     — a quick outward "breath" that reads as the border responding to the rhythm of speech, layered on
+     top of (not replacing) the ignite/breathe keyframe animation below. */
+  box-shadow:
+    0 0 calc(10px + 6px * var(--nl-onset, 0)) 0 color-mix(in oklab, var(--nl-fx-accent) 52%, transparent),
+    0 0 calc(28px + 14px * var(--nl-onset, 0)) calc(5px + 3px * var(--nl-onset, 0))
+      color-mix(in oklab, var(--nl-fx-accent-alt) 30%, transparent),
+    inset 0 0 20px -6px color-mix(in oklab, var(--nl-fx-accent) 34%, transparent);
+  /* Lower floor than the ring (E) — the halo should all but vanish in true silence, not just dim. */
+  opacity: calc((0.16 + 1 * var(--nl-level, 0.3)) * var(--nl-fx-intensity));
+}
+/* While actively listening: a one-shot "ignite" flash as the mic opens, settling into a slow breathe —
+   so even a spectrum-less (batch STT) capture reads alive. Brightness keyframes on a plain unmasked
+   element (opacity stays owned by the live --nl-level calc). */
+.canvas-nl-input-row[data-voice="recording"] .canvas-nl-fx-halo {
+  animation:
+    canvas-nl-fx-ignite 0.55s cubic-bezier(0.2, 0.9, 0.3, 1) both,
+    canvas-nl-fx-breathe 3s ease-in-out 0.55s infinite;
+}
+@keyframes canvas-nl-fx-ignite {
+  0% {
+    filter: brightness(2.2);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+@keyframes canvas-nl-fx-breathe {
+  0%,
+  100% {
+    filter: brightness(0.88);
+  }
+  50% {
+    filter: brightness(1.22);
+  }
+}
+
+/* Respect reduced-motion: static accent hairline + steady halo, no rotation (JS also pins the angle),
+   no breathe. The !important background wins over the inline --nl-spectrum variable writes. */
+@media (prefers-reduced-motion: reduce) {
+  .canvas-nl-fx {
+    transition: opacity 0.2s ease;
+    transform: none;
+  }
+  .canvas-nl-fx-ring {
+    background: color-mix(in oklab, var(--nl-fx-accent) 60%, transparent) !important;
+  }
+  .canvas-nl-fx-halo {
+    animation: none;
+    opacity: calc(0.3 * var(--nl-fx-intensity));
+  }
+}

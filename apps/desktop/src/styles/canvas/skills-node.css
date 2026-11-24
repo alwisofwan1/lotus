@@ -1,0 +1,459 @@
+/* CodeCanvas skill palette rows, SkillNode/SkillsNode surfaces, drag apply, and node-content scrollbars. */
+
+/* ── Skills browser: search bar ── */
+.canvas-skills-searchbar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--canvas-border);
+  flex-shrink: 0;
+}
+.canvas-skills-search-icon { color:var(--canvas-text-muted); flex-shrink: 0; opacity: 0.7; }
+.canvas-skills-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border:none;
+  background:transparent;
+  color:var(--canvas-text);
+  font-family: var(--canvas-font-body, inherit);
+  font-size: 0.72rem;
+  padding: 0.1rem 0;
+  outline: none;
+}
+.canvas-skills-search-input::placeholder { color:var(--canvas-text-muted); opacity: 0.7; }
+/* The type=search clear affordance is a browser-drawn glyph that ignores the theme. */
+.canvas-skills-search-input::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
+.canvas-skills-filters { display: flex; gap: 0.15rem; flex-shrink: 0; }
+.canvas-skills-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22rem;
+  padding: 0.14rem 0.36rem;
+  border:none;
+  border-radius: 0.25rem;
+  background:transparent;
+  color:var(--canvas-text-muted);
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 100ms, color 100ms;
+}
+.canvas-skills-filter:hover { background:color-mix(in oklab, var(--canvas-text) 6%, transparent); }
+.canvas-skills-filter[aria-pressed="true"] { background:rgba(103,232,249,0.12); color:color-mix(in oklab, #67e8f9 var(--ink-blend), var(--canvas-text)); }
+.canvas-skills-filter-count { opacity: 0.5; font-weight: 400; }
+
+/* ── Skills browser: master-detail split ── */
+.canvas-skills-split {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(170px, 16rem) minmax(0, 1fr);
+}
+/* Below the split's comfortable width the reader would be a letterbox — drop it and
+   let the list use the whole node. The container query keeps this tied to the node's
+   own resize, not the window. */
+@container (max-width: 30rem) {
+  .canvas-skills-split { grid-template-columns: minmax(0, 1fr); }
+  .canvas-skills-detail { display: none; }
+}
+
+/* Skill panel rows */
+.canvas-skill-section { margin-bottom: 0.3rem; }
+
+.canvas-skill-heading {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color:var(--canvas-text-muted);
+  padding: 0.3rem 0.375rem 0.125rem;
+}
+.canvas-skill-heading span { font-weight: 400; opacity: 0.6; }
+
+.canvas-skill-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  width: 100%;
+  min-width: 0;
+  padding: 0.2rem 0.3rem;
+  border:none;
+  background:transparent;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--canvas-font-body, inherit);
+}
+
+.canvas-skill-name {
+  flex: 0 1 auto;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color:color-mix(in oklab, #67e8f9 var(--ink-blend), var(--canvas-text));
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
+  /* `flex: 0 1 auto` alone will not shrink a nowrap span — min-width defaults to auto, so a long
+     name (`$remotion-best-practices`) ran straight into the applied marker instead of truncating.
+     Seen in a rendered proof. */
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Search mode only: the description is the evidence for why a row matched, and at a
+   ~256px column it gets ~80px inline — unreadable. Give it its own line there, and
+   nowhere else, so browsing stays one dense line per skill. */
+.canvas-skill-row--detailed { flex-wrap: wrap; row-gap: 0.02rem; }
+.canvas-skill-row--detailed .canvas-skill-desc { flex: 1 0 100%; }
+
+.canvas-skill-desc {
+  flex: 1 1 auto;
+  font-size: 0.56rem;
+  color:var(--canvas-text-muted);
+  opacity: 0.62;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* Row shell: grip | row | apply. Separating the drag handle from the click target is
+   the point — one element for both turned a 5px pointer slip into an unwanted apply. */
+.canvas-skill-row-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  border-radius: 0.25rem;
+  padding-right: 0.15rem;
+  transition: background 100ms;
+}
+.canvas-skill-row-wrap .canvas-skill-row { flex: 1; min-width: 0; }
+.canvas-skill-row-wrap:hover { background:color-mix(in oklab, var(--canvas-text) 5%, transparent); }
+.canvas-skill-row-wrap[data-active="true"] {
+  background:color-mix(in srgb, #67e8f9 8%, transparent);
+  box-shadow: inset 2px 0 0 #67e8f9;
+}
+/* An applied row is NOT disabled — applying again after deleting the token is the common case.
+   Only the name is tinted back, so the row still reads as "already used" at a glance without
+   looking broken. The old rule dimmed the whole row to 0.55, which read as unavailable. */
+.canvas-skill-row-wrap[data-applied="true"] .canvas-skill-name { opacity: 0.72; }
+
+.canvas-skill-grip,
+.canvas-skill-apply {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  border:none;
+  background:transparent;
+  color:var(--canvas-text-muted);
+  border-radius: 0.2rem;
+  opacity: 0;
+  transition: opacity 100ms, color 100ms, background 100ms;
+}
+.canvas-skill-grip { cursor: grab; }
+.canvas-skill-apply { cursor: pointer; }
+.canvas-skill-grip:active { cursor: grabbing; }
+.canvas-skill-row-wrap:hover .canvas-skill-grip,
+.canvas-skill-row-wrap:hover .canvas-skill-apply,
+.canvas-skill-row-wrap[data-active="true"] .canvas-skill-grip,
+.canvas-skill-row-wrap[data-active="true"] .canvas-skill-apply { opacity: 0.65; }
+
+.canvas-skill-grip:hover,
+.canvas-skill-apply:hover { opacity: 1; color:color-mix(in oklab, #67e8f9 var(--ink-blend), var(--canvas-text)); background:color-mix(in oklab, var(--canvas-text) 8%, transparent); }
+
+
+/* Skill panel: hint + applied/re-enable */
+.canvas-skill-hint {
+  font-size: 0.6rem;
+  line-height: 1.6;
+  color:var(--canvas-text-muted);
+  padding: 0.9rem 1rem;
+  max-width: 26rem;
+}
+.canvas-skill-hint code {
+  font-family: var(--font-mono, monospace);
+  color:color-mix(in oklab, #67e8f9 var(--ink-blend), var(--canvas-text));
+}
+.canvas-skill-hint kbd,
+.canvas-skills-detail-apply kbd {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  padding: 0 0.22em;
+  border:1px solid var(--canvas-border-str);
+  border-radius: 0.2rem;
+  opacity: 0.8;
+}
+
+/* A marker, not a verdict. The old badge was uppercase 700-weight full-strength green and was
+   the loudest thing in the row — louder than the skill name it annotated. It is now a quiet
+   lowercase tag that also happens to be the button that clears it. */
+.canvas-skill-applied {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.18rem;
+  padding: 0.02rem 0.22rem;
+  border:none;
+  border-radius: 0.2rem;
+  background:transparent;
+  font-family: inherit;
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color:color-mix(in srgb, color-mix(in oklab, #34d399 var(--ink-blend), var(--canvas-text)) 62%, transparent);
+  cursor: pointer;
+  transition: color 100ms, background 100ms;
+}
+.canvas-skill-applied:hover {
+  color:color-mix(in oklab, #34d399 var(--ink-blend), var(--canvas-text));
+  background:color-mix(in srgb, #34d399 14%, transparent);
+}
+.canvas-skill-reenable {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border:none;
+  background:transparent;
+  color:var(--canvas-text-muted);
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background 100ms, color 100ms;
+}
+.canvas-skill-reenable:hover { background:color-mix(in oklab, var(--canvas-text) 8%, transparent); color:color-mix(in oklab, #34d399 var(--ink-blend), var(--canvas-text)); }
+
+/* ── Skills browser: in-place SKILL.md reader ── */
+.canvas-skills-detail {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-left: 1px solid var(--canvas-border);
+}
+.canvas-skills-detail--empty { justify-content: center; align-items: center; }
+.canvas-skills-detail-head {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.65rem;
+  border-bottom: 1px solid var(--canvas-border);
+  flex-shrink: 0;
+}
+.canvas-skills-detail-actions {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-shrink: 0;
+}
+.canvas-skills-detail-apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.16rem 0.45rem;
+  border:1px solid color-mix(in srgb, #67e8f9 34%, transparent);
+  border-radius: 0.3rem;
+  background:color-mix(in srgb, #67e8f9 12%, transparent);
+  color:color-mix(in oklab, #67e8f9 var(--ink-blend), var(--canvas-text));
+  font-size: 0.6rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 100ms;
+}
+.canvas-skills-detail-apply:hover { background:color-mix(in srgb, #67e8f9 20%, transparent); }
+.canvas-skills-detail-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+/* Drag-apply: floating chip + terminal drop-zone highlight */
+.canvas-skill-drag-chip {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  color:color-mix(in oklab, #67e8f9 var(--ink-blend), var(--canvas-text));
+  background:var(--canvas-surface);
+  border:1px solid var(--canvas-border-str);
+  border-radius: 0.375rem;
+  padding: 0.3rem 0.55rem;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  pointer-events: none;
+}
+.canvas-node-body--drop-over {
+  outline: 1.5px dashed #67e8f9;
+  outline-offset: -4px;
+  background:rgba(103,232,249,0.06);
+}
+
+/* ── Canvas Skill Node (read-only SKILL.md reader) ── */
+.canvas-skill-node-header { gap: 0.5rem; }
+.canvas-skill-node-name {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  color:color-mix(in oklab, #67e8f9 var(--ink-blend), var(--canvas-text));
+}
+.canvas-skill-badge {
+  font-size: 0.4375rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  padding: 0.1rem 0.3rem;
+  border-radius: 0.25rem;
+  margin-left: 0.375rem;
+}
+.canvas-skill-badge--project { color:color-mix(in oklab, #fcd34d var(--ink-blend), var(--canvas-text)); background:rgba(252,211,77,0.10); border:1px solid rgba(252,211,77,0.20); }
+.canvas-skill-badge--global  { color:color-mix(in oklab, #a5b4fc var(--ink-blend), var(--canvas-text)); background:rgba(165,180,252,0.10); border:1px solid rgba(165,180,252,0.20); }
+.canvas-skill-node-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.canvas-skill-node-body .wbmd-scroll,
+.canvas-skills-detail-body .wbmd-scroll {
+  --wbmd-panel-bg: rgba(255,255,255,0.026);
+  --wbmd-panel-bg-soft: rgba(255,255,255,0.045);
+  --wbmd-panel-bg-active: rgba(255,255,255,0.075);
+  --wbmd-border: rgba(245,242,239,0.105);
+  --wbmd-border-strong: rgba(245,242,239,0.18);
+  --wbmd-text: var(--canvas-text);
+  --wbmd-text-secondary: rgba(247,242,234,0.68);
+  --wbmd-text-tertiary: rgba(247,242,234,0.44);
+  --wbmd-accent: #67e8f9;
+  padding: 0;
+  background:radial-gradient(ellipse at 18% -10%, rgba(103,232,249,0.105), transparent 34%),
+    linear-gradient(180deg, color-mix(in oklab, var(--canvas-text) 2.8%, transparent), color-mix(in oklab, var(--canvas-text) 0.8%, transparent) 42%, color-mix(in oklab, var(--node-floor-solid) 8%, transparent)),
+    var(--canvas-surface);
+}
+.canvas-skill-node-body .wbmd-article,
+.canvas-skills-detail-body .wbmd-article {
+  max-width: none;
+  margin: 0;
+  padding: 0.95rem 1rem 1.2rem;
+  font-size: var(--ds-t-meta);
+  line-height: 1.66;
+}
+.canvas-skill-node-body .wbmd-frontmatter {
+  margin-bottom: 1rem;
+  border-radius: 0.25rem;
+}
+.canvas-skill-node-body .wbmd-frontmatter-table {
+  font-size: var(--ds-t-meta);
+}
+.canvas-skill-node-body .wbmd-frontmatter th {
+  width: 5.75rem;
+  padding: 0.42rem 0.6rem;
+}
+.canvas-skill-node-body .wbmd-frontmatter td {
+  padding: 0.42rem 0.7rem;
+}
+.canvas-skill-node-body .wbmd-article h1 {
+  font-size: var(--ds-t-lede);
+  letter-spacing: -0.02em;
+}
+.canvas-skill-node-body .wbmd-article h2 {
+  font-size: var(--ds-t-body);
+  margin-top: 1.35em;
+}
+.canvas-skill-node-body .wbmd-article h3 { font-size: var(--ds-t-body); }
+.canvas-skill-node-body .wbmd-article br {
+  line-height: 2.05;
+}
+.canvas-skill-node-body .wbmd-code-block {
+  margin: 0.85em 0 1em;
+  border-radius: 0.625rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.035), 0 10px 24px rgba(0,0,0,0.16);
+}
+.canvas-skill-node-body .wbmd-code-toolbar {
+  min-height: 1.875rem;
+  padding-inline: 0.625rem 0.45rem;
+}
+.canvas-skill-node-body .wbmd-code-copy {
+  height: 1.375rem;
+  padding-inline: 0.45rem;
+}
+.canvas-skill-node-body .wbmd-pre {
+  padding: 0.7rem 0.75rem 0.8rem;
+}
+.canvas-skill-node-body .wbmd-table-wrap,
+.canvas-skill-node-body .wbmd-blockquote {
+  border-radius: 0.625rem;
+}
+
+/* ── Canvas Skills Node (the skill list, now a node) ── */
+.canvas-skills-node-header { width: 100%; }
+.canvas-skills-node-body {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  /* Anchors the @container query above: the split collapses on the NODE's width,
+     which the user resizes, not on the window's. */
+  container-type: inline-size;
+}
+.canvas-skills-node-list {
+  min-height: 0;
+  /* Both are load-bearing: a grid item defaults to min-width:auto, so without them a
+     long description widens the track and paints across the reader pane. */
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.3rem;
+}
+
+/* Skill/Skills nodes fill their ReactFlow wrapper so the body scrolls
+   internally instead of the node growing to fit content. */
+.canvas-skill-node,
+.canvas-skills-node,
+.canvas-plan-node {
+  width: 100%;
+  height: 100%;
+  max-height: 100%;
+}
+
+/* Thin, unobtrusive scrollbars for scrollable node content.
+   The Note editor used to share this rule, which meant the note's scrollbar lived in the SKILLS
+   stylesheet and inherited its literal white thumb. It owns its own rule in note-node.css now
+   (8px, derived from --canvas-text so it survives light themes). */
+.canvas-skills-node-list,
+.canvas-skills-detail-body .wbmd-scroll,
+.canvas-skill-node-body .wbmd-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.18) transparent;
+}
+.canvas-skills-node-list::-webkit-scrollbar,
+.canvas-skills-detail-body .wbmd-scroll::-webkit-scrollbar,
+.canvas-skill-node-body .wbmd-scroll::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.canvas-skills-node-list::-webkit-scrollbar-track,
+.canvas-skills-node-list::-webkit-scrollbar-corner,
+.canvas-skills-detail-body .wbmd-scroll::-webkit-scrollbar-track,
+.canvas-skill-node-body .wbmd-scroll::-webkit-scrollbar-track,
+.canvas-skill-node-body .wbmd-scroll::-webkit-scrollbar-corner {
+  background:transparent;
+}
+.canvas-skills-node-list::-webkit-scrollbar-thumb,
+.canvas-skills-detail-body .wbmd-scroll::-webkit-scrollbar-thumb,
+.canvas-skill-node-body .wbmd-scroll::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  border:3px solid transparent;
+  border-radius: 9999px;
+  background:color-mix(in oklab, var(--canvas-text) 16%, transparent);
+  background-clip: padding-box;
+}
+.canvas-skills-node-list::-webkit-scrollbar-thumb:hover,
+.canvas-skills-detail-body .wbmd-scroll::-webkit-scrollbar-thumb:hover,
+.canvas-skill-node-body .wbmd-scroll::-webkit-scrollbar-thumb:hover {
+  background:rgba(103,232,249,0.36);
+  background-clip: padding-box;
+}

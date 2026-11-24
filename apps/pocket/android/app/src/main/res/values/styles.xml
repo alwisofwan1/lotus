@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Identical to `values-night/styles.xml`, and that is the point.
+         Pocket has one theme (`buildAppTheme`), so the launch window must not
+         have two: the template's light variant painted the window white, which a
+         phone with dark mode off showed for as long as `main()` spent on Firebase
+         and the Keystore. Both variants are kept as files rather than collapsed
+         into one, so `-night` staying in step is visible rather than implied. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <!-- Removed when the Flutter engine draws its first frame. That frame is
+             SplashScreen, on the same colour, so nothing changes on screen. -->
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <!-- Behind the Flutter UI while it initialises, and behind it afterwards.
+         `?android:colorBackground` resolved to white here for the same reason the
+         drawable did. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/launch_floor</item>
+    </style>
+</resources>

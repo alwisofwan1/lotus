@@ -1,0 +1,575 @@
+/* CodeCanvas — Layout chrome */
+
+.codecanvas-shell {
+  --canvas-sidebar-w: 184px;
+  --canvas-right-w:   204px;
+  /* Reserved height of the floating nav (pill ~2.25rem + 0.5rem strip padding
+     top & bottom). Sidebar headers inset by this so they clear the float. */
+  --canvas-topnav-h: 3.25rem;
+  /* LOT2-137: ONE control size for every tile in the command bar and the Top Bar (chips, icon
+     buttons, project trigger, Lotus mark), and one inset used on every side of the pill that hugs
+     the controls. Change them here, nowhere else. */
+  --cc-control: 1.625rem;
+  --cc-inset: 0.25rem;
+  --canvas-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --canvas-ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
+  --canvas-gold-bg: oklch(98.6% 0.014 84);
+  --canvas-gold-bg-glass: oklch(98.6% 0.014 84 / 0.9);
+  --canvas-gold-bg-soft: oklch(95.2% 0.04 86 / 0.76);
+  --canvas-gold: oklch(74% 0.16 78);
+  --canvas-gold-strong: oklch(67% 0.18 74);
+  --canvas-gold-ink: oklch(27% 0.055 72);
+  --canvas-gold-muted: oklch(48% 0.035 76);
+  --canvas-gold-line: oklch(86% 0.06 82 / 0.58);
+}
+
+/* Top bar — a transparent strip that hosts a centered, floating glass nav pill.
+   It is an ABSOLUTE overlay so the canvas runs full-bleed beneath it: with the
+   strip click-through (pointer-events: none), wheel-zoom and drag-pan in this
+   top region pass straight through to the ReactFlow canvas. Only the pill is
+   interactive. The macOS traffic lights sit over the strip's top-left (the pill
+   is centered, so they never collide). */
+.canvas-topbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 0.5rem 1rem;
+  pointer-events: none; /* the strip is click-through; only the pill is live */
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Command-bar layout: the top pill is gone, so this slim strip preserves the OS window-drag
+   region along the top edge. Interactive only for the drag itself — canvas wheel/pan gestures
+   pass through untouched (same click-through policy as .canvas-topbar). */
+.canvas-drag-strip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 12px;
+  z-index: 30;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The floating pill */
+.canvas-topnav {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  /* Height comes from the controls + inset, so it reads as a sibling of the command bar row. */
+  box-sizing: border-box;
+  min-width: 0;
+  /* keep clear of the traffic lights (left) and the window edge (right) */
+  max-width: min(calc(100% - 10rem), 60rem);
+  position: relative;
+  padding: var(--cc-inset);
+  border-radius: var(--cc-chrome-radius, 13px);
+  border: 1px solid var(--cc-chrome-border-hi, rgba(255, 255, 255, 0.12));
+  background: transparent;
+  box-shadow: var(--cc-glass-edge), 0 1px 2px rgb(0 0 0 / 0.22), var(--cc-chrome-shadow, 0 12px 32px -14px rgba(0, 0, 0, 0.5));
+  /* Never on the pill itself: the project dropdown inside it would lose its own blur (backdrop
+     root). The glass is the ::before below — the same recipe as the command bar. */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+.canvas-topnav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-color: var(--cc-glass-tint);
+  background-image: var(--cc-glass-sheen);
+  -webkit-backdrop-filter: var(--cc-glass-filter);
+  backdrop-filter: var(--cc-glass-filter);
+}
+@media (prefers-reduced-transparency: reduce) {
+  .canvas-topnav::before {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: var(--cc-chrome-bg, rgba(11, 10, 17, 0.92));
+  }
+}
+/* Frames as one segmented control: a quiet track, the active Frame a raised pill. */
+.canvas-topnav .canvas-frame-switcher {
+  padding: 2px;
+  border-radius: calc(var(--cc-chrome-radius-sm, 9px) + 2px);
+  background: var(--cc-chrome-fill, color-mix(in oklab, var(--canvas-text) 6%, transparent));
+}
+.canvas-topnav .canvas-frame-chip[aria-current="true"] {
+  background: var(--cc-chrome-fill-on, color-mix(in oklab, var(--canvas-text) 13%, transparent));
+  box-shadow: var(--cc-glass-edge), 0 1px 2px rgb(0 0 0 / 0.3);
+}
+.canvas-topnav .canvas-frame-switcher + .canvas-cc-btn { margin-left: 0.25rem; }
+/* The Lotus mark is a glyph like every other control: monochrome, full colour on hover. */
+.canvas-topbar-lotus-btn img { filter: grayscale(1) brightness(1.5); opacity: 0.72; transition: filter 150ms ease, opacity 150ms ease; }
+.canvas-topbar-lotus-btn:hover img { filter: none; opacity: 1; }
+
+/* ── Project switcher (replaces the static app label) ──
+   Trigger = chevron + active project name; dropdown lists every project plus
+   browse / new / close actions. Skinned from the shared --cc-chrome-* tokens. */
+.canvas-project-menu {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.canvas-project-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-width: 0;
+  /* A passive location readout, not the bar's one interactive affordance — sized and inked
+     to sit quietly beside the prompt instead of out-shouting it (findings F2/F3). */
+  max-width: 11rem;
+  height: var(--cc-control, 1.625rem);
+  padding: 0 0.55rem;
+  border: 0;
+  background: transparent;
+  border-radius: var(--cc-chrome-radius-sm, 8px);
+  color: var(--cc-chrome-ink-muted, var(--canvas-sidebar-text));
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  transition: background 120ms var(--canvas-ease-out), color 120ms var(--canvas-ease-out);
+}
+.canvas-project-trigger:hover { background: var(--cc-chrome-fill); }
+.canvas-project-trigger:focus-visible { outline: 2px solid var(--canvas-focus-ring); outline-offset: 1px; }
+/* Brightens to full ink on hover, on keyboard focus, and while its bar is engaged (the docked
+   NL input row focused) — quiet at rest, legible the moment attention is already there. */
+.canvas-project-trigger:hover,
+.canvas-project-trigger:focus-visible,
+.canvas-nl-input-row:focus-within .canvas-project-trigger {
+  color: var(--cc-chrome-ink);
+}
+.canvas-project-trigger-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.canvas-project-trigger-chev {
+  flex-shrink: 0;
+  color: var(--cc-chrome-ink-quiet);
+  transition: transform 160ms var(--canvas-ease-out), color 160ms var(--canvas-ease-out);
+}
+.canvas-project-trigger-chev[data-open] { transform: rotate(180deg); color: var(--cc-chrome-ink-muted); }
+
+.canvas-project-dropdown {
+  position: absolute;
+  top: calc(100% + 0.45rem);
+  left: -0.25rem;
+  z-index: 40;
+  width: max-content;
+  min-width: 14rem;
+  max-width: 20rem;
+  max-height: min(60vh, 26rem);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 0.3rem;
+  border: 1px solid var(--cc-chrome-border);
+  border-radius: var(--cc-chrome-radius, 13px);
+  background: var(--cc-chrome-bg);
+  backdrop-filter: var(--cc-chrome-blur);
+  -webkit-backdrop-filter: var(--cc-chrome-blur);
+  box-shadow: var(--cc-chrome-shadow);
+  animation: canvas-project-pop 130ms var(--canvas-ease-out);
+}
+@keyframes canvas-project-pop {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+/* Docked in the bottom command bar: open upward so the list never falls off-screen. It inherits
+   the base dropdown's bounded backdrop-filter (var(--cc-chrome-blur)); the command bar moves its
+   own glass to a ::before layer so this child can actually frost the canvas — see
+   agent-node-persona-nl.css. */
+.canvas-project-dropdown--up {
+  top: auto;
+  bottom: calc(100% + 0.45rem);
+  animation-name: canvas-project-pop-up;
+}
+@keyframes canvas-project-pop-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .canvas-project-dropdown { animation: none; } }
+.canvas-project-group { display: flex; flex-direction: column; gap: 1px; }
+.canvas-project-item,
+.canvas-project-action {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.36rem 0.5rem;
+  border: 0;
+  background: transparent;
+  border-radius: var(--cc-chrome-radius-sm, 8px);
+  color: var(--cc-chrome-ink-muted);
+  font-size: var(--ds-t-meta);
+  font-weight: 550;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 110ms var(--canvas-ease-out), color 110ms var(--canvas-ease-out);
+}
+.canvas-project-item:hover,
+.canvas-project-action:hover { background: var(--cc-chrome-fill); color: var(--cc-chrome-ink); }
+.canvas-project-item:focus-visible,
+.canvas-project-action:focus-visible { outline: 2px solid var(--canvas-focus-ring); outline-offset: -1px; }
+.canvas-project-item-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+  width: 14px;
+  color: var(--cc-chrome-ink-quiet);
+}
+.canvas-project-item-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.canvas-project-item[data-active] { color: var(--cc-chrome-ink); }
+.canvas-project-item[data-active] .canvas-project-item-icon { color: var(--canvas-accent); }
+.canvas-project-action > svg { flex-shrink: 0; color: var(--cc-chrome-ink-quiet); }
+.canvas-project-action:hover > svg { color: inherit; }
+.canvas-project-sep { height: 1px; margin: 0.3rem 0.2rem; background: var(--cc-chrome-border); }
+.canvas-project-action--primary { color: color-mix(in oklab, var(--canvas-accent) 88%, var(--cc-chrome-ink)); }
+.canvas-project-action--primary > svg { color: var(--canvas-accent); }
+.canvas-project-action--primary:hover { background: var(--cc-chrome-accent-soft); color: var(--canvas-accent); }
+/* The shared control cluster (CanvasControlCluster): [project] | [Frames + Overview] | [Fleet + Settings].
+   Used by the bottom command bar and the Top Bar, so tile size, icon size, gaps and dividers are
+   defined once. */
+.canvas-cc {
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+}
+.canvas-cc-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  min-width: 0;
+}
+.canvas-cc-group:first-child { flex: 1 1 auto; }
+.canvas-cc-group:not(:first-child) { flex: 0 0 auto; }
+.canvas-cc-div {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 1.125rem;
+  margin: 0 0.375rem;
+  background: var(--cc-chrome-border-hi, color-mix(in oklab, var(--canvas-text) 15%, transparent));
+}
+.canvas-cc .canvas-cc-btn { width: var(--cc-control); height: var(--cc-control); }
+.canvas-topnav .canvas-project-trigger { max-width: 14rem; }
+/* Narrow windows: drop the quiet extras first, then the chips (Overview still reaches every Frame). */
+@media (max-width: 760px) {
+  .canvas-topnav .canvas-machine,
+  .canvas-topnav .canvas-topbar-dev { display: none; }
+}
+@media (max-width: 560px) {
+  .canvas-topnav .canvas-frame-switcher { display: none; }
+}
+.canvas-workflow-edit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  max-width: 260px;
+  border: 1px solid color-mix(in oklab, var(--canvas-accent) 34%, transparent);
+  background: color-mix(in oklab, var(--canvas-accent) 12%, transparent);
+  border-radius: 999px;
+  padding: 0.125rem 0.5rem;
+  line-height: 1.1;
+}
+.canvas-workflow-edit-chip-label {
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--canvas-sidebar-muted);
+}
+.canvas-workflow-edit-chip-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  color: var(--canvas-sidebar-text);
+}
+.canvas-workflow-save-notice {
+  position: absolute;
+  right: 1rem;
+  top: 3rem;
+  z-index: 20;
+  max-width: 22rem;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  cursor: pointer;
+}
+.canvas-workflow-save-notice--success {
+  border: 1px solid rgba(52, 211, 153, 0.34);
+  background: rgba(6, 78, 59, 0.92);
+  color: rgb(209, 250, 229);
+}
+.canvas-workflow-save-notice--error {
+  border: 1px solid rgba(251, 113, 133, 0.38);
+  background: rgba(127, 29, 29, 0.94);
+  color: rgb(255, 228, 230);
+}
+/* Session verdicts reuse this strip rather than introducing a second toast system
+   (plans/codecanvas-session-refactor/issues/02). "info" is the neutral half of that vocabulary:
+   a refusal that is nobody's fault, e.g. "node ini sudah berada di percakapan itu". */
+.canvas-workflow-save-notice--info {
+  border: 1px solid var(--canvas-node-border);
+  background: var(--canvas-sidebar-bg);
+  color: var(--canvas-sidebar-text);
+}
+
+/* The machine a remote project lives on, beside its name.
+   Green is the way home, not the SSH connection: a terminal keeps working when the tunnel dies, and
+   what stops is the agent reporting back. Amber therefore means "agen bisu", not "offline". */
+.canvas-topbar-machine {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex: 0 0 auto;
+  padding: 0.12rem 0.45rem;
+  margin-left: 0.15rem;
+  border: 1px solid var(--canvas-border-str);
+  border-radius: 999px;
+  font-family: var(--canvas-font-mono, monospace);
+  font-size: var(--ds-t-micro);
+  color: color-mix(in oklab, var(--canvas-text) 62%, transparent);
+  white-space: nowrap;
+}
+.canvas-topbar-machine-dot {
+  flex: 0 0 auto;
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: var(--canvas-text-muted);
+}
+button.canvas-topbar-machine { cursor: pointer; background: transparent; }
+button.canvas-topbar-machine:hover { color: var(--canvas-text); }
+button.canvas-topbar-machine:focus-visible { outline: 2px solid var(--canvas-focus-ring); outline-offset: 1px; }
+[data-tone="ok"] > .canvas-topbar-machine-dot { background: var(--canvas-status-running); }
+[data-tone="warn"] > .canvas-topbar-machine-dot { background: var(--canvas-status-connecting); }
+[data-tone="bad"] > .canvas-topbar-machine-dot { background: var(--canvas-status-error); }
+.canvas-topbar-machine[data-tone="warn"] { border-color: color-mix(in srgb, var(--canvas-status-connecting) 30%, transparent); }
+.canvas-topbar-machine[data-tone="bad"] {
+  border-color: color-mix(in srgb, var(--canvas-status-error) 40%, transparent);
+  color: var(--canvas-status-error-ink);
+}
+
+/* The popover behind the chip (board 22): two rows, then the actions. */
+.canvas-machine { position: relative; display: flex; align-items: center; flex: 0 0 auto; }
+.canvas-machine-pop { min-width: 17rem; max-width: 22rem; gap: 0.15rem; }
+.canvas-machine-failure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-bottom: 0.2rem;
+  padding: 0.45rem 0.55rem;
+  border-radius: var(--cc-chrome-radius-sm, 8px);
+  background: color-mix(in srgb, var(--canvas-status-error) 12%, transparent);
+  color: var(--cc-chrome-ink);
+  font-size: var(--ds-t-meta);
+  white-space: normal;
+}
+.canvas-machine-failure span { color: var(--cc-chrome-ink-muted); }
+.canvas-machine-row {
+  display: grid;
+  grid-template-columns: 0.6rem 6.2rem 1fr;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.32rem 0.5rem;
+  font-size: var(--ds-t-meta);
+  color: var(--cc-chrome-ink-muted);
+}
+.canvas-machine-row-name { color: var(--cc-chrome-ink-quiet); }
+.canvas-machine-row-body { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; white-space: normal; }
+.canvas-machine-row-body strong { color: var(--cc-chrome-ink); font-weight: 600; }
+.canvas-machine-row-body code {
+  font-family: var(--canvas-font-mono, monospace);
+  font-size: var(--ds-t-micro);
+  color: var(--cc-chrome-ink-quiet);
+  overflow-wrap: anywhere;
+}
+.canvas-machine-actions { display: flex; flex-direction: column; gap: 1px; }
+.canvas-machine-actions .canvas-project-action[data-primary] { color: var(--canvas-accent); }
+.canvas-machine-actions .canvas-project-action:disabled { opacity: 0.6; cursor: default; }
+
+.canvas-topbar-lotus-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--cc-control);
+  height: var(--cc-control);
+  border: none;
+  background: transparent;
+  border-radius: var(--cc-chrome-radius-sm, 9px);
+  cursor: pointer;
+  padding: 0;
+  transition: opacity 150ms ease, transform 150ms ease;
+}
+.canvas-topbar-lotus-btn:hover  { opacity: 0.8; transform: scale(1.08); }
+.canvas-topbar-lotus-btn:active { transform: scale(0.93); }
+
+/* Main row */
+/* position: relative anchors the absolute Canvas Sidebar Reveal Control to the edge. */
+.canvas-layout { flex: 1; display: flex; overflow: hidden; min-height: 0; position: relative; }
+.canvas-center  { flex: 1; min-width: 0; position: relative; overflow: hidden; isolation: isolate; }
+
+/* Resize grip — lives in canvas-layout as flex sibling (NOT inside sidebar) */
+.canvas-resize-grip {
+  width: 4px;
+  flex-shrink: 0;
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+  background: transparent;
+  outline: none;
+  z-index: 20;
+  transition: background 160ms ease;
+}
+/* Wider invisible hit area so user doesn't need pixel-perfect hover */
+.canvas-resize-grip::before {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  left: -4px; right: -4px;
+}
+.canvas-resize-grip:hover { background: rgba(from var(--canvas-accent) r g b / 0.38); }
+.canvas-resize-grip:focus-visible { background: rgba(from var(--canvas-accent) r g b / 0.55); outline: none; }
+
+/* Sidebars */
+.canvas-right-sidebar {
+  display: flex;
+  flex-direction: column;
+  /* Canvas is full-bleed under the floating nav; inset the header so it (and the
+     macOS traffic lights over the left column) clear the float. box-sizing is
+     border-box (Tailwind preflight), so height: 100% stays correct. */
+  padding-top: var(--canvas-topnav-h);
+  /* overflow: clip (not hidden) — hidden creates a WebKit scroll container that lets
+     trackpad gestures scroll the entire sidebar, taking header/footer with it.
+     clip truly prevents scrolling while still clipping visual overflow. */
+  overflow: clip;
+  flex-shrink: 0;
+  /* height: 100% makes the stretch-derived height "definite" in WebKit so that
+     nested flex: 1 children (scroll area) resolve their size correctly. */
+  height: 100%;
+  min-height: 0;
+  transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1);
+  min-width: 0;
+}
+.canvas-right-sidebar {
+  background: linear-gradient(180deg, var(--ds-workbench-bg-soft, var(--bg-elevated, #1a1a1a)) 0%, var(--ds-workbench-bg, var(--bg, #101010)) 100%);
+  border-left: 1px solid var(--canvas-sidebar-border);
+}
+
+/* Collapsed: width goes to 0 and the column border is dropped so the canvas runs
+   full-bleed — the floating Canvas Sidebar Reveal Control owns the edge instead. */
+.canvas-right-sidebar.is-collapsed {
+  border: none;
+}
+
+/* Sidebar header */
+.canvas-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 2rem;
+  padding: 0 0.375rem 0 0.625rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--canvas-sidebar-border);
+  gap: 0.25rem;
+}
+.canvas-sidebar-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.1875rem;
+}
+.canvas-sidebar-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.canvas-sidebar-label {
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--canvas-sidebar-muted);
+  text-transform: uppercase;
+  flex: 1;
+}
+.canvas-sidebar-count {
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  color: rgba(from var(--canvas-accent) r g b / 0.92);
+  background: rgba(from var(--canvas-accent) r g b / 0.15);
+  box-shadow: inset 0 0 0 1px rgba(from var(--canvas-accent) r g b / 0.1);
+  border-radius: 9999px;
+  padding: 0.05rem 0.375rem;
+  line-height: 1.5;
+}
+.canvas-sidebar-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.25rem;
+  border: none;
+  background: transparent;
+  color: var(--canvas-sidebar-quiet);
+  cursor: pointer;
+  transition: color 120ms ease, background 120ms ease;
+  flex-shrink: 0;
+}
+.canvas-sidebar-collapse-btn:hover {
+  color: var(--canvas-sidebar-text);
+  background: var(--canvas-sidebar-hover);
+}
+
+/* Sidebar body */
+.canvas-sidebar-scroll-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--canvas-sidebar-border) transparent;
+}
+.canvas-sidebar-body {
+  flex: 0 0 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  overflow: visible;
+  padding: 0.375rem 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--canvas-sidebar-border) transparent;
+}
+.canvas-sidebar-empty {
+  font-size: var(--ds-t-micro);
+  color: var(--canvas-sidebar-quiet);
+  padding: 0.625rem 0.25rem;
+  margin: 0;
+}
+

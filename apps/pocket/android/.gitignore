@@ -1,0 +1,17 @@
+gradle-wrapper.jar
+/.gradle
+# Kotlin build-tool state, written on the first Android build. Not in Flutter's own
+# template because it postdates it.
+/.kotlin/
+/captures/
+/gradlew
+/gradlew.bat
+/local.properties
+GeneratedPluginRegistrant.java
+.cxx/
+
+# Remember to never publicly share your keystore.
+# See https://flutter.dev/to/reference-keystore
+key.properties
+**/*.keystore
+**/*.jks

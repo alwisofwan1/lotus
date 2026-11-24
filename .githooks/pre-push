@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Last stop before code becomes public: check the tree and every commit message being pushed.
+set -euo pipefail
+check="$(git rev-parse --show-toplevel)/tools/check-private-terms.sh"
+zero=0000000000000000000000000000000000000000
+"$check" --tree
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then range="$local_sha"; else range="$remote_sha..$local_sha"; fi
+  "$check" --log "$range"
+done

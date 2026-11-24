@@ -1,0 +1,454 @@
+---
+/**
+ * Lotus Pocket: a teaser, never an availability claim (ADR-9). No date, no store link.
+ *
+ * The phone wears Pocket's own tokens (apps/pocket/lib/app/theme/app_tokens.dart): floor
+ * #121214, a waiting agent is AMBER there, and every answer of the permission card has equal
+ * weight (permission_card.dart, ADR-8). The feed and the prompt are the same ones the Story
+ * window shows for Bima, so the two never disagree.
+ *
+ * Rendered in its asking state, the push on screen. With motion welcome, public/motion.js
+ * parks the push (`.js`) and adds `.play` when the phone is on screen: the push lands and
+ * lifts, answer 1 lights up, the state word turns from "needs you" to "working".
+ */
+import { Image } from "astro:assets";
+import { pocket, story } from "../copy";
+import mark from "../assets/brand/lotus-mark.png";
+
+const { phone } = pocket;
+const pm = story.permission;
+---
+
+<section class="block" aria-labelledby="pk-title">
+  <div class="shell pk">
+    <div class="pk-text" data-reveal>
+      <span class="tag">{pocket.kicker}</span>
+      <h2 id="pk-title">{pocket.heading[0]}<br />{pocket.heading[1]}</h2>
+      <p class="sub">{pocket.body}</p>
+      <ul>
+        {
+          pocket.points.map((p, i) => (
+            <li>
+              <span>{String(i + 1).padStart(2, "0")}</span>
+              <span><b>{p.title}</b>{p.body}</span>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="soon"><span class="dot" aria-hidden="true"></span>{pocket.status}</p>
+    </div>
+
+    <div class="stagep">
+      <div class="phone" data-phone role="img" aria-label={pocket.label}>
+        <div class="scr">
+          <div class="island"></div>
+          <div class="sbar"><span>{phone.time}</span><i>●●● ▮</i></div>
+          <div class="notif">
+            <Image src={mark} alt="" width={34} height={34} densities={[1, 2]} loading="lazy" />
+            <div><b>{phone.push.title} <small>{phone.push.when}</small></b>{phone.push.body}</div>
+          </div>
+          <div class="ptop">
+            <span class="bk">‹</span>
+            <div><b>{phone.agent}</b><small>{phone.sub}</small></div>
+            <span class="pst"><span class="w1">{phone.states.asking}</span><span class="w2">{phone.states.after}</span></span>
+          </div>
+          <div class="feed">
+            {story.handoff.bima.map((l) => <div class={l.tone === "mute" ? "m" : "k"}>{l.text}</div>)}
+            <div class="pcard">
+              <div class="ttl"><span class="dot"></span>{pm.title}</div>
+              <code>{pm.command}</code>
+              <div class="q">{pm.question}</div>
+              <div class="ans">{pm.options.map((o) => <span><b>{o.key}</b>{o.label}</span>)}</div>
+            </div>
+            <div class="k after">{phone.after}</div>
+          </div>
+          <div class="pcomp">
+            {phone.composer}
+            <span class="mic" title={phone.mic}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <rect x="9" y="3" width="6" height="11" rx="3"></rect>
+                <path d="M5 11a7 7 0 0 0 14 0M12 18v3"></path>
+              </svg>
+            </span>
+          </div>
+          <div class="home"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .block {
+    padding-block: var(--step);
+  }
+  .pk {
+    --pbg: #121214;
+    --ptext: #f7f2ea;
+    --pdim: rgb(247 242 234 / 0.63);
+    --pmute: rgb(247 242 234 / 0.47);
+    --pline: rgb(245 242 239 / 0.085);
+    --pline2: rgb(245 242 239 / 0.16);
+    --pwait: #fbbf24;
+    --plive: #3fbf8f;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2rem, 5vw, 4.5rem);
+    align-items: center;
+  }
+  h2 {
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    letter-spacing: -0.04em;
+    margin: 1rem 0 1.1rem;
+  }
+  .sub {
+    color: var(--dim);
+    max-width: 44ch;
+    font-size: 16.5px;
+  }
+  ul {
+    list-style: none;
+    margin: 1.8rem 0 0;
+    padding: 0;
+  }
+  li {
+    display: grid;
+    grid-template-columns: 2rem 1fr;
+    padding: 0.95rem 0;
+    border-top: 1px solid var(--hair);
+    font-size: 15px;
+    color: var(--dim);
+  }
+  li b {
+    display: block;
+    color: var(--ink);
+    font-weight: 500;
+    margin-bottom: 0.15rem;
+  }
+  li span:first-child {
+    font: 500 11px/1.9 var(--font-mono);
+    color: var(--faint);
+  }
+  .soon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1.6rem;
+    font-size: 13px;
+    color: var(--faint);
+  }
+  .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--pwait, #fbbf24);
+    flex: none;
+  }
+  .stagep {
+    position: relative;
+    display: grid;
+    place-items: center;
+    padding: 2.5rem 0;
+  }
+  .stagep::before {
+    content: "";
+    position: absolute;
+    width: 420px;
+    max-width: 100%;
+    height: 420px;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(251 191 36 / 0.08), transparent);
+    pointer-events: none;
+  }
+  .phone {
+    position: relative;
+    width: 300px;
+    height: 620px;
+    border-radius: 52px;
+    padding: 11px;
+    background: linear-gradient(155deg, #34312d, #121110 55%, #22201d);
+    box-shadow:
+      inset 0 0 0 1px rgb(255 255 255 / 0.08),
+      0 0 0 1px rgb(0 0 0 / 0.6),
+      0 80px 120px -60px rgb(0 0 0 / 0.95);
+  }
+  .scr {
+    position: relative;
+    height: 100%;
+    border-radius: 42px;
+    background: var(--pbg);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    color: var(--ptext);
+    text-align: left;
+  }
+  .island {
+    position: absolute;
+    top: 11px;
+    left: 50%;
+    width: 96px;
+    height: 28px;
+    border-radius: 20px;
+    background: #000;
+    transform: translateX(-50%);
+    z-index: 3;
+  }
+  .sbar {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 28px 0;
+    font: 600 13px/1 var(--font-sans);
+    height: 44px;
+  }
+  .sbar i {
+    font-style: normal;
+    letter-spacing: 0.1em;
+    font-size: 10px;
+    color: var(--pdim);
+  }
+  .ptop {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.6rem 1rem 0.8rem;
+    border-bottom: 1px solid var(--pline);
+  }
+  .bk {
+    color: var(--pdim);
+    font-size: 18px;
+    line-height: 1;
+  }
+  .ptop b {
+    display: block;
+    font: 600 15px/1.2 var(--font-sans);
+  }
+  .ptop small {
+    color: var(--pmute);
+    font-size: 11.5px;
+  }
+  .pst {
+    margin-left: auto;
+    display: inline-grid;
+    font: 500 10px/1 var(--font-mono);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+  .w1,
+  .w2 {
+    grid-area: 1 / 1;
+    text-align: right;
+  }
+  .w1 {
+    color: var(--pwait);
+  }
+  .w2 {
+    opacity: 0;
+    color: var(--plive);
+  }
+  .feed {
+    flex: 1;
+    padding: 0.9rem 1rem;
+    font: 11px/1.65 var(--font-mono);
+    color: var(--pdim);
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    overflow: hidden;
+  }
+  .feed > div {
+    white-space: pre-wrap;
+  }
+  .k {
+    color: var(--ptext);
+  }
+  .m {
+    color: var(--pmute);
+  }
+  .pcard {
+    margin-top: 0.6rem;
+    padding: 0.8rem;
+    border-radius: 16px;
+    background: rgb(245 242 239 / 0.045);
+    box-shadow: inset 0 0 0 1px var(--pline2);
+    font-family: var(--font-sans);
+  }
+  .ttl {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font: 600 13px/1 var(--font-sans);
+    color: var(--pwait);
+  }
+  .pcard code {
+    display: block;
+    margin: 0.5rem 0 0.3rem;
+    font: 12px var(--font-mono);
+    color: var(--ptext);
+  }
+  .q {
+    font-size: 13px;
+    color: var(--ptext);
+    margin-bottom: 0.6rem;
+  }
+  .ans {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .ans span {
+    display: flex;
+    gap: 0.6rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 11px;
+    box-shadow: inset 0 0 0 1px var(--pline2);
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--ptext);
+  }
+  .ans b {
+    font: 600 12px/1.35 var(--font-mono);
+    color: var(--pmute);
+  }
+  .after {
+    margin-top: 0.6rem;
+    opacity: 0;
+  }
+  .pcomp {
+    margin: 0 0.7rem 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 0.8rem;
+    border-radius: 18px;
+    background: rgb(245 242 239 / 0.045);
+    box-shadow: inset 0 0 0 1px var(--pline);
+    font-size: 12.5px;
+    color: var(--pmute);
+  }
+  .mic {
+    margin-left: auto;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: rgb(245 242 239 / 0.08);
+    display: grid;
+    place-items: center;
+    color: var(--pdim);
+  }
+  .home {
+    height: 4px;
+    width: 110px;
+    border-radius: 4px;
+    background: rgb(247 242 234 / 0.35);
+    margin: 0 auto 8px;
+  }
+  .notif {
+    position: absolute;
+    z-index: 4;
+    top: 52px;
+    left: 14px;
+    right: 14px;
+    display: flex;
+    gap: 0.65rem;
+    padding: 0.75rem 0.8rem;
+    border-radius: 20px;
+    background: rgb(44 42 40 / 0.86);
+    backdrop-filter: blur(18px);
+    box-shadow:
+      0 18px 40px -16px rgb(0 0 0 / 0.8),
+      inset 0 0 0 1px rgb(255 255 255 / 0.06);
+  }
+  /* Parked above the screen only when the script will bring it down. */
+  @media (prefers-reduced-motion: no-preference) {
+    :global(.js) .notif {
+      transform: translateY(-140%);
+      opacity: 0;
+    }
+  }
+  .notif img {
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: #0e0d0c;
+    padding: 6px;
+    flex: none;
+  }
+  .notif div {
+    min-width: 0;
+    font-size: 12px;
+    line-height: 1.35;
+    color: var(--pdim);
+  }
+  .notif b {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    color: var(--ptext);
+    font-size: 12.5px;
+  }
+  .notif small {
+    font-weight: 400;
+    color: var(--pmute);
+  }
+
+  /* A push lands, answer 1 lights up, the agent goes on. */
+  .phone:global(.play) .notif {
+    animation:
+      drop 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.4s forwards,
+      lift 0.6s cubic-bezier(0.16, 1, 0.3, 1) 3.2s forwards;
+  }
+  .phone:global(.play) .ans span:first-child {
+    animation: press 0.5s cubic-bezier(0.16, 1, 0.3, 1) 4.2s forwards;
+  }
+  .phone:global(.play) .after {
+    animation: fade-in 0.4s 5s forwards;
+  }
+  .phone:global(.play) .w1 {
+    animation: fade-out 0.3s 5s forwards;
+  }
+  .phone:global(.play) .w2 {
+    animation: fade-in 0.3s 5s forwards;
+  }
+  @keyframes drop {
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+  @keyframes lift {
+    from {
+      transform: none;
+      opacity: 1;
+    }
+    to {
+      transform: translateY(-140%);
+      opacity: 0;
+    }
+  }
+  @keyframes press {
+    to {
+      background: rgb(251 191 36 / 0.12);
+      box-shadow: inset 0 0 0 1px var(--pwait);
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-in {
+    to {
+      opacity: 1;
+    }
+  }
+
+  @media (max-width: 860px) {
+    .pk {
+      grid-template-columns: 1fr;
+    }
+    .stagep {
+      order: -1;
+    }
+  }
+</style>

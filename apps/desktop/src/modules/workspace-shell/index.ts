@@ -1,0 +1,12 @@
+export { ShellChrome } from "@/modules/workspace-shell/components/ShellChrome";
+export { SplitHandle } from "@/modules/workspace-shell/components/SplitHandle";
+export { PaneCard } from "@/modules/workspace-shell/components/PaneCard";
+export { UnifiedComposer } from "@/modules/workspace-shell/components/UnifiedComposer";
+export { ThreadRail } from "@/modules/workspace-shell/components/ThreadRail";
+export type { ThreadGroup, ThreadRow } from "@/modules/workspace-shell/components/ThreadRail";
+export { RailEmptyState } from "@/modules/workspace-shell/components/RailEmptyState";
+export { KindIcon } from "@/modules/workspace-shell/components/kind-glyph";
+export { AddPaneMenu } from "@/modules/workspace-shell/components/AddPaneMenu";
+export type { MenuAnchor } from "@/modules/workspace-shell/components/AddPaneMenu";
+export { WorkspaceRail } from "@/modules/workspace-shell/components/WorkspaceRail";
+export * from "@/modules/workspace-shell/types";

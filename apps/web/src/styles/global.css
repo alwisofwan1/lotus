@@ -1,0 +1,515 @@
+@import "tailwindcss";
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Lotus Web — design tokens and shared primitives
+   ──────────────────────────────────────────────────────────────────────────────
+   This deliberately DEPARTS from the desktop app's DESIGN.md (achromatic-warm,
+   soft shadows, rounded corners, Waldenburg display). That direction was applied
+   first and rejected by the owner as "too dated"; a second, austere pass
+   (mono display, zero radius, zero shadow) was then measured against
+   bridgemind.ai and revised again. History and reasoning:
+   plans/lotus-web/issues/08-mockup-landing-page.md.
+
+   What the reference contributed, and what was refused:
+
+     TAKEN   confident display type, translucent panel fills over pure hairlines,
+             real elevation on the one element that deserves it, small radii and a
+             pill primary CTA.
+
+     REFUSED its blue accent. Borrowing it would be a copy. Instead colour appears
+             in exactly one place — the cell that is waiting for a human. That is
+             the product's whole claim, so the page's only splash of colour means
+             something.
+
+   Two rules that follow from that and must not be relaxed:
+     · Amber is semantic, never branding, never decorative.
+     · The primary CTA is white, because maximum contrast keeps the state colours
+       unambiguous.
+
+   ──────────────────────────────────────────────────────────────────────────────
+   2026-08-29 — the glass pass.
+
+   Rendering the built site turned up one fault that made every other complaint
+   downstream of it: NOTHING READ AS A SURFACE. `--panel` was 2% white over a
+   #0a0a0c ground, so every card, chip and field sat within two percent of what
+   it stood on, and the page was one flat plane with type floating on it.
+
+   The fix is a change of MATERIAL, not of direction. Everything the previous
+   passes argued for is kept — one chroma, the product's own state ramp, mono as
+   engraving, no borrowed accent. What is added is light: a slow achromatic field
+   under the whole site (`body::before`), and three tiers of glass above it
+   (`.pane`, `.lens`, `.bezel`). The three rules those tiers obey are written
+   where they are defined, because that is where they get broken.
+
+   The one thing to hold on to if this is ever revisited: glass without light
+   behind it is grey plastic. Deleting the field and keeping the panes puts the
+   page back exactly where this pass found it.
+   ──────────────────────────────────────────────────────────────────────────────
+   2026-11-07 — the warm pass (plans/lotus-web/redesign-2026-11/index.html).
+
+   The site now wears the app's own Dark theme (`--ds-*` in apps/desktop/src/styles/
+   design-system.css): a warm #161513 ground, opaque surfaces, no glass, no light field.
+   The app itself went opaque ("an opaque Dock, no glass"), so a frosted site was
+   describing a product that no longer looks like that. The glass history above is kept
+   as the record of why each earlier pass happened; the tiers below survive as names only
+   and are flat fills now. Archivo sets the site's prose too; Instrument Sans is left
+   only to the demo's reconstruction (demo.css --cv-sans), so it is no longer preloaded.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@theme {
+  /* Waldenburg (DESIGN.md's display face) is proprietary and absent from this
+     repo. Never write `font-family: Waldenburg` here and let it fall back
+     silently — see PLAN.md Fase 1.
+
+     Archivo replaced Schibsted Grotesk in the glass pass. It is a signage face:
+     wider apertures, flatter terminals, engineered rather than friendly, which
+     is what an instrument should sound like — and it holds its colour at the
+     hero's 5 rem where Schibsted went soft. The other two faces did not change,
+     so two thirds of the type system is untouched. The @font-face rules in
+     styles/fonts.css and `--cv-*` in demo.css are the other places they are named. */
+  --font-display: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* ── Dark is the site, not a mode ──────────────────────────────────────────
+   The product is a dark surface — the CodeCanvas void, the CodeSpace panes —
+   and the site's whole job is to describe that product, so the page IS the
+   product's ground. There is no light default any more: the ground below is
+   the native one, an OS-level light preference no longer switches the site,
+   and the only light that remains is an explicit `data-theme="light"` choice
+   further down. The hero used to sit in light beside a dark demo; now the
+   seam is gone and the two-surface panels read as the page continuing into
+   the product.
+
+   The state ramp is the product's own, not the site's: `#34d399` and
+   `#fbbf24` are the hex the canvas demo already carries from theme.css's
+   status ramp (ADR-0023 §2b forbids remapping it), so a node that is
+   running on the panel and a state chip that says "running" on the page are
+   the same green. Amber stays what it always was — semantic, the one state
+   that needs a person, never branding, never decorative. */
+:root {
+  color-scheme: dark;
+
+  /* The ground is a step darker and cool-biased. Both changes exist for the
+     light field below: #0a0a0c had nowhere to rise from, and a neutral grey
+     lit from behind reads as plastic rather than as glass. */
+  --ground: #161513; /* --ds-bg */
+  --sunk: #0f0e0c; /* --ds-bg-soft */
+  --surface: #1e1b19; /* --ds-surface */
+  --raised: #252220; /* --ds-surface-raised */
+  --hair: rgb(247 243 238 / 0.075);
+  --hair-2: rgb(247 243 238 / 0.12);
+
+  --ink: #f7f3ee;
+  /* Raised from #9aa1a9. Glass eats a little contrast, and secondary text is
+     where that first becomes a legibility problem rather than a mood. */
+  --dim: #b0aaa2;
+  /* Raised from #545c68 (2.96:1) on 2026-09-30: it carries real text (fineprint, labels,
+     the demo's beats), and small text needs 4.5:1 — #7a8290 is 5.2:1 on the ground. */
+  --faint: #8f8981; /* 5.0:1 on --ground */
+
+  /* Semantic only. Never used for branding, never decorative.
+
+     2026-09-30 (revamp, plans/lotus-web/REVAMP.md): "needs a human" is VIOLET now, because
+     that is the product's own colour for it (`--ws-activity-ask` #a78bfa in the Workspace,
+     the needs-you badge on the canvas). The site used amber for the same meaning while the
+     app used amber for "starting" and "unread" — one colour, two meanings, across a page
+     that exists to show the app. Amber stays, demoted to what the app uses it for.
+     `--ask` is lifted a step (#b49bff) so small violet text on the dark ground holds AA. */
+  --run: #34d399;
+  --ask: #b49bff;
+  --ask-ink: #140a2e;
+  --wait: #fbbf24;
+  --idle: #6b7076;
+
+  /* The glass tiers. Each is a fill, a blur and an edge — see the material
+     block further down, which is the only place they are assembled. */
+  --glass-1: var(--surface);
+  --glass-2: var(--surface);
+  --glass-2-hover: var(--raised);
+  --glass-3: var(--raised);
+  --lip: rgb(255 255 255 / 0.16);
+  --lip-2: rgb(255 255 255 / 0.06);
+  --spec-a: rgb(255 255 255 / 0.18);
+  --spec-b: rgb(255 255 255 / 0.04);
+  --spec-c: rgb(255 255 255 / 0.07);
+  --cast-a: rgb(150 172 205 / 0.13);
+  --cast-b: rgb(120 140 175 / 0.1);
+  --ember: rgb(251 191 36 / 0.045);
+  --deep: var(--sunk);
+
+  /* Retained as aliases: `surfaces.css` and the product reconstructions still
+     read them, and those are deliberately untouched by the glass pass. */
+  --panel: var(--glass-1);
+  --panel-2: var(--glass-2);
+
+  --lift: inset 0 0 0 1px var(--hair), 0 6px 24px rgb(0 0 0 / 0.45),
+    0 44px 90px -50px rgb(0 0 0 / 0.9);
+  --ring: inset 0 0 0 1px var(--hair);
+
+  --r: 10px;
+  --r-lg: 16px;
+
+  --shell: 1200px;
+  --pad: clamp(1.15rem, 3.5vw, 2.75rem);
+  /* Tightened from clamp(4rem, 9vw, 8rem). At 1440 the old step opened
+     300–600 px of empty ground between the lower sections, which reads as
+     unfinished rather than as generous. */
+  --step: clamp(3.25rem, 6.5vw, 5.5rem);
+}
+
+/* An explicit light choice.
+
+   Glass inverts rather than dims: the fills go white-over-light instead of
+   white-over-dark, because a black fill on a light ground reads as a smudge
+   and not as a pane. The light field keeps the same three sources at lower
+   alpha — it is what the panes refract in either theme. */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --ground: #fbfbfa;
+  --sunk: #f1f1ef;
+  --surface: #ffffff;
+  --raised: #f1efeb;
+  --hair: rgb(0 0 0 / 0.1);
+  --hair-2: rgb(0 0 0 / 0.18);
+
+  --ink: #0c0d0f;
+  --dim: #575e66;
+  --faint: #939aa2;
+
+  --run: #2f6b52;
+  --ask: #5b3fc4;
+  --ask-ink: #ffffff;
+  --wait: #8a5a22;
+  --idle: #71767c;
+
+  --glass-1: rgb(255 255 255 / 0.5);
+  --glass-2: rgb(255 255 255 / 0.62);
+  --glass-2-hover: rgb(255 255 255 / 0.78);
+  --glass-3: rgb(255 255 255 / 0.7);
+  --lip: rgb(255 255 255 / 0.9);
+  --lip-2: rgb(255 255 255 / 0.6);
+  --spec-a: rgb(255 255 255 / 0.75);
+  --spec-b: rgb(255 255 255 / 0.25);
+  --spec-c: rgb(255 255 255 / 0.4);
+  --cast-a: rgb(96 126 170 / 0.11);
+  --cast-b: rgb(120 140 175 / 0.09);
+  --ember: rgb(180 120 20 / 0.05);
+  --deep: rgb(255 255 255 / 0.55);
+
+  --lift: inset 0 0 0 1px var(--hair), 0 4px 16px rgb(0 0 0 / 0.06),
+    0 32px 70px -46px rgb(0 0 0 / 0.22);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 0.9688rem;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* ── The material: three tiers, and everything is one of them ──────────────
+   Three rules govern these, and none of them is cosmetic:
+
+     1. Glass is the SITE's chrome and never touches the product. The
+        CodeCanvas and CodeSpace reconstructions in `surfaces.css` keep their
+        own tokens — frosting them would be drawing an app that does not
+        exist. A vitrine holds them; it does not restyle them.
+
+     2. Glass carries no hue. Every tier is white-on-transparent with a
+        saturation lift that reveals the ground's own cast. If a pane needs a
+        tint to be legible, the fill is too low — not the hue too absent.
+
+     3. Two layers, never three. Glass over glass over glass turns to fog and
+        costs a compositing pass each. A bezel may sit on a vitrine; nothing
+        sits on both.
+
+   Text on glass needs a fill floor of about 8% before it holds contrast. That
+   is why the bezel — the only tier that routinely carries small text over a
+   moving field — is the one with the highest fill. */
+
+/* L1 · Vitrine. Holds a product surface or a long block. The least glassy
+   tier, because it must not compete with what it contains. */
+/* No blur on any tier since the warm pass: the app is opaque, so the site is too. */
+.pane {
+  position: relative;
+  border-radius: var(--r-lg);
+  background: var(--glass-1);
+  box-shadow:
+    inset 0 0 0 1px var(--hair),
+    inset 0 1px 0 var(--lip),
+    0 26px 60px -30px rgb(0 0 0 / 0.85);
+}
+
+/* L2 · Lens. The workhorse — every card on the page. Three sections used to
+   hand-roll a near-identical box; `components/Card.astro` is this class and
+   nothing else, so there is now one place for the material to change. */
+.lens {
+  position: relative;
+  border-radius: var(--r);
+  background: var(--glass-2);
+  box-shadow:
+    inset 0 0 0 1px var(--hair),
+    inset 0 1px 0 var(--lip-2),
+    0 12px 30px -22px rgb(0 0 0 / 0.7);
+  transition:
+    background 180ms linear,
+    box-shadow 180ms linear;
+}
+.lens:hover {
+  background: var(--glass-2-hover);
+  box-shadow:
+    inset 0 0 0 1px var(--hair-2),
+    inset 0 1px 0 var(--lip),
+    0 18px 40px -22px rgb(0 0 0 / 0.8);
+}
+
+/* L3 · Bezel. Chrome that floats: the bar, the email field, the eyebrow chip,
+   the ghost button. The only tier with a specular sweep, because it is the
+   only one meant to look picked up and moved. */
+.bezel {
+  position: relative;
+  background: var(--glass-3);
+  box-shadow:
+    inset 0 0 0 1px var(--hair-2),
+    inset 0 1px 0 var(--lip),
+    inset 0 -1px 0 var(--lip-2),
+    0 10px 28px -14px rgb(0 0 0 / 0.6);
+}
+/* The sweep. One diagonal pass of light across the pane — the detail that
+   separates "translucent panel" from "glass".
+
+   It is a ::before rather than a second background layer because the fill
+   below it must stay a single token the light theme can invert. Anything
+   inside a .bezel therefore needs to sit above it; `.bezel > *` does that
+   without every call site remembering to. */
+.bezel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  /* Corner-anchored, not a diagonal band.
+
+     The first version was `linear-gradient(115deg, …)`, which is the shape
+     every glass tutorial reaches for. It looks right on a pill and wrong on
+     the 1200 px bar: stretched across that width the band stops being a glint
+     and becomes a grey-to-dark gradient, which reads as a plastic strip.
+
+     Two radial sources pinned to opposite corners survive any aspect ratio —
+     a glint at the top-left and a faint bounce at the bottom-right — because
+     their size is relative to the element in BOTH axes. */
+  background:
+    radial-gradient(130% 190% at 0% 0%, var(--spec-a), var(--spec-b) 28%, transparent 58%),
+    radial-gradient(110% 160% at 100% 100%, var(--spec-c), transparent 52%);
+}
+.bezel > * {
+  position: relative;
+  z-index: 1;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.032em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ask);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: var(--ink);
+  color: var(--ground);
+}
+
+.shell {
+  max-width: var(--shell);
+  margin-inline: auto;
+  padding-inline: var(--pad);
+}
+
+/* Structural label — the instrument engraving. This is where the mono face
+   genuinely earns its place, rather than as a display font. */
+.tag {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: var(--dim);
+}
+
+.idx {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.1em;
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Buttons are global because sections and the nav both use them. Any rule that
+   also targets `a` must exclude `.btn` — a nav-scoped `a` selector beats `.btn`
+   on specificity and will repaint the primary pill's label. That bug shipped in
+   a mockup pass before being caught by rendering it. */
+.btn {
+  font-family: var(--font-sans);
+  font-size: 0.9062rem;
+  font-weight: 500;
+  padding: 0.72rem 1.35rem;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: var(--ink);
+  color: var(--ground);
+  transition:
+    transform 140ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    opacity 140ms linear;
+}
+.btn:hover {
+  transform: translateY(-1px);
+  opacity: 0.9;
+}
+/* The ghost pill is a bezel: it is chrome that floats, and on this page it is
+   routinely the CTA that carries the weight (see Hero.astro on the closed
+   list), so it has to hold its own beside the white one. */
+.btn-ghost {
+  color: var(--ink);
+  background: var(--glass-3);
+  box-shadow:
+    inset 0 0 0 1px var(--hair-2),
+    inset 0 1px 0 var(--lip),
+    0 10px 28px -14px rgb(0 0 0 / 0.6);
+}
+.btn-sm {
+  padding: 0.5rem 1rem;
+  font-size: 0.8438rem;
+}
+
+/* The email field is global because two forms use it now — hero and footer. It was
+   scoped to Hero.astro while there was one.
+
+   `.field input { outline: 0 }` (0,1,1) beats the global `:focus-visible` rule
+   (0,1,0), so keyboard focus on the email input was invisible: the same specificity
+   trap that repainted the nav pill's label in an earlier pass. The outline stays off
+   deliberately — an outline inside a pill looks broken — and the *pill* carries the
+   focus state instead, via :focus-within. Do not add `outline: 0` without moving the
+   indication somewhere a keyboard user can see. */
+.field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex: 1 1 23rem;
+  min-width: 0;
+  padding: 0.28rem 0.28rem 0.28rem 0.9rem;
+  border-radius: 999px;
+  background: var(--glass-3);
+  box-shadow:
+    inset 0 0 0 1px var(--hair-2),
+    inset 0 1px 0 var(--lip),
+    0 10px 28px -14px rgb(0 0 0 / 0.6);
+  transition: box-shadow 140ms linear;
+}
+.field:focus-within {
+  box-shadow:
+    inset 0 0 0 1px var(--hair-2),
+    inset 0 1px 0 var(--lip),
+    0 0 0 2px var(--ask);
+}
+.field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--font-sans);
+  font-size: 0.9062rem;
+  background: transparent;
+  color: var(--ink);
+  border: 0;
+  outline: 0;
+  padding: 0.42rem 0;
+}
+.field input::placeholder {
+  color: var(--faint);
+}
+
+.prose {
+  font-size: 1.0312rem;
+  line-height: 1.65;
+  color: var(--dim);
+  max-width: 60ch;
+}
+.prose + .prose {
+  margin-top: 0.9rem;
+}
+.prose b {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Scroll reveals (public/motion.js). Only elements that start below the fold get `.pre`,
+   and only when motion is welcome, so nothing ever starts hidden without the script. */
+@media (prefers-reduced-motion: no-preference) {
+  [data-reveal] {
+    transition:
+      opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+      transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+    transition-delay: calc(var(--i, 0) * 80ms);
+  }
+  [data-reveal].pre {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+/* Visually hidden, still announced. For labels a sighted visitor gets from the layout. */
+.sr-only {
+  position: absolute !important;
+  inline-size: 1px;
+  block-size: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}

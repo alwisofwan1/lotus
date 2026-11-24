@@ -1,0 +1,154 @@
+/* CodeCanvas motion system — tokens, accent-color interpolation, and the kill switch.
+   JS-driven tweens read the mirrored constants in services/canvas-motion.ts; keep
+   the two in sync when tuning. Every duration/easing used by canvas transitions
+   should come from here so the whole surface moves on one clock. */
+
+/* ── Registered accent properties ──
+   Registering the per-kind accent trio as <color> lets a status flip (e.g. a
+   terminal's data-node-status idle→running) CROSSFADE instead of hard-swap:
+   a `transition: --node-accent …` on .canvas-node interpolates the color, and
+   everything derived from it (header glow, chips, hairlines via color-mix)
+   follows frame by frame. Initial values mirror the .canvas-node defaults. */
+@property --node-accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #94a3b8;
+}
+@property --node-accent-soft {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(148, 163, 184, 0.14);
+}
+@property --node-accent-line {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(148, 163, 184, 0.55);
+}
+
+.codecanvas-shell {
+  /* Durations */
+  --canvas-motion-fast: 130ms;    /* hovers, small affordances */
+  --canvas-motion-dot: 200ms;     /* status dots (header, persona) */
+  --canvas-motion-status: 240ms;  /* accent/status color crossfade */
+  --canvas-motion-overlay: 220ms; /* floating panels/overlays enter */
+  --canvas-motion-enter: 380ms;   /* node mount (ADR-0033) */
+  --canvas-motion-sketch: 560ms;  /* agent draw-in: rough outline stroke sweep */
+  --canvas-motion-enter-delay: 48ms; /* small anticipation pause before a node opens */
+  --canvas-motion-move: 320ms;    /* ordinary programmatic node moves */
+  --canvas-motion-arrange: 620ms;  /* ReactFlow node-wrapper transform during arrange */
+  --canvas-motion-leave: 260ms;   /* node close (ADR-0033): opacity + transform only */
+  --canvas-motion-leave-delay: 24ms; /* lets click/NL close read before the card exits */
+  /* Easings — exponential/quartic exits: game-like snappiness without bounce/elastic. */
+  --canvas-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --canvas-ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --canvas-ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
+  /* Compatibility alias for older node CSS; deliberately no overshoot. */
+  --canvas-ease-spring: var(--canvas-ease-out-expo);
+}
+
+/* ── ReactFlow node-position motion ──
+   ReactFlow positions nodes by writing transform on .react-flow__node. Let that
+   wrapper transition for programmatic moves, while excluding active pointer drags
+   so a user's hand never fights an easing curve. Arrange overrides duration below. */
+.codecanvas-shell[data-canvas-motion="on"] .react-flow__node:not(.dragging):not(.canvas-node-leaving) {
+  transition: transform var(--canvas-motion-move, 320ms) var(--canvas-ease-out-expo, ease-out);
+}
+
+/* ── Arrange hold ──
+   While the canvas glides nodes into the grid and reframes the camera, CanvasPage
+   stamps data-canvas-arranging on the shell and every node's backdrop blur is
+   suspended — re-blurring N glass panels per animated frame is the most expensive
+   part of the move in WKWebView and starves the tween into a teleport. !important
+   deliberately outranks the per-kind glass recipes in node-shell.css. */
+.codecanvas-shell[data-canvas-arranging] .react-flow__node:not(.canvas-node-leaving) {
+  transition-duration: var(--canvas-motion-arrange, 620ms);
+  transition-timing-function: var(--canvas-ease-out-expo, ease-out);
+  will-change: transform;
+}
+
+.codecanvas-shell[data-canvas-arranging] .canvas-node {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Node drag hold ──
+   The same bargain arrange and enter make, for the motion the user feels most directly: while a
+   pointer drag is in flight (holdCanvasNodeDrag stamps data-canvas-dragging), every node's backdrop
+   blur is suspended. Re-blurring N glass panels per pointermove is what made dragging ANY node feel
+   choppy — not just the one under the cursor, since the moving node forces its neighbours'
+   backdrops to re-sample as it passes over them. That is also why this hits every .canvas-node and
+   not `.dragging .canvas-node`: unblurring the dragged node alone leaves the expensive half.
+
+   No transition/transform declarations here on purpose. The rule above already excludes .dragging
+   from the position transition so the hand never fights an easing curve; adding one back under a
+   drag-scoped selector would undo it. */
+.codecanvas-shell[data-canvas-dragging] .canvas-node {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Node enter hold ──
+   Same bargain as the arrange hold, for the transition users see most: while a node plays its mount
+   animation, holdCanvasNodeEnter (canvas-motion.ts) stamps data-canvas-entering and the glass blur is
+   suspended + the wrapper is promoted. Without this, a spawning Terminal/Agent node re-blurs every
+   backdrop-filtered panel on every frame of its own entrance and drops the opening frames. */
+.codecanvas-shell[data-canvas-entering] .canvas-node {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  will-change: transform, opacity;
+}
+
+.codecanvas-shell[data-canvas-arranging] .react-flow__edge {
+  opacity: 0.62;
+  transition: opacity var(--canvas-motion-overlay, 220ms) var(--canvas-ease-out, ease-out);
+}
+
+/* ── Viewport motion hold ──
+   Button zoom/focus/fit freezes semantic LOD in JS while the camera is moving.
+   Keep any already-collapsed glyphs still too, so repeated zoom clicks don't
+   restart tiny glyph enter animations and read as flicker. */
+.codecanvas-shell[data-canvas-viewport-motion="active"] .canvas-node-glyph {
+  animation-name: none;
+}
+
+/* ── Project switch fast path ──
+   Switching canvases should feel instant: hydrate the incoming board without node
+   choreography, transform glides, edge fades, or per-frame glass blur. Creation,
+   arrange, focus, and zoom still use the normal motion system outside this flag. */
+.codecanvas-shell[data-canvas-project-transition="fast"] .react-flow__node,
+.codecanvas-shell[data-canvas-project-transition="fast"] .canvas-node,
+.codecanvas-shell[data-canvas-project-transition="fast"] .react-flow__edge {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-delay: 0ms !important;
+}
+
+.codecanvas-shell[data-canvas-project-transition="fast"] .canvas-node {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ── Kill switch ──
+   Settings → Canvas → "Smooth canvas animations" off. CanvasPage stamps
+   data-canvas-motion="off" on the shell; JS tweens go instant through
+   canvasMotionEnabled() and every CSS transition/animation collapses here.
+   0.01ms (not 0) so animation events still fire for anything listening. */
+.codecanvas-shell[data-canvas-motion="off"] *,
+.codecanvas-shell[data-canvas-motion="off"] *::before,
+.codecanvas-shell[data-canvas-motion="off"] *::after {
+  transition-duration: 0.01ms !important;
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+}
+
+/* OS-level reduced motion gets the same full silence (individual files keep
+   their targeted guards; this consolidates coverage for anything they miss). */
+@media (prefers-reduced-motion: reduce) {
+  .codecanvas-shell *,
+  .codecanvas-shell *::before,
+  .codecanvas-shell *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

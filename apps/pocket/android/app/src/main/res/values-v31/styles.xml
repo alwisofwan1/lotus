@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- API 31+ replaced the launch window with the platform SplashScreen, which ignores
+         `windowBackground` and instead paints `windowSplashScreenBackground` with an icon
+         on top — defaulting to the launcher icon when none is named.
+
+         **This device honours neither attribute, and that was measured rather than
+         assumed.** A diagnostic build set `windowSplashScreenBackground` to magenta;
+         `aapt2 dump resources` confirmed `#ffff00ff` shipped in the installed APK, and a
+         screen recording of a cold start showed no magenta at any frame. The icon was
+         likewise the launcher icon, not `@drawable/launch_mark`. Logcat shows the platform
+         path is genuinely in use (`startingData=SplashScreenStartingData`, a real
+         `Splash Screen com.serayu.lotus_pocket` window), so this is a Transsion/XOS
+         override rather than a fallback to the legacy starting window.
+
+         The block stays because it is correct on the devices that do honour it, and
+         because deleting it would leave the next person with no record of the test. What
+         actually fixes the launch screen here is the adaptive icon
+         (`mipmap-anydpi-v26/ic_launcher.xml`) — the ROM draws that.
+
+         The icon background is left unset on purpose: setting it draws a filled circle
+         behind the mark, which is the one shape `lotus_mark.dart` argues against. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowSplashScreenBackground">@color/launch_floor</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_mark</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
+    </style>
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
+        <item name="android:windowBackground">@color/launch_floor</item>
+    </style>
+</resources>

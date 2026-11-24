@@ -1,0 +1,522 @@
+/* Frame node (ADR-0050, LOT2-123). Mockups: plans/codecanvas-frames/mockup/ (0-components, 1-resting,
+   2-hover-selected, 4-rename-menu, 8a-delete-confirm, 8b-first-frame-hint).
+   Colour comes from the --canvas-frame-* theme tokens through --frame-color; every neutral is a
+   --canvas-* token. The node wrapper is pointer-transparent (canvas-node-factory), so only the
+   border strips, the title tab and the resize handles opt back in with pointer-events: auto. */
+.canvas-frame-node {
+  --frame-line: color-mix(in oklab, var(--frame-color) 24%, transparent);
+  position: relative;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--frame-line);
+  border-radius: 14px;
+  background: color-mix(in oklab, var(--frame-color) 3%, transparent);
+  transition: border-color 120ms var(--canvas-ease-out, ease-out), background 120ms var(--canvas-ease-out, ease-out), box-shadow 120ms var(--canvas-ease-out, ease-out);
+}
+/* Strong border only on hover, selected, or while it is the drop target. */
+.canvas-frame-node:hover,
+.canvas-frame-node[data-selected="true"] {
+  border-color: color-mix(in oklab, var(--frame-color) 75%, transparent);
+  background: color-mix(in oklab, var(--frame-color) 5%, transparent);
+}
+.canvas-frame-node[data-drop-target="true"] {
+  border: 2px solid var(--frame-color);
+  background: color-mix(in oklab, var(--frame-color) 9%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--frame-color) 20%, transparent);
+}
+
+/* Move grips: the four border strips. */
+.canvas-frame-edge { position: absolute; pointer-events: auto; cursor: grab; }
+.canvas-frame-edge--top { top: -5px; left: 0; right: 0; height: 10px; }
+.canvas-frame-edge--bottom { bottom: -5px; left: 0; right: 0; height: 10px; }
+.canvas-frame-edge--left { left: -5px; top: 0; bottom: 0; width: 10px; }
+.canvas-frame-edge--right { right: -5px; top: 0; bottom: 0; width: 10px; }
+
+/* Title tab, top-left, 28px tall, OUTSIDE the box (decision 35): 4px above the border, in the
+   FRAME_TAB_STRIP (32px) that canvas-frame-geometry reserves above every Frame. */
+.canvas-frame-tab {
+  position: absolute;
+  top: -33px; /* 28px tab + 4px gap + 1px border */
+  left: 14px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0 0.35rem 0 0.6rem;
+  border: 1px solid var(--frame-line);
+  border-radius: 9px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #0b0b10));
+  color: var(--canvas-text);
+  font: 500 0.78rem/1 var(--canvas-font-ui, inherit);
+  white-space: nowrap;
+  pointer-events: auto;
+  cursor: grab;
+  transform-origin: top left;
+}
+.canvas-frame-node:hover .canvas-frame-tab,
+.canvas-frame-node[data-selected="true"] .canvas-frame-tab {
+  border-color: color-mix(in oklab, var(--frame-color) 75%, transparent);
+}
+.canvas-frame-tab-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  background: var(--frame-color);
+  flex: 0 0 auto;
+}
+.canvas-frame-tab-title { max-width: 18rem; overflow: hidden; text-overflow: ellipsis; }
+.canvas-frame-tab-count {
+  font: 500 0.7rem/1 var(--canvas-font-mono, ui-monospace, monospace);
+  color: color-mix(in oklab, var(--canvas-text) 55%, transparent);
+}
+.canvas-frame-tab-overview { opacity: 0.6; }
+/* Story 40: the title tab is a keyboard stop (Enter / F2 renames). */
+.canvas-frame-tab:focus-visible { outline: 2px solid var(--canvas-text); outline-offset: 2px; }
+/* Overview: an agent inside is waiting for the user (mockup 7, "02 · needs you"). */
+.canvas-frame-node[data-needs-you="true"] {
+  border-color: color-mix(in oklab, var(--canvas-status-blocked) 80%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--canvas-status-blocked) 18%, transparent);
+}
+.canvas-frame-node[data-needs-you="true"] .canvas-frame-tab { border-color: color-mix(in oklab, var(--canvas-status-blocked) 80%, transparent); }
+.canvas-frame-node[data-needs-you="true"] .canvas-frame-tab-overview { opacity: 1; color: var(--canvas-status-blocked-ink); }
+.canvas-frame-tab-enter { color: var(--frame-color); }
+.canvas-frame-tab-input {
+  min-width: 6rem;
+  max-width: 24rem;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: text;
+}
+.canvas-frame-tab:has(.canvas-frame-tab-input) {
+  border-color: var(--canvas-text);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--canvas-text) 22%, transparent);
+}
+/* Tab buttons show on hover, selection or keyboard focus; 24px hit targets. */
+.canvas-frame-tab-actions { display: inline-flex; align-items: center; gap: 0.1rem; opacity: 0; transition: opacity 120ms; }
+.canvas-frame-node:hover .canvas-frame-tab-actions,
+.canvas-frame-node[data-selected="true"] .canvas-frame-tab-actions,
+.canvas-frame-tab-actions:focus-within { opacity: 1; }
+.canvas-frame-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: color-mix(in oklab, var(--canvas-text) 70%, transparent);
+  cursor: pointer;
+}
+.canvas-frame-tab-btn:hover { background: color-mix(in oklab, var(--canvas-text) 12%, transparent); color: var(--canvas-text); }
+.canvas-frame-tab-btn:focus-visible { outline: 2px solid var(--canvas-text); outline-offset: -2px; }
+
+/* Decision 32: zoomed in, a Frame has no chrome at all (the canvas looks like it did before Frames).
+   CanvasFrameChromeMarker sets data-frame-chrome from the zoom; a Frame that is the drop target, in the
+   Overview, being renamed or showing a menu opts back in through data-chrome-force. Hidden grips are
+   removed (display: none), not just faded, so nothing invisible can catch a pointer. */
+.react-flow:has(.canvas-frame-chrome-marker[data-frame-chrome="off"]) .canvas-frame-node:not([data-chrome-force="true"]) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+.react-flow:has(.canvas-frame-chrome-marker[data-frame-chrome="off"]) .canvas-frame-node:not([data-chrome-force="true"]) :is(.canvas-frame-edge, .canvas-frame-tab, .react-flow__resize-control) {
+  display: none;
+}
+.canvas-frame-chrome-marker { width: 0; height: 0; overflow: hidden; pointer-events: none; opacity: 0; }
+
+/* Corner resize: four 10px handles with a 24px hit area; side lines stay off so the border moves. */
+.canvas-frame-resize-handle {
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--frame-color, var(--canvas-text));
+  border-radius: 3px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #0b0b10));
+  pointer-events: auto;
+}
+.canvas-frame-resize-handle::after { content: ""; position: absolute; inset: -7px; }
+.canvas-frame-resize-line { display: none; }
+
+/* Tab menus (portal to body). */
+.canvas-frame-tab-menu {
+  position: fixed;
+  z-index: 60;
+  min-width: 14.5rem;
+  padding: 0.35rem;
+  border: 1px solid var(--cc-chrome-border-hi, color-mix(in oklab, var(--canvas-text) 14%, transparent));
+  border-radius: 12px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #14141b));
+  color: var(--canvas-text);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.4);
+  font: 400 0.82rem/1.25 var(--canvas-font-ui, inherit);
+}
+.canvas-frame-tab-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  min-height: 32px;
+  padding: 0.3rem 0.55rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.canvas-frame-tab-menu-item:hover,
+.canvas-frame-tab-menu-item:focus-visible { background: color-mix(in oklab, var(--canvas-text) 10%, transparent); outline: none; }
+.canvas-frame-tab-menu-item:focus-visible { box-shadow: inset 0 0 0 2px var(--canvas-text); }
+.canvas-frame-tab-menu-label { flex: 1 1 auto; display: flex; flex-direction: column; gap: 0.1rem; }
+.canvas-frame-tab-menu-label small { font-size: 0.72rem; color: color-mix(in oklab, var(--canvas-text) 58%, transparent); }
+.canvas-frame-tab-menu-key { font: 500 0.7rem/1 var(--canvas-font-mono, ui-monospace, monospace); color: color-mix(in oklab, var(--canvas-text) 55%, transparent); }
+.canvas-frame-tab-menu-item--danger { color: var(--canvas-status-error-ink); }
+.canvas-frame-tab-menu-sep { height: 1px; margin: 0.3rem 0.4rem; background: color-mix(in oklab, var(--canvas-text) 12%, transparent); }
+.canvas-frame-tab-menu-colour { padding: 0.45rem 0.55rem 0.5rem; }
+.canvas-frame-tab-menu-colour-head { display: flex; justify-content: space-between; margin-bottom: 0.45rem; color: color-mix(in oklab, var(--canvas-text) 62%, transparent); }
+.canvas-frame-tab-menu-colour-head strong { color: var(--canvas-text); font-weight: 600; }
+.canvas-frame-tab-menu-swatches { display: flex; gap: 0.4rem; }
+.canvas-frame-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  color: var(--node-floor-solid);
+  cursor: pointer;
+}
+.canvas-frame-swatch[aria-checked="true"] { border-color: var(--canvas-text); }
+.canvas-frame-swatch:focus-visible { outline: 2px solid var(--canvas-text); outline-offset: 2px; }
+
+/* Delete-with-contents confirm (8a). */
+.canvas-frame-dialog-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in oklab, var(--node-floor-solid) 62%, transparent);
+}
+.canvas-frame-dialog {
+  width: min(38rem, calc(100vw - 2rem));
+  padding: 1.4rem 1.5rem 1.2rem;
+  border: 1px solid var(--cc-chrome-border-hi, color-mix(in oklab, var(--canvas-text) 14%, transparent));
+  border-radius: 18px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #14141b));
+  color: var(--canvas-text);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55);
+}
+.canvas-frame-dialog-head { display: flex; gap: 0.9rem; align-items: flex-start; }
+.canvas-frame-dialog-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--canvas-status-error) 16%, transparent);
+  color: var(--canvas-status-error-ink);
+}
+.canvas-frame-dialog h2 { margin: 0 0 0.35rem; font-size: 1.08rem; font-weight: 600; }
+.canvas-frame-dialog p { margin: 0; color: color-mix(in oklab, var(--canvas-text) 70%, transparent); font-size: 0.88rem; line-height: 1.45; }
+.canvas-frame-dialog-list {
+  margin: 1rem 0 0;
+  padding: 0.3rem 0.9rem;
+  list-style: none;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 12%, transparent);
+  border-radius: 12px;
+  font: 400 0.8rem/1 var(--canvas-font-mono, ui-monospace, monospace);
+}
+.canvas-frame-dialog-list li { display: flex; justify-content: space-between; padding: 0.7rem 0; }
+.canvas-frame-dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 0.6rem; margin-top: 1.1rem; }
+.canvas-frame-dialog-btn {
+  min-height: 36px;
+  padding: 0 1rem;
+  border: 2px solid transparent;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: 500 0.88rem/1 var(--canvas-font-ui, inherit);
+  cursor: pointer;
+}
+.canvas-frame-dialog-btn:hover { background: color-mix(in oklab, var(--canvas-text) 10%, transparent); }
+.canvas-frame-dialog-btn:focus-visible { outline: 2px solid var(--canvas-text); outline-offset: 2px; }
+.canvas-frame-dialog-btn--quiet { margin-right: auto; color: color-mix(in oklab, var(--canvas-text) 72%, transparent); }
+.canvas-frame-dialog-btn--danger { background: var(--canvas-status-error); color: var(--node-floor-solid); }
+.canvas-frame-dialog-btn--danger:hover { background: color-mix(in oklab, var(--canvas-status-error) 88%, var(--canvas-text)); }
+
+/* Selection toolbar (5a) and first-Frame hint (8b). */
+.canvas-frame-selbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.25rem;
+  border: 1px solid var(--cc-chrome-border, color-mix(in oklab, var(--canvas-text) 14%, transparent));
+  border-radius: 12px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #14141b));
+  color: var(--canvas-text);
+  font: 500 0.8rem/1 var(--canvas-font-ui, inherit);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+.canvas-frame-selbar-count { padding: 0 0.6rem; color: color-mix(in oklab, var(--canvas-text) 65%, transparent); }
+.canvas-frame-selbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: 28px;
+  padding: 0 0.7rem;
+  border: 0;
+  border-radius: 8px;
+  background: var(--canvas-text);
+  color: var(--node-floor-solid);
+  font: inherit;
+  cursor: pointer;
+}
+.canvas-frame-selbar-btn kbd { font: 500 0.68rem/1 var(--canvas-font-mono, ui-monospace, monospace); opacity: 0.6; }
+.canvas-frame-selbar-btn:focus-visible { outline: 2px solid var(--canvas-text); outline-offset: 2px; }
+
+.canvas-frame-hint {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: 5.2rem;
+  width: min(27rem, calc(100vw - 2rem));
+  transform: translateX(-50%);
+  padding: 1.1rem 1.3rem 1rem;
+  border: 1px solid var(--cc-chrome-border-hi, color-mix(in oklab, var(--canvas-text) 14%, transparent));
+  border-radius: 16px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #14141b));
+  color: var(--canvas-text);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+.canvas-frame-hint h3 { margin: 0 0 0.8rem; font-size: 1rem; font-weight: 600; }
+.canvas-frame-hint ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.55rem; font-size: 0.88rem; }
+.canvas-frame-hint li { display: flex; align-items: center; gap: 0.7rem; }
+.canvas-frame-hint kbd {
+  min-width: 2.1rem;
+  padding: 0.3rem 0.45rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 22%, transparent);
+  border-radius: 7px;
+  text-align: center;
+  font: 500 0.78rem/1 var(--canvas-font-mono, ui-monospace, monospace);
+}
+.canvas-frame-hint-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 0.9rem; font-size: 0.8rem; color: color-mix(in oklab, var(--canvas-text) 60%, transparent); }
+.canvas-frame-hint-ok {
+  min-height: 32px;
+  padding: 0 0.9rem;
+  border: 0;
+  border-radius: 9px;
+  background: var(--canvas-text);
+  color: var(--node-floor-solid);
+  font: 600 0.84rem/1 var(--canvas-font-ui, inherit);
+  cursor: pointer;
+}
+.canvas-frame-hint-ok:focus-visible { outline: 2px solid var(--canvas-text); outline-offset: 2px; }
+
+/* Frame Suggestion chip (decision 26): bottom-centre, one at a time, never over the first-Frame hint. */
+.canvas-frame-suggestion {
+  position: absolute;
+  z-index: 8;
+  left: 50%;
+  bottom: 5.2rem;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  max-width: calc(100vw - 2rem);
+  padding: 0.45rem 0.5rem 0.45rem 0.85rem;
+  border: 1px solid var(--cc-chrome-border-hi, color-mix(in oklab, var(--canvas-text) 14%, transparent));
+  border-radius: 999px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #14141b));
+  color: var(--canvas-text);
+  font-size: 0.84rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+}
+.canvas-frame-suggestion-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas-frame-suggestion-ok {
+  min-height: 28px;
+  padding: 0 0.8rem;
+  border: 0;
+  border-radius: 999px;
+  background: var(--canvas-text);
+  color: var(--node-floor-solid);
+  font: 600 0.8rem/1 var(--canvas-font-ui, inherit);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.canvas-frame-suggestion-x {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: color-mix(in oklab, var(--canvas-text) 60%, transparent);
+  cursor: pointer;
+}
+.canvas-frame-suggestion-x:hover { color: var(--canvas-text); }
+.canvas-frame-suggestion-ok:focus-visible,
+.canvas-frame-suggestion-x:focus-visible { outline: 2px solid var(--canvas-text); outline-offset: 2px; }
+
+/* Frame tool draw preview, tinted like a Frame rather than the shape preview. */
+.canvas-draw-preview[data-shape="frame"] {
+  border: 1.5px solid var(--canvas-accent, currentColor);
+  background: color-mix(in oklab, var(--canvas-accent, currentColor) 8%, transparent);
+  border-radius: 14px;
+}
+.canvas-frame-draw-size {
+  position: fixed;
+  z-index: 8;
+  padding: 0.2rem 0.5rem;
+  border-radius: 7px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #14141b));
+  color: var(--canvas-text);
+  font: 500 0.72rem/1 var(--canvas-font-mono, ui-monospace, monospace);
+  pointer-events: none;
+}
+
+/* Frame Overview layer: the full-size pointer layer. No hint pill (decision 46): the lit Frame's own
+   "Enter ↵" card says what a click does, and Esc / ←↑→↓ are the conventions of any overview. */
+.canvas-frame-overview-layer { position: absolute; inset: 0; z-index: 4; cursor: pointer; }
+
+/* ── Frame Overview, Exposé style (decisions 43-44, LOT2-142) ──
+   Sizes below are screen px divided by --ov-zoom (set by FrameNode), so borders, radii and rings keep a
+   proportional on-screen size at any Overview zoom. */
+.canvas-frame-node[data-overview] {
+  border-width: calc(1.5px / var(--ov-zoom, 1));
+  border-radius: calc(14px / var(--ov-zoom, 1));
+  border-color: color-mix(in oklab, var(--frame-color) 38%, transparent);
+  background: color-mix(in oklab, var(--frame-color) 5%, transparent);
+}
+/* Lit Frame (decision 44): a 1px hairline in the Frame's own colour plus a calm halo of the same colour
+   that fades in and then breathes slowly. The halo is a pseudo-element so only its opacity animates
+   (compositor-only, no repaint of the terminals). */
+.canvas-frame-node[data-overview] {
+  transition:
+    box-shadow 260ms var(--canvas-ease-out, ease-out),
+    background 260ms var(--canvas-ease-out, ease-out),
+    border-color 260ms var(--canvas-ease-out, ease-out);
+}
+.canvas-frame-node[data-overview]::after {
+  content: "";
+  position: absolute;
+  inset: calc(-6px / var(--ov-zoom, 1));
+  z-index: -1;
+  border-radius: calc(20px / var(--ov-zoom, 1));
+  background: color-mix(in oklab, var(--frame-color) 10%, transparent);
+  box-shadow: 0 0 calc(40px / var(--ov-zoom, 1)) calc(4px / var(--ov-zoom, 1)) color-mix(in oklab, var(--frame-color) 30%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms var(--canvas-ease-out, ease-out);
+}
+.canvas-frame-node[data-overview="focus"] {
+  background: color-mix(in oklab, var(--frame-color) 8%, transparent);
+  box-shadow:
+    0 0 0 calc(1px / var(--ov-zoom, 1)) color-mix(in oklab, var(--frame-color) 72%, transparent),
+    0 calc(14px / var(--ov-zoom, 1)) calc(36px / var(--ov-zoom, 1)) rgba(0, 0, 0, 0.26);
+}
+.canvas-frame-node[data-overview="focus"]::after {
+  opacity: 1;
+  animation: canvas-frame-overview-breathe 3.6s ease-in-out 320ms infinite alternate;
+}
+@keyframes canvas-frame-overview-breathe {
+  from { opacity: 1; }
+  to { opacity: 0.55; }
+}
+.canvas-frame-node[data-empty="true"] { border-style: dashed; }
+/* Members sit flush on the box (padding 0) and cover its border, so the border only peeks through the gaps
+   between them as short bright bars. A Frame with members draws no border in the Overview; the lit ring is a
+   box-shadow outside the box, which members never cover. Empty Frames keep the dashed border. */
+.canvas-frame-node[data-overview]:not([data-empty="true"]) { border-color: transparent; }
+/* The Overview layer owns the pointer: nothing inside a Frame takes it. */
+.canvas-frame-node[data-overview] :is(.canvas-frame-edge, .react-flow__resize-control) { display: none; }
+/* Members are look-only in the Overview too: no resize handles or selection chrome on a selected node. */
+.react-flow:has(.canvas-frame-overview-layer) .react-flow__node .react-flow__resize-control { display: none; }
+
+.canvas-frame-overview-card {
+  position: absolute;
+  left: 0;
+  transform-origin: bottom left;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  height: 28px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in oklab, var(--frame-color) 45%, transparent);
+  border-radius: 9px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #14141b));
+  color: var(--canvas-text);
+  font: 600 12.5px/1 var(--canvas-font-ui, inherit);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.canvas-frame-overview-card-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--frame-color);
+}
+.canvas-frame-overview-card-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.canvas-frame-overview-card-label {
+  flex: none;
+  font-weight: 500;
+  color: color-mix(in oklab, var(--canvas-text) 60%, transparent);
+  font-variant-numeric: tabular-nums;
+}
+.canvas-frame-overview-card-enter { flex: none; font-weight: 500; color: var(--frame-color); }
+.canvas-frame-node[data-needs-you="true"] .canvas-frame-overview-card { border-color: color-mix(in oklab, var(--canvas-status-blocked) 80%, transparent); }
+.canvas-frame-node[data-needs-you="true"] .canvas-frame-overview-card-label { color: var(--canvas-status-blocked-ink); }
+.canvas-frame-overview-card { transition: border-color 260ms var(--canvas-ease-out, ease-out); }
+.canvas-frame-node[data-overview="focus"] .canvas-frame-overview-card { border-color: color-mix(in oklab, var(--frame-color) 60%, transparent); }
+
+.canvas-frame-overview-empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform-origin: center;
+  color: color-mix(in oklab, var(--frame-color) 80%, var(--canvas-text));
+  font: 500 15px/1 var(--canvas-font-ui, inherit);
+  letter-spacing: 0.01em;
+  opacity: 0.75;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Quiet dimming of the Frames that are not lit (the layer injects the opacity, this makes it ease). */
+.react-flow:has(.canvas-frame-overview-layer) .react-flow__node > * { transition: opacity 160ms var(--canvas-ease-out, ease-out); }
+.canvas-frame-overview-layer[data-dragging="true"] { cursor: grabbing; }
+.canvas-frame-overview-ghost {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid color-mix(in oklab, var(--frame-color) 60%, transparent);
+  border-radius: 11px;
+  background: var(--cc-chrome-bg, var(--canvas-bg, #14141b));
+  color: var(--canvas-text);
+  font: 600 13px/1 var(--canvas-font-ui, inherit);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.4);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.canvas-frame-overview-ghost i { width: 9px; height: 9px; border-radius: 50%; background: var(--frame-color); }
+@media (prefers-reduced-motion: reduce) {
+  .react-flow:has(.canvas-frame-overview-layer) .react-flow__node > *,
+  .canvas-frame-node { transition: none; }
+  .canvas-frame-node[data-overview]::after { transition: none; animation: none; }
+}

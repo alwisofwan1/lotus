@@ -1,0 +1,66 @@
+---
+/**
+ * The site bar: logo, the page's sections, Changelog, one CTA. Shared by every page.
+ *
+ * The CTA points at the hero's download links. Always an absolute-from-root href so it
+ * also works from /changelog/, /privacy/ and the 404.
+ */
+import { Image } from "astro:assets";
+import { download, nav, site } from "../copy";
+import logo from "../assets/brand/lotus-logo-horizontal-light.png";
+
+---
+
+<header class="bar">
+  <div class="shell bar-in">
+    <a class="mark" href="/" aria-label={`${site.name} — home`}>
+      <Image src={logo} alt="" width={80} height={23} densities={[1, 2]} loading="eager" />
+    </a>
+    <nav aria-label="Primary">
+      {nav.links.map((l) => <a class="sm-off" href={l.href}>{l.label}</a>)}
+      <a class="sm-off" href="/changelog/">{nav.changelog}</a>
+      <a class="btn btn-sm" href="/#top">{download.header}</a>
+    </nav>
+  </div>
+</header>
+
+<style>
+  .bar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--ground);
+    border-bottom: 1px solid var(--hair);
+  }
+  .bar-in {
+    display: flex;
+    align-items: center;
+    height: 4rem;
+  }
+  .mark {
+    display: inline-flex;
+    align-items: center;
+  }
+  .mark :global(img) {
+    width: 80px;
+    height: auto;
+  }
+  .bar nav {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 1.75rem;
+  }
+  .bar nav a:not(.btn) {
+    font-size: 0.875rem;
+    color: var(--dim);
+  }
+  .bar nav a:not(.btn):hover {
+    color: var(--ink);
+  }
+  @media (max-width: 760px) {
+    .bar nav .sm-off {
+      display: none;
+    }
+  }
+</style>

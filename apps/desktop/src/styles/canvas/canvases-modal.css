@@ -1,0 +1,233 @@
+/* CodeCanvas — Canvases selector (full-screen modal) */
+
+.canvases-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  overflow: auto;
+  background: radial-gradient(120% 90% at 50% 0%, rgba(26, 22, 20, 0.96), rgba(9, 8, 11, 0.98));
+  backdrop-filter: blur(12px) saturate(1.06);
+  -webkit-backdrop-filter: blur(12px) saturate(1.06);
+  animation: canvases-modal-in 180ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes canvases-modal-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .canvases-modal {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+.canvases-modal-close {
+  position: fixed;
+  top: 1.25rem;
+  right: 1.25rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.04);
+  color:color-mix(in oklab, var(--canvas-text) 70%, transparent);
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+}
+.canvases-modal-close:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color:color-mix(in oklab, var(--canvas-text) 20%, transparent);
+  color:var(--canvas-text);
+}
+
+.canvases-modal-inner {
+  max-width: 92rem;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 6vh, 5rem) clamp(1.5rem, 4vw, 4rem) 4rem;
+}
+
+.canvases-modal-head {
+  margin-bottom: 2.25rem;
+}
+.canvases-modal-title {
+  margin: 0;
+  font-size: clamp(2.4rem, 5vw, 3.4rem);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color:var(--canvas-text);
+  line-height: 1;
+}
+.canvases-modal-subtitle {
+  margin: 0.7rem 0 0;
+  font-size: var(--ds-t-body);
+  font-style: italic;
+  color:color-mix(in oklab, var(--canvas-text) 42%, transparent);
+}
+
+.canvases-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(15.5rem, 1fr));
+  gap: 1.75rem 1.5rem;
+}
+
+/* ── Card ── */
+.canvas-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0.85rem;
+}
+.canvas-card:focus-visible {
+  outline: 2px solid var(--canvas-wire, rgba(103, 232, 249, 0.6));
+  outline-offset: 4px;
+}
+
+.canvas-card-thumb {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  border-radius: 0.7rem;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(155deg, rgba(40, 44, 64, 0.9), rgba(18, 20, 32, 0.95));
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  transition: transform 180ms cubic-bezier(0.16, 1, 0.3, 1), border-color 180ms ease, box-shadow 180ms ease;
+}
+.canvas-card:hover .canvas-card-thumb {
+  transform: translateY(-3px);
+  border-color:color-mix(in oklab, var(--canvas-text) 16%, transparent);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+/* Faux canvas pane inside the thumbnail — a single floating window mock. */
+.canvas-card-thumb-pane {
+  position: absolute;
+  inset: 26% 14% 16% 30%;
+  border-radius: 0.4rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.canvas-card.is-current .canvas-card-thumb {
+  border-color: rgba(103, 232, 249, 0.55);
+  box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.45), 0 16px 40px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(155deg, rgba(214, 226, 230, 0.92), rgba(186, 200, 206, 0.86));
+}
+.canvas-card.is-current .canvas-card-thumb-pane {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.4));
+  border-color:color-mix(in oklab, var(--canvas-text) 70%, transparent);
+}
+
+.canvas-card-current {
+  position: absolute;
+  top: 0.55rem;
+  left: 0.6rem;
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--canvas-wire-active, #67e8f9);
+}
+.canvas-card.is-current .canvas-card-current {
+  color: rgba(18, 30, 40, 0.78);
+}
+
+.canvas-card-count {
+  position: absolute;
+  bottom: 0.55rem;
+  right: 0.6rem;
+  min-width: 1.2rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 9999px;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  text-align: center;
+  color:color-mix(in oklab, var(--canvas-text) 85%, transparent);
+  background: rgba(0, 0, 0, 0.42);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.canvas-card-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+.canvas-card-name {
+  font-size: var(--ds-t-body);
+  font-weight: 650;
+  color:var(--canvas-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.canvas-card.is-current .canvas-card-name {
+  color: var(--canvas-wire-active, #67e8f9);
+}
+/* Inline rename field (double-click a card) — mirrors the card name metrics. */
+.canvas-card-rename {
+  width: 100%;
+  min-width: 0;
+  font-size: var(--ds-t-body);
+  font-weight: 650;
+  color:var(--canvas-text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--canvas-wire-active, rgba(103, 232, 249, 0.5));
+  border-radius: 0.375rem;
+  padding: 0.1rem 0.35rem;
+  outline: none;
+}
+.canvas-card-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.canvas-card-path {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--ds-t-micro);
+  color:color-mix(in oklab, var(--canvas-text) 40%, transparent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.canvas-card-time {
+  flex-shrink: 0;
+  font-size: var(--ds-t-micro);
+  color:color-mix(in oklab, var(--canvas-text) 30%, transparent);
+}
+
+/* ── New canvas card ── */
+.canvas-card-new {
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  aspect-ratio: 16 / 10;
+  border: 1.5px dashed rgba(255, 255, 255, 0.16);
+  border-radius: 0.7rem;
+  color:color-mix(in oklab, var(--canvas-text) 50%, transparent);
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+.canvas-card-new:hover {
+  border-color:color-mix(in oklab, var(--canvas-text) 30%, transparent);
+  color:color-mix(in oklab, var(--canvas-text) 85%, transparent);
+  background: rgba(255, 255, 255, 0.02);
+}
+.canvas-card-new-icon {
+  display: flex;
+}
+.canvas-card-new-label {
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+}

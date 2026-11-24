@@ -1,0 +1,896 @@
+/* CodeCanvas NoteNode — the paper note (ADR-0046).
+   A note is the one node you READ, so it does not wear the Terminal/Live Agent glass idiom
+   (ADR-0033) any more: it is a fixed warm paper page — the same page on every theme, dark or
+   light — with a serif title, Inter body text and a sage accent. Design source:
+   mockups/lotus-canvas.pen → board "07 · Note Node revamp". Token values come from the reference
+   the design was built from, so they are literals on purpose, not theme tokens. */
+
+/* ── Note Node tokens ──
+   Declared on the slash menu too: it mounts on .codecanvas-shell, OUTSIDE the node, so it would
+   not inherit them. Paper is fixed, so the menu needs no theme token to match the note. */
+.canvas-note-node,
+.canvas-note-slash-menu {
+  --nv-paper: #f7f4ec;
+  --nv-paper-sunk: #eeeae0;
+  --nv-rule: #e2ddd1;
+  --nv-ink: #262b26;
+  --nv-ink-body: #3e433d;
+  /* The reference's muted grey (#80857c) is 3.4:1 on paper — under AA for 11–12px meta text.
+     One step darker clears it (4.6:1) and still reads as the same quiet grey. */
+  --nv-ink-muted: #6b7067;
+  --nv-ink-quiet: #a8aca2;
+  --nv-sage: #7d9170;
+  /* Sage as TEXT: #7d9170 is 3.1:1 (fine for fills and icons), this darker step is 4.6:1. */
+  --nv-sage-ink: #62745a;
+  --nv-sage-soft: #b5c2a7;
+  --nv-sage-wash: rgba(125, 145, 112, 0.14);
+  --nv-forest: #34463a;
+  --nv-font-serif: "Source Serif 4 Variable", "Source Serif 4", Georgia, serif;
+  --nv-font-body: "Inter", system-ui, -apple-system, sans-serif;
+  /* The ink ramp every rule below is written in, re-rooted on paper ink. Paper is fixed, so the
+     ramp no longer derives from --canvas-text and needs no light-mode branch. Approximate
+     contrast on --nv-paper: 96% 11.7:1, 78% 6.7:1, 58% 3.7:1, 42% 2.4:1 — so text uses 58% or
+     above; 42% and below are for rules, borders and icons only. */
+  min-height: 0;
+  --note-ink-96: color-mix(in oklab, var(--nv-ink) 96%, transparent);
+  --note-ink-90: color-mix(in oklab, var(--nv-ink) 90%, transparent);
+  --note-ink-78: color-mix(in oklab, var(--nv-ink) 78%, transparent);
+  --note-ink-58: color-mix(in oklab, var(--nv-ink) 58%, transparent);
+  --note-ink-42: color-mix(in oklab, var(--nv-ink) 42%, transparent);
+  --note-ink-30: color-mix(in oklab, var(--nv-ink) 30%, transparent);
+  --note-ink-18: color-mix(in oklab, var(--nv-ink) 18%, transparent);
+  --note-ink-10: color-mix(in oklab, var(--nv-ink) 10%, transparent);
+  --note-ink-06: color-mix(in oklab, var(--nv-ink) 6%, transparent);
+  --note-paper: var(--nv-paper);
+  /* Surfaces that sit ON the paper: a raised white card and a sunk paper well. */
+  --note-raise: #ffffff;
+  --note-inset: var(--nv-paper-sunk);
+}
+
+/* ── Paper instead of glass ──
+   The shared shell (node-shell.css) paints every node from the --node-glass-* tokens and the
+   per-kind --node-accent. Re-pointing those tokens is what turns the note into paper — the shell
+   rules themselves (resting, selected, focus ring) keep working, now in sage. (0,2,0), so it wins
+   over node-shell.css's (0,1,0) per-kind accent regardless of @import order. No backdrop filter:
+   the page is opaque, so there is nothing behind it to blur. */
+.codecanvas-shell .canvas-note-node {
+  --ink-blend: 100%;
+  --node-accent: var(--nv-sage);
+  --node-accent-soft: var(--nv-sage-wash);
+  --node-accent-line: color-mix(in oklab, var(--nv-sage) 60%, transparent);
+  --node-glass-bg: var(--nv-paper);
+  --node-glass-border: rgba(255, 255, 255, 0.08);
+  --node-glass-shadow: 0 14px 36px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.25);
+  --node-glass-inset: inset 0 0 0 0 transparent;
+  --node-resting-filter: none;
+  --node-glass-filter: none;
+  --node-scrim: var(--nv-paper);
+  color: var(--nv-ink-body);
+}
+/* The shell's top accent hairline belongs to the glass family; paper has no edge line. */
+.codecanvas-shell .canvas-note-node::before { display: none; }
+
+/* ── Header — one quiet row (ADR-0046) ──
+   The root element keeps the shared `canvas-node-header` class because NOTE_DRAG_HANDLE
+   (canvas-node-factory.ts) is the selector ReactFlow drags the node by; `canvas-note-header` is
+   only the scoped restyle hook. Selectors are node-scoped (0,2,0) so they win regardless of
+   @import order in index.css. */
+.canvas-note-node .canvas-note-header {
+  position: relative;
+  /* Above the body (both are z-index 1 in node-lod.css, and the body comes later in the DOM),
+     so the ··· menu that hangs below the header paints over the page instead of under it. */
+  z-index: 3;
+  height: 2.375rem;
+  padding: 0 0.375rem 0 0.875rem;
+  /* The header sits on the same paper as the body: no fill, no hairline. */
+  background: transparent;
+  border-bottom: none;
+  font-family: var(--nv-font-body);
+}
+
+.cnh-id {
+  display: flex;
+  align-items: center;
+  gap: 0.44rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.cnh-glyph {
+  flex-shrink: 0;
+  color: var(--nv-sage);
+}
+.cnh-label {
+  min-width: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--nv-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: color 200ms var(--canvas-ease-out, ease-out);
+}
+.cnh-label[data-editing] { color: var(--nv-sage-ink); }
+
+/* Actions appear on hover/focus (Figma/Miro pattern) — a resting note is identity + content.
+   pointer-events go with the opacity: an invisible-but-clickable control is a trap, and keyboard
+   users still reach them because tabbing in fires :focus-within. An open menu keeps them shown. */
+.cnh-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.125rem;
+  flex-shrink: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 130ms ease;
+}
+.canvas-note-node:hover .cnh-actions,
+.canvas-note-node:focus-within .cnh-actions,
+.canvas-note-header[data-menu-open] .cnh-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.cnh-act {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  padding: 0;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--nv-ink-muted);
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease;
+}
+.cnh-act:hover,
+.cnh-act[aria-expanded="true"] {
+  background: var(--note-ink-06);
+  color: var(--nv-ink);
+}
+.cnh-act:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--nv-sage);
+}
+.cnh-act--close {
+  font-size: 1.0625rem;
+  font-weight: 300;
+  line-height: 1;
+}
+.cnh-act--close:hover {
+  background: rgba(185, 28, 28, 0.1);
+  color: #b91c1c;
+}
+
+/* ··· menu — a raised white card on the paper. Opaque, no blur (same policy as the popovers). */
+.cnh-menu {
+  position: absolute;
+  top: calc(100% - 0.125rem);
+  right: 0.375rem;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 14rem;
+  padding: 0.375rem;
+  border-radius: 0.75rem;
+  background: var(--note-raise);
+  border: 1px solid var(--nv-rule);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.28), 0 2px 6px rgba(0, 0, 0, 0.12);
+  cursor: default;
+}
+.cnh-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  text-align: left;
+  color: var(--nv-ink);
+  cursor: pointer;
+  transition: background 100ms ease;
+}
+.cnh-menu-item:hover,
+.cnh-menu-item:focus-visible {
+  outline: none;
+  background: var(--nv-sage-wash);
+}
+.cnh-menu-icon {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 0.4375rem;
+  background: var(--nv-paper-sunk);
+  color: var(--nv-ink-body);
+}
+.cnh-menu-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  min-width: 0;
+}
+.cnh-menu-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.cnh-menu-hint {
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  color: var(--nv-ink-muted);
+}
+
+/* ── Body ── */
+.canvas-note-node-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 0 0 var(--canvas-node-radius) var(--canvas-node-radius);
+}
+
+/* The floor. Scoped (0,2,0) on purpose: it has to beat the shared translucent `--node-scrim`
+   rule in node-shell.css, and matching that rule's specificity would leave the note relying on
+   @import order in index.css — a silent revert waiting for the next reshuffle. */
+.canvas-note-node .canvas-note-node-body {
+  background: var(--note-paper);
+}
+/* Read mode: clicking the text starts editing, so the text says so with its cursor. */
+.canvas-note-node-body[data-note-mode="read"] { cursor: text; }
+
+/* ── Edit mode: a sage ring around the whole note ──
+   The one signal that the note is live now (the header label says "Editing · Esc to finish").
+   box-shadow, not border: a border would change the node's box and nudge the text by 1px.
+   :has() puts it on the node from the body's own mode, with no extra prop on the shared frame. */
+.codecanvas-shell .canvas-note-node:has(.canvas-note-node-body[data-note-mode="edit"]) {
+  box-shadow: 0 0 0 2px var(--nv-sage), var(--node-glass-shadow);
+}
+
+/* ── Editor ── */
+.canvas-note-editor-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  position: relative;
+  z-index: 1;
+}
+.canvas-note-editor {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 0.8rem 1.25rem 1rem;
+  color: var(--nv-ink-body);
+  /* Inter on paper: a note reads like a page, not like terminal output (ADR-0046). */
+  font-family: var(--nv-font-body);
+  /* Node-content text scale (Style tab → Node text size) stays the base; the heading scale
+     below is expressed in `em`, so the user's size choice keeps its proportions. */
+  font-size: var(--canvas-node-text-size, 0.84375rem);
+  line-height: 1.55;
+  outline: none;
+  caret-color: var(--nv-forest);
+  transition: color 240ms var(--canvas-ease-out, ease-out);
+}
+/* Edit mode lifts the content one contrast step — a quiet "this is live now". */
+.canvas-note-node-body[data-note-mode="edit"] .canvas-note-editor { color: var(--nv-ink); }
+/* Read mode: no caret, but the text stays selectable and checkboxes stay clickable. */
+.canvas-note-node-body[data-note-mode="read"] .canvas-note-editor {
+  caret-color: transparent;
+  user-select: text;
+}
+
+/* Own scrollbar (moved out of skills-node.css, where the note's rule used to live): 8px and
+   derived from the paper ink ramp. */
+.canvas-note-editor {
+  scrollbar-width: thin;
+  scrollbar-color: var(--note-ink-18) transparent;
+}
+.canvas-note-editor::-webkit-scrollbar { width: 8px; height: 8px; }
+.canvas-note-editor::-webkit-scrollbar-track,
+.canvas-note-editor::-webkit-scrollbar-corner { background: transparent; }
+.canvas-note-editor::-webkit-scrollbar-thumb {
+  background: var(--note-ink-18);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+.canvas-note-editor::-webkit-scrollbar-thumb:hover {
+  background: var(--note-ink-30);
+  background-clip: padding-box;
+}
+
+/* Type scale in `em` against the body step, so the user text-size axis keeps its proportions.
+   H1 is the serif face; the FIRST H1 is the note's title (ADR-0046) and gets the short sage bar
+   under it instead of a full-width hairline. */
+.canvas-note-editor h1 {
+  margin: 0.25rem 0 0.75rem;
+  font-family: var(--nv-font-serif);
+  font-size: 1.78em;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--nv-ink);
+  text-wrap: balance;
+}
+.canvas-note-editor > h1:first-child::after {
+  content: "";
+  display: block;
+  width: 1.875rem;
+  height: 3px;
+  margin-top: 0.75rem;
+  border-radius: 2px;
+  background: var(--nv-sage-soft);
+}
+.canvas-note-editor h2 {
+  margin: 1.1rem 0 0.4rem;
+  font-family: var(--nv-font-serif);
+  font-size: 1.3em;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--nv-ink);
+}
+.canvas-note-editor p { margin: 0 0 0.45rem; }
+.canvas-note-editor strong { color: var(--note-ink-96); }
+.canvas-note-editor code {
+  padding: 0.05rem 0.3rem;
+  border: 1px solid var(--note-ink-10);
+  border-radius: 0.25rem;
+  background: var(--note-ink-06);
+  font-size: 0.92em;
+  color: var(--nv-forest);
+}
+.canvas-note-editor ul:not([data-type="taskList"]) {
+  list-style: disc;
+  margin: 0 0 0.55rem 1.15rem;
+  padding-left: 1rem;
+}
+.canvas-note-editor ul:not([data-type="taskList"])::marker,
+.canvas-note-editor ul:not([data-type="taskList"]) li::marker {
+  color: var(--nv-sage);
+}
+.canvas-note-editor ul[data-type="taskList"],
+.canvas-note-editor .canvas-note-task-list {
+  list-style: none;
+  margin: 0.05rem 0 0.65rem;
+  padding: 0;
+}
+/* Round checks (ADR-0046): a 20px circle that is easy to hit. Done = sage fill, white tick, and
+   the label steps back to muted ink — no strike-through, so a done list still reads calmly. */
+.canvas-note-editor .canvas-note-task-list > li,
+.canvas-note-editor ul[data-type="taskList"] > li {
+  display: grid;
+  grid-template-columns: 1.25rem minmax(0, 1fr);
+  column-gap: 0.6875rem;
+  align-items: start;
+  margin: 0.5rem 0;
+}
+.canvas-note-editor .canvas-note-task-list > li > label,
+.canvas-note-editor ul[data-type="taskList"] > li > label {
+  display: inline-grid;
+  place-items: center;
+  width: 1.25rem;
+  /* One line box tall, so the circle centres on the first line of the label. */
+  height: 1.55em;
+  margin: 0;
+  cursor: pointer;
+}
+.canvas-note-editor .canvas-note-task-list > li > label input,
+.canvas-note-editor ul[data-type="taskList"] > li > label input {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0;
+  border: 1.5px solid var(--nv-ink-quiet);
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+.canvas-note-editor .canvas-note-task-list > li > label input:hover,
+.canvas-note-editor ul[data-type="taskList"] > li > label input:hover {
+  border-color: var(--nv-sage);
+  background: var(--nv-sage-wash);
+}
+.canvas-note-editor .canvas-note-task-list > li > label input:focus-visible,
+.canvas-note-editor ul[data-type="taskList"] > li > label input:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--nv-sage) 30%, transparent);
+}
+.canvas-note-editor .canvas-note-task-list > li > label input:checked,
+.canvas-note-editor ul[data-type="taskList"] > li > label input:checked {
+  border-color: var(--nv-sage);
+  background: var(--nv-sage);
+}
+.canvas-note-editor .canvas-note-task-list > li > label input:checked::after,
+.canvas-note-editor ul[data-type="taskList"] > li > label input:checked::after {
+  content: "";
+  position: absolute;
+  left: 0.42rem;
+  top: 0.22rem;
+  width: 0.25rem;
+  height: 0.5rem;
+  border: solid #ffffff;
+  border-width: 0 1.75px 1.75px 0;
+  transform: rotate(42deg);
+  /* The tick draws itself in rather than popping. */
+  animation: canvas-note-tick 180ms var(--canvas-ease-out, ease-out);
+}
+@keyframes canvas-note-tick {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+.canvas-note-editor .canvas-note-task-list > li > div,
+.canvas-note-editor ul[data-type="taskList"] > li > div {
+  min-width: 0;
+  padding-top: 0;
+  color: var(--nv-ink);
+  transition: color 200ms var(--canvas-ease-out, ease-out);
+}
+.canvas-note-editor .canvas-note-task-list > li p,
+.canvas-note-editor ul[data-type="taskList"] > li p {
+  margin: 0;
+}
+.canvas-note-editor .canvas-note-task-list > li[data-checked="true"] > div,
+.canvas-note-editor ul[data-type="taskList"] > li[data-checked="true"] > div {
+  color: var(--nv-ink-muted);
+}
+.canvas-note-editor [data-placeholder]:not([data-placeholder=""])::before {
+  content: attr(data-placeholder);
+  color: var(--nv-ink-quiet);
+  pointer-events: none;
+  float: left;
+  height: 0;
+}
+
+/* ── Roomy page — a wide note breathes like mockup 03 (440 wide: 32px sides, 30px title) ──
+   A container query on the body, so it follows the note's own width (resize handle included),
+   not the window. The body step still scales from the user's Node text size. */
+.canvas-note-node .canvas-note-node-body { container-type: inline-size; container-name: note-page; }
+@container note-page (min-width: 26rem) {
+  .canvas-note-editor {
+    padding: 1.5rem 2rem 1rem;
+    font-size: calc(var(--canvas-node-text-size, 0.84375rem) * 1.1);
+  }
+  .canvas-note-editor h1 { font-size: 2em; }
+  /* (0,2,0): these two blocks are declared later in the file at (0,1,0). */
+  .canvas-note-node .canvas-note-footer { margin: 0 2rem; }
+  .canvas-note-node .canvas-note-quickadd { padding: 0.875rem 2rem 1.5rem; }
+}
+
+/* ── Cover — an optional photo across the top of the page (ADR-0046, mockup 01) ── */
+.canvas-note-cover {
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+  height: 9.375rem;
+  overflow: hidden;
+  background: var(--nv-paper-sunk);
+  cursor: default;
+}
+.canvas-note-cover img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+}
+.canvas-note-cover-controls {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 130ms ease;
+}
+.canvas-note-cover:hover .canvas-note-cover-controls,
+.canvas-note-cover:focus-within .canvas-note-cover-controls {
+  opacity: 1;
+  pointer-events: auto;
+}
+.canvas-note-cover-controls button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  height: 1.625rem;
+  padding: 0 0.5625rem;
+  border: none;
+  border-radius: 999px;
+  background: rgba(247, 244, 236, 0.92);
+  color: var(--nv-ink);
+  font-family: var(--nv-font-body);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+  cursor: pointer;
+}
+.canvas-note-cover-controls button:hover { background: #ffffff; }
+.canvas-note-cover-controls button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--nv-sage);
+}
+
+/* ── Footer — linked agent, edited time, checklist progress (ADR-0046) ──
+   A hairline inset from the edges (the mockup's "Rule wrap"), then one row. Never scrolls with
+   the text: it sits under the editor shell, outside the scroller. */
+.canvas-note-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-shrink: 0;
+  margin: 0 1.25rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--nv-rule);
+  font-family: var(--nv-font-body);
+  cursor: default;
+}
+.cnf-avatar {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--nv-forest);
+  color: var(--nv-paper);
+}
+.cnf-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cnf-linked {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--nv-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cnf-edited {
+  font-size: 0.72rem;
+  color: var(--nv-ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cnf-progress {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  flex-shrink: 0;
+  height: 1.5rem;
+  padding: 0 0.5625rem;
+  border-radius: 999px;
+  background: var(--nv-sage-wash);
+  color: var(--nv-forest);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.cnf-progress svg { color: var(--nv-sage); }
+/* All done: the chip fills in forest (paper ink on it is 9.2:1; white on sage would be 3.4:1). */
+.cnf-progress[data-complete] {
+  background: var(--nv-forest);
+  color: var(--nv-paper);
+}
+.cnf-progress[data-complete] svg { color: var(--nv-sage-soft); }
+
+/* ── Embedded images ── */
+.canvas-note-image {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0.45rem 0 0.85rem;
+}
+.canvas-note-image--left { align-items: flex-start; }
+.canvas-note-image--center { align-items: center; }
+.canvas-note-image--right { align-items: flex-end; }
+.canvas-note-image img {
+  max-width: 100%;
+  border-radius: 0.7rem;
+  border: 1px solid var(--note-ink-18);
+  background: var(--note-inset);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+}
+.canvas-note-image-controls {
+  display: inline-flex;
+  gap: 0.18rem;
+  padding: 0.2rem;
+  border-radius: 9999px;
+  background: var(--note-raise);
+  border: 1px solid var(--note-ink-18);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.26);
+  opacity: 0;
+  transform: translateY(2px);
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+.canvas-note-image:hover .canvas-note-image-controls,
+.canvas-note-image:focus-within .canvas-note-image-controls {
+  opacity: 1;
+  transform: translateY(0);
+}
+.canvas-note-image-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.45rem;
+  height: 1.45rem;
+  padding: 0 0.3rem;
+  border-radius: 0.4rem;
+  color: var(--note-ink-42);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  transition: color 0.12s, background 0.12s;
+}
+.canvas-note-image-controls button:hover,
+.canvas-note-image-controls button:focus-visible {
+  color: var(--note-ink-90);
+  background: var(--note-ink-10);
+}
+.canvas-note-image-controls button[data-active] {
+  color: var(--node-accent);
+  background: color-mix(in oklab, var(--node-accent) 18%, transparent);
+}
+.canvas-note-image-controls-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.18rem 0.1rem;
+  background: var(--note-ink-18);
+}
+
+/* Drop target for a dragged image — inset clears the 2rem header. */
+.canvas-note-drop-overlay {
+  position: absolute;
+  inset: 2.5rem 0.55rem 0.55rem;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  border-radius: 0.85rem;
+  border: 1px dashed color-mix(in oklab, var(--canvas-accent) 75%, transparent);
+  color: var(--note-ink-90);
+  background: color-mix(in oklab, var(--note-paper) 88%, transparent);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  font-size: 0.76rem;
+  font-weight: 500;
+}
+
+/* ── Quick add — a new, empty note's chips (ADR-0046, mockup 03) ── */
+.canvas-note-quickadd {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding: 0.875rem 1.25rem 1.25rem;
+  font-family: var(--nv-font-body);
+}
+.canvas-note-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  height: 1.75rem;
+  padding: 0 0.625rem;
+  border: 1px solid var(--nv-rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--nv-ink-body);
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.canvas-note-chip svg { color: var(--nv-sage); }
+.canvas-note-chip:hover {
+  background: var(--nv-sage-wash);
+  border-color: var(--nv-sage-soft);
+}
+.canvas-note-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--nv-sage);
+}
+
+/* ── Selection BubbleMenu — inline formatting on selection (mockup 02: a forest pill) ──
+   Mounted inside the node (Tiptap appends to the editor's parent), so node tokens resolve here.
+   Opaque, NO backdrop-filter: the perf policy keeps blur off canvas surfaces. */
+.canvas-note-bubble {
+  display: flex;
+  align-items: center;
+  gap: 0.0625rem;
+  padding: 0.1875rem;
+  border-radius: 0.625rem;
+  background: var(--nv-forest);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  z-index: 50;
+}
+.canvas-note-bubble button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.4375rem;
+  color: color-mix(in oklab, var(--nv-paper) 78%, transparent);
+  transition: color 0.12s, background 0.12s;
+}
+.canvas-note-bubble button:hover,
+.canvas-note-bubble button:focus-visible {
+  outline: none;
+  color: var(--nv-paper);
+  background: rgba(247, 244, 236, 0.1);
+}
+.canvas-note-bubble button[data-active] {
+  color: var(--nv-paper);
+  background: rgba(247, 244, 236, 0.16);
+}
+.canvas-note-bubble-divider {
+  width: 1px;
+  height: 1rem;
+  margin: 0 0.1875rem;
+  background: rgba(247, 244, 236, 0.2);
+}
+
+/* ── Slash command palette (mockup 02: a white card on the paper) ──
+   Mounted on .codecanvas-shell (see note-slash-command.tsx), so it reads the --nv-* tokens that
+   the token block above also declares on it. Opaque, no blur — same policy as the bubble. */
+.canvas-note-slash-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  width: 15.625rem;
+  max-height: 20rem;
+  overflow-y: auto;
+  padding: 0.375rem;
+  border-radius: 0.75rem;
+  background: #ffffff;
+  border: 1px solid var(--nv-rule);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.14);
+  font-family: var(--nv-font-body);
+}
+.canvas-note-slash-group {
+  padding: 0.375rem 0.5rem 0.25rem;
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--nv-ink-muted);
+}
+.canvas-note-slash-item {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 0.375rem 0.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  background: transparent;
+  text-align: left;
+  color: var(--nv-ink);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.canvas-note-slash-item.is-active {
+  background: var(--nv-sage-wash);
+}
+.canvas-note-slash-item-icon {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  border-radius: 0.4375rem;
+  background: var(--nv-paper-sunk);
+  color: var(--nv-ink-body);
+  transition: color 0.12s, background 0.12s;
+}
+.canvas-note-slash-item.is-active .canvas-note-slash-item-icon {
+  background: var(--nv-sage);
+  color: #ffffff;
+}
+.canvas-note-slash-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.0625rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.canvas-note-slash-item-title {
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+.canvas-note-slash-item-sub {
+  font-size: 0.6875rem;
+  color: var(--nv-ink-muted);
+  line-height: 1.2;
+}
+/* The Enter hint only on the active row — the key that will run it. */
+.canvas-note-slash-item-key {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--nv-sage-ink);
+  opacity: 0;
+}
+.canvas-note-slash-item.is-active .canvas-note-slash-item-key { opacity: 1; }
+
+/* ── Zoomed out — one paper card (ADR-0046, mockup 05) ──
+   Renders at 12–50% zoom, so the type is sized in node space to stay legible on screen:
+   a 3.25rem title is ~26px at 50% and ~16px at 30%. At the overview tier only the sprout remains. */
+.canvas-note-node .canvas-note-glyph {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: 2.5rem;
+  border: none;
+  background: var(--nv-paper);
+  box-shadow: var(--node-glass-shadow);
+  font-family: var(--nv-font-body);
+}
+.cng-chip {
+  display: grid;
+  place-items: center;
+  width: 6rem;
+  height: 6rem;
+  flex-shrink: 0;
+  border-radius: 1.5rem;
+  background: var(--nv-sage-wash);
+  color: var(--nv-sage);
+}
+.cng-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  font-family: var(--nv-font-serif);
+  font-size: 3.25rem;
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--nv-ink);
+  overflow-wrap: anywhere;
+}
+.cng-chip svg { width: 3rem; height: 3rem; }
+.cng-progress {
+  font-size: 2.25rem;
+  font-weight: 500;
+  color: var(--nv-ink-muted);
+}
+.canvas-node--overview .canvas-note-glyph { align-items: center; }
+.canvas-node--overview .cng-title,
+.canvas-node--overview .cng-progress { display: none; }
+.canvas-node--overview .cng-chip { width: 8rem; height: 8rem; border-radius: 2rem; }
+.canvas-node--overview .cng-chip svg { width: 4rem; height: 4rem; }
+
+/* Mode motion is transform / opacity / colour / clip-path only, so reduced motion just collapses
+   the durations — no state is lost and no mechanism changes. */
+@media (prefers-reduced-motion: reduce) {
+  .cnh-label,
+  .canvas-note-cover-controls,
+  .canvas-note-editor,
+  .canvas-note-image-controls,
+  .cnh-actions {
+    transition-duration: 0.01ms;
+  }
+  .canvas-note-editor .canvas-note-task-list > li > label input:checked::after,
+  .canvas-note-editor ul[data-type="taskList"] > li > label input:checked::after {
+    animation: none;
+  }
+}

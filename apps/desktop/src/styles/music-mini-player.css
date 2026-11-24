@@ -1,0 +1,242 @@
+/* Music mini player — app-level, not canvas-level.
+   Loaded from the root layout (not styles/canvas/index.css) because the player
+   follows the user onto every route: canvas, terminal, codechat, settings.
+   Tokens are the global design-system ones for the same reason — the --canvas-*
+   set only exists on the canvas route.
+
+   Shape, after two rounds of real use: it lives in the top-right chrome band, the
+   one strip of the window that is never work surface, as a ~22px line. A permanent
+   picture-in-picture read as clutter; so did a bottom-right pill, which sat on top
+   of the nodes. Hover/focus drops a panel with the video — and the resting state
+   registers no video slot at all, so the host parks off-screen and only audio
+   remains. `right` is set inline by the shell (window controls sit top-right on
+   Windows/Linux, top-left on macOS). */
+
+.lotus-mini-player {
+  position: fixed;
+  top: 6px;
+  /* right: set inline by AppShell — platform-dependent. */
+  z-index: 110;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+  width: max-content;
+  max-width: 13rem;
+  padding: 0.1rem 0.24rem;
+  border: 1px solid transparent;
+  border-radius: 0.55rem;
+  background: transparent;
+  color: var(--fg);
+  /* Barely there until asked for: this shares the window's quietest band and must
+     not compete with the app's own chrome. */
+  opacity: 0.4;
+  transition: opacity 150ms ease, background-color 150ms ease, border-color 150ms ease,
+    max-width 180ms ease, box-shadow 180ms ease, padding 150ms ease;
+}
+
+.lotus-mini-player[data-expanded="true"] {
+  max-width: 15rem;
+  padding: 0.32rem 0.36rem 0.4rem;
+  border-color: color-mix(in oklab, var(--border) 80%, transparent);
+  border-radius: 0.7rem;
+  background: color-mix(in oklab, var(--bg-card) 95%, transparent);
+  box-shadow: 0 10px 26px color-mix(in srgb, var(--ds-shadow-ink) 26%, transparent);
+  opacity: 1;
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
+  backdrop-filter: blur(10px) saturate(1.05);
+}
+
+/* ── Resting line: mark · title · play · close ─────────────────────────────── */
+
+.lotus-mini-player-strip {
+  display: flex;
+  min-width: 0;
+  height: 1.15rem;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.lotus-mini-player-glyph {
+  flex: none;
+  font-size: 0.66rem;
+  line-height: 1;
+  color: var(--text-secondary);
+}
+.lotus-mini-player[data-playing="true"] .lotus-mini-player-glyph {
+  color: var(--fg);
+  animation: lotus-mini-player-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes lotus-mini-player-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.lotus-mini-player-title {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.62rem;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.005em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-secondary);
+}
+.lotus-mini-player[data-expanded="true"] .lotus-mini-player-title {
+  font-size: 0.68rem;
+  font-weight: 550;
+  color: var(--fg);
+}
+
+/* ── Panel: only while expanded ────────────────────────────────────────────── */
+
+.lotus-mini-player-panel {
+  display: none;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+.lotus-mini-player[data-expanded="true"] .lotus-mini-player-panel {
+  display: flex;
+}
+
+/* Landing rect for the session's single video host (music-video-host.ts) — empty by
+   design, and absent from the resting strip entirely. */
+.lotus-mini-player-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 0.45rem;
+  background: #000; /* color-literal-ok: letterbox behind video, black in both themes as players draw it */
+}
+
+.lotus-mini-player-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.lotus-mini-player-btn,
+.lotus-mini-player-play,
+.lotus-mini-player-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: color 120ms ease, opacity 120ms ease, transform 120ms ease;
+}
+.lotus-mini-player-btn:hover,
+.lotus-mini-player-btn:focus-visible,
+.lotus-mini-player-close:hover,
+.lotus-mini-player-close:focus-visible {
+  color: var(--fg);
+}
+.lotus-mini-player-btn {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 0.3rem;
+}
+.lotus-mini-player-btn svg {
+  width: 0.7rem;
+  height: 0.7rem;
+}
+
+/* Play/pause is the one control that survives into the resting line. */
+.lotus-mini-player-play {
+  flex: none;
+  width: 0.95rem;
+  height: 0.95rem;
+  border-radius: 999px;
+  color: var(--text-secondary);
+}
+.lotus-mini-player-play svg {
+  width: 0.62rem;
+  height: 0.62rem;
+}
+.lotus-mini-player-play:hover {
+  color: var(--fg);
+  transform: scale(1.08);
+}
+.lotus-mini-player-play:active {
+  transform: scale(0.92);
+}
+.lotus-mini-player-play:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+}
+.lotus-mini-player[data-expanded="true"] .lotus-mini-player-play {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--bg);
+  background: var(--fg);
+}
+.lotus-mini-player[data-expanded="true"] .lotus-mini-player-play:hover {
+  color: var(--bg);
+}
+
+.lotus-mini-player-time {
+  margin-left: auto;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.58rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--text-muted, var(--text-secondary));
+}
+
+/* Rendered at rest too (so tab reaches it and expands the card) but invisible until
+   the strip is engaged. */
+.lotus-mini-player-close {
+  flex: none;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 0.28rem;
+  opacity: 0;
+  pointer-events: none;
+}
+.lotus-mini-player[data-expanded="true"] .lotus-mini-player-close,
+.lotus-mini-player-close:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+.lotus-mini-player-close svg {
+  width: 0.6rem;
+  height: 0.6rem;
+}
+
+/* A hairline under the line — the only progress signal at rest. */
+.lotus-mini-player-progress {
+  height: 1px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--fg) 8%, transparent);
+}
+.lotus-mini-player[data-expanded="true"] .lotus-mini-player-progress {
+  height: 1.5px;
+}
+.lotus-mini-player-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: color-mix(in oklab, var(--fg) 45%, transparent);
+  transition: width 240ms linear;
+}
+.lotus-mini-player[data-expanded="true"] .lotus-mini-player-progress-fill {
+  background: var(--fg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lotus-mini-player,
+  .lotus-mini-player-play,
+  .lotus-mini-player-progress-fill {
+    transition: none;
+  }
+  .lotus-mini-player[data-playing="true"] .lotus-mini-player-glyph {
+    animation: none;
+  }
+}

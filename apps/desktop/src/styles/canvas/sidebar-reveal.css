@@ -1,0 +1,113 @@
+/* CodeCanvas — Canvas Sidebar Reveal Control
+   Floating edge affordance shown at a collapsed sidebar's edge.
+   The full vertical rail is clickable so users can reopen a panel from the
+   hairline, not only from the centered arrow thumb. */
+
+.canvas-reveal {
+  appearance: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 26px;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--canvas-sidebar-muted);
+  cursor: pointer;
+}
+.canvas-reveal--left { left: 0; }
+.canvas-reveal--right { right: 0; }
+
+/* Persistent edge hairline — now part of the button's hit target. */
+.canvas-reveal-hairline {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1.5px;
+  background: var(--canvas-sidebar-border);
+  opacity: 0.72;
+  pointer-events: none;
+  transition: background 200ms ease, opacity 200ms ease, box-shadow 200ms ease;
+}
+.canvas-reveal--left .canvas-reveal-hairline { left: 0; }
+.canvas-reveal--right .canvas-reveal-hairline { right: 0; }
+
+.canvas-reveal:hover .canvas-reveal-hairline,
+.canvas-reveal:focus-visible .canvas-reveal-hairline {
+  background: rgba(from var(--canvas-accent) r g b / 0.68);
+  box-shadow: 0 0 0 1px rgba(from var(--canvas-accent) r g b / 0.12);
+  opacity: 1;
+}
+
+/* The glass squircle thumb. */
+.canvas-reveal-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid var(--glass-border);
+  background: var(--glass-bg);
+  box-shadow: var(--glass-shine), var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.2);
+  color: var(--canvas-sidebar-muted);
+  opacity: 0.52;
+  transition:
+    opacity 180ms var(--canvas-ease-out),
+    transform 180ms var(--canvas-ease-out),
+    background 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease;
+  pointer-events: none;
+}
+/* Nudge off the very edge so it reads as floating, not docked. */
+.canvas-reveal--left .canvas-reveal-thumb { margin-left: 3px; }
+.canvas-reveal--right .canvas-reveal-thumb { margin-right: 3px; }
+
+/* Accent glow halo, revealed on hover/focus. */
+.canvas-reveal-thumb::after {
+  content: "";
+  position: absolute;
+  inset: -45%;
+  z-index: -1;
+  border-radius: inherit;
+  filter: blur(10px);
+  background: radial-gradient(closest-side, rgba(from var(--canvas-accent) r g b / 0.16), transparent 70%);
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+}
+
+.canvas-reveal:hover .canvas-reveal-thumb,
+.canvas-reveal:focus-visible .canvas-reveal-thumb {
+  opacity: 1;
+  transform: scale(1.05);
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
+  color: var(--canvas-sidebar-text);
+  box-shadow:
+    var(--glass-shine),
+    0 0 0 3px rgba(from var(--canvas-accent) r g b / 0.16),
+    0 8px 22px rgba(0, 0, 0, 0.32);
+}
+.canvas-reveal:hover .canvas-reveal-thumb::after,
+.canvas-reveal:focus-visible .canvas-reveal-thumb::after { opacity: 1; }
+
+.canvas-reveal:focus-visible { outline: none; }
+.canvas-reveal:active .canvas-reveal-thumb { transform: scale(0.94); }
+
+/* Honor reduced-motion: keep the opacity fade, drop scale/spring. */
+@media (prefers-reduced-motion: reduce) {
+  .canvas-reveal-thumb {
+    transition: opacity 120ms ease, background 120ms ease, border-color 120ms ease, color 120ms ease;
+  }
+  .canvas-reveal:hover .canvas-reveal-thumb,
+  .canvas-reveal:focus-visible .canvas-reveal-thumb { transform: none; }
+}

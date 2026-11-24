@@ -1,0 +1,55 @@
+/* The three faces, self-hosted.
+
+   Until 2026-09-30 these came from Google Fonts, which sent every visitor's IP
+   address to Google before a byte of our own CSS applied — the privacy notice had
+   to disclose it. Serving them from this origin removes that third party, and lets
+   the CSP drop both font hosts.
+
+   Files: the latin, weight-axis variable cuts from Fontsource 5.3.0
+   (@fontsource-variable/<family>/files/<family>-latin-wght-normal.woff2), copied
+   rather than installed so the package gains no dependency. All three are SIL OFL
+   1.1; the licence travels with each file in src/assets/fonts/. `unicode-range` is
+   Fontsource's latin range, the same subset Google served for English text.
+
+   The family names are the ones the tokens already use (`--font-display`,
+   `--font-sans`, `--font-mono` in global.css, `--cv-*` in demo.css), so nothing
+   else changes. Vite fingerprints the url()s into /_astro/, which _headers caches
+   as immutable. */
+
+@font-face {
+  font-family: "Archivo";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("../assets/fonts/archivo-latin-wght.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "Instrument Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url("../assets/fonts/instrument-sans-latin-wght.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: "JetBrains Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("../assets/fonts/jetbrains-mono-latin-wght.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* Excalifont, the app's whiteboard hand (`--canvas-hand`). Copied unchanged from
+   apps/desktop/public/fonts/; OFL 1.1, licence in src/assets/fonts/excalifont-OFL.txt.
+   No unicode-range: it is fetched only once the demo's text tool puts it on screen. */
+@font-face {
+  font-family: "Excalifont";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("../assets/fonts/excalifont-regular.woff2") format("woff2");
+}

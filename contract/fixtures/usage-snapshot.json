@@ -1,0 +1,93 @@
+{
+  "machine": "vps-1",
+  "accounts": [
+    {
+      "provider": "claude",
+      "account": "default",
+      "plan": "team",
+      "inUse": true,
+      "windows": [
+        {
+          "kind": "session",
+          "group": "session",
+          "usedPercent": 25,
+          "resetsAtMs": 1793545200000,
+          "windowMinutes": 300
+        },
+        {
+          "kind": "weekly_all",
+          "group": "weekly",
+          "usedPercent": 40.5,
+          "resetsAtMs": 1793923200000,
+          "windowMinutes": 10080
+        },
+        {
+          "kind": "weekly_scoped",
+          "group": "weekly",
+          "usedPercent": 10,
+          "resetsAtMs": 1793923200000,
+          "windowMinutes": 10080,
+          "scope": "Fable"
+        }
+      ],
+      "error": null,
+      "asOfMs": null,
+      "identity": {
+        "email": "me@example.com",
+        "org": "Acme"
+      }
+    },
+    {
+      "provider": "claude",
+      "account": "work",
+      "plan": "max",
+      "inUse": false,
+      "windows": [
+        {
+          "kind": "session",
+          "group": "session",
+          "usedPercent": 0,
+          "resetsAtMs": null,
+          "windowMinutes": 300
+        },
+        {
+          "kind": "weekly_all",
+          "group": "weekly",
+          "usedPercent": 12,
+          "resetsAtMs": 1793552400000,
+          "windowMinutes": 10080
+        }
+      ],
+      "error": "idle — not used in the last 8 h; numbers update on its next use",
+      "asOfMs": 1793527200000,
+      "identity": {
+        "email": "work@example.com",
+        "org": "Acme"
+      }
+    },
+    {
+      "provider": "codex",
+      "account": "ChatGPT",
+      "plan": "plus",
+      "inUse": false,
+      "windows": [
+        {
+          "kind": "primary",
+          "group": "session",
+          "usedPercent": 8,
+          "resetsAtMs": 1793541600000,
+          "windowMinutes": 300
+        },
+        {
+          "kind": "secondary",
+          "group": "weekly",
+          "usedPercent": 21,
+          "resetsAtMs": 1793707200000,
+          "windowMinutes": 10080
+        }
+      ],
+      "error": null,
+      "asOfMs": null
+    }
+  ]
+}

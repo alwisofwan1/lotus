@@ -1,0 +1,93 @@
+{
+  "paneId": "p-1",
+  "runner": "claude",
+  "capabilities": {
+    "turns": "expected",
+    "text": "expected",
+    "streaming": "never",
+    "reasoning": "never",
+    "toolCalls": "expected",
+    "toolStatus": "partial",
+    "diff": "partial",
+    "output": "never",
+    "permission": "partial",
+    "plan": "never",
+    "subagent": "never",
+    "usage": "never",
+    "mode": "never"
+  },
+  "source": "ring",
+  "turns": [
+    {
+      "turnId": "t-5ebce443-p",
+      "startedAt": 1785664800000,
+      "parts": [
+        {
+          "id": "5ebce443-p",
+          "ts": 1785664800000,
+          "seq": 0,
+          "provenance": "hook",
+          "type": "user_message",
+          "text": "clean up the legacy files"
+        },
+        {
+          "id": "5ebce443",
+          "ts": 1785664800000,
+          "seq": 1,
+          "provenance": "hook",
+          "type": "tool_call",
+          "toolCallId": "5ebce443",
+          "toolName": "Edit",
+          "title": "src/legacy/shim.ts",
+          "kind": "edit",
+          "status": "completed",
+          "locations": [
+            {
+              "path": "src/legacy/shim.ts"
+            }
+          ],
+          "diff": {
+            "files": [
+              {
+                "path": "src/legacy/shim.ts",
+                "op": "modify",
+                "additions": 0,
+                "deletions": 34
+              }
+            ]
+          }
+        },
+        {
+          "id": "06019d4d",
+          "ts": 1785664801000,
+          "seq": 2,
+          "provenance": "hook",
+          "type": "tool_call",
+          "toolCallId": "06019d4d",
+          "toolName": "Read",
+          "title": "src/legacy/shim.ts",
+          "kind": "read",
+          "status": "in_progress",
+          "locations": [
+            {
+              "path": "src/legacy/shim.ts"
+            }
+          ]
+        },
+        {
+          "id": "bb10a574",
+          "ts": 1785664802000,
+          "seq": 3,
+          "provenance": "hook",
+          "type": "assistant_text",
+          "text": "I removed the shim and updated the three call sites. The last one",
+          "state": "done",
+          "truncated": true
+        }
+      ],
+      "endedAt": 1785664802000,
+      "stopReason": "end_turn"
+    }
+  ],
+  "hasMore": false
+}

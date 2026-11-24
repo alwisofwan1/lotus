@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The app floor, `AppTokens.dark.bg` — oklch(0.183 0.004 286°).
+         Named here so the launch window and the Flutter surface are the same
+         colour by construction rather than by two people remembering a hex.
+
+         The Flutter template shipped `@android:color/white` in the light variant
+         and `?android:colorBackground` in `-night`, so a phone with dark mode off
+         flashed a full white window while `main()` awaited Firebase and the
+         Keystore, then dropped to #121214 on the first frame. Invisible to anyone
+         testing with dark mode on, which is why it survived this long. -->
+    <color name="launch_floor">#FF121214</color>
+</resources>

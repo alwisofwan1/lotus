@@ -1,0 +1,168 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+#
+# ── Aturan anchoring (baca sebelum mengedit) ──────────────────────────────────
+# Lotus adalah meta-repository: app dan paket hidup di `apps/*`, `packages/*`,
+# dan `tools/*`, BUKAN di root. Pola artefak build karena itu harus berlaku di
+# setiap kedalaman. Dua aturan Git yang menentukan, dan mudah salah:
+#
+#   1. Pola satu segmen tanpa slash (`out/`, `build/`) berlaku di SEMUA
+#      kedalaman. Menambahkan slash depan (`/out/`) menguncinya ke root saja.
+#   2. Pola yang punya slash DI TENGAH (`src-tauri/target/`) tetap ter-anchor
+#      ke root meski tanpa slash depan. Ia butuh `**/` eksplisit di depan.
+#
+# Aturan (2) adalah jebakannya: `/src-tauri/target/` pernah cukup saat repo ini
+# masih satu app di root, dan artefak Rust tetap bocor ke history. Melepas slash
+# depannya saja TIDAK memperbaikinya — karena itu di bawah dipakai
+# `**/src-tauri/target/`. Jangan menyederhanakannya kembali.
+
+# ── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# ── Testing ──────────────────────────────────────────────────────────────────
+coverage/
+
+# ── Next.js (apps/desktop) ───────────────────────────────────────────────────
+.next/
+out/
+# Kecuali render Remotion yang memang sengaja dilacak sebagai artefak rilis.
+!tools/remotion-bar-chart/out/
+
+# ── Build output generik ─────────────────────────────────────────────────────
+build/
+dist/
+
+# ── Tauri / Rust (apps/desktop/src-tauri) ────────────────────────────────────
+# `**/` wajib: pola bersegmen-ganda ter-anchor ke root tanpanya (aturan 2 di atas).
+**/src-tauri/target/
+**/src-tauri/icons.bak/
+
+# ── Flutter / Dart (apps/pocket) ─────────────────────────────────────────────
+# Dipasang sebelum ada kode Dart, bukan sesudah — lihat aturan anchoring di atas.
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+**/doc/api/
+# pubspec.lock TIDAK diabaikan: untuk aplikasi (bukan library) ia harus dilacak.
+
+# ── Android (apps/pocket/android) ────────────────────────────────────────────
+.gradle/
+local.properties
+captures/
+*.jks
+*.keystore
+key.properties
+
+# Firebase **service account** keys (ADR-4 push). Not the same file as
+# google-services.json, which is client config: this one signs FCM sends for the whole
+# project, so it belongs outside the repo entirely (`LOTUS_FCM_SERVICE_ACCOUNT` points
+# at it). Ignored anyway, because one stray `git add -A` is all it takes.
+*service-account*.json
+*serviceaccount*.json
+fcm-*.json
+*.iml
+.cxx/
+
+# ── iOS / macOS (apps/pocket/ios) ────────────────────────────────────────────
+Pods/
+xcuserdata/
+DerivedData/
+*.moved-aside
+*.pbxuser
+*.xcuserstate
+*.ipa
+
+# ── Editor / IDE ─────────────────────────────────────────────────────────────
+.idea/
+*.swp
+
+# ── Misc ─────────────────────────────────────────────────────────────────────
+.DS_Store
+*.pem
+
+# ── Debug logs ───────────────────────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ── Env files (can opt-in for committing if needed) ──────────────────────────
+# .env* # Removed by Orchids to allow .env files
+
+# ── Vercel ───────────────────────────────────────────────────────────────────
+.vercel
+
+# ── TypeScript ───────────────────────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Artefak perkakas sementara ───────────────────────────────────────────────
+.playwright-mcp/
+
+# Style-tab preview staging: apps/desktop/scripts/gen-theme-previews.ts renders HTML
+# tiles here to be screenshotted. The committed output is the encoded
+# apps/desktop/public/assets/theme-preview/*.webp.
+apps/desktop/public/__theme-prev/
+
+# Scratch. Nothing here is part of the repo — a code-review run and a build probe both
+# wrote into it, and a tracked userscript under it was one `git add .` from history.
+tmp/
+
+# Config-home Claude Code yang tumpah ke dalam repo. Sebuah proses `claude` yang
+# kehilangan CLAUDE_CONFIG_DIR menulis home-nya ke cwd, bukan ke ~/.claude —
+# termasuk transkrip sesi (projects/), salinan .claude.json (backups/) dan
+# settings.json yang mematikan prompt dangerous-mode. Tidak satu pun milik Lotus.
+# Yang asli: .claude/ dan skills-lock.json — keduanya tracked, jangan ikut di sini.
+#
+# Blok ini pernah ber-anchor root saja, dan pada 2026-09-20 tumpahan berikutnya
+# mendarat di apps/desktop/src-tauri/ (cwd sebuah spawn CodeChat), 9,6 MB tanpa satu
+# pun aturan yang kena — persis aturan (1)/(2) di kepala file ini. Karena itu sekarang
+# `**/`. Yang TIDAK boleh dipakai: `**/skills/`, `**/projects/`, `**/sessions/`,
+# `**/plugins/`, `**/chrome/` polos — nama-nama itu juga dipakai direktori sumber yang
+# tracked (packages/host/skills/, apps/desktop/src/app/api/projects/,
+# src/components/chrome/, …), dan sebuah direktori yang sudah ter-ignore tidak bisa
+# di-un-ignore per file. Jadi yang dicocokkan adalah SIDIK JARI config-home-nya, bukan
+# nama direktorinya.
+/settings.json
+/chrome/
+**/.claude.json
+**/.claude.json.backup.*
+**/history.jsonl
+**/.last-update-result.json
+**/mcp-needs-auth-cache.json
+**/shell-snapshots/
+**/paste-cache/
+**/sessions/*.key
+**/policy-limits.json
+**/policy-limits.json.stamp.json
+**/remote-settings.json
+**/remote-settings.json.signature.json
+**/remote-settings.json.signature-iat.json
+**/.last-cleanup
+**/cache/model-catalog/
+**/skills/synced/
+**/plugins/synced/
+**/plugins/marketplaces/
+**/plugins/installed_plugins.json
+# Transkrip: Claude menamai direktori proyek dari path absolutnya, jadi selalu
+# `-Users-…` (macOS) / `-home-…` (Linux). Tidak ada direktori sumber yang begitu.
+**/projects/-Users-*/
+**/projects/-home-*/
+
+# Local agent / editor state — never commit
+.claude/settings.local.json
+.claude/launch.json
+.playwright-mcp/
+.env
+.env.*
+!.env.example
+!.env.*.example

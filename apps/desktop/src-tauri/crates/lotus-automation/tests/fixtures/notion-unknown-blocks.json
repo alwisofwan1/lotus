@@ -1,0 +1,67 @@
+[
+  {
+    "name": "an inline bookmark",
+    "markdown": "text\n<unknown url=\"u\" alt=\"embed\"/>\n",
+    "unknown": true
+  },
+  {
+    "name": "an open-and-close tag",
+    "markdown": "<unknown url=\"u\" alt=\"bookmark\"></unknown>",
+    "unknown": true
+  },
+  {
+    "name": "inside a fenced block",
+    "markdown": "```html\n<unknown url=\"u\"/>\n```\n",
+    "unknown": false
+  },
+  {
+    "name": "inside an inline span",
+    "markdown": "Write `<unknown/>` for a block.",
+    "unknown": false
+  },
+  {
+    "name": "the word only",
+    "markdown": "an unknown block, in words",
+    "unknown": false
+  },
+  {
+    "name": "a double-backtick span",
+    "markdown": "``<unknown url=\"u\"/>``",
+    "unknown": false
+  },
+  {
+    "name": "a span across two lines",
+    "markdown": "`a\n<unknown url=\"u\"/> b`",
+    "unknown": false
+  },
+  {
+    "name": "a stray backtick pairs with a later one",
+    "markdown": "It's a ` mark.\n\n<unknown url=\"u\" alt=\"bookmark\"/>\n\nand `code`",
+    "unknown": false
+  },
+  {
+    "name": "a fence closes only at column 0",
+    "markdown": "```\n  ```\n<unknown url=\"u\"/>\n```",
+    "unknown": false
+  },
+  {
+    "name": "an unclosed fence is not code",
+    "markdown": "```\n<unknown url=\"u\"/>\n",
+    "unknown": true
+  },
+  {
+    "name": "an indented fence is not a fence",
+    "markdown": "- item\n  ```\n  <unknown url=\"u\"/>\n  ```",
+    "unknown": true
+  },
+  {
+    "name": "a longer tag name",
+    "markdown": "<unknownish/>",
+    "unknown": false
+  },
+  {
+    "name": "a multibyte first character in a span",
+    "markdown": "`é<unknown/>` then <unknown url=\"u\"/>",
+    "unknown": true
+  }
+]

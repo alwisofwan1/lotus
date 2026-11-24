@@ -1,0 +1,60 @@
+# Standalone Host — systemd unit
+#
+# Installed by install.sh, which fills RUN_USER/RUN_GROUP/HOME/EXEC_START. Edit the
+# installed copy at /etc/systemd/system/lotus-host.service, not this template.
+#
+# Runs as a normal user, not root: the agents this host spawns inherit its identity,
+# and they run `claude`/`codex` against the operator's own logins in $HOME. Root would
+# hand every prompt-injected agent the machine.
+
+[Unit]
+Description=Lotus Standalone Host
+Documentation=https://github.com/alwisofwan/Lotus/blob/main/packages/host/deploy/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=__RUN_USER__
+Group=__RUN_GROUP__
+Environment=HOME=__RUN_HOME__
+# The runners live in the operator's own directories — `~/.local/bin/claude`,
+# `~/.bun/bin/codex` — and systemd's default PATH contains neither. Measured on
+# devbox-vps 2026-09-05: a unit without this line started clean, answered
+# /admin/health, and could not see claude OR codex, which is exactly the "healthy host
+# that can do nothing" the installer's runner check claims to prevent. install.sh fills
+# this from the run user's LOGIN shell, so the check and the runtime agree.
+Environment=PATH=__RUN_PATH__
+EnvironmentFile=__ENV_FILE__
+ExecStart=__EXEC_START__
+WorkingDirectory=__RUN_HOME__
+
+# Restart on failure, not on clean exit: a host that stopped because SIGTERM asked it
+# to should stay stopped. The delay is long enough that a config error loops slowly
+# enough to read in `journalctl`, short enough to ride out a transient failure.
+Restart=on-failure
+RestartSec=5s
+
+# Durability is the point (ADR-0067). KillMode=process kills the host and nothing else, so
+# lotus-sessiond and every agent inside it survive `systemctl restart` — which is the
+# behaviour the Phase 0 gate tests for. `control-group` here would take the sessions
+# down with the host and quietly undo the whole slice.
+KillMode=process
+KillSignal=SIGTERM
+TimeoutStopSec=20s
+
+# Logs go to the journal: `journalctl -u lotus-host -f`. The host writes one JSON
+# object per line, so `journalctl -o cat -u lotus-host | jq` works.
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lotus-host
+
+# Modest hardening. Deliberately NOT sandboxed further: the agents need to read and
+# write the operator's project trees and their own credentials in $HOME, so
+# ProtectHome or a strict ReadWritePaths would break the product, not secure it.
+NoNewPrivileges=yes
+ProtectSystem=full
+PrivateTmp=no
+
+[Install]
+WantedBy=multi-user.target

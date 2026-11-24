@@ -1,0 +1,61 @@
+# Purpose
+
+Factory's desktop workflow for ticket intake, approved specs, isolated implementation, checks, review, and draft PR handoff.
+
+# Ownership
+
+- Owns Factory components, hooks, pure service projections, and co-located tests.
+- Native execution and integration discovery belong to `src-tauri/crates/lotus-graph-run`; IPC types/wrappers belong to `src/lib/tauri/graph-run.ts`.
+
+# Local Contracts
+
+- User preference: Factory must recover conservatively after crash/restart, preserve edits and avoid duplicate publication. Interrupted native Factory runs are persisted as `paused` with optional engine `recovery` text and presented as Recovery required, not a cost-cap pause. Keep them in Needs you, block replacement starts, Raise cap and ordinary intake/triage controls, and explain how to inspect the run ID/worktree/branch/PR. Abort ends the recorded run, not an unverified orphan process. Native run-scoped leases, process-birth/session evidence and atomic source-bound phase receipts exist, but recovery inspection, complete old-writer quiescence and canonical publication reconciliation remain pending under `plans/factory-run/recovery-hardening.md`. Unknown process/phase evidence also protects artifacts after Abort. Do not expose Resume from the mere presence of a journal, a dead PID or a PR creation response. Native source changes during checks/review or an unchecked commit stop publication; do not project them as verified success.
+- Chrome is one bar (round 6, `mockups/lotus-planes.pen` "Factory premium revamp"): dither mark, title, the views as a segmented tablist, New run, Close. The Chief of Staff has no strip: its needs-you count is the Chief tab's count and its line ("1 needs you · checked 3 min ago") is the tab's tooltip and screen-reader hint, only where it runs. Settings puts its views, PRs → base, the private badge and the repo picker (checkout path as its tooltip) in one sub-row.
+- Factory configuration is presented as Settings (persisted `agents` tab key remains compatible); unfinished Insights redirects to Runs. User preference: modern, task-first setup must explain checks rather than require users to understand “gate”, and users must be able to edit checks and remove saved local configuration safely.
+- Settings has three views behind a sub-nav (Pipeline | Checks | Integrations; the tab count is the number of integration warnings). Without a definition it opens on Checks, where setup lives. Checks stays mounted (hidden) so its draft survives; the open role editor stays open across views. Pipeline shows the five roles as a vertical rail (round 6): per row a 4×3 dither tile of its state (grain = ready, hatch = needs attention, dots = no run prepares it yet), number, name, status, what it does and one meta line (model · skills · MCP · access); then "Shared by all roles" and a Checks summary. `handoff` is a disabled "Coming soon" row because no run prepares it. The role editor is a form with a label column (name + why, stacked when the pane is under 520px); the custom model name folds behind "Custom model name" unless one is saved; review's same-model permission is a switch whose hint says what off and on mean; Save is the pane's primary only while there are unsaved changes.
+- Skills and MCP servers are edited on the capability map (`FactoryCapabilityMap`): tiles on wires into the agent, skills left, MCP right; own tiles have ×, shared tiles are locked (edit them in "Shared by all roles"); the dashed tile opens the catalog picker. Wire motion is a quiet decorative loop (a comet per wire, staggered, resting between passes) at the user's request; it does not mean a run is using the capability. `live` is the unwired seam for real activity. Reduced motion draws no comets.
+- Integration warnings are rows (first sentence, full runner text under Details, via `summarizeNote`). Never add a fix action that edits Claude configuration.
+- Runs: the list carries the Needs-you verb on the row ("Answer", "See why", …; it opens the run, where the decision is made) and filter chips by group. Run detail leads with one NEXT STEP card, then the Timeline (`factory-timeline.ts`, pure; Planes round 6): only recorded events, newest last, the live step last; "try N failed" only when try N+1 exists or the run stopped on it; answering and approving carry no time because the record has none; older than 8 fold behind "+N earlier"; a run with no recorded steps shows no timeline and invents none. The timeline heads with one summary line (`factoryTimelineSummary`: "Finished with 1 issue in 9s", "Running for …", "Waiting on you") that folds the list; its issue count is only the failed rows shown. Each row is a mark (a 4×4 tile of the stage strip's texture under its glyph: check, cross, bang, dash for replaced; live is the strip's marching front with no glyph. The glyph is what reads at 12px, so never drop it for the texture alone), label, meta line, and a right column that is only durations; the clock time is the row tooltip.
+- `FactoryConfiguration` owns setup/check editing/removal presentation, not role capabilities. User preference: scan the selected repository automatically and offer evidence-backed checks instead of requiring command recall. Preselect the first native-ranked suggestion only when the command is empty and the user has not edited it; never overwrite saved checks or typing during a pending scan. Scan repository retries must preserve manual input. Suggestions read local checkout metadata only; never execute commands or save configuration automatically. Mark checks unverified, distinguish private shell commands from repo script paths, and preserve the origin/base activation boundary. `FactoryTryChecks` presents an explicit read-only preview followed by Run checks now; `useFactoryCheckTrial` owns receipt/polling state and the pure `factory-check-trial` service owns status projection. Disclose the cached origin revision, detached worktree, time limit, missing ignored/uncommitted files and dependencies, inherited login environment and host/network side effects. A worktree is not a security sandbox. Lotus does not launch agents, install dependencies, push or create PRs as part of this flow; the trusted command itself may have side effects. Native jobs survive view navigation; Cancel is explicit, and stale status reads must not erase a newer Start receipt. Saving remains independent of verification.
+- Local removal requires explicit inline confirmation and is recoverable via Undo, with the opaque recovery ID remembered per repo. It does not remove plugins, code, worktrees, branches, PRs or run history. Native unfinished-run guards are authoritative. Do not offer private removal for repo-backed definitions. Recovery must not overwrite a newer configuration. Recovery archives remain on disk; permanent deletion/retention controls are not yet implemented.
+- Check outcomes are session-only and bound to repo/command/mode/base/full commit SHA. Show Not verified/Running/Passed/Failed/Cancelled/Timed out plus Outdated, Revision unknown or Status unavailable when evidence cannot support current success. Never fabricate a failed or successful result from an IPC error. Native output is a bounded plain-text tail, not HTML, telemetry, saved history or agent context. Poll running receipts at 1s and completed evidence at 5s only while mounted. Try checks currently supports macOS/Linux; native refusal must remain actionable on other platforms. Visual desktop/real project execution still requires manual QA.
+- Make setup and recovery intuitive: distinguish installed/discovered integrations from selected capabilities and runtime connectivity. Discovery is not an MCP health check.
+- The Agents integration catalog must expose loading, failure/retry, and actionable partial-discovery warnings (`notes`). Intentional plugin disablement and full-plugin capability boundaries belong in collapsed information (`notices`), not warning counts. Enabled plugins without a matching installation must explain scope/profile and recovery without changing Claude configuration. If a same-name installation from another marketplace exists, identify it and suggest disabling the unused entry only if that source was intended; never silently alias or claim capability equivalence. Unregistered `@builtin` entries are unverified by Factory, not proof of Claude runtime failure. Refresh integrations must not save, reset, or remount an unsaved agent draft. Ignore stale reads after repository changes.
+- Without a definition, show setup before integration diagnostics and keep warnings collapsed. Show the active private-factory badge only after a definition exists, never merely because a private storage path was allocated.
+- Skill/server picker entries expose the exact validated plugin registry identity (`plugin`, including marketplace) and are searchable by it; selected items retain provenance. Existing skill/server IDs and persisted selection contracts must not change merely to improve display. Multiple successfully discovered marketplaces are information, not errors.
+- Only selected skills/MCP servers are prepared for a role. Triage gets no MCP. Do not remove native strict MCP isolation to make installed plugins appear available.
+- Factory imports skill folders and selected MCP definitions, not complete plugin hooks, commands, agents, or LSPs. Show this limitation rather than implying full-plugin activation.
+- Repository definitions run from `origin/<base>`; local saves are not active until pushed. Private factories are local to this Mac. Preserve both activation boundaries.
+- Catalog warnings and display metadata must never expose MCP args, env, headers, credential-bearing URLs, or raw configuration/parser output.
+
+# Work Guidance
+
+- Keep policies in pure services and asynchronous discovery state in hooks; UI owns presentation only.
+- Preserve fast expert workflows and use progressive disclosure for warnings and technical detail.
+
+# Verification
+
+- `cd apps/desktop && bun run test src/modules/factory`
+- Run targeted ESLint for changed TypeScript files.
+- Integration discovery changes also require `cargo test --manifest-path apps/desktop/src-tauri/crates/lotus-graph-run/Cargo.toml`.
+- Manual desktop QA: install/update a plugin, refresh integrations, select a skill/server, and verify the prepared agent can load/connect. Automated discovery tests alone do not prove CLI/network readiness.
+
+# Child DOX Index
+
+No child AGENTS.md files.
+
+## Board
+
+- Needs you is the first column. An empty column, and Done until asked for, fold to a 132px rail (`.fa-rail`); no column is a void.
+- A card carries the same verb as its Runs row (`factoryRowAction`; Ready with a PR says "Review PR"); the whole card opens the run. Working cards have no button; their active step carries the moving dither front (see Stage strip).
+- The filter chips are shared with Runs (`FilterChips`).
+
+## Stage strip
+
+- `FactoryStageBar` draws the seven stages as a pixel strip (round 5, `mockups/lotus-planes.pen` "Factory Dither steps"). Texture is the status, so it reads without colour: grain = done, dither front = active, hatch = needs-you, checker = failed, dots = todo. Tiles live in `services/factory-dither.ts` (pure); CSS only colours them through `--fa-seg-track` / `--fa-seg-ink`.
+- `failed` is its own stage status: `check-failed` and `error` mark the stage they stopped on failed, while the run stays in Needs you.
+- Only the front moves (a double-wide SVG sliding in steps); reduced motion holds it. Needs-you, failed and done never animate.
+- `DitherPixels` (`components/FactoryDither.tsx`) draws one status into its box; the strip, the try cells and the Timeline marks all use it.
+- Run detail puts the strip (6×4, labelled) above the Timeline and, for a run allowed more than one try, one 16px cell per try under it (`factoryTries`: a try before the current one failed, since only a failed check starts another).
+- One component everywhere; only `pixel` × `rows` change: Runs row 2×2, issue card 3×3, Board card and canvas node 4×3, Run detail 6×4 (labelled).
+- Pattern ids come from `useId`, so they are unique inside one React root only. A strip rendered by a separate root (a static-markup proof page) needs its own `identifierPrefix`, or `url(#…)` resolves to another strip's pattern.

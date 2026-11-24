@@ -1,0 +1,59 @@
+{
+  "$schema": "./gen/schemas/desktop-schema.json",
+  "productName": "Lotus Dev",
+  "version": "0.1.0",
+  "identifier": "com.lotus.desktop.dev",
+  "build": {
+    "devUrl": "http://localhost:3001",
+    "frontendDist": "../out",
+    "beforeDevCommand": "PORT=3001 npm run dev",
+    "beforeBuildCommand": "bun run build:tauri"
+  },
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Lotus Dev",
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
+        "trafficLightPosition": {
+          "x": 18,
+          "y": 19
+        },
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "transparent": true,
+        "windowEffects": {
+          "effects": ["sidebar"],
+          "state": "followsWindowActiveState"
+        }
+      }
+    ],
+    "security": {
+      "capabilities": ["default", "canvas-browser-annotation", "browser-preview-annotation"],
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$HOME/.lotus/canvas-themes/**",
+          "$HOME/.lotus-dev/canvas-themes/**"
+        ]
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg"],
+    "icon": [
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "macOS": {
+      "entitlements": "Entitlements.plist",
+      "infoPlist": "Info.plist"
+    }
+  }
+}

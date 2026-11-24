@@ -1,0 +1,143 @@
+/* The Jump palette (⌘J): one shared navigator above every mode. Mockup: mockups/jump-palette.html */
+
+.jp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 12vh 16px 0;
+  background: color-mix(in srgb, var(--ds-bg) 45%, transparent);
+}
+
+.jp {
+  width: min(560px, 100%);
+  max-height: min(460px, 76vh);
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--ds-workbench-popover-bg);
+  border: 1px solid var(--ds-workbench-popover-border);
+  box-shadow: var(--ds-workbench-popover-shadow);
+}
+
+.jp kbd {
+  font: inherit;
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--ds-text-quiet);
+  box-shadow: 0 0 0 1px var(--ds-border-subtle);
+}
+
+.jp-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-quiet);
+}
+.jp-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: none;
+  color: var(--ds-text);
+  font: inherit;
+  font-size: 14px;
+}
+.jp-input input::placeholder { color: var(--ds-text-quiet); }
+
+.jp-list { overflow: auto; padding: 6px; }
+.jp-sep { height: 1px; margin: 5px 8px; background: var(--ds-border-subtle); }
+.jp-empty { margin: 0; padding: 26px; text-align: center; color: var(--ds-text-quiet); font-size: 13px; }
+
+.jp-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.jp-row[aria-selected="true"] { background: var(--ds-overlay); }
+
+.jp-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--ds-text) 6%, transparent);
+  color: var(--ds-text-secondary);
+}
+
+.jp-body { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.jp-text { min-width: 0; display: flex; align-items: baseline; gap: 8px; }
+.jp-detail { margin-top: 1px; color: var(--ds-text-secondary); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-title { flex: none; max-width: 60%; color: var(--ds-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-title mark {
+  background: none;
+  color: inherit;
+  font-weight: 650;
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--ds-text) 35%, transparent);
+  text-underline-offset: 2px;
+}
+.jp-loc { min-width: 0; color: var(--ds-text-quiet); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.jp-host { margin-left: 5px; padding: 0 5px; border-radius: 4px; box-shadow: 0 0 0 1px var(--ds-border-subtle); font-size: 10.5px; }
+
+.jp-status { flex: none; display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; }
+.jp-status i { width: 7px; height: 7px; border-radius: 50%; }
+.jp-status[data-status="waiting"] { color: var(--ds-gold); }
+.jp-status[data-status="waiting"] i { background: var(--ds-gold); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ds-gold) 22%, transparent); }
+.jp-status[data-status="working"] { color: var(--ds-text-muted); }
+.jp-status[data-status="working"] i {
+  box-sizing: border-box;
+  border: 1.5px solid var(--ds-text-quiet);
+  border-top-color: transparent;
+  animation: jp-spin 900ms linear infinite;
+}
+.jp-status[data-status="done"] { color: var(--ds-success); }
+.jp-status[data-status="done"] i { background: var(--ds-success); }
+@keyframes jp-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .jp-status[data-status="working"] i { animation: none; } }
+
+.jp-age { flex: none; width: 30px; text-align: right; color: var(--ds-text-quiet); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+
+.jp-foot {
+  display: flex;
+  gap: 14px;
+  padding: 7px 14px;
+  border-top: 1px solid var(--ds-border-subtle);
+  color: var(--ds-text-quiet);
+  font-size: 11.5px;
+}
+.jp-foot span { display: inline-flex; align-items: center; gap: 5px; }
+.jp-foot-end { margin-left: auto; }
+
+/* Needs you (GLOSSARY): the two group titles and a Done row's "Mark seen". Mockup: mockups/needs-you.html */
+.jp-group { display: flex; align-items: baseline; gap: 6px; padding: 8px 8px 3px; font-size: 11px; font-weight: 600; color: var(--ds-text-quiet); }
+.jp-group span { font-weight: 400; font-variant-numeric: tabular-nums; }
+.jp-seen {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: 2px 6px;
+  border-radius: 5px;
+  color: var(--ds-text-quiet);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  visibility: hidden;
+}
+.jp-row:hover .jp-seen,
+.jp-row[aria-selected="true"] .jp-seen,
+.jp-seen:focus-visible { visibility: visible; }
+.jp-seen:hover { color: var(--ds-text); background: var(--ds-overlay); }

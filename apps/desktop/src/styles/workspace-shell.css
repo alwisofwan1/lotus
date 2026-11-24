@@ -1,0 +1,3428 @@
+/**
+ * Unified workspace shell — CodeSpace + CodeChat in one layout.
+ *
+ * ── The design position ───────────────────────────────────────────────────
+ * Quiet. This is a surface someone looks at for eight hours, so depth comes from flat value
+ * steps and hairlines, not from gradients, blur or glow. There is no ambient wash and no
+ * translucency: a card is separated from its neighbour by a gap and a 1px line, and that is the
+ * whole vocabulary.
+ *
+ * Colour is spent, not spread. Exactly three things may be saturated: a status dot, the focused
+ * pane's border, and the send button. The active rail row is a fill and an inset hairline, not an
+ * accent edge (mockup 10, T2). Everything else — glyphs,
+ * pills, buttons, panels — is neutral, so the coloured marks actually mean something. A pane
+ * header carries its kind as a plain monochrome glyph: the title already names the pane, and the
+ * rail is where kind is colour-coded.
+ *
+ * ── Where the values come from ────────────────────────────────────────────
+ * Colour is theme-driven (`--bg`, `--bg-card`, `--bg-elevated`, `--fg`, `--accent`… from
+ * globals.css), so a theme switch, including a light one, carries this surface with it. Type
+ * comes from the `--ds-t-*` scale in design-system.css. Below the token block there are no
+ * literal colours and no literal font sizes — a test enforces both.
+ *
+ * The one exception is the KIND hues: a terminal is green and a thread is violet in every theme,
+ * the way a diff is red and green everywhere. They are status, not styling. Green, blue and amber
+ * are the design system's status tokens, so each keeps its hue and is tuned per theme for
+ * contrast; violet has no token, so it is the one literal, deepened toward the ink on Light.
+ */
+
+.ws-shell {
+  /* ── Kind hues ── */
+  --ws-violet: #a78bfa; /* color-literal-ok: thread and ask identity hue, the same in every theme (Light deepens it below) */
+  --ws-kind-terminal: var(--ds-success);
+  --ws-kind-thread: var(--ws-violet);
+  --ws-kind-browser: var(--ds-info);
+  --ws-kind-editor: var(--text-muted);
+  --ws-kind-bridge: var(--ds-warning);
+
+  /* ── Activity ──
+     What a pane is DOING, which is a different question from what it IS, so it gets its own five
+     hues rather than reusing the kind ones. `ask` is the violet CodeCanvas already uses for
+     "waiting on a human", kept identical on purpose: someone who has learned it on the board must
+     not have to learn it again here. */
+  --ws-activity-live: var(--ds-success);
+  --ws-activity-ask: var(--ws-violet);
+  --ws-activity-warn: var(--ds-danger);
+  --ws-activity-boot: var(--ws-kind-bridge);
+  --ws-activity-muted: var(--text-muted);
+  /* A finished turn nobody has opened yet (S11). Amber, the one warm hue the states had left:
+     violet is an ask, red a failure, green is work — and a result waiting is none of those. */
+  --ws-activity-result: var(--ws-kind-bridge);
+  /* The unread hairline: the result hue washed toward the foreground, so it reads as pale gold
+     rather than a painted amber line, and follows the theme. */
+  --ws-unread-glow: color-mix(in oklab, var(--ws-activity-result) 55%, var(--fg));
+
+  /* The brand wordmark's height in the chrome. Declared with the same value its `var()` fallback
+     already used, so nothing moves — what changes is that the token fence can see it. */
+  --ws-brand-wordmark-h: 11px;
+
+  /* ── Surfaces ──
+     Three steps and two lines. Anything that needs to sit "on" something else moves one step,
+     never a shadow. */
+  --ws-surface: var(--bg-card);
+  --ws-surface-raised: var(--bg-elevated);
+  /* The floating composer covers panes, so it cannot be a translucent overlay like --ws-surface,
+     and --bg-elevated is the canvas theme's WARM node glass (rgba(28,25,22,.82)), which read as a
+     brown slab on the shell (2026-10-14). It is the card step, opaque: one lift above the pane
+     wells and the rail, so the place you type reads as the thing to touch, without the grey
+     slab a 10% ink tint made of it. */
+  --ws-surface-float: var(--ds-surface);
+  --ws-surface-quiet: color-mix(in oklab, var(--fg) 4%, transparent);
+  --ws-hover: var(--bg-hover);
+  /* The active row's texture: an ordered (4×4 Bayer) dither whose dots thin out from 40% at the
+     row's start to none at 160px, on an ease-out curve — the fade is the pixel density itself,
+     not a gradient, so the shell stays flat. The SVG is only a mask; the ink comes from the
+     theme, kept low so the texture is felt more than seen. */
+  --ws-dither-ink: color-mix(in oklab, var(--fg) 16%, transparent);
+  --ws-mode-dither: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='24'%3E%3Cpath d='M0 4h1v1H0zM0 8h1v1H0zM2 10h1v1H2zM0 12h1v1H0zM2 12h1v1H2zM0 14h1v1H0zM2 14h1v1H2zM0 16h1v1H0zM2 16h1v1H2zM1 17h1v1H1zM0 18h1v1H0zM2 18h1v1H2zM3 19h1v1H3zM0 20h1v1H0zM2 20h1v1H2zM1 21h1v1H1zM3 21h1v1H3zM0 22h1v1H0zM2 22h1v1H2zM1 23h1v1H1zM3 23h1v1H3z'/%3E%3C/svg%3E");
+  /* The dither as a mask, ready to use: a dotted rule that fades out to the right (one row), and
+     the active-row fill (every row). Declared on :root in design-system.css, beside the menus
+     that are portalled outside the shell and wear it too. */
+  --ws-dither-rule: var(--ds-dither-rule);
+  --ws-dither-fill: var(--ds-dither-fill);
+  --ws-line: var(--border-sub);
+  --ws-line-strong: var(--border);
+
+  /* ── Geometry ──
+     One gap, one seam. The seam is the visible channel between panes; its POINTER target is
+     wider than it looks (see .ws-split::before), which is how a 10px channel stays comfortable
+     to grab. Radii stay tight — a 16px+ corner reads as a consumer app, a 12px one as a tool. */
+  --ws-gap: 8px;
+  --ws-seam: 10px;
+  --ws-r-card: 12px;
+  --ws-r-panel: 10px;
+  --ws-r-control: 8px;
+  --ws-r-pill: 999px;
+
+  /* ── Focus ──
+     The one bloom in the shell, and it stays THIN. The card already has a 1px border, so a
+     solid ring on top of it renders as a double line — and on a theme whose accent is nearly
+     white, that double line is a hard white rectangle. So: tint the existing border, then a
+     soft collar and a wide, low bloom. Light around the card, not a frame on it. */
+  --ws-focus-line: color-mix(in oklab, var(--accent) 42%, var(--ws-line-strong));
+  --ws-focus-glow:
+    0 0 0 3px color-mix(in oklab, var(--accent) 9%, transparent),
+    0 0 26px -8px color-mix(in oklab, var(--accent) 28%, transparent);
+  /* The focused pane's reticle: four 26px corner brackets in the rail's dither. Each corner is
+     an arc of radius 14 — the pane's 10 plus the 4px it sits out — so it runs concentric with
+     the card instead of squaring it off, solid on the curve and thinning out along each arm.
+     Masks only — the ink is the theme's accent. */
+  --ws-reticle-tl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26'%3E%3Cpath d='M10 0h9v1H10zM20 0h1v1H20zM22 0h1v1H22zM24 0h1v1H24zM8 1h8v1H8zM17 1h1v1H17zM19 1h1v1H19zM21 1h1v1H21zM6 2h5v1H6zM5 3h3v1H5zM4 4h3v1H4zM3 5h3v1H3zM2 6h3v1H2zM2 7h2v1H2zM1 8h2v1H1zM1 9h2v1H1zM0 10h3v1H0zM0 11h2v1H0zM0 12h2v1H0zM0 13h2v1H0zM0 14h2v1H0zM1 15h1v1H1zM0 16h2v1H0zM1 17h1v1H1zM0 18h1v1H0zM1 19h1v1H1zM0 20h1v1H0zM1 21h1v1H1zM0 22h1v1H0zM0 24h1v1H0z'/%3E%3C/svg%3E");
+  --ws-reticle-tr: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26'%3E%3Cpath d='M1 0h1v1H1zM3 0h1v1H3zM5 0h1v1H5zM7 0h9v1H7zM4 1h1v1H4zM6 1h1v1H6zM8 1h1v1H8zM10 1h8v1H10zM15 2h5v1H15zM18 3h3v1H18zM19 4h3v1H19zM20 5h3v1H20zM21 6h3v1H21zM22 7h2v1H22zM23 8h2v1H23zM23 9h2v1H23zM23 10h3v1H23zM24 11h2v1H24zM24 12h2v1H24zM24 13h2v1H24zM24 14h2v1H24zM24 15h1v1H24zM24 16h2v1H24zM24 17h1v1H24zM25 18h1v1H25zM24 19h1v1H24zM25 20h1v1H25zM24 21h1v1H24zM25 22h1v1H25zM25 24h1v1H25z'/%3E%3C/svg%3E");
+  --ws-reticle-bl: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26'%3E%3Cpath d='M0 1h1v1H0zM0 3h1v1H0zM1 4h1v1H1zM0 5h1v1H0zM1 6h1v1H1zM0 7h1v1H0zM1 8h1v1H1zM0 9h2v1H0zM1 10h1v1H1zM0 11h2v1H0zM0 12h2v1H0zM0 13h2v1H0zM0 14h2v1H0zM0 15h3v1H0zM1 16h2v1H1zM1 17h2v1H1zM2 18h2v1H2zM2 19h3v1H2zM3 20h3v1H3zM4 21h3v1H4zM5 22h3v1H5zM6 23h5v1H6zM8 24h8v1H8zM17 24h1v1H17zM19 24h1v1H19zM21 24h1v1H21zM10 25h9v1H10zM20 25h1v1H20zM22 25h1v1H22zM24 25h1v1H24z'/%3E%3C/svg%3E");
+  --ws-reticle-br: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='26' height='26'%3E%3Cpath d='M25 1h1v1H25zM25 3h1v1H25zM24 4h1v1H24zM25 5h1v1H25zM24 6h1v1H24zM25 7h1v1H25zM24 8h1v1H24zM24 9h2v1H24zM24 10h1v1H24zM24 11h2v1H24zM24 12h2v1H24zM24 13h2v1H24zM24 14h2v1H24zM23 15h3v1H23zM23 16h2v1H23zM23 17h2v1H23zM22 18h2v1H22zM21 19h3v1H21zM20 20h3v1H20zM19 21h3v1H19zM18 22h3v1H18zM15 23h5v1H15zM4 24h1v1H4zM6 24h1v1H6zM8 24h1v1H8zM10 24h8v1H10zM1 25h1v1H1zM3 25h1v1H3zM5 25h1v1H5zM7 25h9v1H7z'/%3E%3C/svg%3E");
+
+  /* ── Motion ──
+     Two speeds. The short one is for things that only change colour; the longer one is for the
+     folder fold, which travels a real distance and reads as a jump at 120ms. Both are wiped by
+     the reduced-motion block at the bottom of this file. */
+  --ws-dur: 120ms;
+  --ws-dur-fold: 220ms;
+  --ws-ease: cubic-bezier(0.2, 0, 0.2, 1);
+  /* The one easing allowed to overshoot, and only for something that TRAVELS: the mode thumb
+     settling past its mark and back is what makes the switch read as one object moving instead
+     of two backgrounds swapping. Anything that merely changes colour uses --ws-ease. */
+  --ws-ease-spring: cubic-bezier(0.34, 1.32, 0.52, 1);
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  /* The shell clips, not the body: a focused pane's bloom needs the body's padding to spill
+     into, and clipping one level up hands it those 8px instead of cutting the glow flat along
+     the outermost panes. Slots never shrink, so something still has to stop a narrow window
+     from growing a page scrollbar — that is this. */
+  overflow: hidden;
+  /* The ground is the canvas step: the rail sits on it flush and the panes rise off it (T2, T5). */
+  background: var(--ds-canvas);
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+}
+
+/* The violet is text as often as a dot (the ask badge, "waiting" labels), and raw it is 2.7:1 on
+   Light white. Deepened toward the ink it reads at 6.1:1 and is still plainly violet. */
+[data-theme-type="light"] .ws-shell {
+  --ws-kind-thread: color-mix(in oklab, var(--ws-violet) 60%, var(--fg));
+  --ws-activity-ask: color-mix(in oklab, var(--ws-violet) 60%, var(--fg));
+  /* Washed toward near-black ink, the gold turned to brown on white; Light takes the hue clean. */
+  --ws-unread-glow: var(--ws-activity-result);
+}
+
+/* ── Chrome ─────────────────────────────────────────────────────────────── */
+
+.ws-chrome {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  height: 44px;
+  padding: 0 12px;
+}
+
+.ws-chrome-side {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ws-chrome-side[data-align="end"] { justify-content: flex-end; }
+.ws-chrome-side[data-align="center"] { justify-content: center; flex: 0 0 auto; }
+
+/** macOS puts its window controls here; nothing may be drawn under them. */
+.ws-chrome-traffic-lights { flex: 0 0 auto; width: 68px; }
+
+/* The brand is the wordmark drawn in the brand's own letterforms, so the type rules that used to
+   set "Lotus" in UI font are gone with it — and so is the mark, which the Dock icon and the window
+   icon already carry. The asset is cropped to the ink and "LOTUS" has no descenders, so this
+   height IS the cap height: 11px against the 9.2px caps of the mode switcher, which is enough to
+   read as the title without shouting over the row. */
+.ws-brand {
+  display: flex;
+  align-items: center;
+}
+
+.ws-brand-wordmark {
+  height: var(--ws-brand-wordmark-h, 11px);
+  /* A step under full ink: the title, not the loudest thing in the row. Full on hover, where it
+     becomes the way back to the launcher. */
+  opacity: 0.82;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+
+.ws-brand:hover .ws-brand-wordmark { opacity: 1; }
+
+/* The rail toggle is one glyph that never moves: a window with its side pane drawn in. The pane
+   fills while the rail is out and folds away to the left edge when it is not, on the rail's own
+   curve, so the button shows the state without trading one icon for another. */
+.ws-rail-glyph-pane {
+  fill: currentColor;
+  stroke: none;
+  opacity: 0.45;
+  transform-box: view-box;
+  transform-origin: 3px 12px;
+  transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1), opacity 200ms var(--ws-ease);
+}
+.ws-rail-glyph[data-open="false"] .ws-rail-glyph-pane { opacity: 0; transform: scaleX(0); }
+@media (prefers-reduced-motion: reduce) {
+  .ws-rail-glyph-pane { transition: none; }
+}
+
+.ws-chrome-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-muted);
+  transition: color var(--ws-dur) var(--ws-ease), background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-chrome-button:hover { color: var(--fg); background: var(--ws-hover); }
+
+/*
+  The mode switcher, as a notch.
+
+  It used to be a bordered box floating in the middle of the title bar — a rectangle competing
+  with the panes below it. Hanging it from the top edge instead gives it somewhere to belong:
+  the top corners are square because they are not corners at all, they are where it meets the
+  window, and only the bottom two are rounded. The track carries no top border for the same
+  reason.
+*/
+.ws-chrome-side[data-align="center"] { align-items: flex-start; align-self: stretch; }
+
+.ws-mode-switcher {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  padding: 3px 3px 4px;
+  /* The notch is cut from the same material as the rail and the cards (--ds-rail), solid over
+     the glass ground, so it reads as part of the set rather than a tinted hole in the bar. Dark
+     separates by value alone; Light adds the cards' soft shadow (below). */
+  border: 0;
+  border-radius: 0 0 var(--ws-r-card) var(--ws-r-card);
+  background: var(--ds-rail);
+}
+
+[data-theme-type="light"] .ws-mode-switcher { box-shadow: var(--ds-shadow-soft); }
+
+/*
+  One thumb that travels, instead of three backgrounds switching on and off.
+
+  Its width is one tab's worth and it moves by whole multiples of itself, which only works
+  because every tab has the same flex basis — that equality is load-bearing, not cosmetic. The
+  move is a transform, so the browser can composite it without touching layout, and the spring
+  easing lets it settle slightly past the mark: that overshoot is the whole "liquid" of it.
+*/
+.ws-mode-thumb {
+  position: absolute;
+  z-index: 0;
+  left: 3px;
+  top: 3px;
+  bottom: 4px;
+  width: calc((100% - 6px) / 3);
+  border-radius: calc(var(--ws-r-card) - 3px);
+  /* The rail's active language, turned on its side: a soft fill with a dither that rises from
+     the thumb's floor and thins out toward its top. The accent ring it wore before read as a
+     second focus state in a bar that already has one. Clipped so the dots keep the corners. */
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--ws-surface-quiet);
+  transform: translateX(calc(var(--ws-mode-index, 0) * 100%));
+  transition: transform var(--ws-dur-fold) var(--ws-ease-spring);
+}
+
+/* The dither layer. A 4×24 tile whose dot density climbs from none at the top to half at the
+   floor, repeated across; pinned to the bottom so the densest row always meets the edge. */
+.ws-mode-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--ws-dither-ink);
+  -webkit-mask: var(--ws-mode-dither) left bottom / 4px 24px repeat-x;
+  mask: var(--ws-mode-dither) left bottom / 4px 24px repeat-x;
+}
+
+.ws-mode {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 0;
+  /* Same basis AND a floor: the thumb's arithmetic assumes three equal tabs, and "Canvas" is a
+     wider word than "Code". */
+  min-width: 64px;
+  padding: 4px 12px 5px;
+  border-radius: calc(var(--ws-r-card) - 3px);
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-mode:hover { color: var(--text-secondary); }
+
+.ws-mode[data-active="true"] {
+  font-weight: 600;
+  color: var(--fg);
+}
+
+/* Chat threads that need you, seen from another mode: a dithered lumbon leaf (LumbonMark) and,
+   when ready, a count. Same colours as the Command Rail's dots. */
+/* Laid over the tab's right padding, so the tabs keep their width and the label stays centred
+   (inline, it wrapped under "Chat" in WKWebView). The count is in the tab's name, not drawn. */
+.ws-mode-mark {
+  position: absolute;
+  top: 50%;
+  right: 5px;
+  transform: translateY(-46%);
+  color: var(--ws-violet);
+  /* Quieter than the label at rest; full on hover. */
+  opacity: 0.72;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+  pointer-events: none;
+}
+.ws-mode-mark[data-kind="waiting"] { color: var(--ds-warning); }
+.ws-mode:hover .ws-mode-mark { opacity: 1; }
+.ws-lumbon { display: block; image-rendering: pixelated; }
+
+/* ── Body and surfaces ──────────────────────────────────────────────────── */
+
+.ws-body {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  padding: 0 var(--ws-gap) var(--ws-gap);
+}
+
+.ws-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  border-radius: var(--ws-r-card);
+  overflow: hidden;
+  background: var(--ws-surface);
+  border: 1px solid var(--ws-line);
+}
+
+.ws-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ws-row {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/**
+ * A pane slot is sized by state, never by its content: `flex: 0 0 auto` is load-bearing. With the
+ * default `flex-shrink: 1` a row whose panes are wider than the window silently shrinks every
+ * slot, so the rail renders at 250px while the handle reports 300 — and the resize then feels
+ * like it misses the pointer by a growing margin.
+ */
+.ws-pane-slot {
+  display: flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ws-pane-slot--fill { flex: 1 1 auto; min-width: 0; }
+
+/*
+  The rail coming and going (useRailPresence). It pushes the work aside, and the rail, the seam
+  and the work column travel as one, by transform only. While they move the rail is out of the
+  flow (the negative margin), so the column holds its WIDE size the whole way: it widens once at
+  the start of a hide and narrows once at the end of a show — one terminal refit, never one per
+  frame. The far edge of the column slides past the window's edge meanwhile; the body clips it.
+  The motion itself is played from script (useRailMotion), with pixel values the compositor can
+  take.
+*/
+.ws-body[data-rail-motion] {
+  --ws-rail-shift: calc(var(--ws-rail-w) + var(--ws-seam));
+  overflow: clip;
+}
+.ws-body[data-rail-motion] > .ws-pane-slot[data-rail] {
+  margin-left: calc(-1 * var(--ws-rail-shift));
+  pointer-events: none;
+}
+/* Hidden, the rail stays built and laid out — out of the flow and out of sight — so showing it
+   only has to make it visible. */
+.ws-body > .ws-pane-slot[data-rail="hidden"] {
+  position: absolute;
+  top: 0;
+  bottom: var(--ws-gap);
+  left: var(--ws-gap);
+  visibility: hidden;
+  pointer-events: none;
+}
+/* The seam's grip has nothing to say while it travels. */
+.ws-body[data-rail-motion] > .ws-split { opacity: 0; }
+
+
+/* ── Seams ──────────────────────────────────────────────────────────────── */
+
+.ws-split {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  background: transparent;
+  touch-action: none;
+}
+
+.ws-split--vertical { width: var(--ws-seam); cursor: col-resize; }
+.ws-split--horizontal { height: var(--ws-seam); cursor: row-resize; }
+
+/**
+ * The pointer target, wider than the channel. A 10px gap looks tidy and is miserable to hit; the
+ * eye reads the channel, the hand gets 18px.
+ */
+.ws-split::before {
+  content: "";
+  position: absolute;
+  z-index: 1;
+}
+
+.ws-split--vertical::before { inset: 0 -4px; }
+.ws-split--horizontal::before { inset: -4px 0; }
+
+/**
+ * The grip is ALWAYS there.
+ *
+ * A seam that only appears on hover is a control you have to discover by accident: you learn the
+ * layout is adjustable by waving the mouse at the gaps. Three quiet dots, present at rest, say
+ * "this moves" without asking for attention — and they are the only thing drawn in the channel,
+ * so the gap still reads as space rather than as a divider.
+ */
+.ws-split-grip {
+  display: flex;
+  gap: 3px;
+  opacity: 0.32;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+
+.ws-split--vertical .ws-split-grip { flex-direction: column; }
+
+.ws-split-grip > i {
+  display: block;
+  width: 2.5px;
+  height: 2.5px;
+  border-radius: 50%;
+  background: var(--fg);
+  transition: background-color var(--ws-dur) var(--ws-ease);
+}
+
+/**
+ * The track under the pointer. It grows out of the grip rather than appearing somewhere else:
+ * same centre line, same colour, just longer — so the hover state reads as the same object
+ * becoming graspable, not as a second element switching on.
+ */
+.ws-split::after {
+  content: "";
+  position: absolute;
+  border-radius: var(--ws-r-pill);
+  background: var(--fg);
+  opacity: 0;
+  transition: opacity var(--ws-dur) var(--ws-ease), background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-split--vertical::after { inset: 18% auto 18% 50%; width: 1px; transform: translateX(-0.5px); }
+.ws-split--horizontal::after { inset: 50% 18% auto 18%; height: 1px; transform: translateY(-0.5px); }
+
+.ws-split:hover .ws-split-grip { opacity: 0.85; }
+.ws-split:hover::after { opacity: 0.18; }
+
+.ws-split:focus-visible .ws-split-grip,
+.ws-split[data-dragging="true"] .ws-split-grip { opacity: 1; }
+
+.ws-split:focus-visible .ws-split-grip > i,
+.ws-split[data-dragging="true"] .ws-split-grip > i { background: var(--accent); }
+
+.ws-split:focus-visible::after,
+.ws-split[data-dragging="true"]::after { opacity: 0.9; background: var(--accent); }
+
+.ws-split:focus-visible { outline: none; }
+
+/**
+ * During a drag the pointer routinely leaves the seam, so the cursor and the selection lock
+ * belong to the document for the duration or the resize feels like it snags.
+ */
+body.ws-split-dragging { user-select: none; }
+body.ws-split-dragging[data-ws-split-axis="vertical"] { cursor: col-resize; }
+body.ws-split-dragging[data-ws-split-axis="horizontal"] { cursor: row-resize; }
+body.ws-split-dragging iframe,
+body.ws-split-dragging webview { pointer-events: none; }
+
+/* ── Rail ───────────────────────────────────────────────────────────────── */
+
+.ws-rail { flex: 1 1 auto; width: 100%; min-width: 0; }
+
+/* The rail is the ground, not a card on it: no border all round. Light keeps one hairline between
+   it and the work (mockup 10, T2); Dark lifts the rail one soft step off the canvas instead and
+   drops the line, so the fill alone does the separating. Scoped by the shell to outrank `.ws-card`. */
+.ws-shell .ws-rail {
+  background: var(--ds-rail);
+  border: 0;
+  border-right: 1px solid var(--ds-rail-edge);
+  /* Same corner as the panes beside it, so in Dark the lifted rail reads as one of the set. */
+  border-radius: var(--ws-r-card);
+}
+
+/* On macOS the shell is glass: the native vibrancy material shows through a tinted ground, so the
+   desktop behind the window reads softly through the chrome and the gaps. The rail keeps its own
+   solid step (--ds-rail): glass under it made it melt into the ground and lose its edge. The tint
+   keeps the palette's warmth and the text's contrast; no CSS blur — macOS does the blurring
+   natively, outside the WebView's frame budget. Panes stay opaque, so terminals stay crisp. */
+[data-window-glass="true"] .ws-shell {
+  background: var(--ds-glass-ground);
+}
+
+.ws-rail-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 2px 6px 8px;
+}
+
+.ws-rail-folder + .ws-rail-folder { margin-top: 4px; }
+
+.ws-rail-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  padding: 2px 4px 2px 2px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  transition: background-color var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-group:hover { background: var(--ws-hover); color: var(--fg); }
+
+/* Every folder name sits at one weight; open or not is the chevron's job. No surface of its own
+   — the fill belongs to the row that is showing, and a filled heading made two slabs. */
+.ws-rail-group { font-weight: 500; }
+
+/*
+  Open and SHOWING are two different states now that folders stay open on their own, and the
+  rail has to say which is which — otherwise four expanded folders all look equally current.
+  Both stay unfilled: the folder that is showing is already marked by its row below wearing the
+  dither, so the heading only needs its full-strength name.
+*/
+.ws-rail-group[data-active="true"] { color: var(--fg); font-weight: 600; }
+
+/*
+  Active rows in the rail (folder headings excluded, above) and in the ⌘K sheet: a soft fill with a dither over it
+  that thins out to the right, fading in rather than snapping on.
+  No hairline and no accent (T2) — the texture alone says "this one", and it reads as part of
+  the row rather than a box drawn around it. The dither sits on a pseudo-element under the
+  content, so only the pattern is masked, never the label.
+*/
+.ws-rail-nav-item[data-active="true"] {
+  position: relative;
+  isolation: isolate;
+  background: var(--ws-surface-quiet);
+  color: var(--fg);
+}
+
+.ws-rail-nav-item[data-active="true"]::after,
+.ws-sheet-cursor::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--ws-dither-ink);
+  -webkit-mask: var(--ws-dither-fill);
+  mask: var(--ws-dither-fill);
+  pointer-events: none;
+  animation: ws-dither-in 220ms var(--ws-ease) both;
+}
+
+@keyframes ws-dither-in { from { opacity: 0; } }
+
+/* The chevron turns rather than being swapped for another glyph: one element that rotates is
+   one thing moving, where two icons trading places is a flicker. */
+.ws-rail-group-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  transition: transform var(--ws-dur-fold) var(--ws-ease-spring), color var(--ws-dur) var(--ws-ease),
+    background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-group-chevron:hover { color: var(--fg); background: var(--ws-hover); }
+.ws-rail-folder[data-open="true"] .ws-rail-group-chevron { transform: rotate(90deg); }
+/* An open folder already shows its rows; its chevron comes back on hover or focus. */
+.ws-rail-folder[data-open="true"] > .ws-rail-group:not(:hover, :focus-within) .ws-rail-group-chevron { opacity: 0; }
+
+.ws-rail-group-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--ds-t-body);
+  color: inherit;
+  text-align: left;
+}
+
+/* Renaming happens in the row, at the row's width, so the name does not move when it becomes
+   editable — the field is the label, not a box that appears over it. */
+.ws-rail-group-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 1px solid var(--ws-focus-line);
+  border-radius: 6px;
+  background: var(--ws-surface-raised);
+  font-size: var(--ds-t-body);
+  font-weight: 500;
+  color: var(--fg);
+  outline: none;
+}
+
+/* Quiet by default, because it is a count and not a call to action. */
+.ws-rail-count[data-quiet="true"] {
+  background: transparent;
+  color: color-mix(in oklab, var(--text-muted) 80%, transparent);
+}
+
+.ws-rail-item[data-active="true"] .ws-rail-count { color: var(--text-secondary); }
+
+/* A count is small digits, not a pill: it is read, not pressed. Tabular, so a 9 turning into a
+   10 does not nudge the row. */
+.ws-rail-count {
+  flex: 0 0 auto;
+  min-width: 14px;
+  padding: 0 2px;
+  text-align: right;
+  font-size: var(--ds-t-micro);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/*
+  The window's nav rows, above whatever the rail is listing.
+
+  `bb` puts Tasks here rather than in the mode switcher, and the placement is the claim: Tasks is
+  a panel you step into and back out of, not a fourth kind of workspace. Both rails carry the same
+  slot, so the row does not move when the mode does.
+*/
+/*
+  A panel over the working area, with the rail left alone.
+
+  `left` is set inline by the mode, from its own rail width — the only place that number is known
+  for certain — so the tracker starts exactly where the grid does. Covering the rail too would
+  take away the row the panel was opened from, and with it the way back out.
+*/
+.ws-column-overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  min-width: 0;
+  /* No ground of its own: the column it covers is not painted (below), so the shell's ground
+     shows through the panel's gutters exactly as it does round the panes. A --bg fill here drew
+     a band of a second colour in the seam beside the rail. */
+  background: transparent;
+}
+
+/*
+  What the overlay covers is not painted at all. Covering it was not enough: a focused pane's
+  bloom (and the composer's) reaches ~18px past its own card, and the body has no top padding,
+  so the glow spilled into the title-bar strip ABOVE the overlay — a pane you cannot see still
+  announcing itself. Opacity keeps every box its size, so terminals neither refit nor detach.
+  Never `visibility`: an attached pooled terminal slot sets `visibility: visible` on itself, which
+  reappears through a hidden ancestor — the terminals drew through the transparent Tasks nav.
+*/
+.ws-column[inert] {
+  opacity: 0;
+}
+
+/* The nav rows end on a dotted rule that fades out to the right — the dither's one-row version —
+   so the window's places and the list of workspaces read as two groups without a hard line. */
+.ws-rail-nav {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 8px 6px 10px;
+}
+.ws-rail-nav::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 2px;
+  height: 1px;
+  background: var(--ws-dither-ink);
+  -webkit-mask: var(--ws-dither-rule);
+  mask: var(--ws-dither-rule);
+  pointer-events: none;
+}
+
+/* The same height and corner as the workspace rows below, so the rail reads as one set. */
+.ws-rail-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-body);
+  text-align: left;
+  transition: background-color var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-nav-item:hover { background: var(--ws-hover); color: var(--fg); }
+
+/* The glyph follows its row: quiet at rest, a step up on hover, full ink when the row is open. */
+.ws-rail-nav-item > svg {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transition: color var(--ws-dur) var(--ws-ease);
+}
+.ws-rail-nav-item:hover > svg { color: var(--text-secondary); }
+.ws-rail-nav-item[data-active="true"] > svg { color: var(--fg); }
+
+/* A dot with nothing to count (Connectors): the lit dot alone, no room kept for digits. */
+.ws-rail-count[data-tone="ask"]:empty { min-width: 0; padding: 0 3px; }
+
+.ws-rail-nav-label { flex: 1 1 auto; min-width: 0; }
+
+/* A section (Automations) drawn in the rail's place: the back row, then the section's own list. */
+/*
+  Entering a section and going back fade the new content in WHERE IT WILL STAY. An earlier slide
+  (8px, fast-start curve) was measured frame by frame: the rows appeared offset, then jumped most of
+  the way within ~25ms, which reads as a blink, not a motion. Opacity only, so nothing moves.
+*/
+.ws-rail-host {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 8px;
+  animation: ws-rail-fade-in 200ms var(--ws-ease);
+}
+.ws-rail-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+.ws-rail-main[hidden] { display: none; }
+/* Going from display:none to shown restarts the animation, so every return plays it once. */
+.ws-rail-main[data-enter="back"] { animation: ws-rail-fade-in 200ms var(--ws-ease); }
+/* Never from fully transparent: a first frame at opacity 0 is an empty sidebar, itself a blink. */
+@keyframes ws-rail-fade-in {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+.ws-rail-back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 8px;
+  padding: 6px 8px 6px 6px;
+  border-radius: var(--ws-r-panel);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-body);
+  font-weight: 500;
+  text-align: left;
+  transition: background-color var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+.ws-rail-back:hover { background: var(--ws-hover); color: var(--fg); }
+.ws-rail-back:focus-visible { outline: 2px solid var(--ws-focus-line); outline-offset: -2px; }
+.ws-rail-back svg { color: var(--text-muted); transition: transform var(--ws-dur) var(--ws-ease); }
+.ws-rail-back:hover svg { transform: translateX(-2px); color: var(--fg); }
+.ws-rail-host-body { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .ws-rail-host,
+  .ws-rail-main[data-enter="back"],
+  .ws-rail-nav-item[data-active="true"]::after { animation: none; }
+  .ws-rail-back:hover svg { transform: none; }
+}
+
+/*
+  The fold.
+
+  The rows stay in the DOM while a folder is closed — that is what gives the fold something to
+  travel from — and the `0fr → 1fr` grid row is the one way to animate to a height nobody knows
+  in advance. The inner element does the clipping; putting `overflow: hidden` on the grid itself
+  would clip the row's focus ring while it is open.
+*/
+.ws-rail-panes {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows var(--ws-dur-fold) var(--ws-ease),
+    opacity var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-folder[data-open="true"] > .ws-rail-panes {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.ws-rail-panes-inner {
+  overflow: hidden;
+  min-height: 0;
+  /* A hairline under the chevron, so the rows read as contents of the folder above them rather
+     than as a flat list that happens to be indented. */
+  position: relative;
+  margin: 0 0 0 13px;
+  padding-left: 5px;
+  transform: translateY(-4px);
+  transition: transform var(--ws-dur-fold) var(--ws-ease);
+}
+
+.ws-rail-folder[data-open="true"] > .ws-rail-panes > .ws-rail-panes-inner { transform: none; }
+
+/* The guide from the folder to its rows: one quiet hairline, like Chat's delegation spine. */
+.ws-rail-panes-inner::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  left: 0;
+  width: 1px;
+  background: var(--ds-border-subtle);
+  pointer-events: none;
+}
+
+/* Opening a folder lets its rows arrive one after another, a few milliseconds apart; closing
+   takes them all at once, because nobody waits to watch something leave. */
+.ws-rail-panes .ws-rail-item {
+  opacity: 0;
+  transform: translateY(-3px);
+  transition: background-color var(--ws-dur) var(--ws-ease), opacity var(--ws-dur) var(--ws-ease),
+    transform var(--ws-dur-fold) var(--ws-ease-spring);
+}
+.ws-rail-folder[data-open="true"] > .ws-rail-panes .ws-rail-item {
+  opacity: 1;
+  transform: none;
+  transition-delay: 0ms, calc(var(--ws-row-index, 0) * 22ms), calc(var(--ws-row-index, 0) * 22ms);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-rail-panes .ws-rail-item { transition: background-color var(--ws-dur) var(--ws-ease); }
+}
+
+/*
+  One row, one line.
+
+  The row used to carry a second line for the folder and the command, which made the list tall
+  and — once the title was itself the folder — repetitive. What was on that line now lives in the
+  row's tooltip, so nothing is lost and the list reads as a list.
+*/
+.ws-rail-item {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: var(--ws-r-control);
+  text-align: left;
+  transition: background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-item:hover { background: var(--ws-hover); }
+.ws-rail-item:focus-visible { outline: none; background: var(--ws-hover); box-shadow: inset 0 0 0 1px var(--ws-focus-line); }
+/* The open pane: Chat's plain fill (.ws-cmd-item[aria-current]), not the dither. */
+.ws-rail-item[data-active="true"] {
+  background: color-mix(in oklab, var(--fg) 7.5%, transparent);
+  color: var(--fg);
+}
+
+/* Thread actions (PR 291): the row's ••• takes the time's place on hover, focus, or while its menu is open. */
+.ws-rail-row { position: relative; }
+.ws-rail-row-more {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--ws-surface-quiet);
+  color: var(--text-secondary);
+  opacity: 0;
+  translate: 0 -50%;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+.ws-rail-row:is(:hover, :focus-within, [data-menu-open]) > .ws-rail-row-more { opacity: 1; }
+.ws-rail-row:is(:hover, :focus-within, [data-menu-open]) .ws-rail-item-time { visibility: hidden; }
+.ws-rail-row-more:hover,
+.ws-rail-row-more[aria-expanded="true"] { color: var(--fg); }
+.ws-rail-row-more:has(+ .ws-rail-row-more) { right: 32px; }
+.ws-rail-drawer {
+  border: 0;
+  background: transparent;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 100%;
+  text-align: left;
+}
+.ws-rail-drawer:hover { color: var(--text-secondary); }
+.ws-rail-drawer > svg { transition: rotate var(--ws-dur) var(--ws-ease); }
+.ws-rail-drawer[aria-expanded="true"] > svg { rotate: 90deg; }
+.ws-rail-drawer-count { margin-left: auto; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+/* Active is the rail's dither (see the active rows rule above) in primary text; the accent is
+   not spent on it (T2). */
+
+/* The kind glyph stays quiet: the dot already carries the colour, and two coloured marks per
+   row is a list that shouts. It brightens with the row it belongs to. */
+.ws-rail-item-icon {
+  flex: 0 0 auto;
+  color: var(--text-muted);
+  transition: color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-item:hover .ws-rail-item-icon { color: var(--text-secondary); }
+
+/* The agent's logo (or the kind glyph), with no dot on it: Chat's rule, one mark per row. The
+   state is in the words on the second line; the mark only breathes while working and dims at rest. */
+.ws-rail-item-mark {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 17px;
+}
+.ws-rail-item-mark .ws-pane-runner-mark { width: 14px; height: 14px; }
+/* Brand colours (design-system.css). Rail only: the pane header stays monochrome.
+   Codex, Cursor, OpenCode and Grok have monochrome brands: they keep the text colour. */
+.ws-rail-item-mark .ws-pane-runner-mark:is([data-runner^="claude"], [data-runner^="ccs"]) { color: var(--ai-claude-primary); }
+.ws-rail-item-mark .ws-pane-runner-mark[data-runner^="gemini"] { background: var(--ai-gemini-gradient); }
+.ws-rail-item-mark .ws-pane-runner-mark[data-runner^="kimi"] { color: var(--ai-kimi-primary); }
+/* Multicolour marks: the logo file is the colour, so draw it as an image, not through a mask. */
+.ws-rail-item-mark .ws-pane-runner-mark:is([data-runner="pi"], [data-runner="antigravity"]) {
+  background: var(--ws-runner-logo) center / contain no-repeat;
+  -webkit-mask: none;
+  mask: none;
+}
+.ws-rail-item:is([data-activity="idle"], [data-activity="offline"]):not([data-unread], [data-active]) .ws-rail-item-mark { opacity: 0.5; }
+/* Working = a comet halo turning around the mark: one 1.25px stroke whose tail fades to nothing,
+   no track (mockups/rail-working-indicator-v2.html, C). A shape, not an opacity pulse, so a still
+   glance still reads it (v1: mockups/rail-working-indicator.html). Ink, not green: colour is kept
+   for the states that ask you to act. The logo keeps its full size and colour. The halo fades in
+   after 400ms, so a blip of work never flashes on the rail. Every halo is pinned to one shared
+   clock in WorkspaceRail.tsx, so many working rows turn together. */
+.ws-rail-item-mark { position: relative; }
+.ws-rail-item-mark::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 19px;
+  height: 19px;
+  margin: -9.5px 0 0 -9.5px;
+  border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 58%, color-mix(in oklab, var(--fg) 70%, transparent) 100%);
+  /* A mask reads only alpha, so `black` here paints nothing: it cuts the disc to a 1.25px ring. */
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 1.25px), black calc(100% - 1px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 1.25px), black calc(100% - 1px));
+  opacity: 0;
+  pointer-events: none;
+}
+/* A pane row says working at its right end instead (.ws-rail-item-status); the halo stays where
+   there is no room for that: a folded group's logo stack. */
+.ws-rail-frame-logos .ws-rail-item-mark[data-activity="working"]::after {
+  animation:
+    ws-rail-halo-in 240ms var(--ws-ease) 400ms forwards,
+    ws-rail-halo-spin 1.6s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+.ws-rail-item[data-done] .ws-rail-unread { animation: ws-rail-halo-new 360ms var(--ws-ease) 180ms both; }
+.ws-rail-item[data-activity="working"] .ws-rail-item-title { color: var(--fg); }
+@keyframes ws-rail-halo-in { to { opacity: 1; } }
+@keyframes ws-rail-halo-spin { to { rotate: 360deg; } }
+@keyframes ws-rail-halo-new { from { opacity: 0; transform: translateY(2px); } }
+/* Reduced motion keeps the halo (the state) and drops the turn and the release (the movement). */
+@media (prefers-reduced-motion: reduce) {
+  .ws-rail-frame-logos .ws-rail-item-mark[data-activity="working"]::after { animation: none; opacity: 1; }
+  .ws-rail-item[data-done] .ws-rail-unread,
+  .ws-rail-dither[data-state="settle"] { animation: none; }
+}
+
+.ws-rail-item--empty .ws-rail-item-title { color: var(--text-muted); }
+.ws-rail-item--empty:hover .ws-rail-item-title,
+.ws-rail-item--empty:hover .ws-rail-item-icon { color: var(--fg); }
+.ws-rail-item[data-active="true"] .ws-rail-item-icon { color: var(--fg); }
+
+/* Two lines, as in Chat: the title, then "runner · state". */
+/* A Frame row (plans/code-frames/SPEC.md): a tile in the Frame's colour with its initial. The six
+   Frame colours reuse the status hues: a Frame's colour is identity, chosen to tell Frames apart. */
+/* The swatches in the Frame menu read the same six. */
+/* Solid pastel (2026-11-21): one hue angle per colour, every colour at the same lightness and
+   chroma, so none shouts louder than another. The card is an opaque fill of its hue: a light
+   pastel in Light, a dusty one in Dark (a light fill there would need dark text in every row).
+   Being solid, `--ws-card-bg` also rings the folded logo stack. */
+:is(.ws-rail-frame, .ws-frame-swatch, .ws-pane-menu-dot) {
+  --ws-frame-h: 295;
+  --ws-frame-hue: oklch(0.8 0.07 var(--ws-frame-h));
+  --ws-card-bg: oklch(0.265 0.02 var(--ws-frame-h));
+  --ws-card-line: oklch(0.315 0.026 var(--ws-frame-h));
+  --ws-card-hover: oklch(0.295 0.024 var(--ws-frame-h));
+  --ws-card-active: oklch(0.325 0.03 var(--ws-frame-h));
+}
+:is(.ws-rail-frame, .ws-frame-swatch, .ws-pane-menu-dot)[data-color="teal"] { --ws-frame-h: 190; }
+:is(.ws-rail-frame, .ws-frame-swatch, .ws-pane-menu-dot)[data-color="amber"] { --ws-frame-h: 80; }
+:is(.ws-rail-frame, .ws-frame-swatch, .ws-pane-menu-dot)[data-color="rose"] { --ws-frame-h: 12; }
+:is(.ws-rail-frame, .ws-frame-swatch, .ws-pane-menu-dot)[data-color="blue"] { --ws-frame-h: 252; }
+:is(.ws-rail-frame, .ws-frame-swatch, .ws-pane-menu-dot)[data-color="lime"] { --ws-frame-h: 140; }
+[data-theme-type="light"] :is(.ws-rail-frame, .ws-frame-swatch, .ws-pane-menu-dot) {
+  --ws-frame-hue: oklch(0.72 0.105 var(--ws-frame-h));
+  --ws-card-bg: oklch(0.96 0.018 var(--ws-frame-h));
+  --ws-card-line: oklch(0.91 0.026 var(--ws-frame-h));
+  --ws-card-hover: oklch(0.94 0.024 var(--ws-frame-h));
+  --ws-card-active: oklch(0.92 0.03 var(--ws-frame-h));
+}
+/* A named group (mockups/code-rail-frames-v2.html): a card in its colour around its panes, as in Dia.
+   The shared region says what belongs together, so the rows need no extra marker. */
+.ws-rail-card {
+  margin: 4px 0;
+  /* One even 4px inset on every side: with the rows' 8px radius it keeps the corners concentric (12 = 8 + 4). */
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--ws-card-bg);
+  /* A hairline in its own hue, and in Dark a faint top light, so the card sits on the rail like glass. */
+  box-shadow: inset 0 0 0 1px var(--ws-card-line), inset 0 1px 0 color-mix(in oklab, white 3%, transparent);
+  transition: box-shadow var(--ws-dur) var(--ws-ease);
+}
+[data-theme-type="light"] .ws-rail-card { box-shadow: inset 0 0 0 1px var(--ws-card-line), 0 1px 2px color-mix(in oklab, black 4%, transparent); }
+.ws-rail-card[data-active="true"] { --ws-card-line: color-mix(in oklab, var(--ws-frame-hue) 32%, var(--ws-card-bg)); }
+/* Drag a pane: the target card rings in its own hue, the dragged row fades (WorkspaceRail dropProps). */
+.ws-rail-card[data-drop="true"] { --ws-card-line: var(--ws-frame-hue); }
+.ws-rail-panes-inner[data-drop="true"] { outline: 1px dashed var(--ws-line-strong); outline-offset: -2px; border-radius: 8px; }
+[data-dragging="true"] { opacity: 0.45; }
+/* A pane under a dragged header: dropping swaps the two. */
+.ws-card.ws-pane[data-drop="true"] { box-shadow: inset 0 0 0 2px var(--ws-focus-line); }
+.ws-rail-split[data-drop="true"] { box-shadow: inset 0 0 0 1px var(--ws-line-strong); border-radius: var(--ws-r-control); }
+/* A pane being dragged (services/pane-drag.ts): a chip with its name follows the pointer. */
+html[data-pane-dragging="true"], html[data-pane-dragging="true"] * { cursor: grabbing !important; user-select: none; }
+.ws-pane-drag-chip {
+  position: fixed; top: 0; left: 0; z-index: 1000; pointer-events: none;
+  box-shadow: 0 4px 14px color-mix(in oklab, black 14%, transparent);
+  max-width: 220px; padding: 6px 12px;
+  overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  font-size: 12px; color: var(--fg);
+  background: var(--ws-surface-raised);
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-control);
+}
+/* Rows inside a card hover and select in the card's own hue, not a grey laid over it. */
+.ws-rail-card .ws-rail-item:is(:hover, :focus-visible) { background: var(--ws-card-hover); }
+.ws-rail-card .ws-rail-item[data-active="true"] { background: var(--ws-card-active); }
+.ws-rail-card-head { align-items: center; padding-right: 34px; font-weight: 600; }
+/* The dot and the chevron share one slot: hover or focus on the head swaps them. */
+.ws-rail-card-toggle { display: grid; flex: 0 0 auto; place-items: center; width: 14px; height: 14px; }
+.ws-rail-card-toggle > * { grid-area: 1 / 1; transition: opacity var(--ws-dur) var(--ws-ease), rotate var(--ws-dur-fold) var(--ws-ease-spring); }
+.ws-rail-frame-dot { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 3px; background: var(--ws-frame-hue); }
+.ws-rail-card-chevron { color: var(--ws-frame-hue); opacity: 0; rotate: 90deg; }
+.ws-rail-card-head[aria-expanded="false"] .ws-rail-card-chevron { rotate: 0deg; }
+.ws-rail-card-head:is(:hover, :focus-visible) .ws-rail-card-chevron { opacity: 1; }
+.ws-rail-card-head:is(:hover, :focus-visible) .ws-rail-frame-dot { opacity: 0; }
+/* The rows fold the way a folder's do (0fr → 1fr), so the card grows and shrinks instead of jumping. */
+.ws-rail-card-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--ws-dur-fold) var(--ws-ease), opacity var(--ws-dur) var(--ws-ease);
+}
+.ws-rail-card[data-folded="true"] > .ws-rail-card-body { grid-template-rows: 0fr; opacity: 0; }
+.ws-rail-card-body-inner { min-height: 0; overflow: hidden; }
+/* The member rows indent their content, not their fill, so the highlight keeps the even inset. */
+.ws-rail-card-body .ws-rail-item { padding-left: 18px; }
+.ws-rail-card[data-folded="true"] .ws-rail-card-body .ws-rail-item { opacity: 0; transform: translateY(-3px); transition-delay: 0ms; }
+/* Open, the rows say who is inside; folded, the logos fade in to say it instead. */
+.ws-rail-card:not([data-folded]) .ws-rail-frame-logos { opacity: 0; }
+/* Folded, a group is one quiet row (Dia): no card, only its name in its hue, the chevron in grey. */
+.ws-rail-card { transition: box-shadow var(--ws-dur) var(--ws-ease), background-color var(--ws-dur) var(--ws-ease); }
+.ws-rail-card[data-folded="true"],
+[data-theme-type="light"] .ws-rail-card[data-folded="true"] { background: transparent; box-shadow: none; }
+.ws-rail-card[data-folded="true"] .ws-rail-card-head .ws-rail-item-title { color: var(--ws-frame-hue); }
+[data-theme-type="light"] .ws-rail-card[data-folded="true"] .ws-rail-card-head .ws-rail-item-title { color: color-mix(in oklab, var(--ws-frame-hue) 72%, black); }
+.ws-rail-card[data-folded="true"] .ws-rail-frame-dot { opacity: 0; }
+/* Folded, the logos sit flush right like the row's own edge; hover swaps them for the ••• button. */
+.ws-rail-card[data-folded="true"] .ws-rail-card-head { padding-right: 8px; }
+.ws-rail-card[data-folded="true"] .ws-rail-card-chevron { opacity: 1; color: var(--ds-text-quiet); }
+.ws-rail-card[data-folded="true"] .ws-rail-card-head:is(:hover, :focus-visible) { background: var(--ws-hover); }
+.ws-rail-card[data-folded="true"] .ws-rail-frame-logos .ws-rail-item-mark {
+  background: color-mix(in oklab, var(--fg) 7%, var(--ds-rail));
+  box-shadow: 0 0 0 2px var(--ds-rail);
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-rail-card-body, .ws-rail-card-toggle > * { transition: none; }
+}
+.ws-rail-card-empty { margin: 2px 8px 2px 16px; font-size: var(--ds-t-micro); color: var(--ds-text-quiet); }
+.ws-rail-item-body { display: flex; flex: 1 1 auto; flex-direction: column; gap: 1px; min-width: 0; }
+
+.ws-rail-item-title {
+  /* Truncated, not wrapped. A thread title is often a whole sentence, and letting it run to two
+     lines made every row a different height — the list stopped scanning as a list. The full text
+     is one hover away (the row's `title`). */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--ds-t-body);
+  line-height: 17px;
+  letter-spacing: -0.008em;
+  color: var(--text-secondary);
+}
+
+.ws-rail-item[data-active="true"] .ws-rail-item-title { color: var(--fg); }
+/* Type carries the state (Chat's rule): 560 needs you or has news, 450 working. */
+.ws-rail-item:is([data-activity="needs-you"], [data-activity="failed"], [data-unread]) .ws-rail-item-title { color: var(--fg); font-weight: 560; }
+.ws-rail-item[data-activity="working"] .ws-rail-item-title { font-weight: 450; }
+
+.ws-rail-item-meta {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--ds-text-quiet);
+  white-space: nowrap;
+}
+.ws-rail-item-meta:empty { display: none; }
+.ws-rail-item-who { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ws-rail-item-meta > * + *::before { content: "·"; padding: 0 5px; color: var(--ds-text-quiet); font-weight: 400; }
+/* A working badge shows no age in its first minute (only an sr-only name): no dangling "Claude ·". */
+.ws-rail-item-meta > .ws-activity:not(:has(.ws-activity-label))::before { content: none; }
+/* The badge's words only: its dot would be a second mark on the row. */
+.ws-rail-item-meta .ws-activity { flex: 0 0 auto; gap: 0; font-size: inherit; }
+.ws-rail-item-meta .ws-activity-dot { display: none; }
+
+/*
+  The footer: no rule above it. The rail's fill already ends the list, so a line here only
+  repeats the edge. The hints become keycaps in the ⌘K sheet's language, and the buttons stay
+  quiet until hovered — the footer is the rail's lowest voice.
+*/
+.ws-rail-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 6px 6px 12px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+/* Subscription meter above the footer (plans/subscription-usage). Bars are a canvas Dither,
+   drawn in the element's `color`, so tone is a colour change only. */
+.ws-usage { position: relative; padding: 0 6px; container-type: inline-size; }
+.ws-usage-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 4px 8px;
+  border-radius: var(--ws-r-control);
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ws-usage-chip:hover, .ws-usage-chip[aria-expanded="true"] { background: var(--ws-hover); }
+.ws-usage-chip-name { color: var(--fg); font-weight: 500; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-usage-chip-bar { width: 44px; flex: none; }
+.ws-usage-chip-pct { white-space: nowrap; color: var(--fg); }
+.ws-usage-chip-used { white-space: nowrap; }
+.ws-usage-chip-more { flex: none; margin-left: auto; color: var(--text-muted); }
+/* Narrow rail (min 232px): the account name outranks "this week"; the tone colour still carries the meaning. */
+@container (max-width: 268px) { .ws-usage-chip-used { display: none; } }
+
+/* The meter: a 4px line, the used share filled, a short tick for "on pace". No Dither (2026-11-20). */
+.ws-usage-bar, .ws-usage-chip-bar { position: relative; display: block; height: 4px; border-radius: 99px; background: color-mix(in oklab, var(--fg) 10%, transparent); }
+.ws-usage-bar > i, .ws-usage-chip-bar > i { position: absolute; inset: 0 auto 0 0; border-radius: inherit; background: color-mix(in oklab, var(--fg) 68%, transparent); }
+.ws-usage-bar > b { position: absolute; top: -3px; width: 1.5px; height: 10px; border-radius: 1px; background: var(--text-muted); }
+[data-tone="warn"] > .ws-usage-bar > i, .ws-usage-chip-bar:has(+ [data-tone="warn"]) > i { background: var(--ds-warning); }
+[data-tone="full"] > .ws-usage-bar > i, .ws-usage-chip-bar:has(+ [data-tone="full"]) > i { background: var(--ds-danger); }
+
+.ws-usage-pop {
+  position: absolute;
+  /* Rail-wide, not fixed-width: an ancestor of the rail clips anything wider (seen 2026-11-02). */
+  left: 6px;
+  right: 6px;
+  bottom: calc(100% + 6px);
+  z-index: 60;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding-top: 4px;
+  border-radius: var(--ds-menu-radius);
+  background: var(--ds-workbench-popover-bg);
+  border: 1px solid var(--ds-workbench-popover-border);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  animation: var(--ds-menu-in);
+}
+.ws-usage-account { position: relative; padding: 8px 14px 10px; }
+.ws-usage-account:not([data-first])::before { content: ""; position: absolute; top: 0; left: 14px; right: 14px; border-top: 1px solid var(--ws-line); }
+.ws-usage-provider { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; font-size: var(--ds-t-micro); font-weight: 400; color: var(--text-muted); }
+/* Brand colour on every mark; a black/white mark (Codex) takes the full ink, not the muted label grey. */
+.ws-usage-provider > :first-child { color: var(--fg); }
+.ws-usage-head { display: flex; align-items: baseline; gap: 8px; min-height: 20px; font-size: var(--ds-t-meta); }
+.ws-usage-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); font-weight: 500; }
+.ws-usage-id { flex: none; color: var(--text-muted); font-size: var(--ds-t-micro); }
+.ws-usage-head-side { display: inline-flex; align-items: center; gap: 4px; flex: none; margin-left: auto; align-self: center; }
+.ws-usage-inuse { display: inline-flex; align-items: center; gap: 5px; font-size: var(--ds-t-micro); color: var(--text-secondary); }
+.ws-usage-inuse::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--ds-success); }
+.ws-usage-hide { display: grid; place-items: center; width: 20px; height: 20px; color: var(--text-muted); }
+.ws-usage-hide:hover { color: var(--fg); }
+.ws-usage-who { margin: 1px 0 0; font-size: var(--ds-t-micro); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-usage-twin { color: var(--ds-warning); }
+.ws-usage-meters { display: grid; gap: 4px; margin-top: 8px; }
+.ws-usage-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 56px minmax(40px, 1fr) 32px auto;
+  align-items: center;
+  gap: 10px;
+  height: 20px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.ws-usage-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-usage-pct { text-align: right; color: var(--text-secondary); }
+.ws-usage-row[data-tone="warn"] .ws-usage-pct, .ws-usage-chip [data-tone="warn"] { color: var(--ds-warning); }
+.ws-usage-row[data-tone="full"] .ws-usage-pct, .ws-usage-chip [data-tone="full"] { color: var(--ds-danger); }
+.ws-usage-reset { text-align: right; white-space: nowrap; }
+.ws-usage-error { margin: 6px 0 0; font-size: var(--ds-t-micro); color: var(--text-muted); }
+.ws-usage-foot { display: flex; align-items: center; gap: 14px; margin-top: 4px; padding: 8px 14px; border-top: 1px solid var(--ws-line); font-size: var(--ds-t-micro); color: var(--text-muted); }
+.ws-usage-updated { margin-right: auto; }
+.ws-usage-unhide { color: var(--text-secondary); }
+.ws-usage-unhide:hover { color: var(--fg); }
+.ws-usage-machine + .ws-usage-machine { border-top: 1px solid var(--ws-line); }
+.ws-usage-machine-name { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 10px 14px 0; font-size: var(--ds-t-micro); font-weight: 500; color: var(--fg); text-transform: none; }
+.ws-usage-machine-note { font-weight: 400; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ws-usage-empty { margin: 0; padding: 12px 14px 4px; font-size: var(--ds-t-micro); color: var(--text-muted); }
+.ws-usage-use { color: var(--text-muted); font-size: var(--ds-t-micro); }
+.ws-usage-use:hover { color: var(--fg); }
+
+.ws-rail-footer-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 0; }
+.ws-rail-footer .ws-chrome-button { width: 24px; height: 24px; }
+
+/*
+  The shortcut hints are the first thing to go when the rail is narrow: they are a reminder, and
+  the settings and theme buttons beside them are not. Ellipsis rather than a hard cut, because a
+  line sliced mid-glyph ("nvas") reads as a rendering bug rather than as truncation.
+*/
+.ws-rail-hints {
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.ws-rail-hint { display: inline-flex; align-items: center; }
+
+.ws-rail-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  margin-right: 4px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--ws-surface-quiet);
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text-secondary);
+}
+
+/* Both glyphs are in the markup; the theme attribute picks one, so the server render never lies. */
+.ws-theme-toggle [data-theme-glyph="light"],
+[data-theme-type="light"] .ws-theme-toggle [data-theme-glyph="dark"] { display: none; }
+[data-theme-type="light"] .ws-theme-toggle [data-theme-glyph="light"] { display: block; }
+
+.ws-shell[data-narrow="true"] .ws-rail-hints { display: none; }
+
+.ws-rail-new { padding: 0 6px 4px; }
+
+.ws-rail-new-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 6px 9px;
+  border-radius: var(--ws-r-control);
+  border: 1px solid var(--ws-line);
+  background: var(--ws-surface-raised);
+  font-size: var(--ds-t-body);
+  font-weight: 500;
+  color: var(--fg);
+  transition: border-color var(--ws-dur) var(--ws-ease), background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-new-button:hover { border-color: var(--ws-line-strong); }
+
+/* New chat (beta, task 289): the new chat's own plain row, as on /chat. */
+.ws-rail-new-chat {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 9px;
+  border-radius: var(--ws-r-control);
+  color: var(--ds-text-secondary);
+  font-size: var(--ds-t-body);
+  transition: background-color var(--ws-dur) var(--ws-ease);
+}
+.ws-rail-new-chat:hover,
+.ws-rail-new-chat[aria-current] { background: var(--ds-surface); color: var(--ds-text); }
+/* Working is green in every mode (2026-11-22): amber is a finished result, never work in progress. */
+.ws-rail-item-meta[data-status="working"] { color: var(--ds-success); }
+.ws-rail-item-meta[data-status="waiting"] { color: var(--ds-danger); }
+.ws-rail-new-button > span { flex: 1 1 auto; text-align: left; }
+
+.ws-rail-new-button > kbd {
+  font-family: var(--font-mono, "JetBrains Mono"), monospace;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+/* Group labels in Chat's voice (.ws-cmd-group): sentence case, quiet, no tracking. */
+.ws-rail-section {
+  padding: 12px 10px 5px;
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  letter-spacing: 0.015em;
+  color: var(--ds-text-quiet);
+}
+
+/* The first heading sits right under the search row, so it does not need the full gap
+   that separates one section from the next. */
+.ws-rail-sectioned:first-child > .ws-rail-section { padding-top: 2px; }
+
+.ws-rail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 6px 10px 12px 20px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+.ws-rail-empty-action {
+  padding: 4px 9px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-control);
+  font-size: var(--ds-t-micro);
+  color: var(--text-secondary);
+  transition: color var(--ws-dur) var(--ws-ease), background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-empty-action:hover { color: var(--fg); background: var(--ws-hover); }
+.ws-frame-empty-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+/* Who is inside: up to three marks, stacked, then +N. Hover hands the place to ••• . */
+.ws-rail-frame-logos {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: auto;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+/* A stack, like avatars: round chips that overlap, each cut out of the card by a ring of its colour. */
+.ws-rail-frame-logos .ws-rail-item-mark {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  /* In the card's own hue, one step deeper than the card: a grey chip read as foreign on a pastel. */
+  background: var(--ws-card-active, color-mix(in oklab, var(--fg) 7%, var(--ds-rail)));
+  box-shadow: 0 0 0 2px var(--ws-card-bg, var(--ds-rail));
+}
+.ws-rail-frame-logos .ws-rail-item-mark + .ws-rail-item-mark { margin-left: -6px; }
+.ws-rail-frame-logos .ws-rail-item-mark .ws-pane-runner-mark { width: 12px; height: 12px; }
+.ws-rail-frame-logos .ws-rail-item-mark::after { width: 24px; height: 24px; margin: -12px 0 0 -12px; }
+.ws-rail-frame-logos .ws-rail-frame-more { margin-left: 5px; font-variant-numeric: tabular-nums; }
+.ws-rail-frame-more { color: var(--ds-text-quiet); font-size: var(--ds-t-micro); }
+.ws-rail-row:is(:hover, :focus-within, [data-menu-open]) .ws-rail-frame-logos { opacity: 0; }
+/* The Frame menu's palette (mockups/code-rail-frames.html): the current colour wears a ring. */
+.ws-frame-swatches { display: flex; gap: 6px; padding: 6px 8px 8px; }
+.ws-frame-swatch {
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: var(--ws-frame-hue);
+  cursor: pointer;
+}
+.ws-frame-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--ds-workbench-popover-bg), 0 0 0 3.5px var(--ws-frame-hue); }
+
+/* ── Kind glyphs ────────────────────────────────────────────────────────── */
+
+/** The dot is the coloured mark. The tile it sits beside stays neutral on purpose. */
+.ws-kind-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ws-kind, var(--text-muted));
+}
+
+/*
+  The dot answers "is this doing anything?", the icon answers "what is it?" — two questions, so
+  both stay. Colour alone would leave the first unanswerable for anyone who cannot separate the
+  hues, which is why a pane at rest DIMS as well as changing colour, and why the one state that
+  asks for something also gets words (`.ws-rail-ask`).
+*/
+
+/* A finished turn nobody has opened — the rail's twin of the pane's halo. No pill: a lit dot and
+   a quiet word, the same restraint as "needs you". */
+.ws-rail-unread {
+  flex: 0 0 auto;
+  color: var(--ws-activity-result);
+  white-space: nowrap;
+}
+
+
+/** The folder's own count of them, so a collapsed folder can still say it: the ask's lit dot,
+    in its ring, and the number beside it. */
+.ws-rail-count[data-tone="ask"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--ws-activity-ask);
+  font-weight: 600;
+}
+.ws-rail-count[data-tone="ask"]::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ws-activity-ask) 20%, transparent);
+}
+/* The same lit dot for a failure and for an unread result, each in its own hue. */
+.ws-rail-count:is([data-tone="warn"], [data-tone="result"]) { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
+.ws-rail-count[data-tone="warn"] { color: var(--ws-activity-warn); }
+.ws-rail-count[data-tone="result"] { color: var(--ws-activity-result); }
+.ws-rail-count:is([data-tone="warn"], [data-tone="result"])::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in oklab, currentColor 20%, transparent);
+}
+/* A folded group's counts sit before its logo stack, which then no longer needs the auto margin. */
+.ws-rail-frame-counts { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 8px; margin-left: auto; font-size: var(--ds-t-micro); }
+.ws-rail-frame-counts + .ws-rail-frame-logos { margin-left: 8px; }
+/* The status slot (mockups/rail-dither-done.html, X): the age and a dither ring while working,
+   then the "done" dot in the same place, so the eye that waited there finds the result there. */
+.ws-rail-item-status {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-self: center;
+  align-items: center;
+  gap: 6px;
+  color: var(--ds-text-quiet);
+  font-size: var(--ds-t-micro);
+  font-variant-numeric: tabular-nums;
+}
+/* One logical pixel per dither cell: scaled up, never smoothed. */
+.ws-rail-dither { width: 12px; height: 12px; image-rendering: pixelated; }
+/* A turn watched as it ended leaves no mark: the collapse plays, then the dot fades. */
+.ws-rail-dither[data-state="settle"] { animation: ws-rail-dither-out 200ms ease-out 400ms both; }
+@keyframes ws-rail-dither-out { to { opacity: 0; } }
+/* The ••• takes this slot on hover, focus, or while the menu is open. */
+.ws-rail-row:is(:hover, :focus-within, [data-menu-open]) .ws-rail-item-status { visibility: hidden; }
+.ws-rail-item-meta .ws-activity[data-activity="working"] { color: var(--ws-activity-live); }
+.ws-rail-unread { font-weight: 560; }
+
+/** The pane-header glyph, in a small tinted tile: the strip's fixed start, the keycaps' language. */
+.ws-pane-glyph {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--ws-surface-quiet);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg) 9%, transparent);
+  color: var(--text-muted);
+  transition: color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-pane[data-focused="true"] .ws-pane-glyph { color: var(--text-secondary); }
+
+[data-kind="terminal"] { --ws-kind: var(--ws-kind-terminal); }
+[data-kind="thread"] { --ws-kind: var(--ws-kind-thread); }
+[data-kind="browser"] { --ws-kind: var(--ws-kind-browser); }
+[data-kind="editor"] { --ws-kind: var(--ws-kind-editor); }
+[data-kind="bridge"] { --ws-kind: var(--ws-kind-bridge); }
+
+/* ── Pane ───────────────────────────────────────────────────────────────── */
+
+.ws-pane {
+  flex: 1 1 auto;
+  /* Mockup T5 (Theme 13): a pane is a panel, radius 10, on its hairline. */
+  border-radius: var(--ws-r-panel);
+  transition: border-color var(--ws-dur) var(--ws-ease), box-shadow var(--ws-dur) var(--ws-ease);
+}
+
+.ws-pane[data-focused="true"] {
+  border-color: var(--ws-focus-line);
+  box-shadow: var(--ws-focus-glow);
+}
+
+/*
+  The reticle. Focus is where your typing goes, so it gets the shell's one piece of theatre: four
+  dithered corner arcs that lock on from a little further out, the way a viewfinder settles
+  on its subject. They sit 4px outside the card — inside the 5px half-seam, so a neighbour's
+  brackets never touch — and spend the spring easing because they travel. Only `inset` and
+  `opacity` move, and only on the frame focus changes.
+*/
+.ws-pane::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  z-index: 5;
+  background: var(--accent);
+  -webkit-mask:
+    var(--ws-reticle-tl) top left / 26px 26px no-repeat,
+    var(--ws-reticle-tr) top right / 26px 26px no-repeat,
+    var(--ws-reticle-bl) bottom left / 26px 26px no-repeat,
+    var(--ws-reticle-br) bottom right / 26px 26px no-repeat;
+  mask:
+    var(--ws-reticle-tl) top left / 26px 26px no-repeat,
+    var(--ws-reticle-tr) top right / 26px 26px no-repeat,
+    var(--ws-reticle-bl) bottom left / 26px 26px no-repeat,
+    var(--ws-reticle-br) bottom right / 26px 26px no-repeat;
+  opacity: 0;
+  pointer-events: none;
+  transition: inset 120ms var(--ws-ease), opacity 120ms var(--ws-ease);
+}
+
+.ws-pane[data-focused="true"]::before {
+  inset: -4px;
+  opacity: 0.9;
+  transition: inset 320ms var(--ws-ease-spring), opacity 180ms var(--ws-ease);
+}
+
+/*
+  Light: panes are white paper on stone, so depth is a soft warm shadow, not a line — Light can
+  afford the shadow Dark cannot show. The reticle drops to half strength: near-black ink at 0.9
+  on white read as crop marks rather than focus. Focus glow is the warm shadow ink, not the
+  near-black accent, which bloomed grey.
+*/
+[data-theme-type="light"] .ws-shell {
+  /* The accent is near-black in Light; mixed at 42% it drew a hard grey frame. */
+  --ws-focus-line: color-mix(in oklab, var(--ds-shadow-ink) 24%, transparent);
+  --ws-focus-glow:
+    0 0 0 3px color-mix(in oklab, var(--ds-shadow-ink) 7%, transparent),
+    var(--ds-shadow-lift);
+}
+
+[data-theme-type="light"] .ws-pane:not([data-focused="true"]) {
+  border-color: transparent;
+  box-shadow: var(--ds-shadow-soft);
+}
+
+[data-theme-type="light"] .ws-pane[data-focused="true"]::before { opacity: 0.5; }
+
+/* Light: the shadow is the edge, focused or not; focus only adds the line. */
+[data-theme-type="light"] .ws-composer {
+  border-color: transparent;
+  box-shadow: var(--ds-shadow-soft);
+}
+
+[data-theme-type="light"] .ws-composer:focus-within { border-color: var(--ws-focus-line); }
+
+/*
+  ── A result nobody has opened (S11 "Selesai terlihat. Fokus tetap di tangan user.") ──
+
+  One hairline of pale gold round the whole card, and nothing else. Earlier passes tried a thick
+  amber frame, a flicker, a lit arc and a sweep; each one was louder than the fact it carried. The
+  header dot already says "done"; the edge only has to be noticeably warmer than its neighbours.
+
+  It lives on its own layer laid over the card's border, so it fades in and out on opacity alone
+  (300ms ease-out, the spec's number) and never touches the focus ring's border or timing — a pane
+  that is focused AND unread shows gold over blue until it is read, then the blue is simply there.
+*/
+.ws-pane {
+  position: relative;
+  /* The line sits ON the border, one pixel outside the padding box. `.ws-card` clips; a pane clips
+     in its body instead. */
+  overflow: visible;
+}
+
+.ws-pane > .ws-pane-body {
+  border-radius: 0 0 calc(var(--ws-r-panel) - 1px) calc(var(--ws-r-panel) - 1px);
+}
+
+/* The header gets the matching top corners for the same reason: the pane does not clip, so an
+   opaque strip (Light's white) would paint square corners over the card's rounded edge. */
+.ws-pane > .ws-pane-header {
+  border-radius: calc(var(--ws-r-panel) - 1px) calc(var(--ws-r-panel) - 1px) 0 0;
+}
+
+/* A terminal pane is the terminal's own well, edge to edge, so the translucent header below reads
+   as a strip laid over it (mockup T5): darker than the editor in Dark, white in Light. */
+.ws-pane[data-kind="terminal"] {
+  background: var(--ds-workbench-terminal-bg);
+}
+
+/*
+  The unread halo. A finished turn nobody has read should be seen from across the window, so it
+  gets a ring OUTSIDE the card: 4px out, inside the 5px half-seam, concentric with the panel
+  radius like the focus arcs. One clean hairline and a soft bloom of the same gold — light, not
+  texture; the grain lives in the header underline only. It settles inward once on arrival and
+  never loops.
+*/
+.ws-pane-edge-light {
+  position: absolute;
+  inset: -8px;
+  z-index: 4;
+  border-radius: calc(var(--ws-r-panel) + 4px);
+  border: 1px solid color-mix(in oklab, var(--ws-unread-glow) 55%, transparent);
+  box-shadow:
+    0 0 0 3px color-mix(in oklab, var(--ws-unread-glow) 7%, transparent),
+    0 0 20px -2px color-mix(in oklab, var(--ws-unread-glow) 22%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: inset 300ms var(--ws-ease), opacity 300ms ease-out;
+}
+
+.ws-pane[data-unread="true"] > .ws-pane-edge-light {
+  inset: -4px;
+  opacity: 1;
+  transition: inset 600ms var(--ws-ease-spring), opacity 600ms var(--ws-ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-pane-edge-light,
+  .ws-pane[data-unread="true"] > .ws-pane-edge-light { inset: -4px; transition: opacity 300ms ease-out; }
+}
+
+/* The header says it too: the focus underline, in the result's gold. */
+.ws-pane[data-unread="true"] .ws-pane-header::after {
+  background: var(--ws-unread-glow);
+  opacity: 1;
+}
+
+/*
+  ── The pane header, as one strip ──
+
+  It was 42px and two stacked lines: a title over a meta line. Four panes spent 168px of window on
+  chrome, and the second line was regularly one word ("browser", "editor") holding a whole row.
+  One line says the same things side by side, separated by a `·`, in the order you read a pane:
+  who → what it is doing → where, then its state.
+
+  07e (mockups/lotus-chat.fig, "07e Pane header"): no grey strip. The header is the pane's own
+  surface, nothing behind the mark or the name; 34px, so the 22px mark and controls sit with room
+  around them. The state has no badge: the underline below carries it.
+*/
+.ws-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+  position: relative;
+  isolation: isolate;
+  height: 34px;
+  padding: 0 6px 0 9px;
+  background: var(--ds-workbench-pane-header);
+  box-shadow: inset 0 -1px 0 color-mix(in oklab, var(--fg) 5%, transparent);
+}
+
+/*
+  The focused pane gets an edge — a dithered underline that thins out to the right, the rail's
+  active-row language — so a wall of panes reads as one bright header and several quiet ones.
+  Working and needs-you draw it on any pane, in their tone: something is happening there.
+*/
+.ws-pane-header::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ws-dither-ink);
+  -webkit-mask: var(--ws-dither-rule);
+  mask: var(--ws-dither-rule);
+  opacity: 0;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+  pointer-events: none;
+}
+
+.ws-pane[data-focused="true"] .ws-pane-header::after { opacity: 1; }
+/* Working: the rule stays put and breathes — the pane's only loading cue, quiet on a wall of panes. */
+.ws-pane[data-activity="working"] .ws-pane-header::after {
+  background: var(--ws-activity-live);
+  opacity: 0.8;
+  animation: ws-pane-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes ws-pane-breathe {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 0.9; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-pane[data-activity="working"] .ws-pane-header::after { animation: none; }
+}
+
+.ws-pane[data-activity="needs-you"] .ws-pane-header::after { background: var(--ws-activity-ask); opacity: 1; }
+/* With no badge, a failed pane would otherwise read as an idle one. */
+.ws-pane[data-activity="failed"] .ws-pane-header::after { background: var(--ws-activity-warn); opacity: 1; }
+
+.ws-pane-heading { display: flex; flex-direction: column; gap: 0; min-width: 0; flex: 1 1 auto; }
+
+/* The one-line form. A modifier rather than a change to `.ws-pane-heading`, because the Chat
+   thread head uses the stacked one and has the room for it. */
+.ws-pane-heading--inline {
+  flex-direction: row;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.ws-pane-title {
+  font-size: var(--ds-t-body);
+  font-weight: 500;
+  letter-spacing: -0.008em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The name holds its size in the strip; the detail after it is what gives way when the pane is
+   narrow. `flex-shrink: 0` up to a ceiling, so a long handle cannot eat the whole line either. */
+.ws-pane-heading--inline > .ws-pane-title {
+  flex: 0 1 auto;
+  max-width: 22ch;
+  font-size: var(--ds-t-meta);
+  line-height: var(--ds-lh-tight);
+}
+
+/* The name says which pane has the keyboard: muted at rest, full ink on focus. */
+.ws-pane-title { color: var(--text-secondary); transition: color var(--ws-dur) var(--ws-ease); }
+.ws-pane[data-focused="true"] .ws-pane-title { color: var(--fg); }
+
+.ws-pane-meta {
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-pane-heading--inline > .ws-pane-meta {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: var(--ds-lh-tight);
+}
+
+/* A title control truncates its own text; the slot must not clip the control's menu. */
+.ws-pane-heading--inline > :is(.ws-pane-title, .ws-pane-meta):has(> .conversation-title) {
+  display: inline-flex;
+  min-width: 0;
+  overflow: visible;
+}
+
+/* The separator belongs to the detail, so it disappears with it. */
+.ws-pane-heading--inline > .ws-pane-meta::before {
+  content: "·";
+  margin-right: 6px;
+  opacity: 0.55;
+}
+
+/*
+  ── The runner mark ──
+
+  The vendor's silhouette, painted through a mask in `currentColor` — never as a coloured brand
+  image. Colour in this shell means state, and a pane header full of vendor hues is how that stops
+  being true. CodeCanvas masks the same files on its agent nodes, so one agent has one shape on
+  both surfaces.
+*/
+.ws-pane-runner-mark {
+  display: block;
+  width: 13px;
+  height: 13px;
+  background: currentColor;
+  -webkit-mask: var(--ws-runner-logo) center / contain no-repeat;
+  mask: var(--ws-runner-logo) center / contain no-repeat;
+}
+
+/* A vendor with no asset here. A ring, not a solid square: a mask with no image would paint the
+   whole box, which reads as a bug rather than as an agent. */
+.ws-pane-runner-mark[data-generic="true"] {
+  width: 9px;
+  height: 9px;
+  margin: 2px;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px currentColor;
+  -webkit-mask: none;
+  mask: none;
+}
+
+/*
+  Header controls: 22px, against the 26px the title bar uses. A pane has two of them on every
+  header in the window, so they answer to the strip's height rather than to the chrome's.
+*/
+.ws-pane-header .ws-pane-action {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+/*
+  Reserved, not removed.
+
+  Maximize and close rest invisible until the pane is hovered or focused — but each keeps its 22px, because a
+  header that changes width on hover is a header whose title jumps every time the pointer crosses
+  it. `pointer-events: none` is what makes the invisible state honest: an unseen button that still
+  takes clicks is worse than one that is simply there.
+*/
+.ws-pane-header .ws-pane-action[data-quiet="true"] {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+
+/* What the pane runs puts its own controls here (PaneHeaderSlot); empty, it takes no gap. */
+.ws-pane-extra { display: contents; }
+/* A Claude pane's account chip (PaneAccountChip): the chat chip, sized to the 22px header controls. */
+.ws-pane-account { flex: 0 1 auto; min-width: 0; }
+.ws-pane-account .chat-model { height: 22px; padding: 0 6px 0 8px; gap: 5px; max-width: 16ch; }
+.ws-pane-account .chat-model-pop { left: auto; right: -6px; transform-origin: top right; }
+
+/* A Browser pane (mockups/code-browser-header.html): the address is its title, so the header holds
+   back · forward · address · pick · agent, then a hairline, then the pane's own controls. */
+.ws-pane[data-kind="browser"] > .ws-pane-header { padding-left: 4px; gap: 4px; }
+.ws-pane[data-kind="browser"] > .ws-pane-header > :is(.ws-pane-glyph, .ws-pane-heading) { display: none; }
+.ws-pane-header .chat-stage-bar {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  gap: 2px;
+  /* The chip drops its name when the bar is narrow; the address keeps the room. */
+  container-type: inline-size;
+}
+.ws-pane-header .chat-stage-bar::after { content: ""; flex: none; width: 1px; height: 14px; margin: 0 4px 0 6px; background: var(--ds-border); }
+.ws-pane-header .chat-stage-nav { width: 22px; height: 22px; border-radius: 6px; }
+.ws-pane-header .chat-stage-addr {
+  flex: 1 1 auto;
+  height: 24px;
+  margin: 0 4px;
+  padding: 0 1px 0 9px;
+  border-radius: 7px;
+  background: var(--ds-bg-soft);
+  box-shadow: none;
+}
+.ws-pane-header .chat-stage-addr:hover { box-shadow: inset 0 0 0 1px var(--ds-border); }
+.ws-pane-header .chat-stage-addr .chat-stage-nav { width: 20px; height: 20px; }
+.ws-pane-header .chat-stage-url { padding: 0 4px; text-align: left; font-size: 11.5px; }
+.ws-pane-header .chat-stage-progress { inset: auto 8px 0; height: 1.5px; }
+.ws-pane .chat-stage { flex: 1 1 auto; height: 100%; padding: 0 6px 6px; }
+.ws-pane .chat-stage .chat-stage-page { border-radius: 8px; }
+/* An agent's one-letter mark, ink on paper: the browser chip, the link menu. */
+.ws-agent-mark {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  background: var(--ds-text);
+  color: var(--ds-bg);
+  font-size: 9.5px;
+  font-weight: 600;
+  line-height: 1;
+}
+/* "Picks go to Gio ▾": the browser's link chip. One line always; unlinked, an outlined "+ Agent". */
+.ws-browser-link {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  max-width: 16ch;
+  height: 22px;
+  padding: 0 6px 0 4px;
+  border: 0;
+  border-radius: var(--ws-r-pill);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ws-browser-link:hover,
+.ws-browser-link[aria-expanded="true"] { background: color-mix(in oklab, var(--ds-text) 7%, transparent); color: var(--ds-text); }
+.ws-browser-link[data-none] { gap: 3px; padding: 0 8px 0 6px; color: var(--ds-text-muted); box-shadow: inset 0 0 0 1px var(--ds-border); }
+.ws-browser-link-caret, .ws-browser-link-plus { flex: none; color: var(--ds-text-quiet); }
+.ws-browser-link-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@container (max-width: 400px) {
+  .ws-browser-link :is(.ws-browser-link-name, .ws-browser-link-caret) { display: none; }
+  .ws-browser-link, .ws-browser-link[data-none] { padding: 0 4px; }
+}
+.ws-browser-link-menu .ws-browser-link-name { flex: 1; }
+.ws-browser-link-menu .chat-thread-menu-item { gap: 8px; }
+/* "↗ :3000" on an agent's header: jumps to the browser it owns. */
+.ws-browser-backlink {
+  flex: none;
+  height: 22px;
+  padding: 0 7px;
+  border: 0;
+  border-radius: var(--ws-r-pill);
+  background: transparent;
+  color: var(--ds-text-quiet);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.ws-browser-backlink:hover { background: var(--ds-surface); color: var(--ds-text); }
+/* Hovering a link outlines both ends of it. */
+.ws-pane--linked { outline: 1.5px solid var(--ds-text); outline-offset: -1.5px; }
+.ws-composer-picks { padding: 8px 8px 0; }
+/* The limit strip under a Claude pane's terminal: Chat's bar, sized to the pane instead of the transcript column. */
+.ws-pane-limit { flex: none; padding: 6px 10px 10px; }
+.ws-pane-limit > .chat-handoff-bar { width: auto; max-width: none; margin: 0; }
+/* The header is its own stacking context and the pane body comes later in the DOM: lift it while
+   the picker is open, or the popover opens behind the terminal. */
+.ws-pane-header:has(.ws-pane-account .chat-model[aria-expanded="true"]) { z-index: 2; }
+.ws-pane-header:has(.conversation-title-menu[open]) { z-index: 2; }
+
+.ws-pane:hover .ws-pane-action[data-quiet="true"],
+.ws-pane[data-focused="true"] .ws-pane-action[data-quiet="true"],
+.ws-pane-header .ws-pane-action[data-quiet="true"]:focus-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* The status line: no pill fill, a lit dot inside its own soft ring and a quiet word — the rail's
+   "new" badge, at the chrome's size. A tint arrives only under the pointer, where it is a button. */
+.ws-pane-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 9px 3px 8px;
+  border-radius: var(--ws-r-pill);
+  background: transparent;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: background-color var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-pane-pill-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ws-tone, currentColor);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ws-tone, currentColor) 18%, transparent);
+}
+
+/*
+  The pill states a number; when that number is an ASK it also becomes a button that goes there.
+  Disabled is the resting case (there is nothing to jump to), so it must not look disabled —
+  `opacity` is left alone and only the cursor changes.
+*/
+.ws-pane-pill[data-attention="true"] { color: var(--fg); }
+
+/* An ask breathes: the ring swells and settles, slow enough to notice, never an alarm. */
+.ws-pane-pill[data-attention="true"] .ws-pane-pill-dot { animation: ws-pill-breathe 2.4s var(--ws-ease) infinite; }
+
+@keyframes ws-pill-breathe {
+  50% { box-shadow: 0 0 0 5px color-mix(in oklab, var(--ws-tone, currentColor) 10%, transparent); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-pane-pill[data-attention="true"] .ws-pane-pill-dot { animation: none; }
+}
+
+/* Tailwind's preflight gives every button `cursor: pointer`, so the resting pill — which is a
+   disabled button, because there is nothing to jump to — advertised a click that does nothing.
+   Measured in the browser on 2026-09-21. */
+.ws-pane-pill:disabled { cursor: default; }
+.ws-pane-pill:not(:disabled) { cursor: pointer; }
+.ws-pane-pill:not(:disabled):hover { background: var(--ws-hover); color: var(--fg); }
+
+/*
+  ── The activity badge ──
+
+  One component, three places: a rail row (dot only), a pane header (dot plus words), and anywhere
+  else that has to say what a pane is doing. The tone is a data attribute rather than an inline
+  style so the whole vocabulary lives here, in one block, where it can be read at once.
+*/
+.ws-activity {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.ws-activity-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ws-activity-dot {
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ws-activity-tone, var(--ws-activity-muted));
+}
+
+/* Dot only. The gap belongs to the words, and the words are a screen-reader-only node here — a
+   6px channel before something nobody sees is 6px of the pane's name. */
+.ws-activity[data-compact="true"] { gap: 0; flex: 0 0 auto; }
+
+.ws-activity[data-tone="live"] { --ws-activity-tone: var(--ws-activity-live); color: var(--text-secondary); }
+.ws-activity[data-tone="ask"] { --ws-activity-tone: var(--ws-activity-ask); color: var(--ws-activity-ask); }
+.ws-activity[data-tone="warn"] { --ws-activity-tone: var(--ws-activity-warn); color: var(--ws-activity-warn); }
+.ws-activity[data-tone="boot"] { --ws-activity-tone: var(--ws-activity-boot); }
+.ws-activity[data-tone="muted"] { --ws-activity-tone: var(--ws-activity-muted); }
+.ws-activity[data-tone="result"] { --ws-activity-tone: var(--ws-activity-result); color: var(--ws-activity-result); }
+
+/*
+  Motion means work in progress, and nothing else.
+
+  Working is the rail's ring everywhere (mockups/rail-working-indicator.html): the dot becomes a
+  small ink ring that spins, so the header, the ⌘K sheet and a folded folder say it the same way.
+  `rotate` only — compositable — so eight working panes do not lay out eight times a second.
+
+  `needs-you` is deliberately absent from this rule. A moving "answer me" reads as progress, which
+  is the exact lie `plans/honest-agent-status/` was written to remove.
+*/
+.ws-activity[data-animate="true"] .ws-activity-dot,
+.ws-rail-group-working {
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: none;
+  border: 1.5px solid color-mix(in oklab, var(--fg) 14%, transparent);
+  border-top-color: var(--fg);
+  animation: ws-rail-ring-spin 900ms linear infinite;
+}
+.ws-rail-group-working { display: inline-block; }
+
+/* Reduced motion keeps the ring (the information) and drops the spin (the movement). */
+@media (prefers-reduced-motion: reduce) {
+  .ws-activity[data-animate="true"] .ws-activity-dot,
+  .ws-rail-group-working { animation: none; }
+}
+
+/**
+ * No padding. What lives in a pane draws its own edges — a terminal paints to its last column, a
+ * browser to its last pixel — and an inset frame around it only advertises that the app is a
+ * wrapper. Surfaces that genuinely need breathing room add it themselves.
+ */
+.ws-pane-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* The file-drop overlay is `position: absolute; inset: 0` and lands here, so this is the box it
+     measures itself against. Without it the overlay would climb to the nearest positioned ancestor
+     and cover the whole grid — every pane lit up for a drag aimed at one. */
+  position: relative;
+}
+
+/* ── Tabs ───────────────────────────────────────────────────────────────── */
+
+.ws-tabs {
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--ws-line);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.ws-tabs::-webkit-scrollbar { display: none; }
+
+.ws-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border-bottom: 1px solid transparent;
+  font-size: var(--ds-t-meta);
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: color var(--ws-dur) var(--ws-ease), border-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-tab:hover { color: var(--text-secondary); }
+.ws-tab[data-active="true"] { color: var(--fg); font-weight: 600; border-bottom-color: var(--fg); }
+.ws-tab-dot { width: 5px; height: 5px; border-radius: 50%; }
+.ws-tab-label { max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.ws-tab-add { padding: 0 10px; }
+
+/* ── Composer ───────────────────────────────────────────────────────────── */
+
+.ws-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+  /* The gap that used to be an empty 12px <div> in the layout above it. A spacer element is a
+     layout decision hidden where nobody reading the CSS will find it. */
+  margin-top: var(--ws-gap);
+  position: relative;
+  padding: 9px 9px 9px 11px;
+  /* A dock, not a strip: rounder than the panes it floats over, lifted by a soft shadow, with
+     light catching its top edge. */
+  border-radius: calc(var(--ws-r-card) + 2px);
+  background: var(--ws-surface);
+  border: 1px solid var(--ws-line);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--fg) 5%, transparent),
+    var(--ds-shadow-soft);
+  transition: border-color var(--ws-dur) var(--ws-ease), box-shadow var(--ws-dur) var(--ws-ease);
+}
+
+/* With no second row the box is one row of controls tall, so it needs no gap under it. */
+.ws-composer[data-empty="true"] { gap: 0; }
+
+/*
+  The composer had no focus state at all: the one place in the shell you type into looked exactly
+  the same whether or not it held the caret. It gets the same treatment a focused pane gets — the
+  border tinted and a wide, low bloom — so "where does my typing go" is answered by looking.
+*/
+.ws-composer:focus-within { border-color: var(--ws-focus-line); }
+
+/*
+  Focus is the pane header's language, not a bloom: a dithered line along the top edge that thins
+  out to the right. The bar looks switched on without lighting up the bottom of the window. Its
+  own element, because the composer's ::before and ::after belong to the voice ring.
+*/
+.ws-composer-edge {
+  position: absolute;
+  top: -1px;
+  left: 14px;
+  right: 14px;
+  height: 2px;
+  background: var(--ws-dither-ink);
+  -webkit-mask: var(--ws-dither-rule);
+  mask: var(--ws-dither-rule);
+  opacity: 0;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+  pointer-events: none;
+}
+
+.ws-composer:focus-within > .ws-composer-edge { opacity: 1; }
+/* While the voice ring is lit, it is the edge. */
+.ws-composer[data-voice] > .ws-composer-edge { opacity: 0; }
+
+/*
+  Aligned to the BOTTOM, because the field grows downwards (`field-sizing: content`). With the
+  items centred, a message that reaches three lines would push the send button into the middle of
+  the text; the target chip stays on the top line it labels.
+*/
+.ws-composer-input { display: flex; align-items: flex-end; gap: 9px; min-width: 0; }
+
+.ws-composer-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.ws-composer-placeholder {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--ds-t-body);
+  color: var(--text-muted);
+}
+
+.ws-composer-controls { display: flex; align-items: center; gap: 6px; }
+
+.ws-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border-radius: var(--ws-r-control);
+  background: transparent;
+  border: 1px solid transparent;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  transition: color var(--ws-dur) var(--ws-ease), background-color var(--ws-dur) var(--ws-ease),
+    border-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-control:hover { color: var(--fg); background: var(--ws-hover); border-color: var(--ws-line); }
+
+.ws-composer-spacer { flex: 1 1 auto; }
+
+/* ⌘K, shown only while the field is empty: the hint that used to sit in every placeholder.
+   A keycap in tint, not in outline, for the same reason as the chip. */
+.ws-composer-kbd {
+  padding: 2px 6px;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-quiet);
+  border: 1px solid transparent;
+  font-family: inherit;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+/* "+3 lines" on a blurred floating composer: the rest of the message is still there. */
+.ws-composer-more { font-size: var(--ds-t-micro); color: var(--text-muted); white-space: nowrap; }
+
+/*
+  Floating composer. The dock holds the composer's one-line height in the layout (set from JS);
+  the card is pinned to the dock's bottom and grows upward over the panes, so the panes keep
+  their height while someone writes a paragraph. Same tint and hairline as the in-flow composer,
+  only opaque — it must look like the composer, not like a card from another theme.
+*/
+.ws-composer-dock {
+  position: relative;
+  flex: 0 0 auto;
+  margin-top: var(--ws-gap);
+  z-index: 20;
+}
+.ws-composer[data-floating="true"] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  margin-top: 0;
+  background: var(--ws-surface-float);
+}
+.ws-composer[data-floating="true"] .ws-composer-field,
+.ws-composer[data-floating="true"] .ws-composer-live { max-height: 40vh; overflow-y: auto; }
+/* Blurred, a long message folds to its first line (padding included); the badge counts the rest. */
+.ws-composer[data-floating="true"] .ws-composer-field[data-collapsed="true"] { max-height: calc(1.5em + 4px); overflow: hidden; }
+
+/* ── Pane contents ──────────────────────────────────────────────────────────
+   Stand-ins for the real surfaces (terminal-v2, ChatView, BrowserCell). They live here so the
+   seams and the chrome can be judged against realistic density; M1 replaces them. */
+
+.ws-terminal {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  font-family: var(--font-mono, "JetBrains Mono"), monospace;
+  font-size: var(--ds-t-meta);
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.ws-thread { display: flex; flex-direction: column; gap: 10px; font-size: var(--ds-t-body); line-height: 1.6; }
+
+.ws-thread-owner,
+.ws-thread-quiet {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+.ws-thread-owner {
+  padding: 5px 9px;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-quiet);
+}
+
+.ws-thread-user {
+  padding: 10px 12px;
+  border-radius: var(--ws-r-panel);
+  background: var(--ws-surface-raised);
+}
+
+.ws-thread-tool { display: flex; align-items: center; gap: 8px; font-size: var(--ds-t-meta); }
+.ws-thread-tool > strong { font-weight: 600; }
+.ws-thread-tool > code { flex: 1 1 auto; color: var(--text-muted); font-size: var(--ds-t-meta); }
+
+/** Attention, stated with one edge rather than a coloured panel. */
+.ws-approval {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 11px 12px;
+  border-radius: var(--ws-r-panel);
+  background: var(--ws-surface-raised);
+  border: 1px solid var(--ws-line);
+  border-left: 2px solid var(--ws-kind-bridge);
+}
+
+.ws-approval-head { display: flex; align-items: center; gap: 7px; font-weight: 600; font-size: var(--ds-t-meta); }
+.ws-approval > code { font-size: var(--ds-t-meta); color: var(--text-secondary); }
+.ws-approval-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.ws-approval-actions > button {
+  padding: 6px 11px;
+  border-radius: var(--ws-r-control);
+  border: 1px solid var(--ws-line);
+  background: var(--ws-surface);
+  font-size: var(--ds-t-micro);
+  color: var(--text-secondary);
+  transition: color var(--ws-dur) var(--ws-ease), background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-approval-actions > button:hover { color: var(--fg); background: var(--ws-hover); }
+
+.ws-approval-actions > button[data-variant="primary"] {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.ws-preview { display: flex; flex-direction: column; gap: 10px; }
+.ws-preview > h3 { font-size: var(--ds-t-lede); font-weight: 600; letter-spacing: -0.012em; }
+.ws-preview-row { display: flex; gap: 8px; }
+
+.ws-preview-card {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px;
+  border-radius: var(--ws-r-panel);
+  background: var(--ws-surface-quiet);
+}
+
+.ws-preview-card > strong { font-size: var(--ds-t-head); font-weight: 600; }
+.ws-preview-card > span { font-size: var(--ds-t-micro); color: var(--text-muted); }
+
+/* ── Conversation surface (Chat mode) ───────────────────────────────────── */
+
+.ws-thread-card { flex: 1 1 auto; }
+
+.ws-thread-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 0 0 auto;
+  height: 58px;
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--ws-line);
+}
+
+.ws-thread-head-title { font-size: var(--ds-t-lede); font-weight: 600; letter-spacing: -0.012em; }
+
+.ws-conversation {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 18px 8px;
+  font-size: var(--ds-t-body);
+  line-height: 1.65;
+}
+
+.ws-conversation .ws-thread-user { padding: 12px 14px; }
+
+.ws-banner {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 11px;
+  border-radius: var(--ws-r-panel);
+  background: var(--ws-surface-quiet);
+  font-size: var(--ds-t-meta);
+  color: var(--text-secondary);
+}
+
+.ws-banner > p { flex: 1 1 auto; }
+
+.ws-banner-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: var(--ws-r-control);
+  border: 1px solid var(--ws-line);
+  background: var(--ws-surface-raised);
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  color: var(--fg);
+  white-space: nowrap;
+  transition: background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-banner-action:hover { background: var(--ws-hover); }
+
+.ws-compare {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--ws-r-panel);
+  border: 1px solid var(--ws-line);
+  overflow: hidden;
+  font-size: var(--ds-t-meta);
+}
+
+.ws-compare-row { display: flex; gap: 14px; padding: 10px 14px; }
+.ws-compare-row + .ws-compare-row { border-top: 1px solid var(--ws-line); }
+.ws-compare-row > span:first-child { width: 280px; flex: 0 0 auto; color: var(--text-muted); }
+.ws-compare-row > span { flex: 1 1 0; }
+.ws-compare-row[data-head="true"] { background: var(--ws-surface-quiet); }
+.ws-compare-row[data-head="true"] > span { color: var(--text-muted); font-weight: 600; }
+
+.ws-composer-inline { margin: 0 18px 18px; background: var(--ws-surface-raised); }
+
+/* ── Focus visibility ───────────────────────────────────────────────────── */
+
+.ws-shell button:focus-visible,
+.ws-shell a:focus-visible,
+.ws-shell [role="separator"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--ws-r-control);
+}
+
+/* ── Fallbacks ──────────────────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-shell *,
+  .ws-shell *::after,
+  .ws-shell *::before { transition-duration: 0ms !important; }
+}
+
+/* ── Command sheet ──────────────────────────────────────────────────────────
+   The ⌘K rows, sitting inside the composer above its input. It is part of that box rather than a
+   floating panel: the field below is its input, so the two must read as one control. */
+
+.ws-sheet {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: -1px -1px 3px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ws-line);
+  /* Unfolds once on ⌘K: a short rise and fade, so the sheet arrives rather than appears. */
+  animation: ws-sheet-in 160ms var(--ws-ease) both;
+}
+
+@keyframes ws-sheet-in { from { opacity: 0; transform: translateY(4px); } }
+
+.ws-sheet-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Eleven rows at this density. Beyond that it scrolls rather than pushing the panes up — the
+     sheet is a way into the workspace, not a thing that hides it. */
+  max-height: 268px;
+  overflow-y: auto;
+  /* The cursor is measured against the list, so the list is its positioning box. */
+  position: relative;
+  isolation: isolate;
+}
+
+/*
+  The selection: ONE highlight that slides to the active row on the spring, wearing the rail's
+  dither (the shared ::after above). Under the rows, so it never covers a label.
+*/
+.ws-sheet-cursor {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: -1;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-quiet);
+  pointer-events: none;
+  transition: transform 220ms var(--ws-ease-spring), height 220ms var(--ws-ease);
+}
+
+.ws-sheet-row[data-active="true"] { color: var(--fg); }
+
+.ws-sheet-section {
+  padding: 8px 8px 3px;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: var(--ds-tr-caps);
+  color: var(--text-muted);
+  opacity: 0.8;
+}
+
+.ws-sheet-list > div:first-child > .ws-sheet-section { padding-top: 4px; }
+
+/* How many rows the section holds, after a dot: quieter than the label it counts. */
+.ws-sheet-section-count::before { content: "·"; margin: 0 5px; }
+.ws-sheet-section-count { font-weight: 500; opacity: 0.7; }
+
+/*
+  Dense on purpose: a palette is READ AT A GLANCE, so the row's job is to fit as many candidates
+  above the fold as stay legible. Roomy rows meant five agents filled the sheet and everything
+  else was a scroll away — which is the one thing a keyboard-first list must never make you do.
+*/
+.ws-sheet-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--ws-r-control);
+  cursor: default;
+}
+
+/* The active row is the one Enter will run, and the pointer only MOVES it — hover and keyboard
+   must not be able to disagree about which row that is, so there is no separate hover state.
+   It wears the rail's dither (shared rule above): --ws-surface-raised, which it used before, is
+   white on Light's white composer, so the row Enter would run was invisible. */
+
+/* Listed so it can be seen, not so it can be started: a CLI this machine does not have. */
+.ws-sheet-row[data-disabled="true"] { opacity: 0.45; }
+
+.ws-sheet-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  /* The glyph alone carries the kind; a tile under every row was nine more boxes in the list. */
+  color: var(--ws-kind, var(--text-muted));
+}
+
+/*
+  Title and detail on ONE line, not stacked.
+
+  Two lines per row is what made the list tall, and the second line is never read on its own: it
+  qualifies the title. Side by side, the name stays the thing the eye lands on and the command
+  trails after it — the shape every palette worth copying uses.
+*/
+.ws-sheet-text {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ws-sheet-title {
+  flex: 0 0 auto;
+  max-width: 45%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  color: var(--fg);
+}
+
+/* What was typed, marked in place — `mark` defaults to a browser yellow, which on this surface
+   reads as a rendering bug rather than as emphasis. */
+.ws-sheet-title mark {
+  background: none;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ws-sheet-detail {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  opacity: 0.85;
+}
+
+.ws-sheet-row[data-active="true"] .ws-sheet-detail { opacity: 1; }
+
+/* Enter, as a keycap on the active row only — where it confirms what the key will do. Kept in
+   layout (opacity, not display) so the row does not reflow as the selection moves. */
+.ws-sheet-enter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--ws-surface-quiet);
+  color: var(--text-secondary);
+  opacity: 0;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+
+.ws-sheet-row[data-active="true"] .ws-sheet-enter { opacity: 1; }
+
+.ws-sheet-text > .ws-activity { align-self: center; }
+
+/* Nothing matched: say so, then say what would. */
+.ws-sheet-empty {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 8px 8px;
+  color: var(--text-muted);
+}
+
+.ws-sheet-empty > p {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  font-size: var(--ds-t-meta);
+  color: var(--text-secondary);
+}
+
+.ws-sheet-empty > p > span { font-size: var(--ds-t-micro); color: var(--text-muted); }
+
+.ws-sheet-empty kbd {
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--ws-surface-quiet);
+  font-family: inherit;
+  color: var(--text-secondary);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-sheet { animation: none; }
+  .ws-sheet-cursor { transition: none; }
+}
+
+.ws-sheet-hint {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 6px 8px 0;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+}
+
+/* The keys as small keycaps in tint, the composer's ⌘K language. */
+.ws-sheet-hint kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  margin-right: 5px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: var(--ws-surface-quiet);
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--text-secondary);
+}
+
+/* ── Add-pane menu ──────────────────────────────────────────────────────────
+   The one surface in the shell that genuinely floats, so it is the one place a shadow is
+   spent. Everything else separates with a gap and a line. */
+
+.ws-menu {
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--ds-menu-radius);
+  background: var(--ds-workbench-popover-bg);
+  border: 1px solid var(--ds-workbench-popover-border);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  overflow: hidden;
+  transform-origin: top left;
+  animation: var(--ds-menu-in);
+}
+
+.ws-menu-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--ws-line);
+}
+
+.ws-menu-title { font-size: var(--ds-t-body); font-weight: 600; letter-spacing: -0.01em; }
+.ws-menu-subtitle { font-size: var(--ds-t-micro); color: var(--text-muted); }
+
+.ws-menu-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  transition: color var(--ws-dur) var(--ws-ease), background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-menu-back:hover { color: var(--fg); background: var(--ws-hover); }
+
+.ws-menu-list { display: flex; flex-direction: column; padding: var(--ds-menu-pad); }
+
+.ws-menu-item,
+.ws-menu-preset {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: var(--ds-menu-item-h);
+  padding: var(--ds-menu-item-pad);
+  border-radius: var(--ds-menu-item-radius);
+  text-align: left;
+  transition: background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-menu-item:hover,
+.ws-menu-preset:hover,
+.ws-menu-item:focus-visible,
+.ws-menu-preset:focus-visible { background: var(--ds-menu-hover); }
+
+.ws-menu-glyph { display: inline-flex; flex: 0 0 auto; color: var(--ws-kind, var(--text-muted)); }
+.ws-menu-item-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1 1 auto; }
+.ws-menu-item-title { font-size: var(--ds-t-body); font-weight: 500; }
+.ws-menu-item-detail {
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-menu-item > kbd,
+.ws-menu-count {
+  flex: 0 0 auto;
+  font-size: var(--ds-t-micro);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* A shortcut is a key cap: a raised edge underneath, the way the key itself sits. */
+.ws-menu-item > kbd {
+  padding: 1px 5px;
+  border: 1px solid var(--ws-line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--ws-surface-quiet);
+  font-family: var(--font-mono, "JetBrains Mono"), monospace;
+  line-height: 14px;
+}
+
+/* The presets sit under a dotted rule, not a hairline box edge. */
+.ws-menu-presets {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: var(--ds-menu-pad) var(--ds-menu-pad) 8px;
+}
+.ws-menu-presets::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 10px;
+  right: 10px;
+  height: 1px;
+  background: var(--ws-dither-ink);
+  -webkit-mask: var(--ws-dither-rule);
+  mask: var(--ws-dither-rule);
+  pointer-events: none;
+}
+
+.ws-menu-preset { color: var(--text-secondary); }
+
+.ws-menu-section {
+  padding: 6px 8px 4px;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  color: var(--ds-text-quiet);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ws-menu-lineup { display: flex; flex-direction: column; padding: var(--ds-menu-pad); list-style: none; }
+
+.ws-menu-lineup > li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px;
+  font-size: var(--ds-t-body);
+}
+
+.ws-menu-role { flex: 1 1 auto; color: var(--fg); }
+.ws-menu-kind { font-size: var(--ds-t-micro); color: var(--text-muted); }
+
+.ws-menu-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--ws-line);
+}
+
+.ws-menu-note { font-size: var(--ds-t-micro); color: var(--text-muted); line-height: 1.5; }
+
+.ws-menu-commit {
+  padding: 8px 12px;
+  border-radius: var(--ws-r-control);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+}
+
+/*
+  Rename, pin and add: present only while the row is hovered or focused.
+
+  Three triggers is the most a 232px rail can carry, so they are hidden at rest and the row keeps
+  its name and its count. They reserve no width when hidden either — a row that shrinks its title
+  to make room for invisible buttons is a row that truncates for nothing.
+*/
+.ws-rail-group-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--ws-dur) var(--ws-ease), max-width var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-group:hover .ws-rail-group-actions,
+.ws-rail-group:focus-within .ws-rail-group-actions {
+  max-width: 76px;
+  opacity: 1;
+}
+
+/* The pin, the asks and the count, as one group: on hover it folds away as the actions open, so
+   the two never share the row and the name keeps its width. */
+.ws-rail-group-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  max-width: 80px;
+  overflow: hidden;
+  transition: opacity var(--ws-dur) var(--ws-ease), max-width var(--ws-dur) var(--ws-ease);
+}
+.ws-rail-group-meta:empty { display: none; }
+.ws-rail-group:hover .ws-rail-group-meta,
+.ws-rail-group:focus-within .ws-rail-group-meta {
+  max-width: 0;
+  opacity: 0;
+}
+
+.ws-rail-group-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  transition: color var(--ws-dur) var(--ws-ease), background-color var(--ws-dur) var(--ws-ease);
+}
+
+.ws-rail-group-action:hover { color: var(--fg); background: var(--ws-hover); }
+.ws-rail-group-action[data-on="true"] { color: var(--accent); }
+
+/* ── Hosted surfaces ────────────────────────────────────────────────────────
+   Code mode is CodeSpace, Chat mode is CodeChat. Both stay mounted so switching modes never
+   tears down a PTY session; the inactive one is taken out of the layout and made inert rather
+   than unmounted. `display: none` is deliberate over `visibility`/`opacity`: a hidden surface
+   must not reserve space, and xterm must not keep measuring a zero-width box. */
+
+/*
+  The two modes are STACKED, not swapped.
+
+  `display: none` on the hidden mode tore its layout down and rebuilt it on every switch, and the
+  rebuild is not free: each terminal remeasures its box and xterm recomputes its character grid.
+  Measured in the native window on 2026-09-20 — returning to Code cost p50 188 ms with two live
+  terminals against 34 ms with none, and 172 ms even with no terminal focused, so it is the
+  layout work rather than the accelerated renderer being handed back.
+
+  Both surfaces therefore keep their boxes: absolutely positioned over the same area, with the
+  hidden one made invisible rather than unlaid.
+
+  `opacity: 0`, NOT `visibility: hidden`. A descendant can set `visibility: visible` on itself and
+  reappear through a hidden ancestor — and one does: the pooled terminal slot writes
+  `style.visibility = "visible"` inline when it attaches to a pane. With `visibility` the two live
+  terminals of Code mode drew straight through the Chat conversation (seen in the native window,
+  2026-09-20). Opacity composites the whole subtree and cannot be overridden from inside it.
+
+  `pointer-events: none` and `inert` on the element itself finish the job: invisible but clickable,
+  or invisible but focusable by Tab, would be worse than visible.
+*/
+.ws-surfaces {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ws-surface {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.ws-surface[data-active="true"] {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Opacity alone still lays the hidden mode out, so its streaming terminals kept re-measuring text
+   every frame. This skips layout and paint but keeps the boxes, so panes stay attached. */
+.ws-surface:not([data-active="true"]) {
+  content-visibility: hidden;
+}
+
+/** The composer's own input. A textarea, not a div: IME composition and Shift+Enter are free. */
+.ws-composer-field {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-height: 140px;
+  /* Sized by hand from scrollHeight (UnifiedComposer): WKWebView ignores field-sizing. */
+  overflow-y: auto;
+  /* Text soft-wraps, so sideways scroll is never content: only a stray bar on a resize. */
+  overflow-x: hidden;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  line-height: 1.5;
+  resize: none;
+  field-sizing: content;
+}
+
+/* One line, ellipsed: a wrapped placeholder made the empty field two lines tall on a narrow pane. */
+.ws-composer-field::placeholder { color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-composer-field:focus { outline: none; }
+
+/** Rows of panes. The grid itself is the flex column; each row carries its own height. */
+.ws-grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+/** An inactive workspace stays mounted and keeps its terminals; it is only taken out of view.
+    Not unmounted, because unmounting a pane tears down its PTY. Its terminals also stay ATTACHED
+    to their renderers (see `isPaneAttached`), so switching back has nothing to rebuild.
+
+    `opacity: 0`, NOT `visibility: hidden` — the same reason as `.ws-surface` above: an attached
+    pooled terminal slot writes `style.visibility = "visible"` inline, and would draw straight
+    through a `visibility: hidden` ancestor. Opacity composites the whole subtree and cannot be
+    overridden from inside it. `inert` (set in `CodeMode`) keeps it out of Tab and clicks. */
+.ws-workspace {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ws-workspace[data-active="true"] { z-index: 1; }
+
+.ws-workspace[data-active="false"] {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Opacity hides an inactive workspace but does not stop it painting: its status pulses, unread
+   borders and shimmers kept repainting, invisibly, for every workspace opened in the session.
+   Pausing them costs nothing on return. `content-visibility: hidden` would stop the paint too, but
+   it changes the subtree's rendering, and these terminals must stay laid out and attached. */
+.ws-workspace[data-active="false"] *,
+.ws-workspace[data-active="false"] *::before,
+.ws-workspace[data-active="false"] *::after {
+  animation-play-state: paused !important;
+}
+
+.ws-workspace-stack {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+/* ── Split tree ─────────────────────────────────────────────────────────────
+   Each node lays its children along one axis; a leaf is just a pane. Nesting these is what makes
+   every pane resizable on its own, instead of a whole row moving together. */
+
+.ws-split-node {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ws-split-node--horizontal { flex-direction: row; }
+.ws-split-node--vertical { flex-direction: column; }
+
+.ws-split-track,
+.ws-split-leaf {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ws-split-leaf { flex: 1 1 auto; }
+
+/** The measured box a terminal mounts into. It fills the pane body exactly, no inset. */
+.ws-pane-surface {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ws-pane-surface > * { flex: 1 1 auto; min-width: 0; min-height: 0; }
+
+/* ── Focus mode ─────────────────────────────────────────────────────────────
+   One pane takes the grid. The others are hidden rather than unmounted: unmounting a pane tears
+   down its terminal, so "look at this one for a moment" would kill everything else running.
+
+   The hidden panes are marked in the DOM (`data-hidden`) rather than found by walking the tree,
+   so which pane is shown is decided in one place — `isPaneVisible` — and the stylesheet only
+   obeys it. */
+
+/*
+  The split tree's frame, always present.
+
+  Focus mode is a data attribute on this element rather than a different element, because the two
+  used to be different positions in the React tree — and toggling between them unmounted every
+  pane, tore down its renderer slot and could leave the pane blank. A class swap changes nothing
+  React can see.
+*/
+.ws-split-root {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ws-split-root[data-focus-mode="true"] .ws-split { display: none; }
+
+.ws-split-root[data-focus-mode="true"] .ws-split-track,
+.ws-split-root[data-focus-mode="true"] .ws-split-node,
+.ws-split-root[data-focus-mode="true"] .ws-split-leaf {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  height: auto !important;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Out of view, still mounted, still running. `display: none` rather than opacity so a hidden
+   terminal reports a zero box and its runtime knows it is not visible. */
+.ws-split-root[data-focus-mode="true"] .ws-pane[data-hidden="true"] { display: none; }
+
+.ws-split-root[data-focus-mode="true"] .ws-split-track:not(:has(.ws-pane[data-maximized="true"])) { display: none; }
+
+/** The measured box a terminal mounts into. It fills the pane body exactly, no inset. */
+.ws-pane-surface {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.ws-pane-surface > * { flex: 1 1 auto; min-width: 0; min-height: 0; }
+
+/* Anchors the focus-mode veil (`.ws-pane-veil`, styles/pane-veil.css) over the terminal. */
+.ws-pane-surface {
+  position: relative;
+  isolation: isolate;
+}
+
+/* ── Focus mode ─────────────────────────────────────────────────────────────
+   One pane takes the grid. The others are hidden rather than unmounted: unmounting a pane tears
+   down its terminal, so "look at this one for a moment" would kill everything else running. */
+
+.ws-split-root[data-focus-mode="true"] {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+.ws-split-root[data-focus-mode="true"] .ws-split-node,
+.ws-split-root[data-focus-mode="true"] .ws-split-track,
+.ws-split-root[data-focus-mode="true"] .ws-split-leaf { position: static; }
+
+.ws-split-root[data-focus-mode="true"] .ws-split { display: none; }
+
+.ws-split-root[data-focus-mode="true"] .ws-split-track:not(:has(.ws-pane[data-maximized="true"])) {
+  display: none;
+}
+
+.ws-split-root[data-focus-mode="true"] .ws-split-track:has(.ws-pane[data-maximized="true"]) {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  height: auto !important;
+}
+
+/** The effort picker. A native select so the keyboard, the screen reader and the platform's own
+    menu behaviour come for free — a custom popup here would be a third menu to maintain. */
+.ws-control-select {
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  appearance: none;
+  padding-right: 2px;
+}
+
+.ws-control-select:focus { outline: none; }
+.ws-control:has(.ws-control-select:focus-visible) { border-color: var(--accent); }
+
+/* ── Command Rail (Chat mode; plans/chat-command-rail/PLAN.md) ─────────────────
+   Threads arranged by what they need from you: Ready, Running, Earlier. Type carries the state
+   (560 needs you, 450 running, 400 read); one mark per row at most. Three sizes only: 13px
+   titles, 11.5px folders, 11px times and headings. Every row is two lines: title, folder · time. */
+.ws-cmd-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  margin: 8px 8px 4px;
+  padding: 0 4px 0 11px;
+  border-radius: 11px;
+  background: var(--ws-surface-quiet);
+  color: var(--ds-text-quiet);
+  transition: background-color var(--ws-dur) var(--ws-ease), box-shadow var(--ws-dur) var(--ws-ease);
+}
+.ws-cmd-search:focus-within { background: var(--ds-surface); box-shadow: 0 0 0 1px var(--ds-border); }
+.ws-cmd-search > svg { flex: 0 0 auto; }
+.ws-cmd-search input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ds-text);
+  font: inherit;
+  font-size: var(--ds-t-body);
+}
+.ws-cmd-search input::placeholder { color: var(--ds-text-quiet); }
+.ws-cmd-search input::-webkit-search-cancel-button { display: none; }
+.ws-cmd-new {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--ds-surface-raised);
+  box-shadow: var(--ds-shadow-edge);
+  color: var(--ds-text);
+  cursor: pointer;
+  transition: background-color var(--ws-dur) var(--ws-ease);
+}
+.ws-cmd-new:hover,
+.ws-cmd-new[aria-current] { background: var(--ds-overlay); }
+.ws-cmd-new:focus-visible,
+/* Walked with ↑ ↓: the hover look plus a hairline, not a ring — the rail stays quiet. */
+.ws-cmd-item:focus-visible { outline: none; background: var(--ws-hover); box-shadow: inset 0 0 0 1px var(--ws-focus-line); }
+
+.ws-cmd-list { position: relative; }
+/* The scrollbar shows only while the list is under the pointer. */
+.ws-cmd-list::-webkit-scrollbar { width: 8px; }
+.ws-cmd-list::-webkit-scrollbar-track { background: transparent; }
+.ws-cmd-list::-webkit-scrollbar-thumb { border-radius: 4px; background: transparent; }
+.ws-cmd-list:hover::-webkit-scrollbar-thumb { background: var(--ds-border); }
+.ws-cmd-section + .ws-cmd-section { margin-top: 6px; }
+.ws-cmd-group {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 0;
+  padding: 12px 10px 5px;
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  letter-spacing: 0.015em;
+  color: var(--ds-text-quiet);
+}
+.ws-cmd-group.ws-rail-drawer { align-items: center; }
+.ws-cmd-count { font-variant-numeric: tabular-nums; opacity: 0.7; }
+
+.ws-cmd-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px 6px 8px;
+  border: 0;
+  border-radius: var(--ws-r-control);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+.ws-cmd-item:hover { background: var(--ws-hover); color: var(--ds-text); }
+.ws-cmd-lead { display: grid; place-items: center; flex: 0 0 auto; width: 14px; height: 14px; margin-top: 2px; }
+/* Two lines on every row: the title, then "folder · time" (mockups/chat-rail-project-visibility.html, A). */
+.ws-cmd-body { display: flex; flex-direction: column; gap: 1px; flex: 1 1 auto; min-width: 0; }
+.ws-cmd-title {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: var(--ds-t-body);
+  line-height: 17px;
+  letter-spacing: -0.008em;
+}
+/* The ••• sits at the right edge on hover; the title ends before it. */
+.ws-cmd-row:is(:hover, :focus-within, [data-menu-open]) .ws-cmd-title { padding-right: 24px; }
+.ws-cmd-meta {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  font-size: 11.5px;
+  line-height: 15px;
+  color: var(--ds-text-quiet);
+}
+.ws-cmd-folder {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.ws-cmd-time {
+  flex: 0 0 auto;
+  font-size: var(--ds-t-micro);
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.ws-cmd-folder:not(:empty) + .ws-cmd-time::before { content: "·"; margin: 0 5px; opacity: 0.6; }
+
+/* Delegated chats hang under their lead like threaded replies (mockups/chat-rail-polish.html, P8):
+   a spine drops from the lead's loader column (8px padding + half the 14px lead) and each child
+   hangs off it on a rounded elbow that lands just before the child's lead slot; the last child
+   ends the spine at its elbow. The spine starts under the lead row, never inside its highlight.
+   Elbow and spine never overlap (the spine starts where the elbow's curve begins), so the
+   translucent line does not paint twice at the joins. */
+.ws-cmd-branch {
+  --cmd-twig: color-mix(in oklab, var(--ds-text-quiet) 42%, transparent);
+  --cmd-twig-r: 8px;
+  position: relative;
+  margin-left: 15px;
+  padding-left: 12px;
+}
+.ws-cmd-branch > .ws-cmd-tree { position: relative; }
+/* Elbow: from the top of the child down to its lead's centre (6px padding + 2px + 7px = 15px),
+   then across to 5px before a 7px dot centred in the lead slot. */
+.ws-cmd-branch > .ws-cmd-tree::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 0;
+  width: 18px;
+  height: 15px;
+  border-left: 1px solid var(--cmd-twig);
+  border-bottom: 1px solid var(--cmd-twig);
+  border-bottom-left-radius: var(--cmd-twig-r);
+  pointer-events: none;
+  transition: border-color var(--ws-dur) var(--ws-ease);
+}
+.ws-cmd-branch > .ws-cmd-tree:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: calc(15px - var(--cmd-twig-r));
+  bottom: 0;
+  border-left: 1px solid var(--cmd-twig);
+  pointer-events: none;
+}
+/* The child under the pointer, or open, lights its own elbow. */
+.ws-cmd-branch > .ws-cmd-tree:is(:has(> .ws-cmd-row:hover), :has(> .ws-cmd-row [aria-current="true"]))::before {
+  border-color: color-mix(in oklab, var(--ds-text-quiet) 90%, transparent);
+}
+/* A child with no mark in its lead slot: the elbow runs on to where the dot would end, so every
+   child's line stops the same distance from its title. */
+.ws-cmd-branch > .ws-cmd-tree:has(> .ws-cmd-row .ws-cmd-item[data-state="read"]:not([data-native]))::before { width: 30px; }
+/* A finished sub-agent has no lead slot (its title starts at the row's padding): a short elbow. */
+.ws-cmd-branch > .ws-cmd-tree:has(> .ws-cmd-row .ws-cmd-item[data-state="read"][data-native])::before { width: 14px; }
+/* A lead with a mark (dot or loader): the spine starts just under it, as a reply line leaves an avatar.
+   Its 7px dot ends 18.5px into the 45px row, so -21px starts the line 5px below it. */
+.ws-cmd-tree:has(> .ws-cmd-row .ws-cmd-item:is([data-state="ready"], [data-state="waiting"], [data-state="running"]))
+  > .ws-cmd-branch > .ws-cmd-tree:first-child::before { top: -21px; height: 36px; }
+/* "N done" sits on a shorter line: its elbow lands on the text's middle, short of the chevron. */
+.ws-cmd-branch > .ws-cmd-tree:has(> .ws-cmd-fold)::before { width: 14px; height: 13px; }
+/* Opened, finished rows follow it: the spine resumes where its shorter elbow starts to curve. */
+.ws-cmd-branch > .ws-cmd-tree:has(> .ws-cmd-fold):not(:last-child)::after { top: calc(13px - var(--cmd-twig-r)); }
+.ws-cmd-tree:has(> .ws-cmd-row .ws-cmd-item:is([data-state="ready"], [data-state="waiting"], [data-state="running"]))
+  > .ws-cmd-branch > .ws-cmd-tree:first-child:has(> .ws-cmd-fold)::before { height: 34px; }
+/* Finished sub-agents, folded into one "N done" row. */
+.ws-cmd-fold {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 10px 6px 8px;
+  border: 0;
+  border-radius: var(--ws-r-control);
+  background: transparent;
+  font: inherit;
+  font-size: 11.5px;
+  color: var(--ds-text-quiet);
+  text-align: left;
+  cursor: pointer;
+}
+.ws-cmd-fold svg { flex: none; transition: transform 0.15s ease; }
+.ws-cmd-fold[aria-expanded="true"] svg { transform: rotate(90deg); }
+.ws-cmd-fold:hover { background: var(--ws-hover); color: var(--ds-text-secondary); }
+.ws-cmd-fold:focus-visible { outline: none; background: var(--ws-hover); box-shadow: inset 0 0 0 1px var(--ws-focus-line); }
+.ws-cmd-tree[data-depth] .ws-cmd-title { font-size: 12.5px; }
+/* A sub-agent the agent ran itself (D9): watched, not talked to, so it reads quieter than a chat.
+   The branch already says what it is, so no tag; one that is not running gives up its empty lead slot. */
+.ws-cmd-item[data-native] .ws-cmd-title { font-weight: 400; color: var(--ds-text-secondary); }
+.ws-cmd-item[data-native]:not([data-state="running"]) .ws-cmd-lead { width: 0; margin-right: -10px; }
+
+/* Type carries the state: 560 needs you, 450 running, 400 read; one dot at most. */
+.ws-cmd-item:is([data-state="ready"], [data-state="waiting"], [data-state="running"]) { color: var(--ds-text); }
+.ws-cmd-item:is([data-state="ready"], [data-state="waiting"]) .ws-cmd-title { font-weight: 560; }
+.ws-cmd-item[data-state="running"] .ws-cmd-title { font-weight: 450; }
+.ws-cmd-item:is([data-state="ready"], [data-state="waiting"]) .ws-cmd-lead::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ws-violet);
+}
+.ws-cmd-item[data-state="waiting"] .ws-cmd-lead::before { background: var(--ds-warning); }
+.ws-cmd-item[data-state="ready"] .ws-cmd-time { color: var(--ws-violet); }
+.ws-cmd-item[data-state="running"] .ws-cmd-time { color: var(--ds-text-secondary); }
+.ws-cmd-item[data-state="waiting"] .ws-cmd-time { color: var(--ds-warning); font-weight: 500; }
+/* An unsent draft (mockups/chat-rail-draft.html, A): one word where the time was, a step brighter. */
+.ws-cmd-item[data-draft] .ws-cmd-time { color: var(--ds-text-secondary); font-style: italic; }
+/* The open thread: a plain fill. A dither here sat under the kawung's own dither and read as grain. */
+.ws-cmd-item[aria-current="true"] {
+  background: color-mix(in oklab, var(--fg) 7.5%, transparent);
+  color: var(--fg);
+}
+.ws-kawung { display: block; color: var(--ds-text); image-rendering: pixelated; }
+
+.ws-cmd-more,
+.ws-cmd-empty {
+  display: block;
+  margin: 0;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  color: var(--ds-text-quiet);
+  text-align: left;
+}
+.ws-cmd-more { cursor: pointer; }
+.ws-cmd-more:hover { color: var(--ds-text); }
+
+/* Code's "folder on another machine": Canvas's picker over the whole window. */
+.ws-remote-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+
+/* The pane menu (mockups/code-rail-pane-menu-dia.html): sections under hairlines, keys shown only
+   while the pointer or focus is in the menu, and the groups in a submenu, each with its colour. */
+.ws-pane-menu-sep { flex: none; height: 1px; margin: 3px 6px; background: var(--ds-border-subtle); }
+.ws-pane-menu .chat-thread-menu-item kbd { opacity: 0; transition: opacity 120ms; }
+.ws-pane-menu:is(:hover, :focus-within) .chat-thread-menu-item kbd { opacity: 1; }
+.ws-pane-menu .chat-thread-menu-item[data-open] { background: var(--ds-menu-hover); color: var(--ds-text); }
+.ws-pane-menu-arrow { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; color: var(--ds-text-quiet); }
+.ws-pane-submenu { width: auto; min-width: 160px; max-width: 260px; }
+.ws-pane-submenu .chat-thread-menu-item { justify-content: flex-start; }
+.ws-pane-menu-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--ws-frame-hue); }
+.ws-pane-menu-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

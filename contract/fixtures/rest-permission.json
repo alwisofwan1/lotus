@@ -1,0 +1,25 @@
+{
+  "paneId": "p-1",
+  "awaiting": true,
+  "prompt": {
+    "question": "Do you want to delete src/legacy/shim.ts?",
+    "options": [
+      {
+        "key": "1",
+        "label": "Yes",
+        "selected": true
+      },
+      {
+        "key": "2",
+        "label": "Yes, allow all edits during this session (shift+tab)",
+        "selected": false
+      },
+      {
+        "key": "3",
+        "label": "No",
+        "selected": false
+      }
+    ]
+  },
+  "readback": "Do you want to delete src/legacy/shim.ts? Option 1: Yes. Option 2: Yes, allow all edits during this session. Option 3: No."
+}

@@ -1,0 +1,28 @@
+{
+  "type": "hello",
+  "hostId": "mac",
+  "hostLabel": "MacBook",
+  "mode": "client",
+  "hostCaps": {
+    "protocol": 1,
+    "features": [
+      "fleet",
+      "dispatch",
+      "input",
+      "stop",
+      "tasks",
+      "stream",
+      "device-refresh",
+      "device-renew",
+      "result",
+      "spawn",
+      "close",
+      "spawn-tuning",
+      "transcript",
+      "permission",
+      "stt",
+      "conversation",
+      "pty-size"
+    ]
+  }
+}

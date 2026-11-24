@@ -1,0 +1,2429 @@
+/*
+  Automations — what the surface adds on top of the resource kit (`resource-kit.css`): the draft
+  and result cards, the prompt card, forms, the composer, and the browse cards.
+
+  Same tokens as Tasks and the panes; the only hues are the kit's run states.
+*/
+
+.au-column {
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+  background: var(--bg);
+}
+
+.au-page-title {
+  margin: 0 0 22px;
+  color: var(--fg);
+  font-size: var(--ds-t-head);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* ── Text ──────────────────────────────────────────────────────────────── */
+
+.au-note { margin: 0; color: var(--text-secondary); font-size: var(--ds-t-meta); line-height: 1.5; }
+.au-hint { color: var(--text-muted); font-size: var(--ds-t-micro); line-height: 1.45; }
+.au-error { margin: 0; color: var(--rs-fail); font-size: var(--ds-t-meta); line-height: 1.5; }
+.au-notice { margin: 0 0 14px; }
+.au-link {
+  color: var(--fg);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in oklab, var(--fg) 35%, transparent);
+  text-underline-offset: 2px;
+}
+.au-link:hover { text-decoration-color: currentColor; }
+.au-sent { color: var(--rs-ok); font-size: var(--ds-t-meta); font-weight: 500; }
+.au-stack { display: flex; flex-direction: column; gap: 10px; }
+
+/* ── Controls ──────────────────────────────────────────────────────────── */
+
+.au-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.au-label { color: var(--text-secondary); font-size: var(--ds-t-meta); font-weight: 500; }
+
+.au-input,
+.au-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  padding: 0 10px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  /* A faint well, so a field reads as a field on glass as well as on the shell. */
+  background: color-mix(in oklab, var(--fg) 3%, transparent);
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--ds-t-body);
+  transition: border-color var(--ws-dur) var(--ws-ease), box-shadow var(--ws-dur) var(--ws-ease), background var(--ws-dur) var(--ws-ease);
+}
+.au-input:hover:not(:disabled):not(:focus),
+.au-textarea:hover:not(:disabled):not(:focus):not(.au-textarea--bare) { border-color: color-mix(in oklab, var(--fg) 26%, transparent); }
+.au-input { height: 32px; }
+select.au-input { padding-right: 6px; }
+.au-input--time { width: 112px; font-variant-numeric: tabular-nums; }
+.au-input--mono { font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace); }
+.au-textarea { padding: 8px 10px; line-height: 1.5; resize: vertical; }
+.au-textarea--prompt { min-height: 104px; }
+.au-textarea--bare { border-color: transparent; padding: 4px 0 0; background: transparent; resize: none; }
+.au-input:focus,
+.au-textarea:focus { outline: none; border-color: var(--ws-focus-line); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ws-focus-line) 22%, transparent); }
+.au-textarea--bare:focus { border-color: transparent; box-shadow: none; }
+.au-input:disabled,
+.au-textarea:disabled { opacity: 0.6; }
+.au-input::placeholder,
+.au-textarea::placeholder { color: var(--text-muted); }
+
+.au-check { display: inline-flex; align-items: center; gap: 8px; color: var(--text-secondary); font-size: var(--ds-t-body); cursor: pointer; }
+.au-check:has(input:checked) { color: var(--fg); }
+.au-check:has(input:disabled) { cursor: default; }
+/* Drawn, not native: the platform box is a bright white square on every dark theme. */
+.au-check input[type="checkbox"] {
+  flex: 0 0 auto;
+  display: grid;
+  place-content: center;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  border: 1.5px solid var(--ws-line-strong);
+  border-radius: 4px;
+  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: inherit;
+  transition: background var(--ws-dur) var(--ws-ease), border-color var(--ws-dur) var(--ws-ease);
+}
+.au-check input[type="checkbox"]::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  background: var(--rs-on-fg, var(--bg));
+  clip-path: polygon(14% 44%, 0 59%, 39% 100%, 100% 22%, 86% 8%, 38% 70%);
+  transform: scale(0);
+  transition: transform 120ms var(--ws-ease);
+}
+.au-check input[type="checkbox"]:checked { border-color: var(--fg); background: var(--fg); }
+.au-check input[type="checkbox"]:checked::before { transform: scale(1); }
+.au-check input[type="checkbox"]:hover:not(:disabled) { border-color: var(--text-secondary); }
+.au-check input[type="checkbox"]:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.au-check input[type="checkbox"]:disabled { opacity: 0.4; }
+.au-row { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
+.au-draft-actions { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+
+/* ── Callouts ──────────────────────────────────────────────────────────── */
+
+.au-callout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-panel);
+  background: var(--ws-surface-quiet);
+  color: var(--fg);
+  font-size: var(--ds-t-meta);
+  line-height: 1.5;
+}
+.au-callout p { flex: 1 1 auto; margin: 0; }
+.au-callout > svg { flex: 0 0 auto; }
+.au-callout--warn { border-color: color-mix(in oklab, var(--rs-warn) 40%, transparent); background: color-mix(in oklab, var(--rs-warn) 9%, transparent); }
+.au-callout--danger { border-color: color-mix(in oklab, var(--rs-fail) 40%, transparent); background: color-mix(in oklab, var(--rs-fail) 9%, transparent); }
+.au-callout--danger > svg { color: var(--rs-fail); }
+
+/* ── Composer ──────────────────────────────────────────────────────────── */
+
+.au-composer {
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-card);
+  background: var(--ws-surface);
+  box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--ds-shadow-ink) 60%, transparent);
+  animation: au-rise 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.au-composer:focus-within { border-color: var(--ws-focus-line); }
+.au-composer-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 84px;
+  padding: 12px 14px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--ds-t-body);
+  line-height: 1.55;
+  resize: none;
+  outline: none;
+}
+.au-composer-input::placeholder { color: var(--text-muted); }
+.au-composer-foot { display: flex; align-items: center; gap: 12px; padding: 8px 10px 10px 14px; }
+.au-composer + .au-error { margin-top: -8px; }
+
+@keyframes au-rise {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) { .au-composer { animation: none; } }
+
+/* ── Draft and result cards ───────────────────────────────────────────── */
+
+.au-inbox,
+.au-browse { display: flex; flex-direction: column; gap: 28px; }
+.au-inbox-group { display: flex; flex-direction: column; gap: 10px; }
+.au-group-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  font-weight: 600;
+}
+.au-group-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.au-group-head kbd {
+  padding: 0 4px;
+  border: 1px solid var(--ws-line);
+  border-radius: 4px;
+  font: inherit;
+  font-size: var(--ds-t-micro);
+}
+.au-show-more { align-self: flex-start; font-size: var(--ds-t-meta); }
+
+/* Waiting items: a short list on the left, the open one on the right. The list keeps its place
+   while a long review scrolls the page, so the next item is always one key away. */
+.au-triage {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.au-triage-list {
+  position: sticky;
+  top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: calc(100vh - 180px);
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+  background: var(--ws-surface-quiet);
+}
+.au-triage-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 8px 10px;
+  border-radius: var(--ws-r-control);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.au-triage-row { position: relative; }
+.au-triage-row:hover { background: var(--ws-hover); }
+/* Selected but closed (j/k moved here): a quiet mark. Open in the pane: raised, as the thing in hand. */
+.au-triage-row[aria-selected="true"]:not([data-opened]) { background: var(--ws-hover); }
+.au-triage-row[data-opened] {
+  background: var(--ws-surface-raised);
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px var(--ws-line-strong);
+}
+.au-triage-row:focus-visible { outline: 2px solid var(--ws-focus-line); outline-offset: -2px; }
+.au-triage-icon { margin-top: 2px; color: var(--text-muted); }
+.au-triage-row[aria-selected="true"] .au-triage-icon { color: var(--text-secondary); }
+/* What a press does, floated over the row's top-right on hover or keyboard focus (Slack's hover bar). */
+.au-triage-open {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 3px 9px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-raised);
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--ds-shadow-ink) 55%, transparent);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-micro);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(2px);
+  transition: opacity var(--ws-dur) var(--ws-ease), transform var(--ws-dur) var(--ws-ease);
+}
+.au-triage-row:hover .au-triage-open,
+.au-triage-row:focus-visible .au-triage-open { opacity: 1; transform: none; }
+.au-triage-row[data-opened] .au-triage-open { display: none; }
+.au-triage-title {
+  overflow: hidden;
+  color: var(--fg);
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.au-triage-when { color: var(--text-muted); font-size: var(--ds-t-micro); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.au-triage-meta,
+.au-triage-preview { grid-column: 2 / -1; min-width: 0; font-size: var(--ds-t-micro); }
+.au-triage-meta { display: flex; align-items: center; gap: 6px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.au-triage-preview {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-muted);
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.au-triage-tag--ask {
+  font-weight: 600;
+}
+
+/* An Ask's answer: an optional note (or the answer itself), then one button per choice. */
+.au-ask-note {
+  width: 100%;
+  resize: vertical;
+}
+
+.au-ask-answers {
+  flex-wrap: wrap;
+}
+
+/* A chain's earlier questions, quieter than the one waiting, each with how it was answered. */
+.au-ask-chain {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0 0 0 10px;
+  border-left: 2px solid var(--ws-line-strong);
+  list-style: none;
+  color: var(--text-secondary);
+}
+
+.au-ask-chain-step {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.au-triage-tag {
+  flex: 0 0 auto;
+  padding: 0 5px;
+  border: 1px solid color-mix(in oklab, var(--rs-warn) 40%, transparent);
+  border-radius: var(--ws-r-pill);
+  color: var(--rs-warn);
+}
+/* A fact about the row, not a warning: neutral line and text. */
+.au-triage-tag--quiet {
+  border-color: var(--ws-line-strong);
+  color: var(--text-secondary);
+}
+
+/* The day a run of rows came in; Asks get their own heading above all days. Scoped to the list:
+   the day picker's buttons share the class, and this rule made them bold and pushed "Mon" down. */
+.au-triage-list > .au-day {
+  padding: 10px 10px 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  list-style: none;
+}
+.au-triage-list > .au-day:first-child { padding-top: 2px; }
+.au-triage-reader { min-width: 0; }
+.au-textarea--grow { overflow: hidden; resize: none; }
+
+@container (max-width: 760px) {
+  .au-triage { grid-template-columns: minmax(0, 1fr); }
+  .au-triage-list { position: static; max-height: 260px; }
+}
+
+.au-draft {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+  background: var(--ws-surface);
+}
+.au-draft-head { display: flex; align-items: flex-start; gap: 10px; }
+.au-draft-icon { flex: 0 0 auto; margin-top: 2px; color: var(--text-secondary); }
+.au-draft-heading { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+.au-draft-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  color: var(--fg);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.au-draft-title:hover { text-decoration: underline; text-underline-offset: 2px; }
+.au-draft-title svg { flex: 0 0 auto; color: var(--text-muted); }
+.au-draft-meta { color: var(--text-secondary); font-size: var(--ds-t-meta); }
+.au-draft-meta code { font-size: var(--ds-t-micro); }
+.au-draft-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 2px; }
+
+.au-comments { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.au-comment {
+  padding: 8px 10px 6px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-control);
+  background: var(--bg);
+}
+.au-comment-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.au-comment-where {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: var(--ds-t-micro);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.au-comment-remove { width: 22px; height: 22px; }
+.au-comment-head .au-comment-where { flex: 1 1 auto; }
+/* Severity: a badge that is also the dropdown to change it. */
+.au-severity {
+  --sev: var(--text-secondary);
+  flex: 0 0 auto;
+  height: 20px;
+  padding: 0 6px;
+  border: 1px solid color-mix(in oklab, var(--sev) 40%, transparent);
+  border-radius: var(--ws-r-pill);
+  background: color-mix(in oklab, var(--sev) 10%, transparent);
+  color: var(--sev);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  cursor: pointer;
+}
+.au-severity[data-severity="blocker"] { --sev: var(--rs-fail); }
+.au-severity[data-severity="should-fix"] { --sev: var(--rs-warn); }
+.au-severity[data-severity="suggestion"] { --sev: var(--rs-ok); }
+.au-severity[data-severity="none"] { font-weight: 400; color: var(--text-muted); }
+.au-severity:disabled { cursor: default; }
+
+/* ── Review card: reads like the review, edits in place ───────────────── */
+
+.au-review-card { gap: 16px; }
+.au-review-part { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.au-review-part-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 22px; }
+.au-count { margin-left: 4px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.au-review-card .au-comment { padding: 8px 12px 10px; }
+.au-review-card .au-comment[data-editing] { border-color: var(--ws-line-strong); }
+.au-comment-actions { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 2px; }
+.au-edit { width: 22px; height: 22px; }
+/* The pencil stays out of the way until the part is pointed at or reached by keyboard. */
+@media (hover: hover) {
+  .au-comment .au-edit,
+  .au-comment .au-comment-remove { opacity: 0; transition: opacity var(--ws-dur) var(--ws-ease); }
+  .au-comment:hover .au-edit,
+  .au-comment:hover .au-comment-remove,
+  .au-comment:focus-within .au-edit,
+  .au-comment:focus-within .au-comment-remove { opacity: 1; }
+}
+.au-edit-done { font-size: var(--ds-t-meta); }
+.au-review-input { min-height: 0; resize: none; }
+
+.au-review-text {
+  max-width: 76ch;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.au-review-text > :first-child { margin-top: 0; }
+.au-review-text > :last-child { margin-bottom: 0; }
+.au-review-text p,
+.au-review-text ul,
+.au-review-text ol { margin: 0 0 8px; }
+.au-review-text ul,
+.au-review-text ol { padding-left: 20px; }
+.au-review-text code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--ws-surface-quiet);
+  font-size: 0.92em;
+}
+.au-review-text pre {
+  margin: 0 0 8px;
+  padding: 8px 10px;
+  overflow-x: auto;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-control);
+  background: var(--bg);
+}
+.au-review-text pre code { padding: 0; background: none; }
+.au-review-text a { color: var(--fg); text-decoration: underline; text-underline-offset: 2px; }
+/* A Slack result, shown line for line as Slack will show it. */
+.au-slack-text { white-space: pre-wrap; }
+.au-slack-gap { height: 0.8em; }
+.au-slack-item { position: relative; padding-left: 1.4em; }
+.au-slack-item::before { content: "•"; position: absolute; left: 0.45em; }
+.au-slack-item[data-level="1"] { margin-left: 1.4em; }
+.au-slack-item[data-level="1"]::before { content: "◦"; }
+.au-slack-item[data-level="2"] { margin-left: 2.8em; }
+.au-slack-item[data-level="2"]::before { content: "▪"; }
+.au-slack-item[data-level="3"] { margin-left: 4.2em; }
+.au-slack-item[data-level="4"] { margin-left: 5.6em; }
+.au-slack-text strong { font-weight: 600; }
+.au-slack-mention {
+  padding: 0 3px;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+  color: var(--accent);
+  font-weight: 500;
+}
+.au-slack-note { margin-top: 6px; }
+/* Agent results use headings as section labels, not titles: they stay card-sized. */
+.au-review-text h1,
+.au-review-text h2,
+.au-review-text h3,
+.au-review-text h4,
+.au-review-text h5,
+.au-review-text h6 { margin: 14px 0 4px; color: var(--fg); font-size: var(--ds-t-body); font-weight: 600; line-height: 1.4; }
+.au-review-text h1,
+.au-review-text h2 { font-size: var(--ds-t-lede); }
+.au-review-text blockquote {
+  margin: 0 0 8px;
+  padding-left: 10px;
+  border-left: 2px solid var(--ws-line-strong);
+  color: var(--text-secondary);
+}
+.au-review-text hr { margin: 12px 0; border: 0; border-top: 1px solid var(--ws-line); }
+.au-review-text table { margin: 0 0 8px; border-collapse: collapse; font-size: var(--ds-t-meta); }
+.au-review-text th,
+.au-review-text td { padding: 4px 8px; border: 1px solid var(--ws-line); text-align: left; }
+.au-review-text th { font-weight: 600; }
+.au-review-text--empty { margin: 0; color: var(--text-muted); font-size: var(--ds-t-meta); }
+
+.au-review-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ws-line);
+}
+.au-review-dest { display: flex; flex: 1 1 260px; flex-direction: column; gap: 4px; min-width: 0; }
+/* The Slack thread reply, as it will read: its verdict, then up to two editable points. */
+/* A re-review's earlier findings, each with how it stands now. */
+.au-earlier { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.au-earlier-item { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: var(--ds-t-meta); }
+.au-earlier-where { color: var(--text-muted); }
+.au-earlier-body { flex: 1 1 240px; min-width: 0; }
+.au-reply-style-hint { display: block; margin: 6px 0 2px; }
+.au-reply-style-hint code { font-size: 0.95em; }
+.au-slack-reply { display: flex; flex-direction: column; gap: 6px; margin: 4px 0 2px 22px; max-width: 560px; }
+.au-slack-reply-verdict { font-size: var(--ds-t-meta); font-weight: 600; color: var(--text-primary); }
+.au-slack-reply .au-input { font-size: var(--ds-t-meta); }
+
+/* Review decisions precede the outgoing preview. Use the workbench's theme in both modes. */
+.au-decision { display: flex; flex-direction: column; gap: 10px; padding: 16px 0; border-block: 1px solid var(--ws-line); }
+/* One segmented control: the verdict, and GitHub's Comment / Approve. */
+.au-segmented { display: inline-flex; align-self: flex-start; gap: 2px; padding: 2px; border: 1px solid var(--ws-line); border-radius: var(--ws-r-control, 8px); background: var(--ws-surface); }
+.au-segment { min-height: 30px; padding: 0 14px; border: 0; border-radius: calc(var(--ws-r-control, 8px) - 2px); background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--ds-t-meta); font-weight: 600; cursor: pointer; }
+.au-segmented--small .au-segment { min-height: 24px; padding: 0 10px; }
+.au-segment[aria-pressed="true"] { background: var(--ws-hover); color: var(--text-primary); box-shadow: inset 0 0 0 1px var(--ws-line); }
+.au-segment[aria-pressed="true"][data-verdict="looks-good"] { color: var(--rs-ok); }
+.au-segment[aria-pressed="true"][data-verdict="questions"] { color: var(--rs-warn); }
+.au-segment[aria-pressed="true"][data-verdict="changes-needed"] { color: var(--rs-fail); }
+.au-segment:hover:not(:disabled) { color: var(--text-primary); }
+.au-segment:disabled { opacity: .45; cursor: not-allowed; }
+.au-segment:focus-visible { outline: 2px solid var(--text-secondary); outline-offset: 2px; }
+
+/* Send to: one row per destination, each a switch. */
+.au-send-to { display: flex; flex: 1 1 320px; flex-direction: column; gap: 10px; min-width: 0; }
+.au-dest { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border: 1px solid var(--ws-line); border-radius: var(--ws-r-control, 8px); background: var(--ws-surface); }
+.au-switch { position: relative; display: inline-flex; align-items: center; gap: 8px; color: var(--text-primary); font-size: var(--ds-t-meta); font-weight: 600; cursor: pointer; }
+.au-switch input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.au-switch-track { position: relative; flex: 0 0 auto; width: 28px; height: 16px; border-radius: 999px; background: var(--ws-line); transition: background .15s; }
+.au-switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--text-secondary); transition: transform .15s, background .15s; }
+.au-switch input:checked + .au-switch-track { background: color-mix(in oklab, var(--rs-ok) 45%, var(--ws-line)); }
+.au-switch input:checked + .au-switch-track::after { transform: translateX(12px); background: var(--text-primary); }
+.au-switch input:focus-visible + .au-switch-track { outline: 2px solid var(--text-secondary); outline-offset: 2px; }
+.au-switch input:disabled + .au-switch-track { opacity: .5; }
+.au-dest .au-slack-reply { margin: 0; }
+.au-slack-preview { padding: 8px 10px; border-left: 3px solid var(--ws-line); border-radius: 4px; background: var(--ws-hover); font-size: var(--ds-t-meta); }
+
+/* Discard: an optional reason, one press. */
+.au-discard { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.au-chip { height: 24px; padding: 0 10px; border: 1px solid var(--ws-line); border-radius: var(--ws-r-pill); background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--ds-t-meta); cursor: pointer; }
+.au-chip:hover { background: var(--ws-hover); color: var(--text-primary); }
+.au-decision .au-hint, .au-decision .au-note { margin: 0; max-width: 72ch; }
+.au-coverage { display: flex; flex-wrap: wrap; gap: 4px 12px; margin: 0; }
+.au-coverage strong { font-weight: 600; color: var(--text-primary); }
+.au-dest-row { display: inline-flex; align-items: center; gap: 7px; color: var(--text-secondary); font-size: var(--ds-t-meta); }
+.au-dest-row svg { flex: 0 0 auto; }
+.au-dest-muted { color: var(--text-muted); }
+.au-dest-ok { flex: 0 0 auto; color: var(--rs-ok); }
+
+/* ── Sent reviews ─────────────────────────────────────────────────────── */
+
+.au-sent-list {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+  list-style: none;
+}
+.au-sent-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, auto) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  font-size: var(--ds-t-meta);
+}
+.au-sent-row + .au-sent-row { border-top: 1px solid var(--ws-line); }
+.au-review-room { min-width: 0; margin-top: 12px; border-top: 1px solid var(--ws-line); padding-top: 12px; }
+.au-sent-row > .au-review-room { grid-column: 1 / -1; margin-top: 0; }
+.au-review-room > summary { cursor: pointer; color: var(--text-secondary); font-size: var(--ds-t-meta); padding: 6px 0; }
+.au-review-room summary:focus-visible { outline: 2px solid var(--ws-focus-line); outline-offset: 3px; }
+.au-room-body { display: flex; flex-direction: column; gap: 12px; padding-top: 12px; max-width: 75ch; }
+.au-room-body p { margin: 0; }
+.au-room-status { color: var(--fg); font-weight: 600; }
+.au-room-timeline { display: flex; flex-direction: column; gap: 16px; list-style: none; margin: 0; padding: 0; }
+.au-room-timeline > li { padding-bottom: 12px; border-bottom: 1px solid var(--ws-line); overflow-wrap: anywhere; }
+.au-room-round { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.au-room-next { display: flex; flex-direction: column; gap: 8px; }
+.au-room-next textarea { resize: vertical; width: 100%; }
+.au-sent-subject {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg);
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.au-sent-subject:hover { text-decoration: underline; text-underline-offset: 2px; }
+.au-sent-subject svg { flex: 0 0 auto; color: var(--text-muted); }
+.au-sent-meta { color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.au-sent-slack { min-width: 0; overflow: hidden; text-align: right; text-overflow: ellipsis; white-space: nowrap; }
+.au-sent-slack > span { display: inline-flex; align-items: center; gap: 5px; }
+@media (max-width: 640px) {
+  .au-sent-row { grid-template-columns: 14px minmax(0, 1fr); }
+  .au-sent-meta,
+  .au-sent-slack { grid-column: 2; text-align: left; }
+}
+
+/* ── Browse ───────────────────────────────────────────────────────────── */
+
+.au-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 10px; }
+
+.au-template {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  grid-template-rows: auto 1fr auto;
+  column-gap: 10px;
+  row-gap: 4px;
+  min-height: 118px;
+  padding: 14px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+  background: var(--ws-surface);
+  text-align: left;
+  transition: border-color var(--ws-dur) var(--ws-ease), background var(--ws-dur) var(--ws-ease);
+}
+.au-template:hover { border-color: var(--ws-line-strong); background: color-mix(in oklab, var(--fg) 2.5%, var(--ws-surface)); }
+.au-template:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.au-template-icon {
+  grid-row: 1 / span 3;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-quiet);
+  color: var(--text-secondary);
+}
+.au-template-title { color: var(--fg); font-weight: 500; }
+.au-template-text { color: var(--text-secondary); font-size: var(--ds-t-meta); line-height: 1.5; }
+.au-template-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+  transition: color var(--ws-dur) var(--ws-ease);
+}
+.au-template:hover .au-template-cta { color: var(--fg); }
+
+/* ── Detail ───────────────────────────────────────────────────────────── */
+
+.au-prompt {
+  /* visible: the Agent row's model and account popovers open out of the card */
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+  background: color-mix(in oklab, var(--fg) 2.5%, transparent);
+}
+.au-prompt--editing { background: var(--ws-surface); border-color: var(--ws-focus-line); box-shadow: 0 10px 30px -18px color-mix(in srgb, var(--ds-shadow-ink) 60%, transparent); }
+.au-prompt-text {
+  margin: 0;
+  padding: 14px 16px 12px;
+  color: var(--fg);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.au-prompt-text[data-empty="true"] { color: var(--text-secondary); }
+.au-prompt-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 132px;
+  padding: 14px 16px 6px;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+}
+.au-prompt-error { padding: 0 16px 6px; }
+.au-prompt-actions { display: flex; align-items: center; gap: 10px; padding: 8px 10px 10px 16px; }
+
+.au-prompt-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  padding: 8px 16px;
+  border-top: 1px solid var(--ws-line);
+}
+.au-prompt-foot--flat { padding: 0; border-top: 0; gap: 8px; }
+.au-prompt-foot--flat .au-chip {
+  padding: 5px 10px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-pill);
+}
+
+.au-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--ds-t-meta);
+  white-space: nowrap;
+}
+.au-chip-icon { display: inline-flex; color: var(--text-muted); }
+
+.au-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+}
+.au-fact { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.au-fact--wide { grid-column: 1 / -1; }
+.au-fact-label { color: var(--text-muted); font-size: var(--ds-t-micro); font-weight: 500; letter-spacing: 0.02em; }
+.au-fact-value { display: flex; flex-wrap: wrap; gap: 8px; color: var(--fg); }
+.au-fact-code { font-size: var(--ds-t-meta); color: var(--text-secondary); }
+.au-facts + .au-hint { display: block; margin-top: 10px; }
+.au-facts .au-callout { margin: 0; }
+@container (max-width: 520px) { .au-facts { grid-template-columns: minmax(0, 1fr); } }
+
+.au-review { display: flex; gap: 8px; margin-bottom: 8px; }
+
+.au-runs {
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+}
+.au-run { border-radius: var(--ws-r-control); }
+.au-run-button {
+  display: grid;
+  grid-template-columns: 14px 128px minmax(0, 160px) minmax(0, 1fr) 14px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: var(--ws-r-control);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.au-run-button:hover { background: var(--ws-hover); }
+.au-run-button:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.au-run-go { display: inline-flex; color: var(--text-muted); opacity: 0; transition: opacity var(--ws-dur) var(--ws-ease), transform var(--ws-dur) var(--ws-ease); }
+.au-run-button:hover .au-run-go,
+.au-run-button:focus-visible .au-run-go,
+.au-run[data-expanded] .au-run-go { opacity: 1; }
+.au-run[data-expanded] .au-run-go { transform: rotate(180deg); }
+.au-run-when { color: var(--fg); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.au-run-subject,
+.au-run-detail { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ds-t-meta); }
+.au-run-subject { color: var(--text-secondary); }
+.au-run-detail { color: var(--text-muted); }
+.au-run[data-status="failed"] .au-run-detail,
+.au-run[data-status="interrupted"] .au-run-detail { color: var(--rs-fail); }
+.au-run-more { display: flex; flex-direction: column; gap: 4px; padding: 2px 8px 10px 32px; }
+.au-run-more-text { margin: 0; max-width: 76ch; color: var(--text-secondary); font-size: var(--ds-t-meta); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.au-run[data-status="failed"] .au-run-more-text,
+.au-run[data-status="interrupted"] .au-run-more-text { color: var(--rs-fail); }
+/* Running now (`.pen` "Automation Running now round 1"): one card per run working at this moment,
+   first wherever the user waits for one. The open card shows its trace; the others, one line. */
+.au-running { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.au-running-list { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.au-running-item {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-card);
+  background: var(--bg);
+  transition: border-color var(--ws-dur) var(--ws-ease);
+}
+.au-running-item[data-open] { border-color: var(--ws-line-strong); }
+.au-running-item[data-done] { animation: au-running-leave 400ms var(--ws-ease) 1600ms both; }
+.au-running-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: var(--ds-t-meta);
+  text-align: left;
+  cursor: pointer;
+}
+.au-running-head:hover { background: var(--ws-hover); }
+.au-running-head:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ws-focus-line); }
+.au-running-name { color: var(--fg); font-weight: 600; white-space: nowrap; }
+.au-running-subject {
+  min-width: 0;
+  overflow: hidden;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--ws-hover);
+  color: var(--text-secondary);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.92em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.au-running-when { margin-left: auto; color: var(--text-muted); font-family: var(--font-mono, ui-monospace, monospace); font-size: 0.92em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.au-running-chevron { flex: 0 0 auto; color: var(--text-muted); transition: transform var(--ws-dur) var(--ws-ease); }
+.au-running-head[aria-expanded="true"] .au-running-chevron { transform: rotate(180deg); }
+.au-running-now,
+.au-running-pane {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0 12px 10px 36px;
+  color: var(--text-secondary);
+  font-size: var(--ds-t-meta);
+}
+.au-running-now > svg, .au-running-pane > svg { flex: 0 0 auto; color: var(--text-muted); }
+.au-running-now-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.au-running-count { margin-left: auto; color: var(--text-muted); font-size: 0.92em; white-space: nowrap; }
+.au-running-item[data-done] .au-running-now { color: var(--fg); }
+
+/* The orb: every frame is drawn; each shows for one twelfth of the turn (RunDither.tsx). */
+.au-orb { flex: 0 0 auto; shape-rendering: crispEdges; }
+.au-orb-track { fill: color-mix(in srgb, var(--rs-busy) 14%, transparent); }
+.au-orb-frame { fill: var(--rs-busy); opacity: 0; animation: au-orb-frame 960ms step-end infinite; }
+@keyframes au-orb-frame {
+  0% { opacity: 1; }
+  8.333% { opacity: 0; }
+}
+
+/* The strip: a dither comet marching along the open card's head, in 30 steps a pass. */
+.au-strip { position: relative; height: 4px; margin: 0 12px 8px; overflow: hidden; background: color-mix(in srgb, var(--rs-busy) 6%, transparent); }
+.au-strip-comet { position: absolute; top: 0; left: -240px; display: block; fill: var(--rs-busy); shape-rendering: crispEdges; animation: au-strip-march 2.4s steps(30) infinite; }
+@keyframes au-strip-march { to { left: 100%; } }
+
+/* The trace: a rail of steps, the newest the only bright one, each with how long it took. */
+.au-trace { display: flex; flex-direction: column; gap: 6px; padding: 0 12px 12px 18px; }
+.au-trace-head { display: flex; align-items: center; gap: 6px; margin: 0; color: var(--text-muted); font-size: var(--ds-t-micro); }
+.au-trace-more {
+  align-self: flex-start;
+  margin-left: 22px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  cursor: pointer;
+}
+.au-trace-more:hover { color: var(--fg); }
+.au-trace-more:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); border-radius: 4px; }
+.au-steps { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.au-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 0 8px 22px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-meta);
+  animation: au-step-in 160ms var(--ws-ease) both;
+}
+.au-step:last-child { padding-bottom: 0; }
+/* The rail: a dot per step, joined by a line down to the next. */
+.au-step::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--ws-r-pill);
+  background: var(--ws-line-strong);
+}
+.au-step:not(:last-child)::after {
+  content: "";
+  position: absolute;
+  top: 14px;
+  bottom: -2px;
+  left: 7px;
+  width: 1px;
+  background: var(--ws-line);
+}
+.au-step[data-current] { color: var(--fg); font-weight: 500; }
+/* The newest step's dot is pixels: a 4×4 tile of the strip's dither. */
+.au-step[data-current]::before {
+  top: 6px;
+  left: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 0;
+  background:
+    conic-gradient(from 90deg at 50% 50%, var(--rs-busy) 25%, transparent 0 50%, var(--rs-busy) 0 75%, transparent 0) 0 0 / 4px 4px;
+  animation: au-step-pulse 1.4s steps(2) infinite;
+}
+@keyframes au-step-pulse { 50% { opacity: 0.4; } }
+@keyframes au-step-in { from { opacity: 0; transform: translateY(4px); } }
+.au-step-icon { flex: 0 0 auto; color: var(--text-muted); }
+.au-step[data-current] .au-step-icon { color: var(--fg); }
+.au-step[data-kind="refused"] .au-step-icon,
+.au-step[data-kind="refused"] .au-step-text { color: var(--rs-busy); }
+.au-step-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.au-step-times { flex: 0 0 auto; color: var(--text-muted); font-size: 0.92em; }
+.au-step-took {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  font-variant-numeric: tabular-nums;
+}
+.au-step[data-current] .au-step-took { color: var(--rs-busy); }
+/* Before the first step: the words shimmer, pixels are for work actually happening. */
+[data-starting] {
+  background: linear-gradient(90deg, var(--text-muted) 40%, var(--fg) 50%, var(--text-muted) 60%) 0 0 / 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: au-shimmer 1.8s linear infinite;
+}
+@keyframes au-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+@keyframes au-running-leave { to { opacity: 0; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) {
+  .au-run-go { transition: none; }
+  .au-step, .au-step[data-current]::before, [data-starting], .au-strip-comet, .au-running-item[data-done] { animation: none; }
+  .au-orb-frame { animation: none; }
+  .au-orb-frame:nth-child(2) { opacity: 1; }
+  .au-strip-comet { left: 0; }
+}
+@container (max-width: 560px) {
+  .au-run-button { grid-template-columns: 14px minmax(0, 1fr) 14px; }
+  .au-run-subject, .au-run-detail { grid-column: 2; }
+  .au-run-more { padding-left: 32px; }
+}
+
+.au-inline-form { display: flex; flex-direction: column; gap: 12px; padding: 14px 16px; border: 1px solid var(--ws-line-strong); border-radius: var(--ws-r-card); }
+
+/* ── Forms ─────────────────────────────────────────────────────────────── */
+
+.au-form { display: flex; flex-direction: column; gap: 0; }
+
+.au-fsection {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 24px 0;
+  border: 0;
+  border-top: 1px solid var(--ws-line);
+  min-width: 0;
+}
+.au-fsection:first-child { border-top: 0; padding-top: 0; }
+.au-fsection-title { padding: 0; color: var(--fg); font-size: var(--ds-t-body); font-weight: 600; letter-spacing: -0.005em; }
+/* Title and hint are one heading; the fields start a step below it. */
+.au-fsection-hint { margin: -8px 0 2px; color: var(--text-muted); font-size: var(--ds-t-meta); line-height: 1.5; max-width: 64ch; }
+.au-fsection-body { display: flex; flex-direction: column; gap: 16px; }
+/* A field's hint is a footnote: a measure you can read in one glance, not a full-width line. */
+.au-form .au-hint,
+.au-form .au-fsection-body > .au-note { max-width: 64ch; }
+.au-form .au-field > .au-hint { margin-top: -1px; }
+
+.au-schedule { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.au-daypicker {
+  display: inline-flex;
+  gap: 2px;
+  height: 32px;
+  padding: 2px;
+  box-sizing: border-box;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+}
+.au-day {
+  min-width: 40px;
+  padding: 0 8px;
+  border-radius: calc(var(--ws-r-control) - 2px);
+  color: var(--text-muted);
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  transition: background var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+.au-day:hover { color: var(--fg); background: var(--ws-hover); }
+/* Chosen is a soft raised fill, as a pressed tab: seven white slabs shouted over the whole form. */
+.au-day[aria-pressed="true"] {
+  background: color-mix(in oklab, var(--fg) 14%, transparent);
+  color: var(--fg);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--fg) 10%, transparent);
+}
+.au-day:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+
+.au-advanced { padding: 16px 0; border-top: 1px solid var(--ws-line); }
+.au-advanced > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+.au-advanced > summary::-webkit-details-marker { display: none; }
+.au-advanced > summary::before { content: "›"; display: inline-block; transition: transform var(--ws-dur) var(--ws-ease); }
+.au-advanced[open] > summary::before { transform: rotate(90deg); }
+.au-advanced > summary:hover { color: var(--fg); }
+.au-advanced-body { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; padding-top: 14px; }
+@container (max-width: 560px) { .au-advanced-body { grid-template-columns: minmax(0, 1fr); } }
+
+.au-form-foot {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 4px;
+  padding: 14px 0 4px;
+  border-top: 1px solid var(--ws-line);
+  background: var(--bg);
+}
+.au-form > .au-error { padding-top: 10px; }
+
+/* Where a scheduled prompt's result went in Google (GoogleDelivery). */
+.au-google { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.au-google-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; border: 1px solid var(--ws-line); border-radius: var(--ws-r-panel); }
+.au-google-row { display: flex; align-items: center; gap: 10px; padding: 8px 12px; color: var(--text-secondary); }
+.au-google-row + .au-google-row { border-top: 1px solid var(--ws-line); }
+.au-google-row[data-status="not_sent"] { background: color-mix(in oklab, var(--rs-fail) 7%, transparent); }
+.au-google-text { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; }
+.au-google-name { color: var(--fg); font-size: var(--ds-t-meta); font-weight: 500; }
+.au-google-detail { overflow-wrap: anywhere; font-size: var(--ds-t-meta); }
+.au-google-row[data-status="not_sent"] .au-google-detail { color: var(--rs-fail); }
+.au-google-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* A scheduled prompt's Google outputs in the form (GoogleOutputFields). */
+.au-gblock { display: flex; flex-direction: column; gap: 14px; padding: 12px 14px; border: 1px solid var(--ws-line); border-radius: var(--ws-r-panel); transition: background var(--ws-dur) var(--ws-ease), border-color var(--ws-dur) var(--ws-ease); }
+.au-gblock[data-on] { border-color: var(--ws-line-strong); }
+.au-gblock + .au-gblock { margin-top: -4px; }
+.au-gblock[data-on] { background: color-mix(in oklab, var(--fg) 2.5%, transparent); }
+.au-gblock .au-check svg { color: var(--text-muted); }
+.au-gblock-body { display: flex; flex-direction: column; gap: 14px; padding-left: 24px; }
+.au-gline { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.au-gline { gap: 8px; }
+/* Its actions are buttons: as ghost text, "Open the sheet · Use a new sheet · Pick another" read
+   as a sentence. The link is drawn as one of them. */
+.au-gline .rs-button--ghost,
+.au-gline a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  color: var(--fg);
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  text-decoration: none;
+}
+.au-gline a:hover { background: var(--ws-hover); }
+.au-gline a:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.au-field--narrow { max-width: 220px; }
+.au-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-quiet);
+}
+.au-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 4px 3px 8px; border: 1px solid var(--ws-line); border-radius: var(--ws-r-control); color: var(--fg); font-size: var(--ds-t-meta); }
+.au-chip-x { display: inline-flex; padding: 2px; border-radius: 4px; color: var(--text-muted); }
+.au-chip-x:hover { color: var(--fg); background: var(--ws-hover); }
+.au-chip-input { flex: 1 1 90px; min-width: 90px; border: 0; background: transparent; color: var(--fg); font: inherit; font-size: var(--ds-t-meta); outline: none; }
+.au-day:disabled { cursor: not-allowed; opacity: 0.45; }
+
+/* ── Shell: sidebar | feed | pane ─────────────────────────────────────────
+   Slack's three columns. The sidebar and the pane are sized by their seams; the feed takes the
+   rest and never drops below FEED_MIN (AutomationSurface), so the panes give way first. */
+
+.au-shell { flex-direction: row; }
+.au-shell > .ws-split { flex: 0 0 auto; }
+.au-shell-slot { display: flex; flex: 0 0 auto; flex-direction: column; min-width: 0; min-height: 0; }
+
+.au-side {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  padding: 10px 8px;
+  overflow-y: auto;
+  /* --ws-surface = --bg-card (#1b1b1b in Dark), so the sidebar sits apart from the feed. */
+  background: var(--ws-surface);
+}
+/* Inside the shell's rail: the rail is the card, so no second background or frame. */
+.au-side[data-variant="rail"] { padding: 8px 8px 10px; background: transparent; }
+.au-side-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 2px 4px 8px 8px; }
+.au-side-title { color: var(--fg); font-size: var(--ds-t-body); font-weight: 600; letter-spacing: -0.01em; }
+.au-side-new { padding: 0 2px 10px; }
+.au-side-new .rs-split { width: 100%; }
+.au-side-new .rs-split-main { flex: 1 1 auto; justify-content: flex-start; min-width: 0; }
+.au-side-group { display: flex; flex-direction: column; gap: 1px; margin: 0; padding: 0; list-style: none; }
+.au-side-label {
+  padding: 14px 8px 6px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.au-side-none { margin: 0; padding: 2px 8px; color: var(--text-muted); font-size: var(--ds-t-micro); line-height: 1.45; }
+.au-side-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--ws-r-control);
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--ds-t-meta);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+.au-side-item:hover { background: var(--ws-hover); color: var(--fg); }
+.au-side-item:focus-visible { outline: 2px solid var(--ws-focus-line); outline-offset: -2px; }
+.au-side-item[data-active] { background: var(--ws-surface-raised); color: var(--fg); box-shadow: inset 0 0 0 1px var(--ws-line); }
+.au-side-item[data-off] { color: var(--text-muted); }
+.au-side-item[data-off] .au-side-icon { opacity: 0.6; }
+.au-side-icon { display: inline-flex; flex: 0 0 auto; color: var(--text-muted); }
+.au-side-item[data-active] .au-side-icon { color: var(--text-secondary); }
+.au-side-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.au-side-badge {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.au-side-total { color: var(--text-muted); font-size: var(--ds-t-micro); font-variant-numeric: tabular-nums; }
+.au-side-foot { display: flex; flex-direction: column; gap: 1px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--ws-line); }
+
+/* The feed: a fixed header, a scrolling middle, and (for a reviewer) a composer pinned below. */
+.au-main { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; min-height: 0; background: var(--bg); }
+.au-main-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+.au-main-inner { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px 28px; }
+.au-main-inner--form { max-width: 720px; padding-top: 24px; }
+
+.au-vhead { display: flex; align-items: flex-start; gap: 10px; padding: 16px 20px 12px; border-bottom: 1px solid var(--ws-line); }
+.au-vhead-text { min-width: 0; }
+.au-vhead-title { margin: 0; color: var(--fg); font-size: var(--ds-t-lede); font-weight: 600; letter-spacing: -0.01em; }
+.au-vhead-sub { margin: 4px 0 0; color: var(--text-muted); font-size: var(--ds-t-meta); line-height: 1.45; }
+
+/* A channel's header: identity on the left (name, state pill, one line of meta), actions right. */
+.au-chead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px 12px 20px;
+  border-bottom: 1px solid var(--ws-line);
+}
+.au-chead-id { display: flex; flex: 1 1 auto; flex-direction: column; gap: 4px; min-width: 0; }
+.au-chead-titleline { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.au-chead-icon { display: inline-flex; color: var(--text-secondary); }
+.au-chead-title {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--fg);
+  font-size: var(--ds-t-lede);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.au-chead-meta { padding-left: 23px; color: var(--text-secondary); font-size: var(--ds-t-meta); }
+.au-chead-meta .rs-meta { flex-wrap: nowrap; overflow: hidden; white-space: nowrap; }
+.au-chead-id > .au-note,
+.au-chead-id > .au-error { padding-left: 23px; }
+.au-chead-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
+.au-chead-settings[aria-pressed="true"] { background: var(--ws-surface-raised); color: var(--fg); }
+
+.au-state-pill {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: 999px;
+  background: var(--ws-surface-quiet);
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+.au-state-pill:hover { border-color: var(--text-muted); color: var(--fg); }
+.au-state-pill:focus-visible { outline: 2px solid var(--ws-focus-line); outline-offset: 2px; }
+.au-state-pill[data-on] { border-color: color-mix(in srgb, var(--rs-ok) 35%, transparent); color: var(--rs-ok); }
+.au-state-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.au-state-pill:not([data-on]) .au-state-dot { background: var(--text-muted); }
+
+.au-composer { flex: 0 0 auto; padding: 0 20px 12px; border-top: 1px solid var(--ws-line); background: var(--bg); }
+.au-composer .rs-section { padding: 12px 0 0; border-top: 0; }
+.au-composer .rs-section-head { min-height: 0; margin-bottom: 8px; }
+.au-composer .rs-section-title { color: var(--text-secondary); font-size: var(--ds-t-meta); font-weight: 500; }
+
+/* The pane: what is open, on a raised surface so it reads as the thing in your hands. */
+.au-pane { position: relative; display: flex; flex-direction: column; background: var(--ws-surface); animation: au-slide-in-right calc(var(--ws-dur) * 1.4) var(--ws-ease); }
+.au-pane-scroll { flex: 1 1 auto; min-height: 0; padding: 16px 18px 28px; overflow-y: auto; }
+.au-pane-scroll[hidden] { display: none; }
+/* The pane's bar, as a Slack thread's: what is open, where it is from, and the way out. */
+.au-pane-bar {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 8px 0 18px;
+  border-bottom: 1px solid var(--ws-line);
+}
+.au-pane-title { margin: 0; color: var(--text-primary); font-size: 14px; font-weight: 600; }
+.au-pane-sub {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--ds-t-meta);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.au-pane-x { margin-left: auto; }
+.au-pane .rs-dhead-title { font-size: 15px; }
+.au-pane-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 34ch;
+  margin: 18vh auto 0;
+  color: var(--text-muted);
+  font-size: var(--ds-t-meta);
+  line-height: 1.5;
+  text-align: center;
+}
+.au-pane-empty strong { color: var(--text-secondary); font-weight: 600; }
+
+/* With a pane to read in, the waiting list is the whole feed width. */
+.au-triage[data-reader="pane"] { display: block; }
+.au-triage[data-reader="pane"] .au-triage-list { position: static; max-height: none; }
+
+/* Channel tabs: Open · Waiting on you · Done, right under the header. Underlined, not pills:
+   they sit on the header's rule, start on its gutter, and read at the meta size. */
+.au-ctabs { display: flex; align-items: stretch; height: 40px; padding: 0 20px; border-bottom: 1px solid var(--ws-line); }
+.au-ctabs > .rs-tabs { align-items: stretch; gap: 20px; }
+.au-ctabs .rs-tab {
+  position: relative;
+  height: auto;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--ds-t-meta);
+}
+.au-ctabs .rs-tab:hover { background: transparent; color: var(--text-secondary); }
+.au-ctabs .rs-tab[aria-selected="true"] { background: transparent; color: var(--fg); }
+.au-ctabs .rs-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--fg);
+}
+.au-ctabs .rs-tab:focus-visible { box-shadow: none; outline: 2px solid var(--ws-focus-line); outline-offset: -2px; border-radius: 4px; }
+.au-ctabs .rs-tab-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ws-activity-ask);
+  color: var(--ds-bg);
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+
+.au-side-filter { margin: 0 2px 6px; width: calc(100% - 4px); }
+
+/* ── Narrow hosts (services/surface-fit.ts) ─────────────────────────────────
+   The surface sizes from its own width. Pane `overlay`: the pane slides over the feed while
+   something is open in it. Nav `drawer`: the sidebar opens over everything from the header. */
+.au-shell { position: relative; }
+.au-nav-toggle { flex: 0 0 auto; margin-top: 1px; }
+.au-main-inner > .au-nav-toggle { align-self: flex-start; }
+.au-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  background: color-mix(in srgb, var(--bg) 55%, transparent);
+  animation: au-fade var(--ws-dur) var(--ws-ease);
+}
+.au-drawer {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 31;
+  border-right: 1px solid var(--ws-line-strong);
+  box-shadow: 12px 0 32px -16px color-mix(in srgb, var(--ds-shadow-ink) 60%, transparent);
+  animation: au-slide-in-left calc(var(--ws-dur) * 1.4) var(--ws-ease);
+}
+.au-pane[data-overlay] {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  max-width: 100%;
+  border-left: 1px solid var(--ws-line-strong);
+  box-shadow: -12px 0 32px -16px color-mix(in srgb, var(--ds-shadow-ink) 60%, transparent);
+  animation: au-slide-in-right calc(var(--ws-dur) * 1.4) var(--ws-ease);
+}
+@keyframes au-fade { from { opacity: 0; } }
+@keyframes au-slide-in-left { from { transform: translateX(-12px); opacity: 0; } }
+@keyframes au-slide-in-right { from { transform: translateX(12px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .au-scrim, .au-drawer, .au-pane { animation: none; }
+}
+
+/* A region that crashed: says so in place, with a way to try again. */
+.au-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--rs-fail) 35%, transparent);
+  border-radius: var(--ws-r-card);
+  background: var(--ws-surface-quiet);
+  color: var(--fg);
+  font-size: var(--ds-t-meta);
+}
+
+/* A PR conversation's rounds, in one line: Review 1 Sent › Feedback 2 › Review 2 Draft. */
+.au-rounds { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 0; margin: 0; padding: 0; list-style: none; font-size: var(--ds-t-micro); }
+.au-round { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 8px; border-radius: 999px; color: var(--text-muted); }
+.au-round + .au-round::before { content: "›"; margin: 0 6px 0 -4px; color: var(--text-muted); }
+
+.au-round[aria-current="step"] { background: var(--ws-surface-raised); box-shadow: inset 0 0 0 1px var(--ws-line-strong); }
+.au-round[aria-current="step"] { color: var(--fg); }
+.au-pane .au-review-room { margin-top: 16px; }
+
+/* Settings pane: the rules that no setting can change, then Pause and Delete, kept at the end. */
+.au-pane-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--ws-line);
+}
+.au-pane-rules {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.au-pane-rules svg { flex: 0 0 auto; transform: translateY(1px); }
+
+/* One-press review focuses under the instructions editor. */
+.au-focus-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.au-focus-chip {
+  padding: 2px 9px;
+  border: 1px dashed var(--ws-line-strong);
+  border-radius: var(--ws-r-pill);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.au-focus-chip:hover { border-style: solid; color: var(--text-primary); }
+.au-focus-chip:focus-visible { outline: 2px solid var(--ws-focus-line); outline-offset: 1px; }
+
+/* Browse: search and filter over the examples, a when/output line per card, a preview in the pane. */
+.au-browse-tools { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.au-browse-search {
+  display: inline-flex;
+  flex: 1 1 200px;
+  gap: 6px;
+  align-items: center;
+  padding: 4px 9px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-pill);
+  color: var(--text-muted);
+}
+.au-browse-search:focus-within { border-color: var(--ws-focus-line); }
+.au-browse-search input { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--text-primary); font: inherit; outline: none; }
+.au-browse-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.au-browse-filters .au-focus-chip { border-style: solid; }
+.au-browse-filters .au-focus-chip[aria-pressed="true"] { border-color: var(--ws-focus-line); color: var(--text-primary); }
+.au-template[aria-pressed="true"] { border-color: var(--ws-focus-line); }
+.au-template-meta { color: var(--text-muted); font-size: var(--ds-t-micro); line-height: 1.45; }
+.au-preview { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.au-preview-title { margin: 0; font-size: 15px; font-weight: 600; }
+.au-preview-text { margin: 0; color: var(--text-secondary); line-height: 1.5; }
+.au-preview-facts { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 0; font-size: var(--ds-t-meta); }
+.au-preview-facts dt { color: var(--text-muted); }
+.au-preview-facts dd { margin: 0; color: var(--text-secondary); }
+.au-preview-request {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ws-line);
+  border-radius: 8px;
+  background: var(--ws-surface-raised, transparent);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-meta);
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+/* The Slack reply, filled with example values, under the instructions being edited. */
+.au-reply-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--ws-line);
+  border-radius: 8px;
+  background: var(--ws-surface-raised);
+}
+.au-reply-preview-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; }
+.au-reply-preview-title { color: var(--text-secondary); font-size: var(--ds-t-meta); font-weight: 600; }
+.au-reply-preview .rs-tabs { border-bottom: 0; }
+.au-reply-preview-text {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--ws-line-strong);
+  color: var(--text-primary);
+  font-size: var(--ds-t-meta);
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+.au-preview-sample { color: var(--text-primary); }
+.au-preview-asks { display: flex; flex-direction: column; gap: 4px; margin: 0; padding-left: 18px; color: var(--text-secondary); font-size: var(--ds-t-meta); line-height: 1.45; }
+.au-preview-more { width: 100%; color: var(--text-muted); font-size: var(--ds-t-meta); }
+.au-preview-more summary { cursor: pointer; }
+.au-preview-more[open] summary { margin-bottom: 6px; }
+
+/* ── Thread: a run's conversation with its agent, as Slack shows replies ─── */
+
+.au-thread { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.au-thread-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.au-thread-divider::after { content: ""; flex: 1; height: 1px; background: var(--ws-line); }
+.au-thread-log { display: flex; flex-direction: column; gap: 2px; }
+
+.au-msg {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 10px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: var(--ws-r-control);
+  transition: background var(--ws-dur) var(--ws-ease);
+}
+.au-msg:hover { background: var(--ws-hover); }
+.au-msg-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-raised);
+  color: var(--text-secondary);
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+}
+.au-msg[data-who="you"] .au-msg-avatar { background: var(--accent); color: var(--accent-fg); }
+.au-msg-body { min-width: 0; }
+.au-msg-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.au-msg-name { color: var(--fg); font-size: var(--ds-t-meta); font-weight: 600; }
+.au-msg-head time,
+.au-msg-note { color: var(--text-muted); font-size: var(--ds-t-micro); }
+.au-msg-text {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: var(--ds-t-body);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.au-msg .au-review-text { font-size: var(--ds-t-body); }
+
+/* What Lotus told the agent, the tools it used, what it handed back: there, never in the way. */
+.au-thread-fold { margin: 2px 0 2px 38px; color: var(--text-muted); font-size: var(--ds-t-meta); }
+.au-thread-fold > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: var(--ws-r-control);
+  cursor: pointer;
+  list-style: none;
+  transition: background var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+.au-thread-fold > summary::-webkit-details-marker { display: none; }
+.au-thread-fold > summary::before {
+  content: "";
+  width: 0;
+  height: 0;
+  border-left: 4px solid currentColor;
+  border-top: 3.5px solid transparent;
+  border-bottom: 3.5px solid transparent;
+  transition: transform var(--ws-dur) var(--ws-ease);
+}
+.au-thread-fold[open] > summary::before { transform: rotate(90deg); }
+.au-thread-fold > summary:hover { background: var(--ws-hover); color: var(--text-secondary); }
+.au-thread-fold > summary:focus-visible { outline: 1px solid var(--ws-focus-line); outline-offset: 1px; }
+.au-thread-fold > summary time { color: var(--text-muted); font-size: var(--ds-t-micro); }
+.au-thread-fold[data-tone="result"] > summary { color: var(--text-secondary); }
+.au-thread-fold-body {
+  margin-top: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--ws-line);
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-quiet);
+  color: var(--text-secondary);
+}
+.au-thread-instructions {
+  max-height: 260px;
+  margin: 0;
+  overflow: auto;
+  font-family: inherit;
+  font-size: var(--ds-t-meta);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.au-thread-steps ol { display: flex; flex-direction: column; gap: 3px; margin: 6px 0 0; padding: 0; list-style: none; }
+.au-thread-steps li { overflow: hidden; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; }
+.au-step-tool { color: var(--text-secondary); font-family: var(--font-mono); font-size: 0.92em; }
+
+.au-thread-typing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0 38px;
+  color: var(--text-muted);
+  font-size: var(--ds-t-meta);
+}
+.au-thread-dots { display: inline-flex; gap: 3px; }
+.au-thread-dots i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: au-thread-dot 1.2s var(--ws-ease) infinite;
+}
+.au-thread-dots i:nth-child(2) { animation-delay: 0.15s; }
+.au-thread-dots i:nth-child(3) { animation-delay: 0.3s; }
+@keyframes au-thread-dot {
+  0%, 60%, 100% { opacity: 0.3; transform: none; }
+  30% { opacity: 1; transform: translateY(-2px); }
+}
+
+/* The reply box: one line that grows, Send inside it, as Slack's thread composer. */
+.au-chatbox {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: var(--ws-r-card);
+  background: var(--ws-surface);
+  transition: border-color var(--ws-dur) var(--ws-ease), box-shadow var(--ws-dur) var(--ws-ease);
+}
+.au-chatbox:focus-within { border-color: var(--ws-focus-line); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ws-focus-line) 22%, transparent); }
+.au-chatbox[data-disabled] { border-style: dashed; background: transparent; }
+.au-chatbox-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 24px;
+  max-height: 160px;
+  padding: 3px 0;
+  border: 0;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  font-size: var(--ds-t-body);
+  line-height: 1.45;
+  resize: none;
+  outline: none;
+}
+.au-chatbox-input::placeholder { color: var(--text-muted); }
+.au-chatbox-input:disabled { cursor: not-allowed; }
+.au-chatbox-send {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: var(--ws-r-control);
+  background: var(--accent);
+  color: var(--accent-fg);
+  cursor: pointer;
+  transition: opacity var(--ws-dur) var(--ws-ease), transform var(--ws-dur) var(--ws-ease);
+}
+.au-chatbox-send:hover:not(:disabled) { transform: translateY(-1px); }
+.au-chatbox-send:focus-visible { outline: 1px solid var(--ws-focus-line); outline-offset: 2px; }
+.au-chatbox-send:disabled { opacity: 0.3; cursor: default; }
+.au-chatbox-hint { margin: -4px 0 0 12px; }
+.au-run-more .au-thread { margin-top: 6px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .au-thread-dots i { animation: none; opacity: 0.6; }
+  .au-msg,
+  .au-chatbox,
+  .au-chatbox-send,
+  .au-thread-fold > summary,
+  .au-thread-fold > summary::before { transition: none; }
+}
+
+/* Opening Automations over the working area fades it in with the rail's slide (workspace-shell.css). */
+.ws-column-overlay > .au-body { animation: au-surface-in 200ms var(--ws-ease); }
+/* Opacity only, like the rail: content that moves on arrival reads as a jump. */
+@keyframes au-surface-in {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ws-column-overlay > .au-body { animation: none; }
+}
+
+/* Inbox: other work waiting for the user (a Factory Run's questions or spec), above the feed. */
+.au-elsewhere { margin: 0 0 12px; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.au-elsewhere-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--ws-line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.au-elsewhere-row:hover { background: var(--ws-hover); }
+.au-elsewhere-source { color: var(--text-muted); font-size: 11px; }
+.au-elsewhere-title { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.au-elsewhere-line { color: var(--ds-warning); font-size: 12px; }
+
+/* ── Dock variant: the quiet list (`.pen` 16 v2) ──────────────────────────────
+   The tabs are the header; New is an icon at its end. Running is one live line on top of Inbox. */
+
+/* The Dock is the frame: no second card inside it. Over the canvas `--bg` is a translucent tint,
+   so the column's own border, radius and fill drew a box within the box. */
+.au-body:has(> .au-shell[data-variant="dock"]) { padding: 0; }
+.au-shell[data-variant="dock"] { border: 0; border-radius: 0; background: transparent; }
+.au-shell[data-variant="dock"] .au-main { background: transparent; }
+
+/* What floats over the list must be opaque: the canvas's raised surface is glass, and the text
+   under a menu or the overlay pane read straight through it. */
+.au-shell[data-variant="dock"] .rs-menu-content,
+.au-shell[data-variant="dock"] .au-pane {
+  /* The host may give a guaranteed-opaque ground (the canvas does: see canvas-dock.css). */
+  background-color: var(--au-float-ground, var(--ws-surface-float));
+  background-image: var(--au-float-tint, none);
+}
+/* Same for a bar that stays put while the page scrolls under it (a form's Save row): it must hide
+   what passes beneath. It runs edge to edge so the fields do not show at its sides. */
+.au-shell[data-variant="dock"] .au-main-inner--form { max-width: none; padding: 20px 20px 0; }
+.au-shell[data-variant="dock"] .au-main-inner--form > .au-page-title { margin-bottom: 18px; font-size: var(--ds-t-lede); }
+.au-shell[data-variant="dock"] .au-form-foot {
+  margin: 8px -20px 0;
+  padding: 12px 20px;
+  border-top-color: var(--ws-line-strong);
+  background-color: var(--au-float-ground, var(--bg));
+  background-image: var(--au-float-tint, none);
+}
+/* Wider over the canvas; the corner, inset, rows and labels are the shared menu look. */
+.au-shell[data-variant="dock"] .rs-menu-content { min-width: 248px; }
+
+/* An empty list is a quiet sentence in the middle of the room, not a dashed drop zone. */
+.au-shell[data-variant="dock"] .rs-empty {
+  gap: 6px;
+  max-width: 300px;
+  margin: 56px auto 0;
+  padding: 0;
+  border: 0;
+  font-size: var(--ds-t-meta);
+}
+.au-shell[data-variant="dock"] .rs-empty strong { font-size: var(--ds-t-body); }
+.au-shell[data-variant="dock"] .au-main-inner { padding: 12px 16px 24px; }
+
+.au-dhead {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 10px 0 12px;
+  border-bottom: 1px solid var(--ws-line);
+}
+.au-dhead > .rs-tabs { flex: 1 1 auto; min-width: 0; gap: 0; }
+.au-dhead .rs-tab { height: 30px; padding: 0 11px; border-radius: 8px; }
+.au-dhead .rs-tab[aria-selected="true"] { background: color-mix(in oklab, var(--fg) 9%, transparent); }
+.au-dhead .rs-tab-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--ws-activity-ask);
+  color: var(--ds-bg);
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+}
+.au-dock-new { flex: 0 0 auto; }
+/* A quiet icon, like the rail's buttons: no outlined box. */
+.au-dock-new > .rs-menu-trigger { width: 30px; height: 30px; border-color: transparent; border-radius: 8px; }
+.au-dock-back { flex: 0 0 auto; }
+
+.au-live { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.au-live-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--ws-r-control);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--ds-t-meta);
+  text-align: left;
+  cursor: pointer;
+}
+.au-live-line:hover { background: var(--ws-hover); color: var(--fg); }
+.au-live-line:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.au-live-name { color: var(--fg); font-weight: 600; white-space: nowrap; }
+.au-live-subject { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.au-live-more, .au-live-when { flex: 0 0 auto; color: var(--text-muted); white-space: nowrap; }
+.au-live-more + .au-live-when, .au-live-subject + .au-live-when { margin-left: auto; }
+.au-live .au-running { margin-bottom: 0; }
+.au-live .au-running > .au-group-title { display: none; }
+
+/* ── Dock quiet list rows (`.pen` 16 v2, 16a) ─────────────────────────────────
+   Meta (dot · source · when), one line of what it is, one status in words. The dot is the kind:
+   violet answers, amber changes, grey waits — the same violet the canvas uses for "needs you". */
+.au-triage[data-quiet] { display: block; }
+.au-triage[data-quiet] .au-triage-list {
+  position: static;
+  max-height: none;
+  gap: 2px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+.au-qrow {
+  --au-qrow-tone: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background var(--ws-dur) var(--ws-ease);
+}
+.au-qrow[data-tone="ask"] { --au-qrow-tone: var(--ws-activity-ask); }
+.au-qrow[data-tone="changes"] { --au-qrow-tone: var(--ws-activity-result); }
+.au-qrow:hover,
+.au-qrow[aria-selected="true"] { background: color-mix(in oklab, var(--fg) 4.5%, transparent); }
+.au-qrow[data-opened] { background: color-mix(in oklab, var(--fg) 8%, transparent); box-shadow: inset 0 0 0 1px var(--ws-line); }
+.au-qrow:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ws-focus-line); }
+.au-qrow-meta { display: flex; align-items: center; gap: 8px; min-width: 0; color: var(--text-muted); font-size: var(--ds-t-micro); }
+.au-qrow-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--au-qrow-tone); }
+.au-qrow-source { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.au-qrow-when { flex: 0 0 auto; margin-left: auto; font-variant-numeric: tabular-nums; }
+.au-qrow-title {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--fg);
+  font-size: var(--ds-t-body);
+  font-weight: 500;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.au-qrow-foot { display: flex; align-items: center; gap: 8px; min-height: 18px; }
+.au-qrow-status { min-width: 0; overflow: hidden; color: var(--text-secondary); font-size: var(--ds-t-micro); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.au-qrow:not([data-tone="waiting"]) .au-qrow-status { color: var(--au-qrow-tone); }
+/* What a press does, only while it is about to happen (hover, keyboard focus); never once open. */
+.au-qrow-open {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: var(--ds-t-micro);
+  opacity: 0;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+.au-qrow-open kbd {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  font: inherit;
+}
+.au-qrow:hover .au-qrow-open,
+.au-qrow:focus-visible .au-qrow-open { opacity: 1; }
+.au-qrow[data-opened] .au-qrow-open { opacity: 0; }
+
+/* ── 16b v2: the review, read quietly (the Dock) ──────────────────────── */
+.au-qhead { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.au-qhead-meta { color: var(--text-muted); font-size: var(--ds-t-micro); }
+.au-qhead-meta code { color: var(--text-secondary); font-size: inherit; }
+.au-qhead-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: var(--fg);
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+}
+.au-qhead-title svg { flex: 0 0 auto; color: var(--text-muted); opacity: 0; transition: opacity var(--ws-dur) var(--ws-ease); }
+.au-qhead-title:hover svg,
+.au-qhead-title:focus-visible svg { opacity: 1; }
+/* The verdict: one chip under the title; its menu holds the choices. */
+.au-decision--chip { align-items: flex-start; gap: 8px; padding: 0; border: 0; }
+.au-verdict-chip {
+  --tone: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px 0 9px;
+  border-radius: var(--ws-r-pill);
+  background: color-mix(in oklab, var(--tone) 14%, transparent);
+  color: var(--tone);
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+}
+.au-verdict-chip[data-verdict="looks-good"] { --tone: var(--rs-ok); }
+.au-verdict-chip[data-verdict="questions"] { --tone: var(--ds-info); }
+.au-verdict-chip[data-verdict="changes-needed"] { --tone: var(--rs-warn); }
+.au-verdict-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--tone); }
+.au-verdict > .rs-menu-trigger { width: auto; height: auto; padding: 0; border: 0; background: transparent; list-style: none; cursor: pointer; }
+.au-verdict > .rs-menu-trigger::-webkit-details-marker { display: none; }
+.au-verdict > .rs-menu-trigger:focus-visible { outline: 2px solid var(--ws-focus-line); outline-offset: 2px; border-radius: var(--ws-r-pill); }
+/* Findings: lines between thin rules, not cards. */
+.au-review-card[data-quiet] .au-comments { gap: 0; }
+.au-review-card[data-quiet] .au-comment {
+  padding: 10px 0;
+  border: 0;
+  border-top: 1px solid var(--ws-line);
+  border-radius: 0;
+  background: transparent;
+}
+.au-review-card[data-quiet] .au-comment-where { font-family: var(--font-mono, ui-monospace, monospace); }
+.au-review-card[data-quiet] .au-severity {
+  height: 20px;
+  padding: 0 2px 0 12px;
+  border: 0;
+  background: radial-gradient(circle at 3px 50%, var(--sev) 3px, transparent 3.5px) no-repeat;
+}
+.au-review-card[data-quiet] .au-severity[data-severity="none"] { --sev: var(--ds-info); color: var(--sev); font-weight: 600; }
+/* Footer: Discard quietly left, the sentence of where it goes, then Send. */
+.au-review-card[data-quiet] .au-review-foot { display: block; }
+.au-qfoot { display: flex; flex-direction: column; gap: 10px; }
+.au-qfoot-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.au-qfoot-discard {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--ds-t-meta);
+  cursor: pointer;
+}
+.au-qfoot-discard:hover:not(:disabled) { color: var(--rs-fail); }
+.au-qfoot-where { flex: 1 1 160px; min-width: 0; color: var(--text-muted); font-size: var(--ds-t-micro); text-align: right; }
+.au-send-split { flex: 0 0 auto; }
+
+/* ── 16c v2: Automations in the Dock, one line each ───────────────────── */
+.au-arows { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.au-arow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-right: 12px;
+  border-radius: 10px;
+  transition: background var(--ws-dur) var(--ws-ease);
+}
+.au-arow:hover { background: color-mix(in oklab, var(--fg) 4.5%, transparent); }
+.au-arow[data-first-off] { position: relative; margin-top: 13px; }
+.au-arow[data-first-off]::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  right: 12px;
+  left: 12px;
+  height: 1px;
+  background: var(--ws-line);
+}
+.au-arow-open {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.au-arow-open:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ws-focus-line); }
+.au-arow-name { overflow: hidden; color: var(--fg); font-size: var(--ds-t-body); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.au-arow-sub { overflow: hidden; color: var(--text-muted); font-size: var(--ds-t-micro); text-overflow: ellipsis; white-space: nowrap; }
+.au-arow-wait { color: var(--ws-activity-ask); font-weight: 500; }
+.au-arow-next[data-tone="busy"] { color: var(--ws-activity-live); }
+.au-arow-next[data-tone="error"] { color: var(--rs-fail); }
+.au-arow[data-off] .au-arow-name { color: var(--text-secondary); }
+.au-arow[data-off]:not(:has([data-tone="error"])) .au-arow-sub { opacity: .75; }
+.au-arows-browse {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 10px 12px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--ds-t-meta);
+  cursor: pointer;
+}
+.au-arows-browse:hover { color: var(--fg); }
+
+/* ── 16d v2: one automation in the Dock ───────────────────────────────── */
+.au-dhead--back { justify-content: space-between; }
+.au-dock-backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  padding: 0 10px 0 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--ds-t-body);
+  font-weight: 500;
+  cursor: pointer;
+}
+.au-dock-backlink:hover { background: color-mix(in oklab, var(--fg) 6%, transparent); color: var(--fg); }
+.au-dock-backlink:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ws-focus-line); }
+.au-shell[data-variant="dock"] .au-main-inner.au-dauto { display: flex; flex-direction: column; gap: 24px; padding: 20px 20px 32px; }
+.au-dauto-head { display: flex; flex-direction: column; gap: 8px; }
+.au-dauto-titleline { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.au-dauto-title { margin: 0; min-width: 0; color: var(--fg); font-size: 19px; font-weight: 600; line-height: 1.25; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.au-dauto-state { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 28px; }
+.au-dauto-next { min-width: 0; color: var(--text-muted); font-size: var(--ds-t-meta); }
+.au-dauto-next[data-tone="error"] { color: var(--rs-fail); }
+.au-dauto-next[data-tone="busy"] { color: var(--ws-activity-live); }
+.au-dauto-run { flex: 0 0 auto; height: 28px; padding: 0 10px; font-size: var(--ds-t-meta); }
+.au-dauto .au-notice,
+.au-dauto .au-callout { margin: 0; }
+
+.au-dsec { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.au-dsec-title { margin: 0 0 2px; color: var(--text-muted); font-size: var(--ds-t-meta); font-weight: 500; }
+/* A fact: key on the left, value, Edit only while the row is pointed at. */
+.au-dfact {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 12px;
+  min-height: 29px;
+  padding: 6px 0;
+  border-top: 1px solid color-mix(in oklab, var(--ws-line) 70%, transparent);
+}
+.au-dsec-title + .au-dfact { border-top: 0; }
+.au-dfact-key { color: var(--text-muted); font-size: var(--ds-t-meta); }
+.au-dfact-value { min-width: 0; color: var(--fg); font-size: var(--ds-t-body); overflow-wrap: anywhere; }
+.au-dfact-edit {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--ws-dur) var(--ws-ease);
+}
+.au-dfact-edit:hover { color: var(--fg); text-decoration: underline; }
+.au-dfact:hover .au-dfact-edit,
+.au-dprompt:hover .au-dfact-edit,
+.au-dfact-edit:focus-visible { opacity: 1; }
+.au-dprompt { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+.au-dprompt-text { margin: 0; color: var(--fg); font-size: var(--ds-t-body); line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.au-dprompt-text[data-empty] { color: var(--text-muted); }
+
+/* Its own waiting items: one line each, the card opens in place. */
+.au-dwait { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.au-dwait-item { --au-qrow-tone: var(--text-muted); border-radius: 10px; }
+.au-dwait-item[data-tone="ask"] { --au-qrow-tone: var(--ws-activity-ask); }
+.au-dwait-item[data-tone="changes"] { --au-qrow-tone: var(--ws-activity-result); }
+.au-dwait-item[data-open] { background: color-mix(in oklab, var(--fg) 4%, transparent); }
+.au-dwait-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.au-dwait-row:hover { background: color-mix(in oklab, var(--fg) 4.5%, transparent); }
+.au-dwait-row:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ws-focus-line); }
+.au-dwait-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+.au-dwait-title { overflow: hidden; color: var(--fg); font-size: var(--ds-t-body); font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.au-dwait-status { overflow: hidden; color: var(--text-muted); font-size: var(--ds-t-micro); text-overflow: ellipsis; white-space: nowrap; }
+.au-dwait-go { flex: 0 0 auto; color: var(--text-muted); transition: transform var(--ws-dur) var(--ws-ease); }
+.au-dwait-item[data-open] .au-dwait-go { transform: rotate(90deg); }
+.au-dwait-card { padding: 4px 10px 12px; }
+/* Runs: one line each — when, outcome, the rest on press. */
+.au-dauto .au-run-subject { display: none; }
+
+/* ── 16e v2: describe it, watch it build (the Dock's New) ─────────────── */
+.au-shell[data-variant="dock"] .au-main-inner.au-dnew { display: flex; flex-direction: column; gap: 20px; min-height: 100%; padding: 20px 20px 24px; }
+.au-dnew-compose { display: flex; flex-direction: column; gap: 10px; }
+.au-dnew-compose .au-composer-input { width: 100%; }
+.au-dnew-compose-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.au-dnew-compose-foot .au-hint { flex: 1 1 180px; }
+.au-dnew-compose-foot .au-kbd { margin-left: 6px; opacity: .7; font: inherit; font-size: var(--ds-t-micro); }
+.au-dexamples { display: flex; flex-direction: column; gap: 2px; margin: 0; padding: 0; list-style: none; }
+.au-dexample {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.au-dexample:hover { background: color-mix(in oklab, var(--fg) 4.5%, transparent); }
+.au-dexample:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--ws-focus-line); }
+.au-dexample-icon { display: inline-grid; flex: 0 0 auto; place-items: center; width: 28px; height: 28px; border-radius: 8px; background: color-mix(in oklab, var(--fg) 6%, transparent); color: var(--text-secondary); }
+.au-dexample-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.au-dexample-title { color: var(--fg); font-size: var(--ds-t-body); font-weight: 500; }
+.au-dexample-sub { color: var(--text-muted); font-size: var(--ds-t-micro); }
+/* The request as a sent message. */
+.au-dnew-sent { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 12px; background: color-mix(in oklab, var(--fg) 6%, transparent); }
+.au-dnew-request { margin: 0; color: var(--fg); font-size: var(--ds-t-body); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.au-dnew-meta { color: var(--text-muted); font-size: var(--ds-t-micro); }
+/* Three steps on a thin spine. */
+.au-dsteps { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.au-dstep { position: relative; display: flex; align-items: flex-start; gap: 12px; padding: 8px 0 14px; }
+.au-dstep:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  top: 30px;
+  bottom: -4px;
+  left: 8.5px;
+  width: 1px;
+  background: var(--ws-line);
+}
+.au-dstep-mark {
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 1px solid var(--ws-line-strong);
+  border-radius: 50%;
+  color: var(--text-muted);
+}
+.au-dstep[data-state="done"] .au-dstep-mark { border-color: transparent; background: color-mix(in oklab, var(--rs-ok) 18%, transparent); color: var(--rs-ok); }
+.au-dstep[data-state="failed"] .au-dstep-mark { border-color: transparent; background: color-mix(in oklab, var(--rs-fail) 18%, transparent); color: var(--rs-fail); }
+.au-dstep[data-state="active"] .au-dstep-mark { border-color: var(--ws-activity-live); }
+.au-dstep-pulse { width: 6px; height: 6px; border-radius: 50%; background: transparent; }
+.au-dstep[data-state="active"] .au-dstep-pulse { background: var(--ws-activity-live); animation: au-dstep-pulse 1.6s ease-in-out infinite; }
+@keyframes au-dstep-pulse { 50% { opacity: .35; } }
+/* The agent waits on the person: its terminal may sit behind the Dock, so the step says so in the ask colour. */
+.au-dstep[data-asking] .au-dstep-mark { border-color: var(--rs-warn, var(--ds-warning)); }
+.au-dstep[data-asking] .au-dstep-pulse { background: var(--rs-warn, var(--ds-warning)); }
+.au-dstep[data-asking] .au-dstep-title { color: var(--rs-warn, var(--ds-warning)); }
+@media (prefers-reduced-motion: reduce) { .au-dstep[data-state="active"] .au-dstep-pulse { animation: none; } }
+.au-dstep-text { display: flex; flex: 1 1 auto; flex-direction: column; gap: 2px; min-width: 0; }
+.au-dstep-title { color: var(--fg); font-size: var(--ds-t-body); font-weight: 500; }
+.au-dstep[data-state="active"] .au-dstep-title { font-weight: 600; }
+.au-dstep[data-state="todo"] .au-dstep-title { color: var(--text-muted); }
+.au-dstep-sub { color: var(--text-muted); font-size: var(--ds-t-micro); }
+.au-dstep-action { flex: 0 0 auto; height: 28px; padding: 0 10px; font-size: var(--ds-t-meta); }
+.au-dnew-foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 12px; border-top: 1px solid var(--ws-line); }
+
+/* ── Inbox review requests (`.pen` "Inbox review requests round 1") ─────────────────────────────
+   A Slack thread's PR reviews under one head: who asked, how many, where. Its PR rows hang off a
+   rail; a request of one says "from <name>" on its own row. */
+.au-avatar {
+  --hue: var(--text-muted);
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--hue) 22%, transparent);
+  color: var(--hue);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+.au-avatar[data-hue="0"] { --hue: #c4b5fd; } /* color-literal-ok: avatar identity hue, the same in both themes */
+.au-avatar[data-hue="1"] { --hue: #93c5fd; } /* color-literal-ok: avatar identity hue, the same in both themes */
+.au-avatar[data-hue="2"] { --hue: #86efac; } /* color-literal-ok: avatar identity hue, the same in both themes */
+.au-avatar[data-hue="3"] { --hue: #fcd34d; } /* color-literal-ok: avatar identity hue, the same in both themes */
+.au-avatar[data-hue="4"] { --hue: #f9a8d4; } /* color-literal-ok: avatar identity hue, the same in both themes */
+.au-avatar[data-hue="5"] { --hue: #5eead4; } /* color-literal-ok: avatar identity hue, the same in both themes */
+.au-avatar[data-hue="none"] { background: var(--ws-hover); color: var(--text-secondary); }
+/* The pastels are initials on Dark (9-12:1) but 1.4-1.9:1 on Light white; there the letter leans
+   on the ink (5.8-6.8:1) while the tint keeps the hue. */
+[data-theme-type="light"] .au-avatar:not([data-hue="none"]) { color: color-mix(in oklab, var(--hue) 45%, var(--fg)); }
+
+.au-triage-list > .au-request-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px 10px 4px;
+  list-style: none;
+  font-size: var(--ds-t-meta);
+}
+.au-request-who { flex: 0 0 auto; color: var(--fg); font-weight: 600; }
+.au-request-what {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* A PR of a request: indented under the head, on a rail that ends at the last one. */
+.au-triage-row[data-request="group"] { margin-left: 19px; }
+.au-triage-row[data-request="group"]::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: -9px;
+  width: 1px;
+  background: var(--ws-line-strong);
+}
+.au-triage-row[data-request="group"][data-last]::before { bottom: 50%; }
+/* The head already says when it was asked. */
+.au-triage-row[data-request="group"] .au-triage-when { display: none; }
+.au-triage-row[data-request="single"] .au-avatar { margin-top: 1px; }
+.au-triage-from { color: var(--text-muted); font-weight: 400; }
+.au-triage-verdict {
+  --tone: var(--text-secondary);
+  flex: 0 0 auto;
+  padding: 0 6px;
+  border-radius: var(--ws-r-pill);
+  background: color-mix(in oklab, var(--tone) 14%, transparent);
+  color: var(--tone);
+  font-weight: 500;
+}
+.au-triage-verdict[data-verdict="changes-needed"] { --tone: var(--rs-warn); }
+.au-triage-verdict[data-verdict="questions"] { --tone: var(--ds-info); }
+.au-triage-verdict[data-verdict="looks-good"] { --tone: var(--rs-ok); }
+.au-triage-open-count { flex: 0 0 auto; color: color-mix(in oklab, var(--rs-warn) 80%, transparent); }
+/* Two lines of the agent's audit was noise; one line of what the reply opens with is enough. */
+.au-triage-row[data-request] .au-triage-preview { -webkit-line-clamp: 1; }
+
+/* The reader's request strip: who asked, then a chip per PR of the same request to jump between. */
+.au-request-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 7px 10px;
+  border-radius: var(--ws-r-control);
+  background: var(--ws-surface-quiet);
+  font-size: var(--ds-t-meta);
+}
+.au-request-strip .au-request-what { flex: 0 1 auto; }
+.au-request-sibs { display: inline-flex; gap: 4px; margin-left: auto; }
+.au-request-sib {
+  --tone: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--ws-r-control);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  cursor: pointer;
+}
+.au-request-sib::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--tone); }
+.au-request-sib[data-verdict="changes-needed"] { --tone: var(--rs-warn); }
+.au-request-sib[data-verdict="questions"] { --tone: var(--ds-info); }
+.au-request-sib[data-verdict="looks-good"] { --tone: var(--rs-ok); }
+.au-request-sib:hover { background: var(--ws-hover); color: var(--text-secondary); }
+.au-request-sib[aria-pressed="true"] { border-color: var(--ws-line-strong); background: var(--ws-surface-raised); color: var(--fg); cursor: default; }
+.au-request-sib:focus-visible { outline: 2px solid var(--ws-focus-line); outline-offset: 1px; }
+
+/* ── In the shell's language (2026-10-25) ─────────────────────────────────────
+   The page sat in an older style than the shell around it: a boxed active row, a solid ink
+   button, loud section titles, a dashed empty box and pills. Each one now borrows what the
+   shell's rail and title bar already say. */
+
+/* The open row wears the rail's dither, not a raised box with a hairline. Inside the shell only:
+   the dither tokens live on `.ws-shell`, and the canvas dock keeps its own look. */
+.ws-shell .au-side-item[data-active] {
+  position: relative;
+  isolation: isolate;
+  background: var(--ws-surface-quiet);
+  box-shadow: none;
+}
+.ws-shell .au-side-item[data-active]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--ws-dither-ink);
+  -webkit-mask: var(--ws-dither-fill);
+  mask: var(--ws-dither-fill);
+  pointer-events: none;
+}
+.ws-shell .au-side-item[data-active] .au-side-icon { color: var(--fg); }
+
+/* "New automation": a raised quiet control, not a slab of ink at the top of the rail. */
+.au-side-new .rs-split-main,
+.au-side-new .rs-split-menu > .rs-menu-trigger {
+  border: 1px solid var(--ws-line);
+  background: var(--ws-surface-raised);
+  color: var(--fg);
+  box-shadow: var(--ds-shadow-soft);
+}
+.au-side-new .rs-split-menu > .rs-menu-trigger { border-left: 0; color: var(--text-muted); }
+.au-side-new .rs-split-main:hover:not(:disabled),
+.au-side-new .rs-split-menu > .rs-menu-trigger:hover,
+.au-side-new .rs-split-menu[open] > .rs-menu-trigger { background: var(--ws-hover); color: var(--fg); }
+
+/* Section titles as the rail labels its groups: quiet capitals. */
+.au-inbox .au-group-title {
+  color: var(--ds-text-quiet, var(--text-muted));
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* Nothing waiting is good news in one line, not a dashed box the size of a card. */
+.au-inbox .rs-empty {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: var(--ws-r-panel);
+  background: var(--ws-surface-quiet);
+  color: var(--text-muted);
+  font-size: var(--ds-t-meta);
+  text-align: left;
+}
+.au-inbox .rs-empty::before {
+  content: "✓";
+  flex: 0 0 auto;
+  color: var(--rs-ok);
+  font-weight: 600;
+}
+.au-inbox .rs-empty strong { display: inline; margin: 0 6px 0 0; font-weight: 500; }
+
+/* Cards: a soft surface with a faint edge; the date sits on the title's line, quietly. */
+.au-inbox .au-draft {
+  border-color: color-mix(in oklab, var(--ws-line) 55%, transparent);
+  box-shadow: var(--ds-shadow-soft);
+}
+.au-inbox .au-draft-heading {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 8px;
+}
+.au-inbox .au-draft-meta { flex: 0 0 auto; font-size: var(--ds-t-micro); color: var(--text-muted); }
+
+/* Where it went: a quiet list, and "Sent" as a lit dot with words — the title bar's status. */
+.au-google-list { border-color: color-mix(in oklab, var(--ws-line) 55%, transparent); }
+.au-google .rs-pill {
+  gap: 6px;
+  padding: 0 2px;
+  background: transparent;
+  font-weight: 500;
+}
+.au-google .rs-pill::before {
+  content: "";
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 3px color-mix(in oklab, currentColor 18%, transparent);
+}
+
+/* Agent row: saved agent + composer model picker + account picker (mockups/automation-agent-health.html). */
+.au-agent { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+/* The saved-agent select wears the composer chip's shape, so the three read as one row. */
+.au-agent .au-agent-preset {
+  width: auto;
+  max-width: 220px;
+  height: 26px;
+  padding: 0 26px 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background-color: color-mix(in oklab, var(--fg) 6%, transparent);
+  color: var(--fg);
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.au-agent-preset-wrap { position: relative; display: inline-flex; align-items: center; }
+.au-agent-preset-caret { position: absolute; right: 9px; color: var(--text-muted); pointer-events: none; }
+.au-agent .au-agent-preset:hover:not(:disabled) { background-color: color-mix(in oklab, var(--fg) 10%, transparent); }
+.au-agent .au-agent-preset[data-broken] { background-color: color-mix(in oklab, var(--rs-fail) 12%, transparent); color: var(--rs-fail); }
+.au-prompt-agent { display: flex; align-items: center; gap: 12px; padding: 8px 16px; border-top: 1px solid var(--ws-line); }
+.au-prompt-agent-label { flex: none; width: 44px; color: var(--text-muted); font-size: var(--ds-t-meta); }
+.au-agent > .au-error { flex-basis: 100%; }
+.au-agent-save { display: inline-flex; align-items: center; gap: 6px; }
+.au-agent-save .au-input { width: 160px; }
+
+/* Inbox "Needs attention": the last run failed, one fix each. */
+.au-attention { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.au-attention-card { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid color-mix(in oklab, var(--rs-fail) 35%, transparent); border-radius: var(--ws-r-md, 8px); background: color-mix(in oklab, var(--rs-fail) 6%, transparent); }
+.au-attention-icon { flex: none; margin-top: 2px; color: var(--rs-fail); }
+.au-attention-body { flex: 1; min-width: 0; display: grid; gap: 2px; }
+.au-attention-head { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.au-attention-text, .au-attention-raw { margin: 0; }
+.au-attention-raw { font-family: var(--ds-font-mono, ui-monospace, monospace); word-break: break-word; }
+.au-attention-actions { flex: none; display: flex; gap: 8px; align-items: center; }
+.au-side-fail { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--rs-fail); }

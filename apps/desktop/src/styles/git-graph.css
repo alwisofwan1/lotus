@@ -1,0 +1,546 @@
+/* Git graph (GLOSSARY "Source control"): the Editor sidebar's Graph tab, its wide editor tab, and
+   the commit tab. mockups/git-graph.html. Tokens only; lives inside `.codespace-panel-surface`. */
+
+.gg-view {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  font-size: 12px;
+  color: var(--codespace-panel-text);
+}
+
+.gg-top {
+  display: grid;
+  gap: 6px;
+  padding: 2px 8px 8px;
+  border-bottom: 1px solid var(--codespace-panel-border);
+}
+
+.gg-view.is-wide .gg-top {
+  grid-template-columns: auto minmax(160px, 320px) 1fr;
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.gg-input {
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 7px;
+  background: var(--codespace-panel-surface-raised);
+  box-shadow: 0 0 0 1px var(--codespace-panel-border);
+  color: var(--codespace-panel-text);
+  font: inherit;
+  outline: none;
+}
+
+.gg-input:focus-visible {
+  box-shadow: 0 0 0 1.5px var(--codespace-panel-accent);
+}
+
+.gg-input:disabled {
+  opacity: 0.55;
+}
+
+.gg-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gg-seg {
+  display: flex;
+  flex: 1;
+  gap: 2px;
+  border-radius: 7px;
+  padding: 2px;
+  background: var(--codespace-panel-surface-soft);
+  box-shadow: 0 0 0 1px var(--codespace-panel-border);
+}
+
+.gg-seg button {
+  flex: 1;
+  border-radius: 5px;
+  padding: 1px 8px;
+  color: var(--codespace-panel-text-muted);
+  font-size: 11.5px;
+}
+
+.gg-seg button[aria-pressed="true"] {
+  background: var(--codespace-panel-surface-active);
+  color: var(--codespace-panel-text);
+}
+
+.gg-icon {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  place-items: center;
+  border-radius: 6px;
+  color: var(--codespace-panel-text-muted);
+}
+
+.gg-icon:hover {
+  background: var(--codespace-panel-surface-hover);
+  color: var(--codespace-panel-text);
+}
+
+.gg-icon.is-spinning svg {
+  animation: gg-spin 0.7s linear;
+}
+
+@keyframes gg-spin {
+  to { transform: rotate(360deg); }
+}
+
+.gg-fresh {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 10.5px;
+  color: var(--codespace-panel-text-quiet);
+}
+
+.gg-fresh button {
+  color: var(--codespace-panel-text-muted);
+}
+
+.gg-fresh button:hover {
+  color: var(--codespace-panel-text);
+}
+
+.gg-seg button:focus-visible,
+.gg-icon:focus-visible,
+.gg-fresh button:focus-visible,
+.gg-link:focus-visible,
+.gg-btn:focus-visible,
+.gg-file:focus-visible {
+  outline: 1.5px solid var(--codespace-panel-accent);
+  outline-offset: -1.5px;
+}
+
+.gg-banner {
+  margin: 6px 8px 0;
+  border-radius: 6px;
+  padding: 5px 8px;
+  background: color-mix(in srgb, var(--ds-warning) 10%, transparent);
+  color: var(--ds-warning);
+  font-size: 11px;
+}
+
+.gg-banner.is-error {
+  background: color-mix(in srgb, var(--ds-danger) 9%, transparent);
+  color: var(--ds-danger);
+}
+
+.gg-count {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  color: var(--codespace-panel-text-quiet);
+}
+
+.gg-list {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  overflow: auto;
+  outline: none;
+  contain: strict;
+}
+
+/* ── Rows ─────────────────────────────────────────────────────────────────────────────────── */
+
+.gg-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding-right: 8px;
+  cursor: pointer;
+}
+
+.gg-row:hover {
+  background: var(--codespace-panel-surface-hover);
+}
+
+.gg-row[aria-selected="true"] {
+  background: var(--codespace-panel-surface-active);
+}
+
+.gg-list:focus-visible .gg-row[aria-selected="true"] {
+  box-shadow: inset 2px 0 0 var(--codespace-panel-accent);
+}
+
+.gg-row.is-flat {
+  padding-left: 8px;
+}
+
+.gg-row.is-wide {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  padding-right: 12px;
+}
+
+.gg-row.is-header {
+  height: 26px;
+  flex: none;
+  border-bottom: 1px solid var(--codespace-panel-border);
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11px;
+  cursor: default;
+}
+
+.gg-row.is-header:hover {
+  background: none;
+}
+
+.gg-body {
+  min-width: 0;
+  flex: 1;
+  padding: 3px 0;
+}
+
+.gg-subject {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.gg-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gg-row.is-merge .gg-text,
+.gg-row.is-uncommitted .gg-text {
+  color: var(--codespace-panel-text-muted);
+}
+
+.gg-row.is-uncommitted .gg-text {
+  font-style: italic;
+}
+
+.gg-meta,
+.gg-col {
+  overflow: hidden;
+  color: var(--codespace-panel-text-quiet);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gg-meta {
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+}
+
+.gg-mono {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.gg-sync {
+  font-weight: 600;
+}
+
+.gg-sync.is-out { color: var(--ds-info); }
+.gg-sync.is-in { color: var(--ds-warning); }
+
+.gg-refs {
+  display: flex;
+  max-width: 60%;
+  flex: none;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.gg-ref {
+  max-width: 96px;
+  flex: none;
+  overflow: hidden;
+  border-radius: 4px;
+  padding: 0 5px;
+  box-shadow: 0 0 0 1px var(--codespace-panel-border);
+  color: var(--codespace-panel-text-secondary);
+  font-size: 10.5px;
+  line-height: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gg-ref.is-head {
+  background: var(--codespace-panel-text);
+  box-shadow: none;
+  color: var(--bg);
+}
+
+.gg-ref.is-tag { color: var(--ds-gold); }
+.gg-ref.is-remote { color: var(--codespace-panel-text-quiet); }
+.gg-ref.is-worktree::before { content: "⎇ "; }
+.gg-ref.is-more { padding: 0 4px; color: var(--codespace-panel-text-quiet); }
+
+/* ── Lanes: colour follows the branch (Q16) ───────────────────────────────────────────────── */
+
+.gg-lanes {
+  display: block;
+  flex: none;
+}
+
+.gg-lanes line,
+.gg-lanes path,
+.gg-lanes circle {
+  fill: none;
+  stroke-width: 1.6;
+}
+
+.gg-lanes .gg-dot {
+  fill: var(--bg);
+  stroke-width: 1.8;
+}
+
+.gg-hue-0 { stroke: var(--codespace-panel-text-muted); }
+.gg-hue-1 { stroke: var(--ds-info); }
+.gg-hue-2 { stroke: var(--ds-success); }
+.gg-hue-3 { stroke: var(--ds-gold); }
+.gg-hue-4 { stroke: var(--ds-danger); }
+.gg-hue-5 { stroke: color-mix(in oklch, var(--ds-info), var(--ds-danger)); }
+
+.gg-folded {
+  stroke: var(--codespace-panel-text-quiet);
+  stroke-dasharray: 2 3;
+}
+
+/* ── States ───────────────────────────────────────────────────────────────────────────────── */
+
+.gg-state {
+  display: grid;
+  gap: 8px;
+  padding: 18px 12px;
+  color: var(--codespace-panel-text-muted);
+}
+
+.gg-state b {
+  color: var(--codespace-panel-text);
+  font-weight: 600;
+}
+
+.gg-error {
+  overflow-wrap: anywhere;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.gg-btn {
+  justify-self: start;
+  height: 24px;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: var(--codespace-panel-surface-raised);
+  box-shadow: 0 0 0 1px var(--codespace-panel-border);
+  color: var(--codespace-panel-text);
+}
+
+.gg-sk {
+  height: 30px;
+  margin: 4px 8px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--codespace-panel-surface-hover), transparent 60%, var(--codespace-panel-surface-hover));
+  background-size: 200% 100%;
+  animation: gg-sk 1.1s linear infinite;
+}
+
+@keyframes gg-sk {
+  to { background-position: -200% 0; }
+}
+
+.gg-end {
+  padding: 10px 8px;
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gg-icon.is-spinning svg,
+  .gg-sk {
+    animation: none;
+  }
+}
+
+/* ── Commit tab ───────────────────────────────────────────────────────────────────────────── */
+
+.gg-commit {
+  display: grid;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto 1fr;
+  font-size: 12px;
+  color: var(--codespace-panel-text);
+}
+
+.gg-commit-empty {
+  display: grid;
+  place-items: center;
+  color: var(--codespace-panel-text-quiet);
+}
+
+.gg-commit-head {
+  max-height: 40vh;
+  overflow: auto;
+  border-bottom: 1px solid var(--codespace-panel-border);
+  padding: 12px 14px 10px;
+}
+
+.gg-commit-subject {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.gg-commit-body {
+  margin-top: 4px;
+  color: var(--codespace-panel-text-secondary);
+  white-space: pre-wrap;
+}
+
+.gg-commit-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 8px;
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11.5px;
+}
+
+.gg-commit-meta code {
+  border-radius: 4px;
+  padding: 1px 5px;
+  box-shadow: 0 0 0 1px var(--codespace-panel-border);
+  color: var(--codespace-panel-text-secondary);
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+}
+
+.gg-link {
+  color: var(--ds-info);
+  font: inherit;
+}
+
+.gg-link:hover {
+  text-decoration: underline;
+}
+
+.gg-link.is-quiet {
+  color: var(--codespace-panel-text-muted);
+}
+
+.gg-link.is-quiet:hover {
+  color: var(--codespace-panel-text);
+}
+
+.gg-quiet {
+  color: var(--codespace-panel-text-quiet);
+}
+
+.gg-commit-main {
+  display: grid;
+  min-height: 0;
+  grid-template-columns: minmax(180px, 240px) 1fr;
+}
+
+.gg-files {
+  overflow: auto;
+  border-right: 1px solid var(--codespace-panel-border);
+  padding: 6px 0;
+}
+
+.gg-file {
+  display: flex;
+  width: 100%;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 10px;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.gg-file:hover {
+  background: var(--codespace-panel-surface-hover);
+}
+
+.gg-file[aria-selected="true"] {
+  background: var(--codespace-panel-surface-active);
+}
+
+.gg-file-status {
+  width: 12px;
+  flex: none;
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--ds-info);
+}
+
+.gg-file-status.is-A { color: var(--ds-success); }
+.gg-file-status.is-D { color: var(--ds-danger); }
+.gg-file-status.is-R,
+.gg-file-status.is-C { color: var(--ds-gold); }
+
+.gg-file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gg-file-count {
+  margin-left: auto;
+  padding-left: 6px;
+  color: var(--codespace-panel-text-quiet);
+  font-size: 11px;
+}
+
+.gg-diff {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.gg-diff-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--codespace-panel-border);
+  padding: 5px 10px;
+  color: var(--codespace-panel-text-muted);
+}
+
+.gg-diff-path {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gg-nodiff {
+  padding: 24px;
+  color: var(--codespace-panel-text-quiet);
+  text-align: center;
+}
+
+/* Four sidebar tabs in a 206px sidebar: only the active one keeps its word. */
+.scm-sidebar-bar {
+  container-type: inline-size;
+}
+
+@container (max-width: 300px) {
+  .scm-sidebar-tab:not(.is-active) > .truncate {
+    display: none;
+  }
+}

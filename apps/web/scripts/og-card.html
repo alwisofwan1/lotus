@@ -1,0 +1,155 @@
+<!doctype html>
+<!--
+  Source for public/og.png — the social preview card.
+
+  WHY THIS EXISTS AS A SEPARATE FILE
+    issues/06 decided the launch is 100% channel-driven: every visitor arrives via a
+    link someone pasted into X, Reddit, Slack or Discord. The card is therefore the
+    first thing almost every visitor sees.
+
+  HOW TO REGENERATE
+    cd apps/web && "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+      --headless=new --user-data-dir="$(mktemp -d)" --no-first-run --no-default-browser-check --hide-scrollbars --force-device-scale-factor=1 \
+      --window-size=1200,630 --virtual-time-budget=3000 --allow-file-access-from-files \
+      --screenshot="$PWD/public/og.png" "file://$PWD/scripts/og-card.html"
+    No dependency and no server: opened as a file:// page, so the fonts and logo
+    below are read straight from src/assets. `--allow-file-access-from-files` is what
+    lets the @font-face url()s load; without it the card silently falls back to
+    system-ui. `--user-data-dir` keeps it off your everyday Chrome profile. Check the
+    result by eye before committing.
+
+  WHAT IT MAY SAY (2026-09-30, Option B)
+    The headline is the locked vision line. The footer shows only reachable
+    behaviour: the page's three steps, Say it → Answer → Show it. The previous card
+    said "hand off → verify → waiting on you"; verify and the human gate are the
+    graph run that no click in the app can start yet (LOT2-65). Keep
+    `site.ogImageAlt` in copy.ts describing what is actually drawn here.
+
+  CONSTRAINTS
+    · 1200x630 is the size every platform crops from. Do not change it.
+    · Under 300 KB (LOT2-66). A dark card of flat colour compresses well under that.
+    · Feed cards render around 500px wide, so everything here has to survive being
+      shown at 40% scale. That is why there are four elements and not fourteen.
+-->
+<meta charset="utf-8">
+
+<style>
+  @font-face {
+    font-family: "Archivo";
+    font-weight: 100 900;
+    src: url("../src/assets/fonts/archivo-latin-wght.woff2") format("woff2");
+  }
+  @font-face {
+    font-family: "JetBrains Mono";
+    font-weight: 100 800;
+    src: url("../src/assets/fonts/jetbrains-mono-latin-wght.woff2") format("woff2");
+  }
+
+  /* Tokens copied from src/styles/global.css. A copy rather than an import because
+     this file is never bundled — it is a one-off render source. If the palette
+     changes there, change it here and re-render. */
+  :root {
+    --ground: #07080b;
+    --ink: #f2f4f7;
+    --dim: #8d95a1;
+    --faint: #7a8290;
+    --ask: #b49bff;
+    --hair: rgb(255 255 255 / 0.08);
+    --panel-2: rgb(255 255 255 / 0.055);
+    --display: "Archivo", system-ui, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; }
+
+  html, body { background: var(--ground); }
+
+  body {
+    inline-size: 1200px;
+    block-size: 630px;
+    padding: 72px 84px 76px;
+    color: var(--ink);
+    font-family: var(--display);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* The one glow, violet, and for the same reason as on the page: it comes from
+     the step where an agent needs you. */
+  body::after {
+    content: "";
+    position: absolute;
+    inset: 46% 30% -30% 16%;
+    background: radial-gradient(50% 50% at 50% 50%, color-mix(in srgb, var(--ask) 30%, transparent), transparent 70%);
+    filter: blur(70px);
+  }
+
+  .top { display: flex; align-items: center; position: relative; }
+  .logo { block-size: 44px; inline-size: auto; }
+  .chip {
+    margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 9px 18px 9px 14px;
+    border-radius: 999px;
+    background: var(--panel-2);
+    box-shadow: inset 0 0 0 1px var(--hair);
+    font-family: var(--mono);
+    font-size: 16px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--dim);
+  }
+  .chip .pip {
+    inline-size: 9px;
+    block-size: 9px;
+    border-radius: 50%;
+    background: var(--ask);
+  }
+
+  h1 {
+    margin-block: auto 0;
+    font-weight: 700;
+    font-size: 80px;
+    line-height: 0.98;
+    letter-spacing: -0.03em;
+    max-width: 19ch;
+    position: relative;
+  }
+  h1 .soft { color: var(--dim); display: block; }
+
+  .foot {
+    margin-top: 34px;
+    display: flex;
+    align-items: center;
+    gap: 22px;
+    font-family: var(--mono);
+    font-size: 20px;
+    color: var(--faint);
+    letter-spacing: 0.04em;
+    position: relative;
+  }
+  .foot .n { color: var(--dim); margin-right: 8px; }
+  .foot .ask { color: var(--ask); }
+  .foot .ask .n { color: var(--ask); }
+  .foot .sep { color: rgb(255 255 255 / 0.22); }
+</style>
+
+<div class="top">
+  <img class="logo" src="../src/assets/brand/lotus-logo-horizontal-light.png" alt="">
+  <span class="chip"><span class="pip"></span>Limited beta · macOS</span>
+</div>
+
+<h1>Draw how your agents work together.<span class="soft">Lotus runs it.</span></h1>
+
+<!-- The page's own three steps, in its own words (copy.ts `steps`). -->
+<div class="foot">
+  <span><span class="n">01</span>Say it</span>
+  <span class="sep">&rarr;</span>
+  <span class="ask"><span class="n">02</span>Answer</span>
+  <span class="sep">&rarr;</span>
+  <span><span class="n">03</span>Show it</span>
+</div>

@@ -1,0 +1,699 @@
+/* CodeCanvas shared node shell — glass frame, per-kind accents, enter/leave motion, selection. Glyph LOD + attachments + header chrome live in node-lod.css. */
+
+/* ── Hand-drawn (rough.js) node variant — PR1: opt-in border + handwritten title ──
+   Excalifont is self-hosted later for cross-platform; native handwriting faces stand in. */
+.codecanvas-shell {
+  /* Excalidraw-parity whiteboard fonts (self-hosted), with OS stacks as graceful fallbacks. */
+  --canvas-hand: "Excalifont", "Bradley Hand", "Marker Felt", "Comic Sans MS", "Segoe Print", cursive;
+  --canvas-normal: "Nunito", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --canvas-heading: "Lilita One", "Trebuchet MS", system-ui, sans-serif;
+  --canvas-code: "Comic Mono", ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+.canvas-node[data-rough="true"] {
+  /* The rough SVG is the visible edge — drop the hard CSS border + glass refraction. */
+  border-color: transparent;
+}
+.canvas-node[data-rough="true"]::before { display: none; }
+.canvas-node[data-rough="true"] .agent-card-name,
+.canvas-node[data-rough="true"] .canvas-node-header-label {
+  font-family: var(--canvas-hand);
+  letter-spacing: 0.2px;
+}
+
+/* ── Whiteboard shape nodes (hand-drawn, bare — no workflow chrome) ── */
+/* container-type: size lets the centered text use `cqh` units → font scales with the box. */
+.canvas-shape-node { position: relative; width: 100%; height: 100%; container-type: size; }
+/* Rotation wrapper: shape content (ink, image, labels) spins around the box center; the
+   resize/point/rotate handles and the selection outline stay axis-aligned outside it. */
+.canvas-shape-node .canvas-shape-rotor {
+  position: absolute;
+  inset: 0;
+  transform-origin: center center;
+}
+/* Rotate handle — floats above the top edge (Excalidraw); nodrag keeps ReactFlow's node drag off it. */
+.canvas-shape-node .canvas-rotate-handle {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  width: 11px;
+  height: 11px;
+  margin-left: -6px;
+  border-radius: 50%;
+  background: #14141c;
+  border: 1.5px solid #9d8cff;
+  cursor: grab;
+  z-index: 7;
+  touch-action: none;
+}
+.canvas-shape-node .canvas-rotate-handle:active { cursor: grabbing; background: #9d8cff; }
+.canvas-shape-node .canvas-shape-svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+/* Image shape: a bitmap fills the box (box is sized to the image's aspect on insert). */
+.canvas-shape-node .canvas-shape-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  display: block;
+  border-radius: 4px;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+.canvas-shape-node .canvas-shape-image-loading {
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  /* --ct-surface-2 is emitted by nothing (verified against resolveCanvasTheme's own output),
+     so this white wash always rendered — invisible on a light theme. */
+  background: color-mix(in oklab, var(--canvas-text) 5%, transparent);
+  animation: canvas-shape-image-pulse 1.2s ease-in-out infinite;
+}
+@keyframes canvas-shape-image-pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.85; }
+}
+.canvas-shape-node .canvas-shape-image-missing {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  text-align: center;
+  font-size: 12px;
+  /* Same dead --ct-* family: #9aa0a6 always rendered, regardless of theme. */
+  color: var(--canvas-text-muted);
+  background: color-mix(in oklab, var(--canvas-text) 4%, transparent);
+  border: 1px dashed var(--canvas-border);
+  border-radius: 6px;
+}
+.canvas-shape-node .canvas-shape-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center; /* vertical center; the full-width text item honors text-align */
+  padding: 8px;
+  text-align: center;
+  font-family: var(--canvas-hand);
+  font-size: 16px;
+  line-height: 1.4;
+  /* Whiteboard text has NO ground of its own — it is absolutely positioned over whatever fill the
+     shape carries, so a fixed near-white was only ever right on a dark canvas. --canvas-text
+     follows the theme, which is what every other label on the board already does.
+
+     A user can still pick a shape fill that fights the theme's ink; that is inherent to any single
+     default, and following the theme is strictly better than pinning one end of the range. */
+  color: var(--canvas-text);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap; /* preserve user newlines */
+  pointer-events: none;
+}
+.canvas-shape-node .canvas-shape-label[data-placeholder] { opacity: 0.4; }
+/* Keep centered text within a shape's inscribed area so it doesn't spill past slanted/curved
+   edges — diamonds need the most inset, ellipses a little. */
+.canvas-shape-node[data-shape="diamond"] .canvas-shape-label,
+.canvas-shape-node[data-shape="diamond"] .canvas-shape-edit { padding: 17% 15%; }
+.canvas-shape-node[data-shape="ellipse"] .canvas-shape-label,
+.canvas-shape-node[data-shape="ellipse"] .canvas-shape-edit { padding: 11% 12%; }
+/* Point-editing handles for selected linear/freehand shapes. The layer is click-through so it
+   never blocks node selection; only the handles capture the pointer. */
+.canvas-shape-node .canvas-point-layer { position: absolute; inset: 0; pointer-events: none; z-index: 6; }
+.canvas-shape-node .canvas-point-handle {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  margin: -6px 0 0 -6px; /* center on the point */
+  border-radius: 50%;
+  background: #14141c;
+  border: 1.5px solid #9d8cff;
+  cursor: grab;
+  pointer-events: auto;
+}
+.canvas-shape-node .canvas-point-handle:active { cursor: grabbing; background: #9d8cff; }
+/* Mid-segment bend handle — smaller & translucent until used, so it reads as "optional". */
+.canvas-shape-node .canvas-point-midhandle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: rgba(20, 20, 28, 0.6);
+  border: 1.5px solid rgba(157, 140, 255, 0.55);
+  cursor: grab;
+  pointer-events: auto;
+  transition: background 100ms ease, border-color 100ms ease;
+}
+.canvas-shape-node .canvas-point-midhandle:hover { background: #14141c; border-color: #9d8cff; }
+
+/* Container area label — top-left corner tag (Excalidraw frame-name style), not centered.
+   Sits just above the box's top-left; --node-scrim keeps it legible on image backgrounds. */
+.canvas-shape-node .canvas-shape-arealabel {
+  position: absolute;
+  left: 13px;
+  top: -13px;
+  max-width: calc(100% - 8px);
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--node-scrim, rgba(10, 10, 16, 0.86));
+  border: 1px solid rgba(231, 225, 236, 0.1);
+  font-family: var(--canvas-hand);
+  font-size: 14px;
+  color: var(--canvas-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.canvas-shape-node .canvas-shape-edit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 8px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  text-align: center;
+  font-family: var(--canvas-hand);
+  font-size: 16px;
+  line-height: 1.4; /* must equal TEXT_LINE_HEIGHT so the measured box fits the rendered text */
+  color: var(--canvas-text);
+}
+/* Standalone text auto-sizes to fit, so its editor never needs to scroll — hiding overflow
+   stops the top line being clipped mid-keystroke (containers keep scrolling to reveal the caret). */
+.canvas-shape-node[data-shape="text"] .canvas-shape-edit { overflow: hidden; }
+.canvas-shape-node .canvas-shape-edit::placeholder { color: color-mix(in oklab, var(--canvas-text) 40%, transparent); }
+.canvas-shape-node.selected {
+  outline: 1.5px dashed rgba(232, 102, 61, 0.8); /* coral, matches the whiteboard accent */
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+/* A shape selected only as part of a whole-group selection shows no per-member outline — the
+   single group bounding box (.canvas-group-box) stands in for the whole group (Excalidraw). */
+.canvas-shape-node.selected.group-member { outline: none; }
+
+/* The single selection border for a group. Solid coral = group is the active selection; dashed
+   = the user has drilled into one member, so this is just the surrounding-group context. */
+.canvas-group-box {
+  position: absolute;
+  pointer-events: none;
+  border: 1.5px solid rgba(232, 102, 61, 0.9);
+  border-radius: 8px;
+}
+.canvas-group-box--drilled {
+  border-style: dashed;
+  border-color: rgba(232, 102, 61, 0.5);
+}
+
+/* ── Canvas Node shared shell — liquid glass + per-kind accent identity ── */
+.canvas-node {
+  /* Per-kind identity tokens — overridden by .canvas-<kind>-node below.
+     --node-accent drives the header tint, top bar, icon chip, and focus ring.
+     --node-scrim is the SOLID backing behind text so content reads on ANY
+     background (image themes included), independent of the glass backdrop.
+
+     THEME-DERIVED, and it has to be: "so content reads on any background" is a contrast promise,
+     and a fixed near-black only keeps it while the ink on top is light. The two consumers pair
+     this scrim with `color: var(--canvas-text)`, so on a light theme it was the theme's DARK ink
+     on a near-black chip — the promise inverted into the exact failure it exists to prevent.
+     --node-floor-solid is the resolver's opaque per-theme page, so the alphas below preserve the
+     original transmittance (~14% / ~22%) while the hue follows the theme. */
+  /* ── INK BLEND — one switch for every hued ink inside a node ──
+     The status and identity colours across the node stylesheets are bright, LIGHT hues chosen
+     to sit on a dark node. Measured on Garden of Dawn against the node body these files render,
+     77 of the 80 ink literals landed under 4.5:1 — the worst at 1.01:1, which is not "low
+     contrast" but invisible. The same inks are fine on the dark built-ins, which is why nothing
+     looked wrong to anyone working on one.
+
+     Rather than a token per hue (there are dozens, and a table that size stops being read), each
+     ink is written as `color-mix(in oklab, <hue> var(--ink-blend), var(--canvas-text))`. At 100%
+     that is a byte-exact no-op — verified in a browser, both paths paint rgb(52,211,153) for
+     #34d399 — so every dark theme renders exactly as before. On a light theme the hue is cut to
+     30% against the theme's own ink, which clears AA for every role while keeping the hue: green
+     stays green, so ADR-0023 §2b's guarantee about the run-state ramp is untouched. It is a
+     guarantee about hue, and only lightness moves here.
+
+     IT APPLIES TO `color` ONLY, and that boundary is load-bearing. Mixing a translucent tint
+     toward an opaque ink RAISES its alpha: a 12% background wash measured 74% alpha under the
+     same blend, which would turn a decorative tint into a slab. Backgrounds and borders keep
+     their own literals. */
+  --ink-blend: 100%;
+
+  /* Resting rim (07k follow-up): the glass edge with a calm share of the theme accent, so an idle
+     node sits in its theme instead of reading as a grey cut-out. It stays a 1px border with no
+     glow, so selection (50% accent + 4px halo) is still the only thing that advertises. */
+  --node-rest-rim: color-mix(in oklab, var(--canvas-accent) 22%, var(--node-glass-border));
+
+  --node-accent:       #94a3b8;
+  --node-accent-soft:  rgba(148, 163, 184, 0.14);
+  --node-accent-line:  rgba(148, 163, 184, 0.55);
+  --node-scrim:        color-mix(in oklab, var(--node-floor-solid, rgb(10, 10, 16)) 86%, transparent);
+  --node-scrim-soft:   color-mix(in oklab, var(--node-floor-solid, rgb(12, 12, 19)) 78%, transparent);
+  /* Adaptive Ink surface (ADR-0033 follow-up): the live-agent calm surface derives from the
+     theme's --canvas-surface, mixed toward a deep neutral ink so it stays legible over any
+     wallpaper. (--canvas-bg cannot be used here: it is a gradient on several themes, which
+     would make the whole color-mix() invalid.) The surface follows the theme like the terminal
+     ink-floor; light themes lift the ink step toward white (below).
+
+     `rgb(from … r g b)` strips --canvas-surface's own alpha first. It is a TRANSLUCENT token
+     (rgba(20,14,22,0.52) on Lakeside), and mixing it in raw dragged the ink down to ~0.87 alpha
+     — so the 34% floor below silently rendered as ~0.30 and the body came out lighter than
+     designed. The ink is a base colour; the single place opacity is chosen is --node-surface. */
+  --node-surface-ink:  color-mix(in oklab, #0a0d12 74%, rgb(from var(--canvas-surface) r g b / 1) 26%);
+  /* Canvas Terminal revamp: the ink FLOOR is a thin wash (34%), not a near-solid slab (was 62%
+     plus an 8% accent tint). It sits over the node's own --node-glass-bg, and the two together
+     land on roughly the mockup's density — but as glass with ink on top rather than as a dark
+     panel, so the wallpaper still moves underneath. The accent tint is gone: identity is the
+     runner badge's job, and a per-kind hue in the floor quietly recoloured every line of
+     terminal output. Light themes need a denser floor to carry dark text — see the
+     [data-canvas-mode="light"] branch below. */
+  --node-surface:      color-mix(in oklab, var(--node-surface-ink) 34%, transparent);
+  /* Header bar: base tinted by the ACTIVE THEME's surface (--canvas-surface) so it matches
+     the selected theme (e.g. Cobalt = deep blue), with an --node-accent glow pooled at the
+     top-left (e.g. Cobalt's coral) fading down — the "titled window" look. */
+  --node-header-bg:
+    radial-gradient(150% 150% at 0% -35%, color-mix(in srgb, var(--node-accent) 26%, transparent) 0%, transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--canvas-surface) 62%, #0a0c11) 0%, color-mix(in srgb, var(--canvas-surface) 44%, #08090e) 100%);
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  background: var(--node-glass-bg);
+  border: 1px solid var(--node-rest-rim);
+  border-radius: var(--canvas-node-radius);
+  box-shadow: var(--node-glass-shadow), var(--node-glass-inset);
+  backdrop-filter: var(--node-resting-filter, none);
+  -webkit-backdrop-filter: var(--node-resting-filter, none);
+  /* overflow:visible lets floating panels (SK/WT) overflow the node bounds.
+     Corner clipping is preserved via border-radius on the header and body instead. */
+  overflow: visible;
+  /* The --node-accent* trio is registered as <color> in motion.css, so a runtime
+     status flip (idle→running…) crossfades the accent and everything derived from
+     it (header glow, hairlines, chips) instead of hard-swapping. */
+  transform-origin: 50% 50%;
+  transition:
+    border-color var(--canvas-motion-fast, 120ms) var(--canvas-ease-out, ease-out),
+    box-shadow var(--canvas-motion-fast, 120ms) var(--canvas-ease-out, ease-out),
+    background var(--canvas-motion-fast, 120ms) var(--canvas-ease-out, ease-out),
+    --node-accent var(--canvas-motion-status, 240ms) var(--canvas-ease-out, ease-out),
+    --node-accent-soft var(--canvas-motion-status, 240ms) var(--canvas-ease-out, ease-out),
+    --node-accent-line var(--canvas-motion-status, 240ms) var(--canvas-ease-out, ease-out);
+  /* Open animation (ADR-0033): a node scales+fades in once when it mounts. Runs on
+     the inner shell — ReactFlow positions the outer .react-flow__node, so this
+     transform never fights node placement. --canvas-enter-delay (set on the wrapper
+     by the enter-burst stagger in useCanvasNodes) cascades a batch spawn; backwards
+     fill holds the from-state (invisible) while a delayed node waits its turn. */
+  animation: canvas-node-enter var(--canvas-motion-enter, 260ms) var(--canvas-ease-out-expo, ease-out);
+  animation-delay: calc(var(--canvas-motion-enter-delay, 0ms) + var(--canvas-enter-delay, 0ms));
+  animation-fill-mode: backwards;
+}
+
+/* Smooth open/close (ADR-0033) — transform/opacity only (GPU-friendly). The leave
+   class is applied by the close dispatcher, which delays graph removal until the
+   animation ends. Close motion avoids border-radius/filter animation so heavy
+   Terminal/Agent/Browser nodes do not repaint expensive chrome while fading out. */
+/* transform + opacity ONLY. `border-radius` used to be animated across these three stops, which is
+   not a compositable property: WebKit repainted the node every frame, and because .canvas-node carries
+   a backdrop-filter each repaint also re-blurred the backdrop — so a heavy Terminal/Agent node dropped
+   the opening frames of its own mount animation. Same reasoning the leave keyframes below already
+   follow; the corner "unfold" is not worth a per-frame repaint on the most-seen transition in the app. */
+@keyframes canvas-node-enter {
+  0% {
+    opacity: 0;
+    transform: translate3d(var(--canvas-enter-x, 0px), var(--canvas-enter-y, 18px), 0) scaleX(0.82) scaleY(0.58);
+  }
+  42% {
+    opacity: 1;
+    transform: translate3d(calc(var(--canvas-enter-x, 0px) * 0.18), calc(var(--canvas-enter-y, 18px) * 0.18), 0) scaleX(0.97) scaleY(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scaleX(1) scaleY(1);
+  }
+}
+@keyframes canvas-node-leave {
+  0% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  36% {
+    opacity: 0.96;
+    transform: translate3d(calc(var(--canvas-leave-x, 0px) * -0.04), -2px, 0) scale(0.992);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--canvas-leave-x, 0px), var(--canvas-leave-y, 12px), 0) scale(0.94);
+  }
+}
+/* The close dispatcher adds `canvas-node-leaving` to the ReactFlow node wrapper,
+   plays this, then removes the node from the graph once the animation ends.
+   The wrapper class is included so leaving outranks the selection-bloom rule —
+   a selected node must still play its exit. */
+.react-flow__node.canvas-node-leaving {
+  pointer-events: none;
+  contain: layout paint style;
+}
+.react-flow__node.canvas-node-leaving .canvas-node {
+  animation: canvas-node-leave var(--canvas-motion-leave, 200ms) var(--canvas-ease-out-expo, ease-out) forwards;
+  /* Close-all cascade: markAllNodesLeaving stamps a per-node --canvas-leave-delay. */
+  animation-delay: calc(var(--canvas-motion-leave-delay, 0ms) + var(--canvas-leave-delay, 0ms));
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+.react-flow__node.canvas-node-leaving .canvas-node::before,
+.react-flow__node.canvas-node-leaving .canvas-node::after {
+  animation: none;
+  transition-duration: 0.01ms;
+}
+.react-flow__node.canvas-node-restored:not(.canvas-node-leaving) .canvas-node { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .canvas-node,
+  .react-flow__node.canvas-node-leaving .canvas-node { animation: none; }
+}
+
+/* Canvas Terminal idiom (ADR-0033): no glass light-refraction — the resting
+   surface is a flat dark translucent scrim, so the ::before refraction is dropped. */
+
+/* Selection aura — opacity/transform only, so focus feedback reads like a soft game
+   pickup without animating expensive box-shadow lists. Rough nodes hide this via the
+   existing data-rough ::before rule. */
+.canvas-node::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  border-radius: calc(var(--canvas-node-radius) + 7px);
+  border: 1px solid color-mix(in oklab, var(--node-accent) 34%, transparent);
+  background: radial-gradient(70% 60% at 50% 0%, color-mix(in oklab, var(--node-accent) 22%, transparent), transparent 72%);
+  opacity: 0;
+  transform: scale(0.96);
+  pointer-events: none;
+  transition: opacity var(--canvas-motion-fast, 120ms) var(--canvas-ease-out, ease-out), transform var(--canvas-motion-fast, 120ms) var(--canvas-ease-out, ease-out);
+}
+
+/* Per-kind accent — a single flat hairline capping the top edge (no glow, no
+   gradient sweep). The fastest visual ID for a node; brightens on selection.
+
+   IT IS A BORDER, NOT A BAR, and that is the whole fix. This was a 1px-tall box pinned to
+   `top/left/right: 0` with a `12px 12px 0 0` radius. Two things went wrong with that:
+
+     • A border-radius cannot survive a 1px-tall box. The spec scales radii down when they
+       exceed the box, so the vertical radii collapsed to ~0.5px and the bar rendered with
+       square ends.
+     • `.canvas-node` is `overflow: visible` — deliberately, so floating panels can escape the
+       node bounds — so nothing clipped those square ends to the node's rounded silhouette.
+
+   The result was a straight rule running the full width of the node's SQUARE bounds, crossing
+   the corner arcs and sticking out over the wallpaper at both ends. On a dark board it read as
+   a hairline; on Garden of Dawn's bright paper it read as a stray strip laid across the top of
+   every node, which is exactly what it was.
+
+   `inset: 0` with `border-radius: inherit` and a single `border-top` makes the accent part of
+   the node's own edge: it follows the corner arc and terminates where the silhouette does.
+   Selection, hover and the agent-node suppression below all still work, because every one of
+   them only changes `opacity`. */
+.canvas-node::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border-top: 1px solid var(--node-accent);
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 150ms ease;
+}
+
+/* Selection frames, it does not shout (mockup 07k): the 1px border carries the accent, a 4px
+   halo at 10% and a soft drop shadow do the rest. */
+.canvas-node.selected,
+.canvas-node:focus-within {
+  border-color: color-mix(in oklab, var(--node-accent) 50%, transparent);
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--node-accent) 10%, transparent),
+    0 18px 44px rgba(0,0,0,0.42);
+}
+/* Custom (image) themes keep a light blur so the translucent scrim stays legible
+   over a busy wallpaper — the one place we retain the glass filter. */
+.codecanvas-shell[data-canvas-theme="custom"] .canvas-node {
+  backdrop-filter: var(--node-glass-filter);
+  -webkit-backdrop-filter: var(--node-glass-filter);
+}
+
+/* Live agents AND terminals: one translucent glass panel (ADR-0033 → Canvas Terminal revamp).
+   A single node-level backdrop blur frosts whatever sits behind the WHOLE node, so the header,
+   the body, and the rounded corners all frost uniformly with no sharp-wallpaper gap leaking
+   through at the seams. Both node families share this so they read as the exact same material.
+   Placed after the custom-theme rule to win on any theme.
+
+   Everything here now comes from the theme's own glass tokens, and the rim is QUIET: the resting
+   border is --node-rest-rim (glass edge + a calm theme tint), with no accent halo in the shadow.
+   The previous recipe baked a --canvas-accent ring plus a 28px accent bloom into the RESTING
+   state, so a canvas of idle terminals glowed as if every one of them was selected — and left
+   selection with nothing louder to say. Accent now belongs to hover and selection only (below).
+
+   The fill is --node-glass-bg rather than `transparent`: the body's ink floor (--node-surface)
+   is a light 34% wash, so the glass tint has to come from somewhere. Two translucent layers over
+   one blur is exactly the mockup's stack — glass for the header, glass + ink for the body — and
+   the luminance step between them is what separates the two without drawing a line. */
+.canvas-node.canvas-agent-node,
+.canvas-node.canvas-terminal-node {
+  background: var(--node-glass-bg);
+  border-color: var(--node-rest-rim);
+  box-shadow: var(--node-glass-shadow), var(--node-glass-inset);
+  backdrop-filter: var(--node-live-filter);
+  -webkit-backdrop-filter: var(--node-live-filter);
+}
+/* Light themes (Phase 4): the live-agent calm surface lifts toward paper white so
+   the dark-ink terminal palette reads on it (mirrors the terminal ink-floor). It stays much
+   denser than the dark floor above — dark terminal text needs an opaque page to sit on, where
+   light text only needs the wallpaper knocked back. Same rgb(from …) alpha strip as the dark
+   ink: --canvas-surface is translucent, and mixing it raw makes the 82% below render lighter. */
+.codecanvas-shell[data-canvas-mode="light"] .canvas-node {
+  /* 30% of the hue against 70% ink: worst case measured 4.65:1, best 6.4:1. A per-role table was
+     tried and dropped — more precise, and nothing anyone could reason about later. */
+  --ink-blend: 30%;
+  --node-surface-ink: color-mix(in oklab, #ffffff 60%, rgb(from var(--canvas-surface) r g b / 1) 40%);
+  --node-surface: color-mix(in oklab, var(--node-surface-ink) 82%, transparent);
+}
+/* No top accent strip on agents (per user) — the theme-tinted header carries identity. */
+.canvas-agent-node::after { display: none; }
+/* …and no bright accent ring/border on select or focus-within (the live xterm is almost
+   always focused, so the accent ring read as a permanent coloured strip). Terminals share
+   this — same focused-xterm reasoning — so both stay quiet. Keep only a soft depth shadow;
+   the header + glow signal identity. */
+.canvas-agent-node.selected,
+.canvas-agent-node:focus-within,
+.canvas-terminal-node.selected,
+.canvas-terminal-node:focus-within {
+  border-color: color-mix(in oklab, var(--canvas-accent, var(--node-accent)) 45%, var(--node-glass-border));
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--canvas-accent, var(--node-accent)) 10%, transparent),
+    0 18px 44px rgba(0, 0, 0, 0.45),
+    var(--node-glass-inset);
+}
+.canvas-node.selected::after,
+.canvas-node:focus-within::after {
+  opacity: 1;
+}
+
+/* ── Drop-target frame ────────────────────────────────────────────────────────
+   A file/image is being dragged onto this terminal/agent. A DISTINCT class (not
+   .selected) so it survives the agent's deliberate select-ring suppression above.
+   Coral (--canvas-accent) matches the whiteboard/selection chrome — one uniform
+   "you can drop here" colour across agents (violet) and terminals (status hues). */
+.canvas-node--drop-target {
+  border-color: var(--canvas-accent, #e8663d) !important;
+  box-shadow:
+    0 12px 34px rgba(0, 0, 0, 0.5),
+    0 0 0 1.5px var(--canvas-accent, #e8663d),
+    0 0 30px -6px color-mix(in oklab, var(--canvas-accent, #e8663d) 45%, transparent) !important;
+}
+.canvas-node-drop-frame {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 8;
+  animation: canvas-drop-frame-in 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.canvas-node-drop-veil {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 90% at 50% 50%, rgba(232, 102, 61, 0.05), rgba(10, 8, 12, 0.3) 100%);
+}
+.canvas-node-drop-ring {
+  position: absolute;
+  inset: 6px;
+  border-radius: 10px;
+  border: 1.5px solid var(--canvas-accent, #e8663d);
+  box-shadow: inset 0 0 22px -8px color-mix(in oklab, var(--canvas-accent, #e8663d) 40%, transparent);
+  animation: canvas-drop-ring-breathe 2.4s ease-in-out infinite;
+}
+.canvas-node-drop-pill {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--canvas-accent, #e8663d);
+  background: rgba(26, 18, 22, 0.86);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  font-family: var(--canvas-normal, system-ui, sans-serif);
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffe6dd;
+  white-space: nowrap;
+  box-shadow: 0 8px 22px -8px rgba(0, 0, 0, 0.6);
+}
+.canvas-node-drop-clip {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--canvas-accent, #e8663d);
+  color: #2a0f07;
+  font-size: 11px;
+  font-weight: 800;
+}
+@keyframes canvas-drop-frame-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes canvas-drop-ring-breathe {
+  0%, 100% { border-color: color-mix(in oklab, var(--canvas-accent, #e8663d) 62%, transparent); }
+  50% { border-color: var(--canvas-accent, #e8663d); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-node-drop-frame { animation: none; }
+  .canvas-node-drop-ring { animation: none; }
+}
+
+/* Hover emphasis — a quiet pre-selection cue: the accent hairline warms and the
+   border picks up a hint of the node's accent (eased by the shell transition).
+   Selection/focus still own the full ring, so both are excluded here. */
+.canvas-node:not(.selected):not(:focus-within):hover {
+  border-color: color-mix(in oklab, var(--node-accent) 32%, var(--node-glass-border));
+}
+.canvas-node:not(.selected):not(:focus-within):hover::after { opacity: 0.75; }
+/* Live terminal/agent nodes get the same quiet glass-rim hover cue. */
+.canvas-agent-node:not(.selected):not(:focus-within):hover,
+.canvas-terminal-node:not(.selected):not(:focus-within):hover {
+  border-color: color-mix(in oklab, var(--canvas-accent, var(--node-accent)) 40%, var(--node-glass-border));
+}
+
+/* Selection bloom — a one-time soft flare when a node becomes selected. It lives on
+   ::before so selecting an existing node never restarts the mount transform. Agents
+   keep their calm chrome; glyph LOD blocks are excluded because a bloom reads as a
+   status change at that distance. */
+@keyframes canvas-select-aura {
+  0%   { opacity: 0; transform: scale(0.96); }
+  34%  { opacity: 0.86; }
+  100% { opacity: 0; transform: scale(1.04); }
+}
+.canvas-node.selected:where(:not(.canvas-agent-node)):where(:not(.canvas-terminal-node)):where(:not(.canvas-node--glyph))::before {
+  animation: canvas-select-aura 360ms var(--canvas-ease-out-quart, ease-out);
+}
+
+/* ── Per-kind accent identity — one source of truth for each node's color. ──
+   The 4 PRIMARY node types follow the active theme's palette roles (ADR-0023 1b-ii):
+   agent→--canvas-node-agent, task→task, note→note, terminal/context/browser→info.
+   --node-accent-soft/-line derive from the role via color-mix, so a theme switch
+   recolors these nodes. Specialized orchestration nodes (skill/plan/critic/
+   human-gate/team) keep distinct taxonomy colors — theme-independent, like status.
+   Terminal's runtime-status overrides (below) also stay theme-independent. */
+.canvas-terminal-node { width:100%; height:100%; --node-accent:var(--canvas-type-terminal); --node-accent-soft:color-mix(in srgb, var(--canvas-node-info) 16%, transparent); --node-accent-line:color-mix(in srgb, var(--canvas-node-info) 60%, transparent); }
+.canvas-skills-node,
+.canvas-skill-node    { --node-accent:var(--canvas-type-skill); --node-accent-soft:rgba(251,191,36,0.14); --node-accent-line:rgba(251,191,36,0.60); }
+.canvas-agent-node    { --node-accent:var(--canvas-type-agent); --node-accent-soft:color-mix(in srgb, var(--canvas-node-agent) 16%, transparent); --node-accent-line:color-mix(in srgb, var(--canvas-node-agent) 60%, transparent); }
+.canvas-plan-node     { --node-accent:var(--canvas-type-plan); --node-accent-soft:rgba(94,234,212,0.14);  --node-accent-line:rgba(45,212,191,0.60); }
+.canvas-critic-node   { --node-accent:var(--canvas-type-critic); --node-accent-soft:rgba(240,171,252,0.14); --node-accent-line:rgba(240,171,252,0.58); }
+.canvas-human-gate-node { --node-accent:var(--canvas-type-human-gate); --node-accent-soft:rgba(251,191,36,0.14); --node-accent-line:rgba(251,191,36,0.58); }
+.canvas-team-node { --node-accent:var(--canvas-type-team); --node-accent-soft:rgba(56,189,248,0.14); --node-accent-line:rgba(56,189,248,0.58); }
+.canvas-music-node    { --node-accent:var(--canvas-type-music); --node-accent-soft:rgba(232,163,76,0.14); --node-accent-line:rgba(232,163,76,0.58); }
+.canvas-note-node     { --node-accent:var(--canvas-type-note); --node-accent-soft:color-mix(in srgb, var(--canvas-node-note) 16%, transparent); --node-accent-line:color-mix(in srgb, var(--canvas-node-note) 60%, transparent); }
+.canvas-task-node     { --node-accent:var(--canvas-type-task); --node-accent-soft:color-mix(in srgb, var(--canvas-node-task) 16%, transparent); --node-accent-line:color-mix(in srgb, var(--canvas-node-task) 60%, transparent); }
+.canvas-context-node,
+.canvas-browser-node  { --node-accent:var(--canvas-type-browser); --node-accent-soft:color-mix(in srgb, var(--canvas-node-info) 16%, transparent); --node-accent-line:color-mix(in srgb, var(--canvas-node-info) 60%, transparent); }
+
+/* ── Terminal Node: the accent stays the theme's `info` role ──
+   Runtime status used to overwrite --node-accent with a fixed hex per state (green/amber/red).
+   That was a leftover from when status drove a visible accent strip: the strip is gone (below),
+   so all those hexes reached was the scrollbar thumb, the header glyph, and the active-action
+   chip — dragging the Terminal Node out of whatever palette the active theme had chosen, on
+   every theme. Status is carried by the header dot and the runner badge, which are meant to be
+   theme-independent; the node's own colour follows the theme like every other node kind.
+   `data-node-status` is still on the element and still available to style from. */
+
+/* Terminal nodes have NO top accent strip (ADR-0033) — status rides the header dot. */
+.canvas-terminal-node::after { display: none; }
+
+@media (prefers-reduced-transparency: reduce) {
+  .canvas-node,
+  .canvas-node.selected,
+  .canvas-node:focus-within,
+  .codecanvas-shell[data-canvas-theme="custom"] .canvas-node {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Square accent icon-chip used in every node header for instant identity. */
+.canvas-node-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border-radius: 0.45rem;
+  color: var(--node-accent);
+  background: var(--node-accent-soft);
+  border: 1px solid color-mix(in oklab, var(--node-accent) 32%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08);
+}
+.canvas-node-chip svg { width: 0.875rem; height: 0.875rem; }
+
+/* Solid content scrim — guarantees text legibility over any active background. */
+.canvas-skills-node-body,
+.canvas-skill-node-body,
+.canvas-note-node-body,
+.canvas-task-node-body,
+.agent-card,
+.plan-card { background: var(--node-scrim); }
+
+.canvas-lod-marker {
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.codecanvas-shell .react-flow:has(.canvas-lod-marker[data-canvas-lod="overview"]) .react-flow__edge-path {
+  stroke-opacity: 0.36;
+  stroke-width: 1.25;
+}
+
+.codecanvas-shell .react-flow:has(.canvas-lod-marker[data-canvas-lod="overview"]) .react-flow__edge-text,
+.codecanvas-shell .react-flow:has(.canvas-lod-marker[data-canvas-lod="overview"]) .react-flow__edge-textbg {
+  opacity: 0;
+}

@@ -1,0 +1,47 @@
+/* Managed Host banner above an SSH workspace in Code mode. Mockup: mockups/managed-host.html */
+
+.mh-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 4px 8px 4px 12px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+  background: var(--ds-surface);
+  font-size: 12.5px;
+}
+
+.mh-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ds-text-secondary);
+}
+
+.mh-text b {
+  color: var(--ds-text);
+  font-weight: 600;
+}
+
+.mh-err {
+  color: var(--ds-danger);
+}
+
+.mh-steps {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ds-text-quiet);
+}
+
+.mh-steps span::before { content: "○ "; }
+.mh-steps [data-state="done"] { color: var(--ds-text-muted); }
+.mh-steps [data-state="done"]::before { content: "✓ "; color: var(--ds-success); }
+.mh-steps [data-state="now"] { color: var(--ds-text); }
+.mh-steps [data-state="now"]::before { content: "◐ "; }
+.mh-steps [data-state="fail"] { color: var(--ds-danger); }
+.mh-steps [data-state="fail"]::before { content: "✕ "; }

@@ -1,0 +1,85 @@
+name: release windows
+
+# Windows half of a Lotus release (plans/app-updates). `bun run release:mac <x.y.z> --publish` creates
+# release v<x.y.z> on alwisofwan1/lotus-releases and dispatches this workflow, which builds the NSIS
+# installer from main, signs it for the updater and adds it + a `windows-x86_64` entry to that
+# release's latest.json. Run it by hand (Actions → release windows) to redo a failed Windows half.
+#
+# Secrets: TAURI_SIGNING_PRIVATE_KEY(_PASSWORD) (same key as macOS), LOTUS_GOOGLE_CLIENT_ID/SECRET,
+# LOTUS_RELEASES_TOKEN (fine-grained PAT, Contents: read & write on alwisofwan1/lotus-releases only).
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version already published by release:mac, e.g. 0.2.2"
+        required: true
+
+concurrency: release-windows-${{ inputs.version }}
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+        working-directory: apps/desktop
+    env:
+      VERSION: ${{ inputs.version }}
+      CI: "true"
+      LOTUS_GOOGLE_CLIENT_ID: ${{ secrets.LOTUS_GOOGLE_CLIENT_ID }}
+      LOTUS_GOOGLE_CLIENT_SECRET: ${{ secrets.LOTUS_GOOGLE_CLIENT_SECRET }}
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - name: Validate version
+        run: '[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "bad version: $VERSION"; exit 1; }'
+        working-directory: .
+
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop/src-tauri
+          cache-on-failure: true
+
+      - name: Install dependencies
+        run: |
+          bun install --frozen-lockfile
+          (cd ../../packages/host && bun install --frozen-lockfile)
+
+      - name: Bundle sidecars
+        run: |
+          bun scripts/check-release-env.mjs
+          bun run mcp:bundle
+          bun run chat-bridge:bundle
+          bun scripts/build-host-bundle.mjs
+
+      - name: Build installer
+        run: bunx tauri build --bundles nsis --config "{\"version\":\"$VERSION\",\"bundle\":{\"createUpdaterArtifacts\":true}}"
+
+      - name: Publish to lotus-releases
+        env:
+          GH_TOKEN: ${{ secrets.LOTUS_RELEASES_TOKEN }}
+          REPO: alwisofwan1/lotus-releases
+        run: |
+          set -euo pipefail
+          src=$(ls src-tauri/target/release/bundle/nsis/*-setup.exe | head -1)
+          # Stable name so the website can link releases/latest/download/Lotus-windows-x64-setup.exe.
+          out="$RUNNER_TEMP/Lotus-windows-x64-setup.exe"
+          cp "$src" "$out"
+          cp "$src.sig" "$out.sig"
+          gh release download "v$VERSION" --repo "$REPO" --pattern latest.json --dir "$RUNNER_TEMP" --clobber
+          SIG="$(cat "$out.sig")" URL="https://github.com/$REPO/releases/download/v$VERSION/Lotus-windows-x64-setup.exe" FEED="$RUNNER_TEMP/latest.json" \
+            bun -e 'const fs=require("fs");const f=JSON.parse(fs.readFileSync(process.env.FEED,"utf8"));
+              if(f.version!==process.env.VERSION) throw new Error(`latest.json is ${f.version}, expected ${process.env.VERSION}`);
+              f.platforms["windows-x86_64"]={signature:process.env.SIG.trim(),url:process.env.URL};
+              fs.writeFileSync(process.env.FEED,JSON.stringify(f,null,2)+"\n");'
+          gh release upload "v$VERSION" --repo "$REPO" --clobber "$out" "$out.sig" "$RUNNER_TEMP/latest.json"

@@ -1,0 +1,446 @@
+/* Canvas Settings modal — Templates detail pane, blueprint editor, buttons, Save Template modal, responsive. Split from settings-modal.css (≤600-line policy). */
+
+/* ── Right pane — detail ────────────────────────────────────────────── */
+.canvas-bp-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 11px;
+  background: var(--cc-s3);
+  overflow: hidden;
+}
+.canvas-bp-detail--empty { align-items: center; justify-content: center; }
+
+.canvas-bp-detail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0.875rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cc-scroll) transparent;
+}
+
+/* Hero */
+.canvas-bp-hero { display: flex; gap: 0.625rem; align-items: flex-start; }
+.canvas-bp-hero-glyph {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--cc-accent-bdr);
+  border-radius: 8px;
+  background: var(--cc-accent-lo);
+  color: var(--cc-accent-hi);
+}
+.canvas-bp-hero-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.canvas-bp-hero-titles { display: flex; align-items: center; gap: 0.4375rem; flex-wrap: wrap; }
+.canvas-bp-hero-titles h3 {
+  margin: 0;
+  font-size: var(--ds-t-lede);
+  font-weight: 620;
+  letter-spacing: -0.018em;
+  color: var(--cc-text);
+}
+.canvas-bp-hero-text p {
+  margin: 0;
+  font-size: var(--ds-t-meta);
+  line-height: var(--ds-lh-body);
+  color: var(--cc-muted);
+  max-width: 70ch;
+}
+
+.canvas-blueprint-pill {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--cc-accent-bdr);
+  border-radius: 5px;
+  background: var(--cc-accent-lo);
+  color: var(--cc-accent-hi);
+  font-size: var(--ds-t-micro);
+  font-weight: 650;
+  line-height: 1;
+  letter-spacing: var(--ds-tr-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.canvas-blueprint-pill[data-state="ready"]   { border-color: rgba(34, 197, 94, 0.28);  background: rgba(34, 197, 94, 0.10);  color: var(--cc-ok); }
+.canvas-blueprint-pill[data-state="warning"] { border-color: rgba(251, 191, 36, 0.30); background: rgba(251, 191, 36, 0.09); color: var(--cc-warn); }
+
+/* Contents summary strip */
+.canvas-bp-summary {
+  display: flex;
+  margin: 0;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 9px;
+  background: var(--cc-s3);
+  overflow: hidden;
+}
+.canvas-bp-summary div {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem;
+}
+.canvas-bp-summary div + div { border-left: 1px solid var(--cc-bdr); }
+.canvas-bp-summary b { font-size: var(--ds-t-lede); font-weight: 680; color: var(--cc-accent-hi); line-height: 1; }
+.canvas-bp-summary span { font-size: var(--ds-t-micro); font-weight: 600; letter-spacing: var(--ds-tr-caps); text-transform: uppercase; color: var(--cc-muted); }
+
+/* Section primitives */
+.canvas-blueprint-section { display: flex; flex-direction: column; gap: 0.5rem; }
+.canvas-blueprint-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 1px solid var(--cc-bdr);
+}
+.canvas-blueprint-section-head h4 {
+  margin: 0;
+  font-size: var(--ds-t-micro);
+  font-weight: 650;
+  letter-spacing: var(--ds-tr-caps);
+  text-transform: uppercase;
+  color: var(--cc-muted);
+}
+.canvas-blueprint-section-head span {
+  flex-shrink: 0;
+  padding: 0.1875rem 0.4375rem;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 5px;
+  background: var(--cc-s3);
+  color: var(--cc-quiet);
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  letter-spacing: var(--ds-tr-caps);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Roster + compact lists */
+.canvas-blueprint-roster,
+.canvas-blueprint-compact-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 9px;
+  overflow: hidden;
+  background: var(--cc-s3);
+}
+.canvas-blueprint-roster li + li,
+.canvas-blueprint-compact-list li + li { border-top: 1px solid var(--cc-bdr); }
+.canvas-blueprint-roster li:hover,
+.canvas-blueprint-compact-list li:hover { background: var(--cc-s2); }
+
+.canvas-blueprint-roster li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.625rem;
+  align-items: center;
+  padding: 0.4375rem 0.6875rem;
+  color: var(--cc-text);
+  font-size: var(--ds-t-body);
+  transition: background 120ms ease;
+}
+.canvas-blueprint-roster-main { display: flex; flex-direction: column; gap: 0.1875rem; min-width: 0; }
+.canvas-blueprint-roster-main strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--ds-t-body); font-weight: 560; }
+.canvas-blueprint-roster-main small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--cc-muted); font-size: var(--ds-t-meta); }
+.canvas-blueprint-roster-meta { display: flex; gap: 0.25rem; flex-wrap: wrap; justify-content: flex-end; }
+.canvas-blueprint-roster-meta small {
+  border-radius: 4px;
+  background: var(--cc-accent-lo);
+  color: var(--cc-accent-hi);
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  padding: 0.175rem 0.375rem;
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: var(--ds-tr-caps);
+}
+
+.canvas-blueprint-two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+
+.canvas-blueprint-compact-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  padding: 0.4375rem 0.6875rem;
+  color: var(--cc-muted);
+  font-size: var(--ds-t-meta);
+  line-height: var(--ds-lh-body);
+  transition: background 120ms ease;
+}
+.canvas-blueprint-compact-list small {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.125rem;
+  height: 1.125rem;
+  padding: 0 0.25rem;
+  border-radius: 4px;
+  background: var(--cc-accent-lo);
+  color: var(--cc-accent-hi);
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.canvas-blueprint-compact-list span { min-width: 0; overflow-wrap: anywhere; }
+.canvas-blueprint-compact-list em {
+  grid-column: 2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cc-quiet);
+  font-size: var(--ds-t-meta);
+  font-style: normal;
+}
+
+/* Prompt preview */
+.canvas-blueprint-preview {
+  max-height: 11rem;
+  overflow: auto;
+  margin: 0;
+  padding: 0.75rem 0.875rem;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 8px;
+  background: var(--cc-well);
+  color: var(--cc-muted);
+  font-size: var(--ds-t-meta);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  line-height: var(--ds-lh-body);
+  white-space: pre-wrap;
+  scrollbar-width: thin;
+  scrollbar-color: var(--cc-scroll) transparent;
+}
+
+/* Action footer — pinned to detail pane */
+.canvas-bp-footer {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5625rem 0.875rem;
+  border-top: 1px solid var(--cc-bdr);
+  background: var(--cc-well-bar);
+}
+.canvas-bp-footer-status {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4375rem;
+  font-size: var(--ds-t-meta);
+  font-weight: 540;
+  color: var(--cc-muted);
+}
+.canvas-bp-footer-status::before {
+  content: "";
+  width: 0.4375rem;
+  height: 0.4375rem;
+  border-radius: 50%;
+  background: var(--cc-quiet);
+}
+.canvas-bp-footer-status[data-state="ready"]::before { background: var(--cc-ok); box-shadow: 0 0 6px rgba(134, 239, 172, 0.55); }
+.canvas-bp-footer-status[data-state="warning"]::before { background: var(--cc-warn); box-shadow: 0 0 6px rgba(252, 211, 77, 0.45); }
+.canvas-bp-footer-actions { display: flex; align-items: center; gap: 0.5rem; }
+
+/* ── Blueprint editor (edit mode) ───────────────────────────────────── */
+.cc-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--cc-bdr);
+  border-radius: 6px;
+  background: var(--cc-s1);
+  color: var(--cc-muted);
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  letter-spacing: var(--ds-tr-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.cc-add-btn:hover { background: var(--cc-accent-lo); border-color: var(--cc-accent-bdr); color: var(--cc-accent-hi); }
+
+/* Inline editable row title (roster / variable name) */
+.cc-row-name-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cc-text);
+  font: inherit;
+  font-size: var(--ds-t-body);
+  font-weight: 600;
+  padding: 0.3125rem 0.4375rem;
+  outline: none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.cc-row-name-input:hover { background: var(--cc-well); }
+.cc-row-name-input:focus { background: var(--cc-well); border-color: var(--cc-accent); }
+
+/* One-line add/delete rows (guardrails, sources) */
+.cc-line-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.375rem; }
+.cc-line-row { display: flex; align-items: center; gap: 0.4375rem; }
+.cc-line-row--source { display: grid; grid-template-columns: 6.5rem minmax(0, 1fr) minmax(0, 1.2fr) auto; }
+.cc-line-row input,
+.cc-line-row select {
+  min-width: 0;
+  box-sizing: border-box;
+  flex: 1;
+  font: inherit;
+  font-size: var(--ds-t-body);
+  border: 1px solid var(--cc-bdr);
+  border-radius: 6px;
+  background: var(--cc-well);
+  color: var(--cc-text);
+  padding: 0.4375rem 0.5625rem;
+  outline: none;
+  transition: border-color 120ms ease;
+}
+.cc-line-row--source select,
+.cc-line-row--source input { flex: initial; }
+.cc-line-row input:focus,
+.cc-line-row select:focus { border-color: var(--cc-accent); }
+.cc-line-row .cc-icon-btn { flex-shrink: 0; }
+
+/* ── Buttons ────────────────────────────────────────────────────────── */
+.canvas-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  background: var(--cc-accent);
+  color: var(--cc-accent-fg);
+  border: 1px solid color-mix(in srgb, var(--cc-tint) 70%, #000 30%);
+  border-radius: 7px;
+  padding: 0.4375rem 0.9375rem;
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 1px 3px rgba(0, 0, 0, 0.30);
+  transition: background 100ms ease, box-shadow 100ms ease, transform 60ms ease;
+}
+.canvas-btn-primary:hover:not(:disabled) {
+  background: var(--cc-accent-strong);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 0 0 2.5px color-mix(in srgb, var(--cc-tint) 28%, transparent);
+}
+.canvas-btn-primary:active:not(:disabled) { transform: scale(0.97); box-shadow: none; }
+.canvas-btn-primary:disabled { opacity: 0.32; cursor: not-allowed; }
+
+.canvas-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  background: transparent;
+  color: var(--cc-quiet);
+  border: 1px solid var(--cc-bdr);
+  border-radius: 7px;
+  padding: 0.4375rem 0.9375rem;
+  font-size: var(--ds-t-meta);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, border-color 100ms ease;
+}
+.canvas-btn-ghost:hover:not(:disabled) { background: var(--cc-s1); color: var(--cc-text); border-color: var(--cc-bdr-str); }
+
+.canvas-templates-delete {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(127,29,29,0.11);
+  border: 1px solid rgba(248,113,113,0.15);
+  border-radius: 7px;
+  cursor: pointer;
+  color: rgba(252,165,165,0.80);
+  font-size: var(--ds-t-meta);
+  font-weight: 600;
+  transition: background 110ms ease, color 110ms ease;
+}
+.canvas-templates-delete:hover { color: #fecaca; background: rgba(127,29,29,0.22); }
+
+/* ── Save Template Modal ─────────────────────────────────────────────── */
+.save-template-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.55);
+  backdrop-filter: blur(8px);
+}
+
+.save-template-modal {
+  background: color-mix(in srgb, var(--bg-elevated, #0a0816) 90%, transparent);
+  backdrop-filter: blur(14px) saturate(1.18);
+  border: 1px solid var(--cc-bdr-str);
+  border-radius: 12px;
+  padding: 1.375rem;
+  width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.68), 0 1px 0 rgba(255,255,255,0.10) inset;
+}
+
+.save-template-title { font-size: var(--ds-t-lede); font-weight: 640; color: var(--cc-text); margin: 0; letter-spacing: -0.01em; }
+
+.save-template-input {
+  width: 100%;
+  background: color-mix(in srgb, var(--bg, #04040e) 60%, transparent);
+  border: 1px solid var(--cc-bdr);
+  border-radius: 7px;
+  padding: 0.5625rem 0.75rem;
+  font-size: var(--ds-t-meta);
+  color: var(--cc-text);
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 110ms ease, box-shadow 110ms ease;
+}
+.save-template-input:focus { border-color: var(--cc-accent); box-shadow: var(--cc-accent-glow); }
+
+.save-template-actions { display: flex; gap: 0.5rem; justify-content: flex-end; }
+
+/* ── Responsive ─────────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .canvas-settings-surface {
+    grid-template-columns: 1fr;
+    grid-template-rows: var(--cc-chrome-h) auto 1fr;
+    grid-template-areas: "chrome" "rail" "content";
+    width: min(96vw, 1100px);
+  }
+  .canvas-settings-rail { overflow-x: auto; overflow-y: hidden; flex-direction: row; flex-wrap: nowrap; padding: 0.5rem 1rem; border-right: none; border-bottom: 1px solid var(--cc-bdr); }
+  .canvas-settings-rail-items { flex-direction: row; gap: 0.25rem; min-height: 0; }
+  .canvas-settings-rail-item[data-section-id="about"] { margin-top: 0; }
+
+  .canvas-templates-tab { height: auto; }
+  .canvas-bp-split { grid-template-columns: 1fr; }
+  .canvas-bp-library { max-height: 18rem; }
+  .canvas-blueprint-two-col { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 600px) {
+  .canvas-settings-content-body { padding: 1rem; }
+  .canvas-settings-content-head { padding: 1rem 1rem 0.75rem; }
+  .cc-field-grid { grid-template-columns: 1fr; }
+  .canvas-bp-summary { flex-wrap: wrap; }
+  .canvas-bp-summary div { flex: 1 0 40%; }
+  .canvas-bp-summary div + div { border-left: 0; }
+  .canvas-bp-footer { flex-wrap: wrap; }
+  .canvas-bp-footer-actions { width: 100%; justify-content: flex-end; }
+}

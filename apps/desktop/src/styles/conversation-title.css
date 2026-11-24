@@ -1,0 +1,232 @@
+/*
+  ConversationTitle — one title control for Code, Chat and Canvas
+  (src/modules/conversation-title; mockups/conversation-title-dither.html).
+
+  The title inherits font and colour from where it is mounted (a pane header, Chat's header, a
+  Canvas node header). The menu speaks Chat's thread-menu language (.chat-thread-menu in chat.css):
+  the title on top, a dither corner, keys instead of icons. Tokens only.
+*/
+
+.conversation-title {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.conversation-title-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: default;
+  outline: none;
+  transition: color var(--ws-dur, 120ms) var(--ws-ease, ease);
+}
+.conversation-title-text:hover { color: var(--ds-text-secondary); }
+.conversation-title-text:focus-visible { border-radius: 4px; box-shadow: 0 0 0 1.5px var(--ws-focus-line, currentColor); }
+
+/* The first message's line, not yet refined: a step quieter. */
+.conversation-title[data-status="pending"] .conversation-title-text { opacity: 0.78; }
+
+/* A model is naming it: the text dims and a dithered patch crawls underneath. Nothing reflows. */
+.conversation-title[data-status="generating"] .conversation-title-text { opacity: 0.55; }
+.conversation-title-crawl {
+  position: absolute;
+  left: 0;
+  right: 20px;
+  bottom: -3px;
+  height: 2px;
+  overflow: hidden;
+  pointer-events: none;
+}
+.conversation-title-crawl > canvas {
+  display: block;
+  width: 200%;
+  height: 100%;
+  color: currentColor;
+  image-rendering: pixelated;
+  animation: conversation-title-crawl 1.6s linear infinite;
+}
+@keyframes conversation-title-crawl { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+@media (prefers-reduced-motion: reduce) {
+  .conversation-title-crawl > canvas { animation: none; }
+}
+
+/* Typed by a person: one gold dithered tick, not an icon. */
+.conversation-title-mark { flex: none; display: inline-flex; width: 4px; height: 4px; margin-left: 1px; }
+.conversation-title-mark > canvas { width: 100%; height: 100%; color: var(--ds-warning); image-rendering: pixelated; }
+
+/* ── The menu ── */
+.conversation-title-menu { position: relative; flex: none; display: inline-flex; }
+/* No box until it is wanted; it keeps its width while hidden so the title never shifts. */
+.conversation-title-trigger {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  color: inherit;
+  list-style: none;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--ws-dur, 120ms) var(--ws-ease, ease);
+}
+.conversation-title-trigger::-webkit-details-marker { display: none; }
+.conversation-title:hover .conversation-title-trigger,
+.conversation-title:focus-within .conversation-title-trigger { opacity: 0.8; }
+.conversation-title-menu[open] > .conversation-title-trigger {
+  opacity: 1;
+  background: var(--ds-menu-hover);
+}
+.conversation-title-trigger:focus-visible { outline: none; box-shadow: 0 0 0 1.5px var(--ws-focus-line, currentColor); }
+
+.conversation-title-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -8px;
+  z-index: 60;
+  isolation: isolate;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  width: 216px;
+  padding: var(--ds-menu-pad);
+  overflow: hidden;
+  border: 1px solid var(--ds-workbench-popover-border);
+  border-radius: var(--ds-menu-radius);
+  background: var(--ds-workbench-popover-bg);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  color: var(--ds-text);
+  /* App chrome, not the surface's text: a Canvas header's monospace stops here. */
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: var(--ds-menu-font);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  animation: var(--ds-menu-in);
+}
+.conversation-title-corner {
+  position: absolute;
+  inset: 0 0 auto auto;
+  z-index: -1;
+  width: 70%;
+  height: 34px;
+  color: color-mix(in oklab, var(--ds-text) 22%, transparent);
+  image-rendering: pixelated;
+}
+.conversation-title-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+  padding: 8px 8px 9px;
+  border-bottom: 1px solid var(--ds-border-subtle);
+}
+.conversation-title-head-title { overflow: hidden; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+.conversation-title-head-sub { display: flex; align-items: center; gap: 5px; color: var(--ds-text-muted); font-size: var(--ds-t-micro); }
+.conversation-title-head-mark { width: 6px; height: 6px; color: var(--ds-warning); image-rendering: pixelated; }
+.conversation-title-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: var(--ds-menu-item-h);
+  padding: var(--ds-menu-item-pad);
+  border: 0;
+  border-radius: var(--ds-menu-item-radius);
+  background: transparent;
+  color: var(--ds-text-secondary);
+  font: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.conversation-title-item:is(:hover, :focus-visible) { outline: none; background: var(--ds-menu-hover); color: var(--ds-text); }
+.conversation-title-item:disabled { background: transparent; color: var(--ds-text-muted); cursor: default; }
+.conversation-title-item kbd,
+.conversation-title-hint kbd {
+  min-width: 18px;
+  padding: 1px 5px;
+  border: 1px solid var(--ds-border-subtle);
+  border-radius: 5px;
+  color: var(--ds-text-muted);
+  font: inherit;
+  font-size: var(--ds-t-micro);
+  text-align: center;
+}
+.conversation-title-item:disabled kbd { opacity: 0.5; }
+
+/* ── Renaming: on the title's own line, underlined in the gold checker ── */
+.conversation-title[data-editing="true"] { flex: 1 1 auto; }
+.conversation-title-field { display: flex; flex-direction: column; gap: 3px; width: 100%; min-width: 14ch; }
+.conversation-title-input {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--ds-text);
+  font: inherit;
+  font-weight: 500;
+}
+.conversation-title-input::placeholder { color: var(--ds-text-quiet); font-weight: 400; }
+.conversation-title-line { width: 100%; height: 2px; color: var(--ds-warning); image-rendering: pixelated; }
+.conversation-title-hint {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -6px;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px;
+  border: 1px solid var(--ds-workbench-popover-border);
+  border-radius: 7px;
+  background: var(--ds-workbench-popover-bg);
+  box-shadow: var(--ds-workbench-popover-shadow);
+  color: var(--ds-text-muted);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: var(--ds-t-micro);
+  font-weight: 400;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.conversation-title-hint kbd + kbd,
+.conversation-title-hint kbd:not(:first-child) { margin-left: 4px; }
+.conversation-title-hint[data-error] { color: var(--ds-danger); }
+
+/* The agent's name in a Code pane header: a button that looks like the name, a pencil on hover. */
+.ws-agent-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: text;
+}
+.ws-agent-name-pen { flex: none; opacity: 0; transition: opacity 150ms ease; }
+.ws-agent-name:is(:hover, :focus-visible) .ws-agent-name-pen { opacity: 0.6; }
+.ws-agent-name:focus-visible { outline: none; border-radius: 4px; box-shadow: 0 0 0 1.5px var(--ws-focus-line, currentColor); }
+@media (prefers-reduced-motion: reduce) { .ws-agent-name-pen { transition: none; } }
+
+/* "Tells Kirana when free": a renamed agent's notice, waiting for the turn to end (ADR-0068). */
+.ws-rename-notice {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px 1px 5px;
+  border-radius: 999px;
+  background: var(--ds-menu-hover);
+  color: var(--ds-text-muted);
+  font-size: var(--ds-t-micro);
+  white-space: nowrap;
+}

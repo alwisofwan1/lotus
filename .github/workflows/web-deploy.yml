@@ -1,0 +1,82 @@
+name: web deploy
+
+# Path-filtered per-package CI + deploy for apps/web, following the pattern
+# host-ci.yml calls itself the template for.
+#
+# ─── READ THIS BEFORE CHANGING THE PATHS BELOW ───
+# This repo has already lost CI silently to a stale path filter. ADR-7's third
+# lesson (plans/lotus-pocket/PLAN.md): the host suite stopped being tested when
+# `lotus-remote/**` could no longer match anything, and nothing went red — a
+# filter that matches nothing fails by being quiet.
+#
+# So: after editing these globs, prove they still match. Locally,
+#   node tools/verify-ci-filters.mjs
+# and on a real push, check that this workflow appears in the Actions tab.
+# Do not assume.
+
+on:
+  push:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web-deploy.yml"
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - ".github/workflows/web-deploy.yml"
+
+# Only affects `run` steps. `uses` steps need their own working directory —
+# see the wrangler step below, which is easy to get wrong.
+defaults:
+  run:
+    working-directory: apps/web
+
+# A second push while a deploy is in flight should supersede it, not race it.
+concurrency:
+  group: web-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # apps/web has its own lockfile and no workspace. `--frozen-lockfile` is the
+      # point: CI must fail on a stale lockfile rather than quietly resolving
+      # something different from what was tested locally.
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run check
+
+      - name: Test
+        run: bun run test
+
+      - name: Build
+        run: bun run build
+
+      # Skipped for pull_request: fork PRs cannot read secrets, so the step would
+      # fail for reasons that have nothing to do with the change.
+      #
+      # `--branch` decides production vs preview by itself: the project's production
+      # branch is `main`, so a push to main publishes to lotus-web.pages.dev and any
+      # other branch gets its own preview URL. No branch conditional needed.
+      - name: Deploy to Cloudflare Pages
+        if: github.event_name == 'push'
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: apps/web
+          command: >-
+            pages deploy dist
+            --project-name=lotus-web
+            --branch=${{ github.ref_name }}

@@ -1,0 +1,40 @@
+name: host CI
+
+# Path-filtered per-package CI. This is the mechanism the meta-repo layout
+# relies on: each app/package gets its own workflow gated on its own subtree,
+# so a desktop-only change does not run the host suite (and vice versa).
+#
+# Use this file as the template when adding `desktop-ci.yml` / `pocket-ci.yml`.
+
+on:
+  push:
+    paths:
+      - "packages/host/**"
+      - ".github/workflows/host-ci.yml"
+  pull_request:
+    paths:
+      - "packages/host/**"
+      - ".github/workflows/host-ci.yml"
+
+defaults:
+  run:
+    working-directory: packages/host
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run build
+
+      - name: Test
+        run: bun run test

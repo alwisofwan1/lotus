@@ -1,0 +1,17 @@
+{
+  "$schema": "./gen/schemas/desktop-schema.json",
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Lotus",
+        "decorations": false,
+        "transparent": false,
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600
+      }
+    ]
+  }
+}

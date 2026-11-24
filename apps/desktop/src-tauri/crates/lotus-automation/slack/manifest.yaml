@@ -1,0 +1,48 @@
+# Lotus Automation — Slack app manifest (ADR-0038, plans/automation/PLAN.md §2.2).
+#
+# Lotus reads the channels YOU are in and replies AS YOU (the user token), only when you press
+# Send. The bot user only DMs you the Factory Chief of Staff's alerts (CoS 11, ADR-0058 §7): a DM
+# you send yourself does not ping your phone, one from a bot does. It never posts anywhere else.
+# Paste this at https://api.slack.com/apps → Create New App → From a manifest.
+# Each person creates their own app (see research/slack-socket-mode.md §4 on rate limits).
+# Updating an installed app: App Manifest → paste → Save, then Install App → Reinstall.
+_metadata:
+  major_version: 1
+display_information:
+  name: Lotus Automation
+  description: Lotus watches chosen channels for review requests and replies as you.
+features:
+  app_home:
+    home_tab_enabled: false
+    messages_tab_enabled: true          # where the bot's alert DMs land
+    messages_tab_read_only_enabled: true
+  bot_user:
+    display_name: Lotus
+    always_online: false
+oauth_config:
+  scopes:
+    user:
+      - channels:history    # message.channels, conversations.history (public)
+      - groups:history      # message.groups, conversations.history (private)
+      - channels:read       # conversations.list / info (public)
+      - groups:read         # conversations.list / info (private)
+      - reactions:read      # reaction_added
+      - reactions:write     # reactions.add (the 👀 when a review starts)
+      - chat:write          # chat.postMessage as you, only on Send
+      - usergroups:read     # usergroups.list (@team-orbit)
+      - users:read          # users.info: names in the thread a review reads (optional; ids without it)
+      - emoji:read          # emoji.list: the workspace's own emoji in the Status reactions picker
+      - search:read         # search.messages: the thread where a Factory PR was shared (CoS 12)
+    bot:
+      - chat:write          # chat.postMessage as the bot: Chief of Staff alert DMs to you only
+settings:
+  event_subscriptions:
+    user_events:
+      - message.channels
+      - message.groups
+      - reaction_added
+  interactivity:
+    is_enabled: false
+  org_deploy_enabled: false
+  socket_mode_enabled: true
+  token_rotation_enabled: false

@@ -1,0 +1,36 @@
+{
+  "paneId": "p-1",
+  "total": 3,
+  "entries": [
+    {
+      "event": "tool-post",
+      "status": "running",
+      "title": "Edit",
+      "body": "src/legacy/shim.ts",
+      "userPrompt": "clean up the legacy files",
+      "toolTarget": "src/legacy/shim.ts",
+      "linesAdded": 0,
+      "linesRemoved": 34,
+      "timestamp": 1785664800000
+    },
+    {
+      "event": "tool-pre",
+      "status": "running",
+      "title": "Read",
+      "body": "src/legacy/shim.ts",
+      "userPrompt": "clean up the legacy files",
+      "toolTarget": "src/legacy/shim.ts",
+      "timestamp": 1785664801000
+    },
+    {
+      "event": "stop",
+      "status": "idle",
+      "title": "Finished working",
+      "body": "I removed the shim and updated the three call sites. The last one",
+      "bodyTruncated": true,
+      "userPrompt": "clean up the legacy files",
+      "toolTarget": "",
+      "timestamp": 1785664802000
+    }
+  ]
+}

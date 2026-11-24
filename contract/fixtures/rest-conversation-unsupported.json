@@ -1,0 +1,23 @@
+{
+  "paneId": "p-1",
+  "runner": "claude",
+  "capabilities": {
+    "turns": "never",
+    "text": "never",
+    "streaming": "never",
+    "reasoning": "never",
+    "toolCalls": "never",
+    "toolStatus": "never",
+    "diff": "never",
+    "output": "never",
+    "permission": "never",
+    "plan": "never",
+    "subagent": "never",
+    "usage": "never",
+    "mode": "never"
+  },
+  "source": "ring",
+  "turns": [],
+  "hasMore": false,
+  "hostSupports": false
+}

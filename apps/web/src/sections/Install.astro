@@ -1,0 +1,252 @@
+---
+/**
+ * The one-time first-launch step for the unsigned builds (copy.ts `install`).
+ *
+ * Without JavaScript both panels show, one under the other, with their own headings, so
+ * nothing is unreachable. public/motion.js turns them into tabs, picks Windows when the UA
+ * says Windows, and wires the Copy buttons (clipboard only, no network).
+ */
+import { download, install } from "../copy";
+
+const panels = [
+  { id: "mac", ...install.mac, href: download.mac.href, shell: "sh" },
+  { id: "win", ...install.win, href: download.win.href, shell: "ps" },
+] as const;
+---
+
+<section class="block" id="install" aria-labelledby="inst-title">
+  <div class="shell split">
+    <div data-reveal>
+      <span class="tag">{install.kicker}</span>
+      <h2 id="inst-title">{install.heading[0]}<br />{install.heading[1]}</h2>
+      <p class="sub">{install.body}</p>
+      <p class="why"><b>{install.why.lead}</b> {install.why.body}</p>
+    </div>
+
+    <div data-reveal data-tabs>
+      <div class="seg" role="tablist" aria-label={install.tabsLabel} hidden>
+        {
+          panels.map((p, i) => (
+            <button type="button" role="tab" id={`t-${p.id}`} aria-controls={`p-${p.id}`} aria-selected={i === 0 ? "true" : "false"}>
+              {p.tab}
+            </button>
+          ))
+        }
+      </div>
+      {
+        panels.map((p) => (
+          <div class="panel" id={`p-${p.id}`} role="tabpanel" aria-labelledby={`t-${p.id}`}>
+            <h3 class="ptitle">{p.tab}</h3>
+            <ol class="steps">
+              {p.steps.map((s) => (
+                <li>
+                  <h4>{s.title}</h4>
+                  <p>{s.body}</p>
+                  {"link" in s && (
+                    <p class="dl">
+                      <a class="btn btn-sm" href={p.href}>
+                        {s.link}
+                      </a>
+                    </p>
+                  )}
+                  {"or" in s && p.shell === "ps" && <p class="or">{s.or}</p>}
+                  {"command" in s && (
+                    <div class:list={["code", p.shell]}>
+                      <code>{s.command}</code>
+                      <button type="button" class="copy" data-copy data-label={install.copy} data-done={install.copied} data-fail={install.copyFailed} hidden>
+                        {install.copy}
+                      </button>
+                    </div>
+                  )}
+                  {"or" in s && p.shell === "sh" && <p class="or">{s.or}</p>}
+                </li>
+              ))}
+            </ol>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+</section>
+
+<style>
+  .block {
+    padding-block: var(--step);
+  }
+  .split {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: clamp(2rem, 6vw, 5rem);
+    align-items: start;
+  }
+  .split > * {
+    min-width: 0;
+  }
+  h2 {
+    font-size: clamp(2rem, 4vw, 3.2rem);
+    letter-spacing: -0.04em;
+    margin: 1rem 0 1.1rem;
+  }
+  .sub {
+    color: var(--dim);
+    max-width: 44ch;
+    font-size: 16.5px;
+  }
+  .why {
+    margin-top: 1.4rem;
+    padding: 0.95rem 1.1rem;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    font-size: 14px;
+    color: var(--dim);
+  }
+  .why b {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .seg {
+    display: inline-flex;
+    padding: 3px;
+    border-radius: 999px;
+    border: 1px solid var(--hair-2);
+    margin-bottom: 1.6rem;
+  }
+  .seg[hidden] {
+    display: none;
+  }
+  .seg button {
+    font: 500 13.5px/1 var(--font-sans);
+    padding: 0.55rem 1.1rem;
+    border-radius: 999px;
+    border: 0;
+    background: none;
+    color: var(--dim);
+    cursor: pointer;
+  }
+  .seg button[aria-selected="true"] {
+    background: var(--ink);
+    color: var(--ground);
+  }
+  .panel + .panel {
+    margin-top: 1.5rem;
+  }
+  .panel[hidden] {
+    display: none;
+  }
+  .ptitle {
+    font: 500 12px/1 var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--faint);
+    margin: 0 0 1.2rem;
+  }
+  /* With tabs, the tab names the panel. */
+  [data-tabs].tabbed .ptitle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  [data-tabs].tabbed .panel + .panel {
+    margin-top: 0;
+  }
+  .steps {
+    list-style: none;
+    counter-reset: s;
+    margin: 0;
+    padding: 0;
+  }
+  .steps > li {
+    counter-increment: s;
+    position: relative;
+    padding: 0 0 1.6rem 2.6rem;
+  }
+  .steps > li::before {
+    content: counter(s);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    border: 1px solid var(--hair-2);
+    font: 500 11px/1.5rem var(--font-mono);
+    text-align: center;
+    color: var(--dim);
+  }
+  .steps > li:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 0.8rem;
+    top: 1.9rem;
+    bottom: 0.4rem;
+    width: 1px;
+    background: var(--hair);
+  }
+  h4 {
+    margin: 0 0 0.3rem;
+    font-size: 15.5px;
+    font-weight: 500;
+  }
+  .steps p {
+    font-size: 14px;
+    color: var(--dim);
+  }
+  .dl {
+    margin-top: 0.7rem;
+  }
+  .code {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem 0.75rem 0.75rem 1rem;
+    border-radius: 12px;
+    background: var(--sunk);
+    border: 1px solid var(--hair-2);
+    font: 400 13px/1.5 var(--font-mono);
+  }
+  .code code {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    white-space: nowrap;
+    color: var(--ink);
+  }
+  .code.sh code::before {
+    content: "$ ";
+    color: var(--faint);
+  }
+  .code.ps code::before {
+    content: "PS> ";
+    color: var(--faint);
+  }
+  .copy {
+    flex: none;
+    font: 500 12px/1 var(--font-sans);
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    border: 1px solid var(--hair-2);
+    background: var(--surface);
+    color: var(--dim);
+    cursor: pointer;
+  }
+  .copy[hidden] {
+    display: none;
+  }
+  .copy:hover {
+    color: var(--ink);
+  }
+  .steps .or {
+    margin-top: 0.75rem;
+    font-size: 13px;
+    color: var(--faint);
+  }
+  @media (max-width: 860px) {
+    .split {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

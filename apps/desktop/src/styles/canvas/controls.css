@@ -1,0 +1,686 @@
+/* CodeCanvas ReactFlow minimap and zoom control styling. */
+
+.codecanvas-shell .react-flow__minimap {
+  background: var(--canvas-surface);
+  border: 1px solid var(--canvas-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.codecanvas-shell .react-flow__controls {
+  background: var(--canvas-surface);
+  border: 1px solid var(--canvas-border);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+}
+
+.codecanvas-shell .react-flow__controls-button {
+  background: transparent;
+  border-bottom: 1px solid var(--canvas-border);
+  color: var(--canvas-text-muted);
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.codecanvas-shell .react-flow__controls-button:hover {
+  background: rgba(255,255,255,0.06);
+  color: var(--canvas-text);
+}
+
+.codecanvas-shell .react-flow__controls-button svg {
+  fill: currentColor;
+}
+
+.codecanvas-shell .canvas-zoom-panel {
+  z-index: 32;
+  margin: 0 18px 18px 0;
+}
+
+.canvas-zoom-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 13%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--canvas-surface) 92%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--canvas-text) 10%, transparent),
+    0 8px 24px rgb(0 0 0 / 0.24);
+  color: var(--canvas-text-muted);
+}
+
+.canvas-zoom-control-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: color 140ms var(--canvas-ease-out), background 140ms var(--canvas-ease-out), opacity 140ms var(--canvas-ease-out);
+}
+
+.canvas-zoom-control-btn:hover:not(:disabled),
+.canvas-zoom-control-btn:focus-visible {
+  color: var(--canvas-text);
+  background: color-mix(in oklab, var(--canvas-text) 9%, transparent);
+}
+
+.canvas-zoom-control-btn:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--canvas-accent) 42%, var(--canvas-text) 24%);
+  outline-offset: 2px;
+}
+
+.canvas-zoom-control-btn:disabled {
+  opacity: 0.36;
+  cursor: default;
+}
+
+.canvas-zoom-control-label {
+  min-width: 2.55rem;
+  padding: 0 0.35rem;
+  color: var(--canvas-text);
+  font-size: var(--ds-t-micro);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+
+/* ── Unified corner controls (zoom · project memory) ─────────
+   One glass instrument that recedes when idle and wakes on approach; the memory label reveals on
+   hover/open so the resting state stays ultra-minimal. */
+.codecanvas-shell .canvas-corner-panel {
+  z-index: 32;
+  margin: 0 18px 18px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.canvas-corner-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+  padding: 0.25rem;
+  border: 1px solid color-mix(in oklab, var(--canvas-text) 13%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--canvas-surface) 92%, transparent);
+  box-shadow:
+    inset 0 1px 0 color-mix(in oklab, var(--canvas-text) 10%, transparent),
+    0 8px 24px rgb(0 0 0 / 0.24);
+  color: var(--canvas-text-muted);
+  -webkit-backdrop-filter: blur(14px) saturate(1.1);
+  backdrop-filter: blur(14px) saturate(1.1);
+  /* Hidden at rest (plans/canvas-dock/ S1b): the corner, a zoom change, focus or an open popover
+     shows it (useCornerControlsWake + the rule below). pointer-events follow, so an invisible bar
+     never catches a click meant for the canvas under it. Out 180ms, in 120ms. */
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms var(--canvas-ease-out);
+}
+.canvas-corner-bar[data-awake],
+.canvas-corner-bar:focus-within,
+.canvas-corner-bar.is-memory-open,
+.canvas-corner-bar.is-sessions-open {
+  opacity: 1;
+  pointer-events: auto;
+  transition-duration: 120ms;
+}
+
+/* The bar owns the glass now — flatten the embedded zoom control. */
+.canvas-corner-bar .canvas-zoom-control {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.canvas-corner-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.28rem 0.18rem;
+  background: color-mix(in oklab, var(--canvas-text) 13%, transparent);
+}
+
+.canvas-corner-memory {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.7rem;
+  padding: 0 0.45rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+  transition: color 140ms var(--canvas-ease-out), background 140ms var(--canvas-ease-out);
+}
+.canvas-corner-memory:hover {
+  color: var(--canvas-text);
+  background: color-mix(in oklab, var(--canvas-text) 9%, transparent);
+}
+.canvas-corner-memory:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--canvas-accent) 42%, var(--canvas-text) 24%);
+  outline-offset: 2px;
+}
+.canvas-corner-memory svg { flex: 0 0 auto; }
+.canvas-corner-memory.is-open {
+  color: var(--canvas-text);
+  background: color-mix(in oklab, var(--canvas-accent) 16%, transparent);
+}
+.canvas-corner-memory.is-open svg {
+  color: color-mix(in oklab, var(--canvas-accent) 80%, var(--canvas-text) 20%);
+}
+
+.canvas-corner-memory-label {
+  font-size: var(--ds-t-meta);
+  font-weight: 640;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-width 180ms var(--canvas-ease-out), opacity 180ms var(--canvas-ease-out);
+}
+.canvas-corner-bar:hover .canvas-corner-memory-label,
+.canvas-corner-memory:focus-visible .canvas-corner-memory-label,
+.canvas-corner-memory.is-open .canvas-corner-memory-label {
+  max-width: 4.5rem;
+  opacity: 1;
+}
+
+.canvas-corner-memory-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--canvas-accent) 24%, transparent);
+  color: color-mix(in oklab, var(--canvas-accent) 82%, var(--canvas-text) 18%);
+  font-size: var(--ds-t-micro);
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Positioning wrapper only. The enter animation lives on .canvas-memory-shell (panels-memory.css);
+   animating both compounds the transform. */
+.canvas-corner-memory-pop {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-corner-bar,
+  .canvas-corner-memory-label { transition: none; }
+}
+
+/* The ⌘K palette CSS lived here. The centred modal is gone — ⌘K is now a sheet inside the NL
+   command bar, styled in canvas-command-sheet.css. Its @media (reduced-motion / reduced-
+   transparency) overrides were nested BELOW the block that moved, so the first pass left them
+   behind as dead rules for a deleted component; removed 2026-08-28. */
+
+/* ── Whiteboard tool rail (Excalidraw-style, left edge) ── */
+/* Ultra-minimal, compact tool rail — skinned from the active theme tokens (ADR-0023)
+   so it matches the codespace glass + accent rather than a hardcoded coral. */
+.canvas-tool-rail {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  transform: translateY(-50%);
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 4px;
+  /* Shares the floating-chrome material with the top bar, inspector, and NL bar
+     (theme-driven via --cc-chrome-*). One neutral glass surface, one elevation —
+     no accent-tinted fill, so the rail reads as a sibling of the other overlays. */
+  background: var(--cc-chrome-bg, var(--canvas-surface-r, rgba(24, 30, 50, 0.88)));
+  backdrop-filter: var(--cc-chrome-blur, blur(16px));
+  -webkit-backdrop-filter: var(--cc-chrome-blur, blur(16px));
+  border: 1px solid var(--cc-chrome-border, rgba(255, 255, 255, 0.09));
+  border-radius: var(--cc-chrome-radius, 13px);
+  box-shadow: var(--cc-chrome-shadow, 0 14px 34px -10px rgb(0 0 0 / 0.3));
+}
+.canvas-tool-rail-btn {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: var(--cc-chrome-radius-sm, 8px);
+  background: transparent;
+  color: var(--cc-chrome-ink-muted, #97939f);
+  cursor: pointer;
+  transition: background 130ms var(--canvas-ease-out), color 130ms var(--canvas-ease-out);
+}
+.canvas-tool-rail-btn:hover { background: var(--cc-chrome-fill, color-mix(in srgb, var(--canvas-text, #fff) 8%, transparent)); color: var(--cc-chrome-ink, #eae8f0); }
+.canvas-tool-rail-btn:focus-visible { outline: 2px solid var(--canvas-accent, #e8663d); outline-offset: 1px; }
+/* Active tool = a soft raised tile (not a loud filled pill) — a faint light fill + thin inner
+   hairline, with the icon brightened to full text colour. Reads clearly while staying minimal. */
+.canvas-tool-rail-btn[aria-pressed="true"] {
+  background: var(--cc-chrome-fill-on, color-mix(in srgb, var(--canvas-text, #fff) 13%, transparent));
+  color: var(--cc-chrome-ink, #fff);
+  box-shadow: inset 0 0 0 1px var(--cc-chrome-border-hi, color-mix(in srgb, var(--canvas-text, #fff) 12%, transparent));
+}
+.canvas-tool-rail-div { width: 16px; height: 1px; background: var(--cc-chrome-border, rgba(255, 255, 255, 0.10)); margin: 3px 0; }
+
+/* ── Shape draw-gesture overlay (press-drag to create) ── */
+.canvas-draw-capture {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  cursor: crosshair;
+  touch-action: none;
+}
+.canvas-draw-preview {
+  border: 1.5px dashed #e8663d;
+  background: rgba(232, 102, 61, 0.10);
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 7;
+}
+.canvas-draw-preview[data-shape="ellipse"] { border-radius: 50%; }
+.canvas-erase-capture {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  cursor: cell;
+  touch-action: none;
+}
+/* Alignment snap guides (CanvasSnapGuides): 1px flow-space lines in the theme accent, drawn
+   while a dragged shape is magnetized to a peer's edge/center. */
+.canvas-snap-guide {
+  background: var(--canvas-accent, #e8663d);
+  opacity: 0.9;
+  pointer-events: none;
+  z-index: 5;
+}
+/* Equal-spacing gap segments (Figma-style): dashed accent runs drawn across each repeated gap. */
+.canvas-gap-guide {
+  pointer-events: none;
+  z-index: 5;
+  opacity: 0.9;
+}
+.canvas-gap-guide[data-orientation="h"] { border-top: 1px dashed var(--canvas-accent, #e8663d); }
+.canvas-gap-guide[data-orientation="v"] { border-left: 1px dashed var(--canvas-accent, #e8663d); }
+/* Mark-then-commit eraser: shapes passed over mid-stroke dim, and are only deleted on release
+   (Escape cancels). Class is toggled directly on the node wrapper by CanvasEraseCapture. */
+.react-flow__node.canvas-erase-marked .canvas-shape-node {
+  opacity: 0.3;
+  transition: opacity 90ms ease;
+}
+
+/* ── Shape Inspector panel (right edge, Excalidraw-style) ──
+   Ultra-minimal: flat borderless chips, soft fills. Skinned entirely from the active
+   CodeCanvas theme tokens (ADR-0023) so the panel matches the codespace — the accent,
+   glass surface, borders, and text all follow the live theme instead of hardcoded coral. */
+.canvas-inspector {
+  /* Accent set derived from the theme accent (active item highlight). */
+  --insp-accent: var(--canvas-accent, #e8663d);
+  --insp-accent-line: color-mix(in srgb, var(--insp-accent) 50%, transparent);
+  --insp-accent-dim: color-mix(in srgb, var(--insp-accent) 18%, transparent);
+  --insp-accent-fg: color-mix(in srgb, var(--insp-accent) 72%, var(--canvas-text, #ece8f0));
+  /* Neutral chip fills tied to the theme text colour (adapts to any theme). */
+  --insp-fill: color-mix(in srgb, var(--canvas-text, #fff) 5%, transparent);
+  --insp-fill-hover: color-mix(in srgb, var(--canvas-text, #fff) 9%, transparent);
+  position: absolute;
+  top: 84px;
+  right: 16px;
+  z-index: 6;
+  width: 244px;
+  max-height: calc(100vh - 120px);
+  overflow: hidden; /* clip the rounded corners + the scroll-fade overlays */
+  background: var(--cc-chrome-bg, rgba(18, 18, 27, 0.82));
+  backdrop-filter: var(--cc-chrome-blur, blur(20px));
+  -webkit-backdrop-filter: var(--cc-chrome-blur, blur(20px));
+  border: 1px solid var(--cc-chrome-border, rgba(255, 255, 255, 0.07));
+  border-radius: var(--cc-chrome-radius-lg, 15px);
+  box-shadow: var(--cc-chrome-shadow, 0 18px 46px rgba(0, 0, 0, 0.5));
+  color: var(--cc-chrome-ink, #ece8f0);
+}
+.canvas-inspector .insp-scroll {
+  max-height: calc(100vh - 122px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px 15px;
+}
+.canvas-inspector .insp-scroll::-webkit-scrollbar { width: 0; height: 0; }
+/* Scroll-fade affordance — hint there's more content above/below (the scrollbar is hidden). */
+.canvas-inspector::before,
+.canvas-inspector::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 26px;
+  pointer-events: none;
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+.canvas-inspector::before { top: 0; background: linear-gradient(to bottom, var(--cc-chrome-bg, rgba(18, 18, 27, 0.96)), transparent); }
+.canvas-inspector::after { bottom: 0; background: linear-gradient(to top, var(--cc-chrome-bg, rgba(18, 18, 27, 0.96)), transparent); }
+.canvas-inspector[data-scroll~="up"]::before { opacity: 1; }
+.canvas-inspector[data-scroll~="down"]::after { opacity: 1; }
+.canvas-inspector .insp-label {
+  display: block;
+  font-size: var(--ds-t-micro);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--canvas-text-muted, #7e7889);
+  margin-bottom: 9px;
+  padding-left: 2px;
+}
+.canvas-inspector .insp-field { display: flex; flex-direction: column; }
+.canvas-inspector .insp-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  font-size: var(--ds-t-body);
+  color: var(--canvas-text, #ece8f0);
+  background: var(--insp-fill, rgba(255, 255, 255, 0.045));
+  border: 0;
+  border-radius: 9px;
+  outline: none;
+}
+.canvas-inspector .insp-input::placeholder { color: color-mix(in srgb, var(--canvas-text-muted, #544f5e) 70%, transparent); }
+.canvas-inspector .insp-input:focus { background: var(--insp-fill-hover, rgba(255, 255, 255, 0.07)); box-shadow: inset 0 0 0 1px var(--insp-accent-line); }
+.canvas-inspector .insp-swatches { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.canvas-inspector .insp-sw {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  transition: transform 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.canvas-inspector .insp-sw:hover { transform: scale(1.12); }
+.canvas-inspector .insp-sw[aria-pressed="true"],
+.canvas-inspector .insp-sw[aria-checked="true"] { box-shadow: 0 0 0 2px var(--canvas-bg, #14131a), 0 0 0 3.5px var(--insp-accent); }
+/* Transparent (no-fill) background swatch — a ⊘ slash reads as "none" cleaner than a checkerboard. */
+.canvas-inspector .insp-sw-transparent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--insp-fill, rgba(255, 255, 255, 0.05));
+  color: var(--canvas-text-muted, #8b8794);
+}
+.canvas-inspector .insp-sw-transparent:hover { color: var(--canvas-text, #ece8f0); }
+/* Thin divider between presets and the custom-color swatch. */
+.canvas-inspector .insp-sw-div { width: 1px; align-self: stretch; margin: 2px 2px; background: var(--canvas-border, rgba(255, 255, 255, 0.12)); }
+/* Custom-color swatch — shows the current colour and opens the native picker (no deps, a11y-native). */
+.canvas-inspector .insp-sw-custom {
+  position: relative;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+.canvas-inspector .insp-sw-custom input[type="color"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+.canvas-inspector .insp-seg { display: flex; gap: 6px; }
+.canvas-inspector .insp-opt {
+  flex: 1;
+  min-width: 0;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--insp-fill, rgba(255, 255, 255, 0.045));
+  color: var(--canvas-text-muted, #8b8794);
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+.canvas-inspector .insp-opt:hover { background: var(--insp-fill-hover, rgba(255, 255, 255, 0.085)); color: var(--canvas-text, #ece8f0); }
+.canvas-inspector .insp-opt[aria-pressed="true"],
+.canvas-inspector .insp-opt[aria-checked="true"] { background: var(--insp-accent-dim); color: var(--insp-accent-fg); }
+.canvas-inspector .insp-wbar { width: 16px; background: currentColor; border-radius: 2px; }
+.canvas-inspector .insp-range { width: 100%; accent-color: var(--insp-accent); height: 3px; }
+.canvas-inspector .insp-op-row { display: flex; align-items: center; gap: 11px; padding: 0 2px; }
+.canvas-inspector .insp-op-val { font-variant-numeric: tabular-nums; font-size: var(--ds-t-meta); color: var(--canvas-text-muted, #7e7889); width: 30px; text-align: right; }
+/* Transient hint shown only while editing a shape's text. Sits below the canvas top bar
+   (which occupies the top ~72px) so it never hides behind the header. */
+.canvas-edit-hint {
+  position: fixed;
+  top: 88px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  background: rgba(18, 17, 24, 0.82);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-size: 12.5px;
+  color: #7e7889;
+  pointer-events: none;
+  white-space: nowrap;
+}
+.canvas-edit-hint kbd {
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 11px;
+  color:var(--canvas-text);
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 5px;
+  padding: 2px 6px;
+}
+
+/* Agent draw — Apply/Discard pill. Flat, translucent, top-centre (ADR-0033). Surfaces when an
+   agent draws a draft batch; Apply keeps it, Discard reverts exactly that batch. */
+.canvas-draft-pill {
+  position: fixed;
+  top: 88px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px 6px 5px 14px;
+  border-radius: 999px;
+  background: var(--panel-glass-bg, rgba(8, 7, 15, 0.72));
+  border: 1px solid var(--canvas-border-str, rgba(245, 242, 239, 0.18));
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.42);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--ds-t-meta);
+  animation: canvas-draft-pill-in 0.22s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-draft-pill { animation: none; }
+}
+@keyframes canvas-draft-pill-in {
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+.canvas-draft-pill-summary {
+  color: var(--canvas-text-muted, rgba(247, 242, 234, 0.52));
+  margin-right: 10px;
+  white-space: nowrap;
+}
+.canvas-draft-pill-who { color: var(--canvas-text, #f7f2ea); }
+.canvas-draft-pill-queued { color: var(--canvas-text-muted, rgba(247, 242, 234, 0.42)); }
+.canvas-draft-pill-btn {
+  font: inherit;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 5px 13px;
+  background: transparent;
+  color: var(--canvas-text-muted, rgba(247, 242, 234, 0.52));
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.canvas-draft-pill-btn:hover { color: var(--canvas-text, #f7f2ea); background: rgba(255, 255, 255, 0.06); }
+.canvas-draft-pill-apply { color: #34d399; }
+.canvas-draft-pill-apply:hover { background: rgba(52, 211, 153, 0.12); }
+.canvas-draft-pill-btn:focus-visible { outline: 1.5px solid var(--canvas-accent, #f5f2ef); outline-offset: 1px; }
+
+/* Draft provenance: agent-drawn nodes/edges awaiting Apply render dimmed + dashed so they read
+   as provisional. `canvas-agent-draft` is set on the wrapper by the draw runtime, stripped on Apply. */
+.react-flow__node.canvas-agent-draft { opacity: 0.58; }
+.react-flow__edge.canvas-agent-draft { opacity: 0.55; }
+.react-flow__edge.canvas-agent-draft .react-flow__edge-path { stroke-dasharray: 6 5; }
+
+/* Diagram connector handles on shapes: present for edge-binding, but invisible and inert — the
+   connector path is floating (drawn node-to-node in CanvasWireEdge), so these never show. */
+.canvas-shape-wire-handle {
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+}
+
+/* Streaming draw-in: agent-drawn shapes/connectors mount staggered (frame → shapes → connectors)
+   via an increasing --canvas-enter-delay set by the draw runtime. `backwards` fill holds each
+   element invisible until its turn, so a diagram "draws itself" instead of popping in at once.
+   Transient class (not persisted) → never replays on reload. Auto-instant when motion is off
+   (the [data-canvas-motion="off"] * kill-switch) or the OS asks for reduced motion. */
+.react-flow__node.canvas-shape-enter .canvas-shape-node {
+  animation: canvas-shape-draw-in var(--canvas-motion-enter, 380ms) var(--canvas-ease-out-expo, ease-out) backwards;
+  animation-delay: var(--canvas-enter-delay, 0ms);
+}
+@keyframes canvas-shape-draw-in {
+  0%   { opacity: 0; transform: scale(0.92); }
+  55%  { opacity: 1; }
+  100% { opacity: 1; transform: scale(1); }
+}
+.react-flow__edge.canvas-shape-enter .react-flow__edge-path,
+.react-flow__edge.canvas-shape-enter .react-flow__edge-text,
+.react-flow__edge.canvas-shape-enter .react-flow__edge-textbg {
+  animation: canvas-shape-edge-in var(--canvas-motion-enter, 380ms) var(--canvas-ease-out, ease-out) backwards;
+  animation-delay: var(--canvas-enter-delay, 0ms);
+}
+@keyframes canvas-shape-edge-in { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__node.canvas-shape-enter .canvas-shape-node,
+  .react-flow__edge.canvas-shape-enter .react-flow__edge-path,
+  .react-flow__edge.canvas-shape-enter .react-flow__edge-text,
+  .react-flow__edge.canvas-shape-enter .react-flow__edge-textbg { animation: none; }
+}
+
+/* Sketch stroke draw-in: while an agent-drawn shape enters, its rough outline appears to be
+   drawn stroke-by-stroke (stroke-dashoffset sweep). `backwards` fill (never forwards) means the
+   dash override applies only DURING the animation — after it ends the path reverts to its own
+   inline stroke, so a dashed/dotted shape style is never clobbered. Runs after the node's own
+   fade so the outline draws onto the settling shape. Auto-instant via the motion kill-switch. */
+.react-flow__node.canvas-shape-enter .canvas-shape-svg path {
+  animation: canvas-shape-stroke-draw var(--canvas-motion-sketch, 560ms) var(--canvas-ease-out, ease-out) backwards;
+  animation-delay: var(--canvas-enter-delay, 0ms);
+}
+@keyframes canvas-shape-stroke-draw {
+  from { stroke-dasharray: 2000; stroke-dashoffset: 2000; }
+  to   { stroke-dasharray: 2000; stroke-dashoffset: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .react-flow__node.canvas-shape-enter .canvas-shape-svg path { animation: none; }
+}
+
+/* ── Sessions segment ────────────────────────────────────────────────────────────────────────────
+   Deliberately a clone of .canvas-corner-memory rather than a new visual language: sessions are the
+   third segment of the SAME instrument, and a segment that styles itself differently from its
+   neighbour reads as a second widget that happened to land in the same pill.
+   See plans/codecanvas-session-widget/issues/02-segmen-sesi-di-corner-bar.md */
+.canvas-corner-sessions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  height: 1.7rem;
+  padding: 0 0.45rem;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--canvas-text-muted);
+  cursor: pointer;
+  transition: color 140ms var(--canvas-ease-out), background 140ms var(--canvas-ease-out);
+}
+.canvas-corner-sessions:hover {
+  color: var(--canvas-text);
+  background: color-mix(in oklab, var(--canvas-text) 9%, transparent);
+}
+.canvas-corner-sessions:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--canvas-accent) 42%, var(--canvas-text) 24%);
+  outline-offset: 2px;
+}
+.canvas-corner-sessions svg { flex: 0 0 auto; }
+.canvas-corner-sessions.is-open {
+  color: var(--canvas-text);
+  background: color-mix(in oklab, var(--canvas-accent) 16%, transparent);
+}
+.canvas-corner-sessions.is-open svg {
+  color: color-mix(in oklab, var(--canvas-accent) 80%, var(--canvas-text) 20%);
+}
+
+.canvas-corner-sessions-label {
+  font-size: var(--ds-t-meta);
+  font-weight: 640;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-width 180ms var(--canvas-ease-out), opacity 180ms var(--canvas-ease-out);
+}
+.canvas-corner-bar:hover .canvas-corner-sessions-label,
+.canvas-corner-sessions:focus-visible .canvas-corner-sessions-label,
+.canvas-corner-sessions.is-open .canvas-corner-sessions-label {
+  max-width: 4.5rem;
+  opacity: 1;
+}
+
+.canvas-corner-sessions-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--canvas-accent) 24%, transparent);
+  color: color-mix(in oklab, var(--canvas-accent) 82%, var(--canvas-text) 18%);
+  font-size: var(--ds-t-micro);
+  font-weight: 760;
+  font-variant-numeric: tabular-nums;
+}
+
+.canvas-corner-bar.is-sessions-open { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .canvas-corner-sessions-label { transition: none; }
+}
+

@@ -1,0 +1,152 @@
+---
+/**
+ * The plain footer: brand, blurb, links, legal row and (once copy.ts holds a real one) the
+ * postal address. Split out of sections/Footer.astro so the secondary pages carry it too.
+ *
+ * The postal address (CAN-SPAM §7704(a)(5)(iii)) is a placeholder until a real one is
+ * decided, and a placeholder is never rendered: `<registered postal address>` on a live
+ * page reads as a broken template.
+ */
+import { Image } from "astro:assets";
+import { footer, site } from "../copy";
+import logo from "../assets/brand/lotus-logo-horizontal-light.png";
+
+/** `<like this>` is the repo's placeholder convention (see the privacy notice). */
+const isPlaceholder = (text: string) => /^<[^>]+>$/.test(text.trim());
+const address = isPlaceholder(footer.postalAddress) ? null : footer.postalAddress;
+const year = new Date().getFullYear();
+---
+
+<footer class="foot" id="legal">
+  <div class="shell foot-in">
+    <div class="top">
+      <a class="brand" href="/" aria-label={`${site.name} home`}>
+        <Image src={logo} alt="" width={74} height={22} densities={[1, 2]} class="logo" />
+      </a>
+      <p class="blurb">{footer.blurb}</p>
+      <nav class="links" aria-label="Footer">
+        {footer.links.map((link) => <a href={link.href}>{link.label}</a>)}
+      </nav>
+    </div>
+    <div class="base">
+      <p class="legal">
+        <span>© {year} {site.name}</span>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>{site.platform}</span>
+        <span class="sep" aria-hidden="true">·</span>
+        <span>{site.stage}</span>
+      </p>
+      {
+        address && (
+          <address class="addr">
+            <span class="tag">{footer.mailingLabel}</span>
+            <span>{address}</span>
+          </address>
+        )
+      }
+    </div>
+  </div>
+</footer>
+
+<style>
+  .links a {
+    color: var(--dim);
+  }
+  .links a:hover {
+    color: var(--ink);
+  }
+  .foot {
+    border-top: 1px solid var(--hair);
+  }
+  .foot-in {
+    padding-block: 2.25rem 2.5rem;
+  }
+  .top {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 1.25rem;
+  }
+  .brand {
+    display: inline-flex;
+    border-radius: 4px;
+  }
+  .logo {
+    width: 74px;
+    height: auto;
+  }
+  .blurb {
+    padding-left: 1.25rem;
+    border-left: 1px solid var(--hair-2);
+    font-size: 0.8125rem;
+    line-height: 1.3;
+    color: var(--dim);
+  }
+  .links {
+    display: flex;
+    gap: 0.25rem;
+    font-size: 0.8125rem;
+  }
+  .links a {
+    padding: 0.4rem 0.7rem;
+    border-radius: 999px;
+    transition: color 140ms linear, background 140ms linear;
+  }
+  .links a:hover {
+    background: var(--glass-2);
+  }
+  .links a:focus-visible,
+  .brand:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+  .base {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem 2rem;
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--hair);
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.04em;
+    color: var(--faint);
+  }
+  .legal {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  .sep {
+    opacity: 0.6;
+  }
+  .addr {
+    display: flex;
+    gap: 0.75rem;
+    font-style: normal;
+  }
+  .addr .tag {
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+  }
+  @media (max-width: 760px) {
+    .top {
+      grid-template-columns: 1fr;
+      gap: 0.9rem;
+    }
+    .blurb {
+      padding-left: 0;
+      border-left: 0;
+    }
+    .links {
+      margin-left: -0.7rem;
+    }
+    .addr {
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+  }
+</style>

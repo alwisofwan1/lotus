@@ -1,0 +1,41 @@
+{
+  "paneId": "p-1",
+  "cwd": "/Users/op/code/lotus",
+  "closing": {
+    "text": "I removed the shim and updated the three call sites. The last one",
+    "truncated": true,
+    "at": 1785664802000
+  },
+  "changes": {
+    "source": "git",
+    "against": "HEAD",
+    "files": [
+      {
+        "path": "src/legacy/shim.ts",
+        "status": "modified",
+        "added": 31,
+        "removed": 4
+      },
+      {
+        "path": "src/legacy/README.md",
+        "status": "deleted",
+        "added": 0,
+        "removed": 18
+      },
+      {
+        "path": "src/legacy/notes.md",
+        "status": "untracked",
+        "added": 12,
+        "removed": 0
+      },
+      {
+        "path": "assets/logo.png",
+        "status": "modified",
+        "added": null,
+        "removed": null
+      }
+    ],
+    "added": 43,
+    "removed": 22
+  }
+}

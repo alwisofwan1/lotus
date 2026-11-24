@@ -1,0 +1,482 @@
+/* CodeCanvas Plan node + Team Composer bar. Split from agent-node.css (≤600-line policy). */
+
+/* ── Plan node (Tier 4 [12]) — live step checklist ──────────────────────── */
+.plan-card { position: relative; z-index: 1; display: flex; flex-direction: column; width: 100%; height: 100%; border-radius: var(--canvas-node-radius); overflow: hidden; }
+.plan-card-identity { display: inline-flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.plan-card-glyph { color:color-mix(in oklab, #5eead4 var(--ink-blend), var(--canvas-text)); flex-shrink: 0; }
+.plan-card-title { font-size: 0.72rem; font-weight: 600; color:var(--canvas-text, var(--canvas-text)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.plan-card-progress { display: flex; align-items: center; gap: 0.5rem; padding: 0.35rem 0.6rem; }
+.plan-card-bar { flex: 1; height: 5px; border-radius: 999px; background:color-mix(in oklab, var(--canvas-text) 8%, transparent); overflow: hidden; }
+.plan-card-bar > span { display: block; height: 100%; background:linear-gradient(90deg, #2dd4bf, #5eead4); transition: width 240ms ease; }
+.plan-card-count { font-size: 0.6rem; color:color-mix(in oklab, var(--canvas-text) 55%, transparent); font-family: var(--font-mono, ui-monospace, monospace); }
+.plan-card-sync { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.6rem; font-weight: 600; color:color-mix(in oklab, #5eead4 var(--ink-blend), var(--canvas-text)); background:rgba(45,212,191,0.12); border:1px solid rgba(45,212,191,0.3); border-radius: 6px; padding: 0.2rem 0.45rem; cursor: pointer; }
+.plan-card-sync:hover { background:rgba(45,212,191,0.2); }
+.plan-card-sync-status {
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.6rem;
+  line-height: 1.45;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+.plan-card-sync-status--loaded { color:color-mix(in oklab, rgba(94, 234, 212, 0.92) var(--ink-blend), var(--canvas-text)); }
+.plan-card-sync-status--empty { color:color-mix(in oklab, rgba(251, 191, 36, 0.92) var(--ink-blend), var(--canvas-text)); }
+.plan-card-sync-status--missing { color:color-mix(in oklab, rgba(248, 113, 113, 0.92) var(--ink-blend), var(--canvas-text)); }
+.plan-card-routing {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  padding: 0 0.6rem 0.35rem;
+}
+.plan-card-route-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.08rem 0.34rem;
+  border-radius: 999px;
+  font-size: 0.52rem;
+  font-weight: 650;
+  color:color-mix(in oklab, rgba(94, 234, 212, 0.88) var(--ink-blend), var(--canvas-text));
+  background:rgba(45, 212, 191, 0.1);
+  border:1px solid rgba(45, 212, 191, 0.22);
+}
+.plan-card-route-chip--warn {
+  color:color-mix(in oklab, rgba(251, 191, 36, 0.95) var(--ink-blend), var(--canvas-text));
+  background:rgba(251, 191, 36, 0.1);
+  border-color:rgba(251, 191, 36, 0.26);
+}
+.plan-card-run-error {
+  margin: 0;
+  padding: 0.3rem 0.6rem;
+  font-size: 0.6rem;
+  line-height: 1.45;
+  color:color-mix(in oklab, rgba(248, 113, 113, 0.92) var(--ink-blend), var(--canvas-text));
+  border-top: 1px solid rgba(248, 113, 113, 0.12);
+}
+
+.plan-card-body { flex: 1; min-height: 0; overflow: auto; padding: 0.1rem 0.5rem 0.5rem; }
+.plan-card-empty { font-size: 0.66rem; color:color-mix(in oklab, var(--canvas-text) 40%, transparent); padding: 0.5rem 0.1rem; }
+.plan-card-empty code { font-family: var(--font-mono, ui-monospace, monospace); color:color-mix(in oklab, rgba(94,234,212,0.8) var(--ink-blend), var(--canvas-text)); }
+.plan-card-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.plan-step { display: flex; align-items: center; gap: 0.45rem; padding: 0.28rem 0.4rem; border-radius: 6px; }
+.plan-step-dot { width: 7px; height: 7px; border-radius: 999px; flex-shrink: 0; }
+.plan-step-dot--pending { background:color-mix(in oklab, var(--canvas-text) 25%, transparent); }
+.plan-step-dot--running { background:#34d399; box-shadow: 0 0 5px rgba(52,211,153,0.6); }
+.plan-step-dot--done { background:#60a5fa; }
+.plan-step-dot--failed { background:#f87171; }
+.plan-step-title { font-size: 0.66rem; color:var(--canvas-text, var(--canvas-text)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1; }
+.plan-step--done .plan-step-title { color:color-mix(in oklab, var(--canvas-text) 50%, transparent); text-decoration: line-through; }
+.plan-step-owner { font-size: 0.52rem; color:color-mix(in oklab, rgba(94,234,212,0.85) var(--ink-blend), var(--canvas-text)); background:rgba(45,212,191,0.1); border-radius: 4px; padding: 0.04rem 0.28rem; flex-shrink: 0; }
+.plan-step-owner--unresolved { color:color-mix(in oklab, rgba(251,191,36,0.95) var(--ink-blend), var(--canvas-text)); background:rgba(251,191,36,0.12); }
+
+.plan-step-owner-select {
+  font-size: 0.52rem;
+  flex-shrink: 0;
+  max-width: 8.5rem;
+  color:color-mix(in oklab, rgba(94,234,212,0.9) var(--ink-blend), var(--canvas-text));
+  background:rgba(45,212,191,0.1);
+  border:1px solid rgba(45,212,191,0.22);
+  border-radius: 4px;
+  padding: 0.05rem 0.26rem;
+  cursor: pointer;
+  appearance: none;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+.plan-step-owner-select:hover { background:rgba(45,212,191,0.18); }
+.plan-step-owner-select:focus-visible { outline: 1px solid rgba(45,212,191,0.5); outline-offset: 1px; }
+.plan-step-owner-select--unresolved {
+  color:color-mix(in oklab, rgba(251,191,36,0.95) var(--ink-blend), var(--canvas-text));
+  background:rgba(251,191,36,0.12);
+  border-color:rgba(251,191,36,0.3);
+}
+.plan-step-owner-select option { color:color-mix(in oklab, #1a1a24 var(--ink-blend), var(--canvas-text)); }
+
+.plan-card-run {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 0.6rem; font-weight: 600; color:color-mix(in oklab, #a7f3d0 var(--ink-blend), var(--canvas-text));
+  background:rgba(52,211,153,0.14); border:1px solid rgba(52,211,153,0.32);
+  border-radius: 6px; padding: 0.2rem 0.45rem; cursor: pointer;
+}
+.plan-card-run:hover { background:rgba(52,211,153,0.24); }
+.plan-card-run:disabled { opacity: 0.6; cursor: default; }
+
+/* Canvas Agent Action Bar — tool affordances in the header, violet agent accent.
+   Mirrors the terminal .cth-action language so the two node types read as siblings. */
+.agent-actionbar {
+  display: flex;
+  align-items: center;
+  gap: 0.0625rem;
+  flex-shrink: 0;
+}
+.agent-action {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 1.375rem;
+  min-width: 1.375rem;
+  padding: 0 0.3rem;
+  border-radius: 0.25rem;
+  border:none;
+  background:transparent;
+  color:color-mix(in oklab, var(--canvas-text) 32%, transparent);
+  cursor: pointer;
+  transition: background 100ms ease, color 100ms ease, box-shadow 100ms ease;
+}
+.agent-action:hover {
+  background:color-mix(in oklab, var(--canvas-text) 7%, transparent);
+  color:color-mix(in oklab, var(--canvas-text) 78%, transparent);
+}
+.agent-action--active {
+  background:rgba(167, 139, 250, 0.1);
+  color:color-mix(in oklab, #c4b5fd var(--ink-blend), var(--canvas-text));
+  box-shadow: inset 0 0 0 1px rgba(167, 139, 250, 0.22);
+}
+.agent-action--active:hover {
+  background:rgba(167, 139, 250, 0.16);
+  color:color-mix(in oklab, #ddd6fe var(--ink-blend), var(--canvas-text));
+}
+.agent-action--active::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0.1rem;
+  width: 0.35rem;
+  height: 1px;
+  border-radius: 999px;
+  background:currentColor;
+  opacity: 0.85;
+  transform: translateX(-50%);
+}
+.agent-actionbar .agent-action:last-child:hover {
+  background:rgba(239, 68, 68, 0.12);
+  color:color-mix(in oklab, #fca5a5 var(--ink-blend), var(--canvas-text));
+}
+.agent-actionbar-sep {
+  width: 1px;
+  height: 0.875rem;
+  background:var(--canvas-border);
+  margin: 0 0.15rem;
+  flex-shrink: 0;
+}
+
+/* Agent Diff Panel — unified-diff viewer with per-line colouring. */
+.agent-diff-panel {
+  width: 22rem;
+  max-width: 90vw;
+}
+.agent-diff-body {
+  padding: 0;
+  max-height: 18rem;
+  overflow: auto;
+}
+.agent-diff-pre {
+  margin: 0;
+  padding: 0.3rem 0;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: var(--ds-t-micro);
+  line-height: 1.55;
+}
+.agent-diff-line {
+  display: block;
+  padding: 0 0.6rem;
+  white-space: pre;
+  color:color-mix(in oklab, var(--canvas-text) 62%, transparent);
+}
+.agent-diff-line--add {
+  color:color-mix(in oklab, #86efac var(--ink-blend), var(--canvas-text));
+  background:rgba(52, 211, 153, 0.1);
+}
+.agent-diff-line--del {
+  color:color-mix(in oklab, #fca5a5 var(--ink-blend), var(--canvas-text));
+  background:rgba(239, 68, 68, 0.1);
+}
+.agent-diff-line--hunk {
+  color:color-mix(in oklab, #7dd3fc var(--ink-blend), var(--canvas-text));
+  background:rgba(56, 189, 248, 0.07);
+}
+.agent-diff-line--meta {
+  color:color-mix(in oklab, var(--canvas-text) 32%, transparent);
+}
+
+/* Drop zone wrapping the agent card — receives dragged skill rows. */
+.agent-drop-zone {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--canvas-node-radius);
+}
+
+/* Session id chip — monospace, dim, sits beside the model in the meta row. */
+.agent-card-session {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 0.55rem;
+  letter-spacing: 0.02em;
+  color:color-mix(in oklab, rgba(196, 181, 253, 0.7) var(--ink-blend), var(--canvas-text));
+  background:rgba(167, 139, 250, 0.1);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  cursor: default;
+}
+
+/* Keep every agent/plan node scroller usable after resize. */
+.agent-transcript-scroll,
+.agent-def-preview,
+.agent-history-list,
+.agent-history-actions,
+.plan-card-body,
+.agent-diff-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(196,181,253,0.22) transparent;
+  scrollbar-gutter: stable;
+}
+.agent-transcript-scroll::-webkit-scrollbar,
+.agent-def-preview::-webkit-scrollbar,
+.agent-history-list::-webkit-scrollbar,
+.agent-history-actions::-webkit-scrollbar,
+.plan-card-body::-webkit-scrollbar,
+.agent-diff-body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.agent-transcript-scroll::-webkit-scrollbar-track,
+.agent-transcript-scroll::-webkit-scrollbar-corner,
+.agent-def-preview::-webkit-scrollbar-track,
+.agent-def-preview::-webkit-scrollbar-corner,
+.agent-history-list::-webkit-scrollbar-track,
+.agent-history-list::-webkit-scrollbar-corner,
+.agent-history-actions::-webkit-scrollbar-track,
+.agent-history-actions::-webkit-scrollbar-corner,
+.plan-card-body::-webkit-scrollbar-track,
+.plan-card-body::-webkit-scrollbar-corner,
+.agent-diff-body::-webkit-scrollbar-track,
+.agent-diff-body::-webkit-scrollbar-corner {
+  background:transparent;
+}
+.agent-transcript-scroll::-webkit-scrollbar-thumb,
+.agent-def-preview::-webkit-scrollbar-thumb,
+.agent-history-list::-webkit-scrollbar-thumb,
+.agent-history-actions::-webkit-scrollbar-thumb,
+.plan-card-body::-webkit-scrollbar-thumb,
+.agent-diff-body::-webkit-scrollbar-thumb {
+  min-height: 28px;
+  border:3px solid transparent;
+  border-radius: 9999px;
+  background:rgba(196,181,253,0.2);
+  background-clip: padding-box;
+}
+.agent-transcript-scroll::-webkit-scrollbar-thumb:hover,
+.agent-def-preview::-webkit-scrollbar-thumb:hover,
+.agent-history-list::-webkit-scrollbar-thumb:hover,
+.agent-history-actions::-webkit-scrollbar-thumb:hover,
+.plan-card-body::-webkit-scrollbar-thumb:hover,
+.agent-diff-body::-webkit-scrollbar-thumb:hover {
+  background:rgba(196,181,253,0.42);
+  background-clip: padding-box;
+}
+
+/* ── Team Composer — floating command-center message bar ────────────────── */
+.canvas-composer {
+  position: absolute;
+  left: 50%;
+  bottom: 22px;
+  transform: translateX(-50%);
+  z-index: 32;
+  width: min(620px, 74%);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.7rem 0.7rem 0.6rem;
+  border-radius: 20px;
+  border:1px solid color-mix(in srgb, var(--fg, #fff) 9%, transparent);
+  background:linear-gradient(180deg,
+      color-mix(in srgb, var(--bg-elevated, #0b0a18) 78%, transparent),
+      color-mix(in srgb, var(--bg, #050410) 82%, transparent));
+  backdrop-filter: blur(14px) saturate(1.12);
+  -webkit-backdrop-filter: blur(14px) saturate(1.12);
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, var(--fg, #fff) 7%, transparent) inset,
+    0 24px 60px -20px rgba(0, 0, 0, 0.62),
+    0 0 0 1px color-mix(in srgb, var(--accent, #7c3aed) 10%, transparent);
+  transition: box-shadow 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+.canvas-composer:focus-within {
+  border-color:color-mix(in srgb, var(--accent, #7c3aed) 38%, transparent);
+  box-shadow:
+    0 1px 0 0 color-mix(in srgb, var(--fg, #fff) 9%, transparent) inset,
+    0 26px 70px -20px rgba(0, 0, 0, 0.7),
+    0 0 0 1px color-mix(in srgb, var(--accent, #7c3aed) 30%, transparent),
+    0 0 26px -2px color-mix(in srgb, var(--accent, #7c3aed) 30%, transparent);
+}
+
+.canvas-composer-to {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 0.15rem;
+}
+.canvas-composer-to-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color:var(--text-muted, color-mix(in oklab, rgba(190, 182, 230, 0.5) var(--ink-blend), var(--canvas-text)));
+}
+.canvas-composer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.26rem 0.5rem 0.26rem 0.55rem;
+  border-radius: 999px;
+  border:1px solid color-mix(in srgb, var(--fg, #fff) 11%, transparent);
+  background:color-mix(in srgb, var(--fg, #fff) 5%, transparent);
+  color:var(--fg, var(--canvas-text));
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 130ms ease, border-color 130ms ease;
+}
+.canvas-composer-pill:hover {
+  background:color-mix(in srgb, var(--accent, #7c3aed) 14%, transparent);
+  border-color:color-mix(in srgb, var(--accent, #7c3aed) 34%, transparent);
+}
+.canvas-composer-pill[aria-expanded="true"] {
+  background:color-mix(in srgb, var(--accent, #7c3aed) 16%, transparent);
+  border-color:color-mix(in srgb, var(--accent, #7c3aed) 42%, transparent);
+}
+.canvas-composer-pill svg:last-child {
+  color:var(--text-muted, color-mix(in oklab, rgba(190, 182, 230, 0.55) var(--ink-blend), var(--canvas-text)));
+  transition: transform 150ms ease;
+}
+.canvas-composer-pill[aria-expanded="true"] svg:last-child { transform: rotate(180deg); }
+.canvas-composer-all-glyph { color:var(--accent, color-mix(in oklab, #a78bfa var(--ink-blend), var(--canvas-text))); }
+.canvas-composer-pill-name { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.canvas-composer-menu {
+  position: absolute;
+  left: 1.9rem;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  list-style: none;
+  margin: 0;
+  padding: 0.3rem;
+  min-width: 13rem;
+  max-height: 16rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: 14px;
+  border:1px solid color-mix(in srgb, var(--fg, #fff) 10%, transparent);
+  background:color-mix(in srgb, var(--bg-elevated, #0b0a18) 96%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: 0 18px 44px -16px rgba(0, 0, 0, 0.7);
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--accent, #7c3aed) 30%, transparent) transparent;
+}
+.canvas-composer-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.4rem 0.5rem;
+  border:0;
+  border-radius: 9px;
+  background:transparent;
+  color:var(--fg, var(--canvas-text));
+  font: inherit;
+  font-size: 0.76rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 110ms ease;
+}
+.canvas-composer-option:hover { background:color-mix(in srgb, var(--fg, #fff) 7%, transparent); }
+.canvas-composer-option[aria-selected="true"] {
+  background:color-mix(in srgb, var(--accent, #7c3aed) 16%, transparent);
+  color:color-mix(in srgb, var(--accent, color-mix(in oklab, #a78bfa var(--ink-blend), var(--canvas-text))) 60%, var(--fg, var(--canvas-text)) 40%);
+}
+.canvas-composer-option-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.canvas-composer-option-count {
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 0.02rem 0.34rem;
+  border-radius: 999px;
+  color:var(--text-muted, color-mix(in oklab, rgba(190, 182, 230, 0.6) var(--ink-blend), var(--canvas-text)));
+  background:color-mix(in srgb, var(--fg, #fff) 8%, transparent);
+}
+
+.canvas-composer-input {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+.canvas-composer-textarea {
+  flex: 1;
+  min-height: 2.35rem;
+  max-height: 10rem;
+  padding: 0.6rem 0.55rem;
+  border:0;
+  background:transparent;
+  resize: none;
+  color:var(--fg, var(--canvas-text));
+  font: inherit;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+.canvas-composer-textarea::placeholder { color:var(--text-muted, color-mix(in oklab, rgba(190, 182, 230, 0.42) var(--ink-blend), var(--canvas-text))); }
+.canvas-composer-textarea:focus { outline: none; }
+.canvas-composer-textarea::-webkit-scrollbar { width: 8px; }
+.canvas-composer-textarea::-webkit-scrollbar-thumb {
+  border:2px solid transparent;
+  border-radius: 999px;
+  background:color-mix(in srgb, var(--accent, #7c3aed) 24%, transparent);
+  background-clip: padding-box;
+}
+.canvas-composer-send {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border-radius: 13px;
+  border:1px solid color-mix(in srgb, var(--accent, #7c3aed) 45%, transparent);
+  background:linear-gradient(150deg,
+      color-mix(in srgb, var(--accent, #7c3aed) 92%, #fff 8%),
+      color-mix(in srgb, var(--accent, #7c3aed) 78%, #000 22%));
+  color:var(--accent-fg, var(--canvas-text));
+  cursor: pointer;
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--accent, #7c3aed) 70%, transparent);
+  transition: transform 130ms ease, box-shadow 130ms ease, filter 130ms ease;
+}
+.canvas-composer-send:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
+.canvas-composer-send:active:not(:disabled) { transform: translateY(0); }
+.canvas-composer-send:disabled {
+  cursor: default;
+  border-color:color-mix(in srgb, var(--fg, #fff) 10%, transparent);
+  background:color-mix(in srgb, var(--fg, #fff) 6%, transparent);
+  color:var(--text-muted, color-mix(in oklab, rgba(190, 182, 230, 0.4) var(--ink-blend), var(--canvas-text)));
+  box-shadow: none;
+}
+.canvas-composer-feedback {
+  padding: 0 0.2rem;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color:var(--text-muted, color-mix(in oklab, rgba(190, 182, 230, 0.6) var(--ink-blend), var(--canvas-text)));
+}
+@media (prefers-reduced-motion: reduce) {
+  .canvas-composer, .canvas-composer-send, .canvas-composer-pill svg:last-child { transition: none; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .canvas-add-agent-menu,
+  .canvas-run-inspector,
+  .agent-history,
+  .canvas-composer,
+  .canvas-composer-menu,
+  .agent-diff-overlay,
+  .agent-diff-panel,
+  .agent-diff-close {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+

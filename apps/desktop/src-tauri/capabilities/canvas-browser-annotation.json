@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "canvas-browser-annotation",
+  "description": "Allow pages inside Canvas browser nodes (remote sites and local dev servers) to emit annotation selections and tool results only. Scoped to canvas-browser-* child webviews, never the main app.",
+  "local": true,
+  "remote": {
+    "urls": ["http://*", "https://*", "http://*:*", "https://*:*"]
+  },
+  "webviews": ["canvas-browser-*"],
+  "permissions": [
+    "allow-emit-canvas-browser-annotation",
+    "allow-emit-canvas-browser-tool-result"
+  ]
+}

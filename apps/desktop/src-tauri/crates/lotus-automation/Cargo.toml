@@ -1,0 +1,30 @@
+[package]
+name = "lotus-automation"
+version = "0.1.0"
+edition = "2021"
+description = "Automation engine for Lotus: Trigger -> Action -> Output. Must not depend on tauri (ADR-0038)."
+publish = false
+
+[dependencies]
+rusqlite = { version = "0.32", features = ["bundled"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1"
+tokio = { version = "1", features = ["sync", "rt", "time", "macros", "process", "io-util", "net"] }
+uuid = { version = "1", features = ["v4"] }
+# Slack Web API + Socket Mode, on the versions the app already builds (no second TLS/WS stack).
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+tokio-tungstenite = { version = "0.23", default-features = false, features = ["connect", "rustls-tls-webpki-roots"] }
+futures-util = { version = "0.3", default-features = false, features = ["sink"] }
+# Schedules: cron patterns evaluated in an IANA time zone, DST included.
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+chrono-tz = "0.10"
+croner = "4"
+# Google OAuth (PKCE S256) and Drive/Sheets requests, on the versions the app already builds.
+sha2 = "0.10"
+base64 = "0.22"
+url = "2"
+
+[dev-dependencies]
+tempfile = "3"
+tokio = { version = "1", features = ["full", "test-util"] }

@@ -1,0 +1,4 @@
+[[permission]]
+identifier = "allow-emit-canvas-browser-tool-result"
+description = "Allows Canvas browser child webviews to deliver snapshot/search/action tool results over IPC (slice I1)."
+commands.allow = ["emit_canvas_browser_tool_result"]
