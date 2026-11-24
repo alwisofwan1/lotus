@@ -4792,8 +4792,8 @@ button.chat-run-more:hover { color: var(--ds-text); }
 }
 .chat-send-wait[data-measured] {
   background: conic-gradient(currentColor var(--chat-send-progress, 0%), color-mix(in oklab, currentColor 28%, transparent) 0);
-  -webkit-mask: radial-gradient(circle, transparent 5px, #000 5.5px);
-  mask: radial-gradient(circle, transparent 5px, #000 5.5px);
+  -webkit-mask: radial-gradient(circle, transparent 5px, #000 5.5px); /* color-literal-ok: mask alpha only, not a visible colour */
+  mask: radial-gradient(circle, transparent 5px, #000 5.5px); /* color-literal-ok: mask alpha only, not a visible colour */
 }
 /* Held: a soft halo says "this will go by itself"; pressing it again lets go. */
 .chat-composer-send[data-held] { box-shadow: 0 0 0 3px color-mix(in oklab, var(--ds-accent) 22%, transparent); animation: chat-send-held 1.6s ease-in-out infinite alternate; }

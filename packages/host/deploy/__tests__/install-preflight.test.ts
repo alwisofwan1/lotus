@@ -1,7 +1,7 @@
 import { describe, expect, it, beforeAll } from "vitest";
-import { chmodSync, mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, writeFileSync, mkdirSync } from "node:fs";
 import { execFile } from "node:child_process";
-import { tmpdir } from "node:os";
+import { tmpdir, userInfo } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -194,7 +194,9 @@ describe("install.sh preflight", () => {
     expect(res.out).toMatch(/no env file/);
   });
 
-  it("refuses when there is neither a compiled host nor bun", async () => {
+  // install.sh also probes fixed paths outside --login-path; a CI runner has bun in ~/.bun/bin.
+  const bunAtFixedPath = [`/home/${userInfo().username}/.bun/bin/bun`, "/usr/local/bin/bun", "/opt/bun/bin/bun"].some(existsSync);
+  it.skipIf(bunAtFixedPath)("refuses when there is neither a compiled host nor bun", async () => {
     const res = await preflight([
       "--login-path", fakeBin(["claude"]),
       "--env-file", envFile(GOOD_ENV),

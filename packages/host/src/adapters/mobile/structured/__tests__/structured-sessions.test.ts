@@ -43,7 +43,10 @@ function harness() {
   const store = new StructuredSessions({
     publishNotification: (e) => frames.push(e),
     fleetChanged: () => { fleetChanges++; },
-    createSession: (opts) => { const s = new FakeSession(opts); sessions.push(s); return s; },
+    registry: new BridgeRegistry({
+      env: { PATH: fakeBinDir(mkdtempSync(join(tmpdir(), "lotus-ss-")), ["codex"]) },
+      createCodexSession: (opts) => { const s = new FakeSession(opts); sessions.push(s); return s; },
+    }),
   });
   return { store, sessions, frames, fleetChanges: () => fleetChanges };
 }
@@ -214,7 +217,10 @@ describe("StructuredSessions, a turn that has not finished", () => {
     const store = new StructuredSessions({
       publishNotification: () => undefined,
       fleetChanged: () => undefined,
-      createSession: (o) => { const s = new SlowSession(o); sessions.push(s); return s; },
+      registry: new BridgeRegistry({
+        env: { PATH: fakeBinDir(mkdtempSync(join(tmpdir(), "lotus-ss-")), ["codex"]) },
+        createCodexSession: (o) => { const s = new SlowSession(o); sessions.push(s); return s; },
+      }),
     });
     return { store, sessions };
   }
@@ -252,6 +258,7 @@ describe("StructuredSessions, the plan window", () => {
       publishNotification: () => undefined,
       fleetChanged: () => undefined,
       registry: new BridgeRegistry({
+        env: { PATH: fakeBinDir(mkdtempSync(join(tmpdir(), "lotus-ss-")), ["codex"]) },
         createCodexSession: (o) => {
           const session = new FakeSession(o) as FakeSession & {
             usage?: () => ProviderUsage | undefined;

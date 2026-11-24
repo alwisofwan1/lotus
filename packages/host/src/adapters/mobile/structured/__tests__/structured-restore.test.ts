@@ -6,6 +6,8 @@ import { describe, expect, it } from "vitest";
 
 import { NativeConversation } from "../../codex-app-server/native-conversation.js";
 import type { CodexSessionOptions } from "../../codex-app-server/session.js";
+import { fakeBinDir } from "../../__tests__/support/fake-bin.js";
+import { BridgeRegistry } from "../bridge-registry.js";
 import { CellBook } from "../cell-book.js";
 import { CUT_OFF_MESSAGE } from "../saved-turns.js";
 import { StructuredSessions } from "../structured-sessions.js";
@@ -36,7 +38,10 @@ function host(path: string, failStart = false, lateThread = false) {
     publishNotification: () => undefined,
     fleetChanged: () => undefined,
     book: new CellBook(path),
-    createSession: (opts) => { const s = new FakeSession(opts, failStart, lateThread); sessions.push(s); return s; },
+    registry: new BridgeRegistry({
+      env: { PATH: fakeBinDir(mkdtempSync(join(tmpdir(), "lotus-ss-")), ["codex"]) },
+      createCodexSession: (opts) => { const s = new FakeSession(opts, failStart, lateThread); sessions.push(s); return s; },
+    }),
   });
   return { store, sessions };
 }
