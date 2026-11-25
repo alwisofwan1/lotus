@@ -786,6 +786,7 @@ export function CanvasNlCommandBar({ runCommand, nodes, edges, cwd, callModel, s
             onRetry={() => void live.start()}
             micMuted={live.micMuted}
             onToggleMic={() => live.setMicMuted(!live.micMuted)}
+            ending={live.ending}
           />
         ) : (
           <>

@@ -32,6 +32,7 @@ export function useLiveVoiceSession({
   actions,
   stash,
   sending = false,
+  endNote,
   now = Date.now,
 }: {
   active: boolean;
@@ -41,6 +42,8 @@ export function useLiveVoiceSession({
   /** Tool calls this session so far. */
   actions: number;
   stash: { read: () => string; write: (text: string) => void };
+  /** Why the session closed by itself ("Live voice ended after 60 minutes."); replaces the summary line. */
+  endNote?: string;
   /** The clock the session is timed by. */
   now?: () => number;
 }): LiveVoiceSessionView {
@@ -63,7 +66,7 @@ export function useLiveVoiceSession({
     setWasActive(active);
     if (active) setSummary(null);
     else {
-      if (startedAt !== null) setSummary(liveVoiceSummary(actions, (failedAt ?? now()) - startedAt));
+      if (startedAt !== null) setSummary(endNote ?? liveVoiceSummary(actions, (failedAt ?? now()) - startedAt));
       setStartedAt(null);
       setFailedAt(null);
     }

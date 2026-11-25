@@ -51,7 +51,7 @@ export function resolveS2sEndFarewell(args: Record<string, unknown>): string {
 
 /** A sign-off is short ("go to sleep", "tidur dulu"); a work request that merely starts with "itu aja" is
  *  not. Counted on the LAST sentence only, because people thank first: "Oke, thank you so much. Go to sleep." */
-export const S2S_END_MAX_WORDS = 5;
+export const S2S_END_MAX_WORDS = 8;
 
 /**
  * The app's veto over the model's `end_conversation` call. The model judges intent in any language;

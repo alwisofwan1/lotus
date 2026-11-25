@@ -38,7 +38,7 @@ describe("S2S end_conversation tool", () => {
 });
 
 describe("s2sEndRefusal", () => {
-  it.each(["bye", "oke Lotus, tidur dulu", "udah cukup ya makasih", "Oke, thank you so much. Go to sleep."])("ends on a short sign-off: %s", (words) => {
+  it.each(["bye", "oke Lotus, tidur dulu", "udah cukup ya makasih", "Oke, thank you so much. Go to sleep.", "oke makasih banyak ya Lotus, sampai besok"])("ends on a short sign-off: %s", (words) => {
     expect(s2sEndRefusal(words, false)).toBeNull();
   });
 

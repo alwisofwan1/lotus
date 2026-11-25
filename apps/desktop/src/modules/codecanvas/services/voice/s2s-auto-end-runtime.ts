@@ -33,6 +33,8 @@ export interface S2sAutoEndRuntime {
   end: (reason: S2sAutoEndReason, message: string) => void;
   requestGracefulEnd: (reason: S2sAutoEndReason, farewell: string) => void;
   finalizeGracefulEnd: () => void;
+  /** The user spoke over the farewell: they are not done, so keep the session. */
+  cancelGracefulEnd: () => void;
   hasPendingGracefulEnd: () => boolean;
 }
 
@@ -157,6 +159,11 @@ export function createS2sAutoEndRuntime({
     },
 
     finalizeGracefulEnd,
+
+    cancelGracefulEnd() {
+      pendingEnd = null;
+      clearFarewellTimer();
+    },
 
     hasPendingGracefulEnd() {
       return pendingEnd !== null;

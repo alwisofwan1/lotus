@@ -85,4 +85,26 @@ describe("S2S auto-end runtime", () => {
     expect(onEnd).toHaveBeenCalledOnce();
     expect(onEnd).toHaveBeenCalledWith("voice-command", "See you.");
   });
+
+  it("keeps the session when the farewell is cancelled", () => {
+    vi.useFakeTimers();
+    const onEnd = vi.fn();
+    const runtime = createS2sAutoEndRuntime({
+      getPhase: () => "agent",
+      getAgentSpeaking: () => true,
+      hasPendingClarification: () => false,
+      getPolicy: () => FAST_POLICY,
+      onEnd,
+      farewellFallbackMs: 40,
+    });
+
+    runtime.startSession();
+    runtime.requestGracefulEnd("voice-command", "Bye.");
+    runtime.cancelGracefulEnd();
+    runtime.finalizeGracefulEnd();
+    vi.advanceTimersByTime(100);
+
+    expect(onEnd).not.toHaveBeenCalled();
+    expect(runtime.hasPendingGracefulEnd()).toBe(false);
+  });
 });

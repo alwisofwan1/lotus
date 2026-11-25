@@ -2239,6 +2239,8 @@ export function CodeMode({
             onRetry: () => void codeLive.live.start(),
             micMuted: codeLive.live.micMuted,
             onToggleMic: () => codeLive.live.setMicMuted(!codeLive.live.micMuted),
+            ending: codeLive.live.ending,
+            endNote: codeLive.endNote,
           }}
           insert={composerInsert}
           heldPrompt={

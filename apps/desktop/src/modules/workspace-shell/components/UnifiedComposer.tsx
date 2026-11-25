@@ -250,6 +250,7 @@ export function UnifiedComposer({
     active: liveActive,
     phase: liveSession?.phase ?? "idle",
     actions: liveSession?.strip.actions ?? 0,
+    endNote: liveSession?.endNote,
     stash: { read: () => valueRef.current, write: setValue },
   });
 
@@ -431,7 +432,7 @@ export function UnifiedComposer({
             role="status"
             aria-live="polite"
           >
-            {liveVoiceStatusText({ phase: liveSession.phase, agentSpeaking: liveSession.agentSpeaking, error: liveSession.error, micMuted: liveSession.micMuted })}
+            {liveVoiceStatusText({ phase: liveSession.phase, agentSpeaking: liveSession.agentSpeaking, error: liveSession.error, micMuted: liveSession.micMuted, ending: liveSession.ending })}
           </p>
         ) : voiceRow ? (
           <p ref={liveRef} className="ws-composer-live" data-settling={settling ? "true" : undefined} aria-live="polite">

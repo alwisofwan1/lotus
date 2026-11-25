@@ -27,6 +27,7 @@ import {
 import { createS2sPlayback, type S2sPlayback } from "./s2s-playback";
 import { createPcmCapture, type PcmCapture } from "@/modules/voice-core/pcm-capture";
 import { s2sEndRefusal } from "./s2s-end-conversation";
+import { createChimePlayer, LIVE_VOICE_END_SOUND_SRC, type ChimePlayer } from "@/modules/voice-core/agent-done-chime";
 import { isS2sSpeechLikeMicChunk, shouldTriggerS2sLocalBargeIn } from "./s2s-local-barge-in";
 import {
   recordS2sVoiceHealthDiagnostic,
@@ -132,6 +133,8 @@ export interface S2sSessionHandle {
   /** The user's own mic is muted: the agent keeps talking, nothing the room says reaches it. */
   micMuted: boolean;
   setMicMuted: (muted: boolean) => void;
+  /** The model accepted a sign-off and is saying goodbye; the session closes when it finishes. */
+  ending: boolean;
 }
 
 /** Who a transcript fragment is from and where it belongs. `turn` is the session turn it arrived in. */
@@ -193,6 +196,8 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
   const healthRef = useRef<S2sHealthSnapshot>(INITIAL_HEALTH);
   const lastUserFinalRef = useRef<{ turn: number; text: string } | null>(null);
   const [micMuted, setMicMutedState] = useState(false);
+  const [ending, setEnding] = useState(false);
+  const endChimeRef = useRef<ChimePlayer | null>(null);
   const micMutedRef = useRef(false);
   const setMicMuted = useCallback((muted: boolean) => {
     micMutedRef.current = muted;
@@ -261,6 +266,9 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
       hasPendingClarification: () => !!optsRef.current.hasPendingClarification,
       getPolicy: () => optsRef.current.autoEndPolicy,
       onEnd: (reason, message) => {
+        // A soft cue that Live Voice closed by itself; the End button needs none.
+        endChimeRef.current ??= createChimePlayer({ batchMs: 0, playNative: async (id) => portRef.current.playAgentDoneSound(id) });
+        endChimeRef.current.play(LIVE_VOICE_END_SOUND_SRC);
         optsRef.current.onAutoEnd?.(reason, message);
         applyRef.current({ type: "close" });
       },
@@ -281,6 +289,7 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
       markTurnSettled: () => autoEndRuntimeRef.current?.markTurnSettled(),
       requestGracefulEnd: (reason, farewell) => {
         autoEndRuntimeRef.current?.requestGracefulEnd(reason, farewell);
+        if (autoEndRuntimeRef.current?.hasPendingGracefulEnd()) setEnding(true);
       },
       checkEnd: async () => {
         // The tool call can beat the user's final transcript; give this turn's words a moment to land.
@@ -518,6 +527,7 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
     stopCapture();
     playbackRef.current?.setMuted(false);
     setMicMuted(false); // every new session starts with the mic open
+    setEnding(false);
     lastUserFinalRef.current = null;
     playbackRef.current?.dispose();
     playbackRef.current = null;
@@ -546,6 +556,9 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
       optsRef.current.onUserSpeechStart?.();
       updateHealth({ tools: "idle", lastTool: undefined });
       autoEndRuntimeRef.current?.markTurnActive();
+      // Talking over the goodbye means the user is not done yet.
+      autoEndRuntimeRef.current?.cancelGracefulEnd();
+      setEnding(false);
       dropReplyAudioUntilUserEndRef.current = true;
       noResponseIdDropUntilMsRef.current = Date.now() + NO_RESPONSE_ID_BARGE_IN_QUARANTINE_MS;
       if (lastReplyResponseIdRef.current) {
@@ -839,7 +852,7 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
   const stop = useCallback(() => apply({ type: "close" }), [apply]);
   const interrupt = useCallback(() => apply({ type: "bargeIn" }), [apply]);
 
-  return { session, agentSpeaking, health, start, stop, interrupt, micMuted, setMicMuted };
+  return { session, agentSpeaking, health, start, stop, interrupt, micMuted, setMicMuted, ending };
 }
 
 /** Base64 PCM16 silence the same length as `b64`: all-zero bytes encode as "A", padding unchanged. */

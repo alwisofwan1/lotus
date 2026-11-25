@@ -120,13 +120,17 @@ export function liveVoiceStatusText({
   activity,
   error,
   micMuted = false,
+  ending = false,
 }: {
   phase: S2sPhase;
   agentSpeaking: boolean;
   activity?: string;
   error?: string;
   micMuted?: boolean;
+  /** A sign-off was accepted; the goodbye is playing. */
+  ending?: boolean;
 }): string {
+  if (ending && phase !== "error" && phase !== "closed") return "Ending Live Voice… talk to keep it open";
   if (micMuted && (phase === "listening" || phase === "user" || phase === "agent")) {
     return phase === "agent" && agentSpeaking ? "Lotus is speaking · mic muted" : "Mic muted · Lotus can't hear you";
   }

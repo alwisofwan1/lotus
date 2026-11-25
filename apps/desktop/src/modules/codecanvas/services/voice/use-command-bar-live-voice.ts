@@ -25,6 +25,7 @@ export interface CommandBarLiveVoice {
   interrupt: () => void;
   micMuted: boolean;
   setMicMuted: (muted: boolean) => void;
+  ending: boolean;
 }
 
 /**
@@ -73,5 +74,6 @@ export function useCommandBarLiveVoice(opts?: Omit<UseS2sSessionOpts, "providerI
     interrupt: s2s.interrupt,
     micMuted: s2s.micMuted,
     setMicMuted: s2s.setMicMuted,
+    ending: s2s.ending,
   };
 }

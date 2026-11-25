@@ -63,6 +63,9 @@ export interface ComposerLiveSession {
   onRetry?: () => void;
   micMuted?: boolean;
   onToggleMic?: () => void;
+  ending?: boolean;
+  /** Why the session closed by itself, shown in place of the summary. */
+  endNote?: string;
 }
 
 function voiceKeyLabel(id: VoiceHotkeyId): string | null {

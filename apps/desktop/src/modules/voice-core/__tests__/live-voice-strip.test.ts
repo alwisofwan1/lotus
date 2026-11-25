@@ -144,5 +144,7 @@ describe("summary and status", () => {
     );
     expect(liveVoiceStatusText({ phase: "error", agentSpeaking: false, error: "Bad key" })).toBe("Bad key");
     expect(liveVoiceStatusText({ phase: "error", agentSpeaking: false })).toBe("Live Voice stopped working.");
+    expect(liveVoiceStatusText({ phase: "agent", agentSpeaking: true, micMuted: true, ending: true })).toBe("Ending Live Voice… talk to keep it open");
+    expect(liveVoiceStatusText({ phase: "error", agentSpeaking: false, ending: true })).toBe("Live Voice stopped working.");
   });
 });

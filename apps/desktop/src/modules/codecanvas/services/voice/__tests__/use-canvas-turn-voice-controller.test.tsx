@@ -60,6 +60,7 @@ function baseOptions(overrides: Partial<Parameters<typeof useCanvasTurnVoiceCont
       interrupt: vi.fn(),
       micMuted: false,
       setMicMuted: vi.fn(),
+      ending: false,
     },
     speechGate: { interrupt: vi.fn(), open: vi.fn(() => vi.fn()) } as unknown as SpeechGate,
     setTrace: vi.fn(),

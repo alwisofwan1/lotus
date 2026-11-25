@@ -916,12 +916,38 @@ describe("useS2sSession — lifecycle hardening", () => {
     expect(onConciergeAction).not.toHaveBeenCalled();
     // Session stays open so the spoken farewell can play — it only closes once the farewell audio ends.
     expect(result.current.session.phase).not.toBe("closed");
+    expect(result.current.ending).toBe(true);
 
     act(() => tauri.lastCb!({ kind: "agentAudioEnd" } as never));
 
     expect(result.current.session.phase).toBe("closed");
     expect(tauri.close).toHaveBeenCalledWith("sid-1");
     expect(onAutoEnd).toHaveBeenCalledWith("voice-command", "Sure — bye!");
+  });
+
+  it("keeps live voice open when the user talks over the farewell", async () => {
+    const onAutoEnd = vi.fn();
+    const { result } = renderHook(() => useS2sSession({ providerId: "openai", onAutoEnd }));
+    await act(async () => {
+      await result.current.start();
+    });
+    await waitFor(() => expect(tauri.lastCb).toBeDefined());
+
+    await act(async () => {
+      tauri.lastCb!({ kind: "userSpeechStart" } as never);
+      tauri.lastCb!({ kind: "userSpeechEnd" } as never);
+      tauri.lastCb!({ kind: "transcript", text: "oke Lotus, tidur dulu", isFinal: true, speaker: "user" } as never);
+      tauri.lastCb!({ kind: "toolCall", callId: "call-end", name: "end_conversation", arguments: JSON.stringify({ farewell: "Bye!" }) } as never);
+      tauri.lastCb!({ kind: "responseDone" } as never);
+    });
+    await waitFor(() => expect(result.current.ending).toBe(true));
+
+    act(() => tauri.lastCb!({ kind: "userSpeechStart" } as never));
+    act(() => tauri.lastCb!({ kind: "agentAudioEnd" } as never));
+
+    expect(result.current.ending).toBe(false);
+    expect(result.current.session.phase).not.toBe("closed");
+    expect(onAutoEnd).not.toHaveBeenCalled();
   });
 
   it("refuses end_conversation when the user's words were a request, not a sign-off", async () => {

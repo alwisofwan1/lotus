@@ -28,6 +28,9 @@ export const AGENT_DONE_SOUNDS = [
   { id: "notify2", label: "Notify Duo", src: "/sounds/agent-done-notify2.wav" },
 ] as const;
 
+/** Played when Live Voice closes by itself (a sign-off or the time cap). One of the bundled sounds, so it plays natively. */
+export const LIVE_VOICE_END_SOUND_SRC = "/sounds/agent-done-droplet.wav";
+
 export type AgentDoneSoundId = (typeof AGENT_DONE_SOUNDS)[number]["id"];
 
 /** The saved sound id as one Settings knows; absent or unknown (a file from a newer build) = Classic. */

@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { LiveVoiceStripState } from "@/modules/voice-core/live-voice-strip";
 import type { VoiceLiveTools } from "@/modules/voice-core/voice-adapter";
 import { S2S_LIVE_VOICE_END_POLICY } from "@/modules/codecanvas/services/voice/s2s-auto-end-policy";
@@ -18,6 +18,8 @@ export interface CodeLiveVoice {
   strip: LiveVoiceStripState;
   /** What the session advertises, and the executor it calls — the Code Voice Adapter's `liveTools`. */
   liveTools: VoiceLiveTools;
+  /** Why the last session closed by itself, when the user did not ask (the time cap). */
+  endNote?: string;
 }
 
 /**
@@ -53,6 +55,7 @@ export function useCodeLiveVoice(input: Omit<CodeLiveVoiceDeps, "pendingClose">)
     [advertised, execute],
   );
 
+  const [endNote, setEndNote] = useState<string | undefined>();
   const advertisedTools = useMemo(() => [...advertised.tools], [advertised]);
   const session = useCommandBarLiveVoice({
     instructions: liveTools.instructions,
@@ -60,6 +63,8 @@ export function useCodeLiveVoice(input: Omit<CodeLiveVoiceDeps, "pendingClose">)
     onTranscript: recordTranscript,
     onConciergeAction,
     autoEndPolicy: S2S_LIVE_VOICE_END_POLICY,
+    // The time cap is the one end the user did not ask for, so it says why.
+    onAutoEnd: (reason, message) => setEndNote(reason === "max-duration" ? message : undefined),
   });
   useEffect(() => noteTurn(session.turn), [noteTurn, session.turn]);
 
@@ -68,8 +73,9 @@ export function useCodeLiveVoice(input: Omit<CodeLiveVoiceDeps, "pendingClose">)
     ...session,
     start: () => {
       reset();
+      setEndNote(undefined);
       return session.start();
     },
   };
-  return { live, strip, liveTools };
+  return { live, strip, liveTools, endNote };
 }
