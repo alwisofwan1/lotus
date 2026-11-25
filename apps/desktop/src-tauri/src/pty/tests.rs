@@ -1,11 +1,18 @@
 #[test]
 fn grok_gets_the_terminal_theme_unless_the_user_chose_one() {
+    // CommandBuilder inherits this process's env, and a Lotus pane already sets both.
+    let clean = |cmd: &mut CommandBuilder| {
+        cmd.env_remove("GROK_THEME");
+        cmd.env_remove("GROK_TERMINAL_THEME");
+    };
     let mut cmd = CommandBuilder::new("sh");
+    clean(&mut cmd);
     apply_terminal_theme_defaults(&mut cmd);
     assert_eq!(cmd.get_env("GROK_THEME"), Some(std::ffi::OsStr::new("terminal")));
     assert_eq!(cmd.get_env("GROK_TERMINAL_THEME"), Some(std::ffi::OsStr::new("1")));
 
     let mut chosen = CommandBuilder::new("sh");
+    clean(&mut chosen);
     chosen.env("GROK_THEME", "tokyonight");
     apply_terminal_theme_defaults(&mut chosen);
     assert_eq!(chosen.get_env("GROK_THEME"), Some(std::ffi::OsStr::new("tokyonight")));
