@@ -14,6 +14,8 @@ export interface LiveVoiceComposerRowProps {
   onEnd: () => void;
   /** Open a fresh session after an error. Only offered in the error state. */
   onRetry?: () => void;
+  micMuted?: boolean;
+  onToggleMic?: () => void;
 }
 
 /** Sanitized transport health, for the status line's tooltip — never shown as primary copy. */
@@ -37,7 +39,7 @@ function describeHealth(health?: S2sHealthSnapshot): string | null {
  * ("→ Lotus"), what Live Voice is doing, and offers End. Children of the input row's grid, like the
  * field and the voice slot they stand in for.
  */
-export function LiveVoiceComposerRow({ phase, agentSpeaking, health, error, onEnd, onRetry }: LiveVoiceComposerRowProps) {
+export function LiveVoiceComposerRow({ phase, agentSpeaking, health, error, onEnd, onRetry, micMuted, onToggleMic }: LiveVoiceComposerRowProps) {
   const isError = phase === "error";
   const healthText = describeHealth(health);
   const status = liveVoiceStatusText({
@@ -61,7 +63,14 @@ export function LiveVoiceComposerRow({ phase, agentSpeaking, health, error, onEn
         {status}
       </p>
       <span className="canvas-nl-voice-actions">
-        <LiveVoiceControls phase={phase} agentSpeaking={agentSpeaking} onEnd={onEnd} onRetry={onRetry} />
+        <LiveVoiceControls
+          phase={phase}
+          agentSpeaking={agentSpeaking}
+          onEnd={onEnd}
+          onRetry={onRetry}
+          micMuted={micMuted}
+          onToggleMic={onToggleMic}
+        />
       </span>
     </>
   );

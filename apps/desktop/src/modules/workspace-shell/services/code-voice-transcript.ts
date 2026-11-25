@@ -51,6 +51,8 @@ export interface CodeVoiceCleanupInput {
   mode: DictationModeId;
   callModel: (prompt: string, signal?: AbortSignal) => Promise<string>;
   signal?: AbortSignal;
+  /** Canvas delivers straight away, so it passes its tighter budget. */
+  timeoutMs?: number;
 }
 
 /**
@@ -67,7 +69,7 @@ export async function cleanUpCodeVoiceTranscript(
     mode: input.mode,
     vocabulary: [...input.accuracy.personalTerms, ...LOTUS_VOICE_TERMS, ...input.paneNames],
     replacements: input.accuracy.replacements,
-    modelTimeoutMs: CODE_VOICE_CLEANUP_TIMEOUT_MS,
+    modelTimeoutMs: input.timeoutMs ?? CODE_VOICE_CLEANUP_TIMEOUT_MS,
     signal: input.signal,
   });
   return { text, spoken };

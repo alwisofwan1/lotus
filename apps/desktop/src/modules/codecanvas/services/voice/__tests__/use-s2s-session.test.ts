@@ -122,7 +122,7 @@ vi.mock("../s2s-playback", () => ({
   },
 }));
 
-import { useS2sSession } from "../use-s2s-session";
+import { muteChunk, useS2sSession } from "../use-s2s-session";
 
 function pcm16Base64(samples: number[]): string {
   const bytes = new Uint8Array(samples.length * 2);
@@ -584,6 +584,32 @@ describe("useS2sSession — lifecycle hardening", () => {
     act(() => tauri.lastCb!({ kind: "audioDelta", audioBase64: "TALKOVER", responseId: "resp-new" }));
     expect(player.enqueue).not.toHaveBeenCalled();
     now.mockRestore();
+  });
+
+  it("a muted mic sends same-length silence and never barges in on the agent", async () => {
+    const { result } = renderHook(() => useS2sSession({ providerId: "openai" }));
+    await act(async () => {
+      await result.current.start();
+    });
+    await waitFor(() => expect(capture.onChunk).toBeDefined());
+    await waitFor(() => expect(tauri.lastCb).toBeDefined());
+    act(() => result.current.setMicMuted(true));
+    expect(result.current.micMuted).toBe(true);
+
+    act(() => tauri.lastCb!({ kind: "audioDelta", audioBase64: "BEFORE", responseId: "resp-before" }));
+    player.interrupt.mockClear();
+    tauri.send.mockClear();
+    const loud = pcm16Base64(new Array(64).fill(12_000));
+    act(() => capture.onChunk!(loud));
+
+    expect(player.interrupt).not.toHaveBeenCalled();
+    const sent = tauri.send.mock.calls.at(-1)?.[1] as string;
+    expect(sent).toHaveLength(loud.length);
+    expect(sent).toBe(muteChunk(loud));
+    expect(Array.from(atob(sent), (c) => c.charCodeAt(0)).every((b) => b === 0)).toBe(true);
+
+    act(() => result.current.stop());
+    expect(result.current.micMuted).toBe(false);
   });
 
   it("server-VAD speech start always flushes local playback without sending realtime cancel", async () => {

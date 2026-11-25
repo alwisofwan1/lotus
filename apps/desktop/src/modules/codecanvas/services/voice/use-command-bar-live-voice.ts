@@ -23,6 +23,8 @@ export interface CommandBarLiveVoice {
   start: () => Promise<void>;
   stop: () => void;
   interrupt: () => void;
+  micMuted: boolean;
+  setMicMuted: (muted: boolean) => void;
 }
 
 /**
@@ -69,5 +71,7 @@ export function useCommandBarLiveVoice(opts?: Omit<UseS2sSessionOpts, "providerI
     start: s2s.start,
     stop: s2s.stop,
     interrupt: s2s.interrupt,
+    micMuted: s2s.micMuted,
+    setMicMuted: s2s.setMicMuted,
   };
 }

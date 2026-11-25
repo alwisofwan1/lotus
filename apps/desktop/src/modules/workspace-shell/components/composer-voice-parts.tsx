@@ -8,7 +8,7 @@
 */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { ArrowRight, ArrowUp, AudioLines, Check, Command, Loader2, Lock, Mic, RotateCcw, Square, Wrench, X } from "lucide-react";
+import { ArrowRight, ArrowUp, AudioLines, Check, Command, Loader2, Lock, Mic, MicOff, RotateCcw, Square, Wrench, X } from "lucide-react";
 import type { PaneActivity, PaneKind } from "@/modules/workspace-shell/types";
 import { ActivityBadge } from "@/modules/workspace-shell/components/ActivityBadge";
 import { KindIcon } from "@/modules/workspace-shell/components/kind-glyph";
@@ -61,6 +61,8 @@ export interface ComposerLiveSession {
   strip: LiveVoiceStripState;
   onEnd: () => void;
   onRetry?: () => void;
+  micMuted?: boolean;
+  onToggleMic?: () => void;
 }
 
 function voiceKeyLabel(id: VoiceHotkeyId): string | null {
@@ -375,19 +377,37 @@ export function LiveVoiceControls({
   agentSpeaking,
   onEnd,
   onRetry,
+  micMuted = false,
+  onToggleMic,
 }: {
   phase: S2sPhase;
   agentSpeaking: boolean;
   onEnd: () => void;
   /** Open a fresh session after an error. Only offered in the error state. */
   onRetry?: () => void;
+  /** Mute the user's own mic; the agent keeps speaking. Hidden when absent or in the error state. */
+  micMuted?: boolean;
+  onToggleMic?: () => void;
 }) {
   const isError = phase === "error";
   // The wave is a pulse, not a level meter: duplex mode has no spectrum tap to draw from.
-  const talking = phase === "listening" || phase === "user" || (phase === "agent" && agentSpeaking);
+  const talking = (!micMuted && (phase === "listening" || phase === "user")) || (phase === "agent" && agentSpeaking);
   return (
     <>
       {talking ? <VoiceWave pulse /> : null}
+      {!isError && onToggleMic ? (
+        <button
+          type="button"
+          className="ws-round-button"
+          data-variant="voice"
+          aria-pressed={micMuted}
+          aria-label={micMuted ? "Unmute microphone" : "Mute microphone"}
+          title={micMuted ? "Unmute microphone" : "Mute microphone"}
+          onClick={onToggleMic}
+        >
+          {micMuted ? <MicOff size={15} strokeWidth={2} /> : <Mic size={15} strokeWidth={2} />}
+        </button>
+      ) : null}
       {isError && onRetry ? (
         <button type="button" className="ws-round-button" data-variant="live" aria-label="Retry Live Voice" title="Retry" onClick={onRetry}>
           <RotateCcw size={15} strokeWidth={2} />

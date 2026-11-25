@@ -115,6 +115,24 @@ function callModelWithinBudget(
   });
 }
 
+// Hesitation sounds only. "like", "anu" and "apa ya" can carry meaning, so only the model drops them.
+const FILLER = /(^|[\s,])(?:u+m+|u+h+m*|e+r+m+|e+h+|e+m+|e{3,}|h+m{2,})(?=[\s,.!?]|$),?/gi;
+
+/**
+ * Model-free cleanup for what the model does not get: short turns, and any turn whose cleanup failed or
+ * was rejected. Drops hesitation sounds, then (not for commit messages, whose `type:` must stay
+ * lowercase) capitalises a plain first word and ends a sentence that has no punctuation.
+ */
+export function tidyDictation(text: string, mode?: DictationModeId): string {
+  let out = text.replace(FILLER, "$1").replace(/\s+([,.!?])/g, "$1").replace(/\s{2,}/g, " ").trim();
+  out = out.replace(/^[,\s]+/, "");
+  if (!out || resolveDictationMode(mode).id === "commit") return out;
+  if (/^[a-z][a-z']*(?=[\s,.!?]|$)/.test(out)) out = out[0].toUpperCase() + out.slice(1);
+  // Only after a plain word: a trailing path, flag or `code` must not gain a dot.
+  if (/(^|\s)[\p{L}']+$/u.test(out)) out += ".";
+  return out;
+}
+
 /**
  * Polish a dictation transcript via the model, failing open to the raw text. Returns "" for an empty
  * transcript (and skips the model call entirely).
@@ -129,9 +147,8 @@ export async function polishDictation(
   const corrected = applyVoiceReplacements(raw, opts.replacements ?? [], "before-ai");
   // On short prompts there are too few semantic anchors for the fidelity guard to distinguish cleanup
   // from a plausible-looking rewrite. Keep them deterministic; literal corrections are still safe.
-  if (wordCount(corrected) < FIDELITY_GUARD_MIN_WORDS) {
-    return applyVoiceReplacements(corrected, opts.replacements ?? [], "after-ai");
-  }
+  const local = () => applyVoiceReplacements(tidyDictation(corrected, opts.mode), opts.replacements ?? [], "after-ai");
+  if (wordCount(corrected) < FIDELITY_GUARD_MIN_WORDS) return local();
   try {
     const out = unwrapQuotes(await callModelWithinBudget(
       callModel,
@@ -139,9 +156,10 @@ export async function polishDictation(
       opts.modelTimeoutMs ?? DEFAULT_DICTATION_POLISH_TIMEOUT_MS,
       opts.signal,
     ));
-    const faithful = out && judgeVoiceComposition(corrected, out).ok ? out : corrected;
-    return applyVoiceReplacements(faithful, opts.replacements ?? [], "after-ai");
+    if (!out || !judgeVoiceComposition(corrected, out).ok) return local();
+    return applyVoiceReplacements(out, opts.replacements ?? [], "after-ai");
   } catch {
+    // Composers tell the user "this is what you said" on a failed call, so hand back exactly that.
     return applyVoiceReplacements(corrected, opts.replacements ?? [], "after-ai");
   }
 }

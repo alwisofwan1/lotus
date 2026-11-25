@@ -4,6 +4,19 @@ import { describe, it, expect, vi } from "vitest";
 import { LiveVoiceComposerRow } from "../LiveVoiceComposerRow";
 
 describe("LiveVoiceComposerRow", () => {
+  it("mute toggles the user's mic and says so; hidden in the error state", () => {
+    const onToggleMic = vi.fn();
+    const { rerender } = render(
+      <LiveVoiceComposerRow phase="agent" agentSpeaking onEnd={vi.fn()} micMuted={false} onToggleMic={onToggleMic} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Mute microphone" }));
+    expect(onToggleMic).toHaveBeenCalledOnce();
+    rerender(<LiveVoiceComposerRow phase="agent" agentSpeaking onEnd={vi.fn()} micMuted onToggleMic={onToggleMic} />);
+    expect(screen.getByRole("button", { name: "Unmute microphone" })).toHaveAttribute("aria-pressed", "true");
+    rerender(<LiveVoiceComposerRow phase="error" agentSpeaking={false} onEnd={vi.fn()} micMuted onToggleMic={onToggleMic} />);
+    expect(screen.queryByRole("button", { name: "Unmute microphone" })).toBeNull();
+  });
+
   it("live phases show → Lotus and a single End that stops the session (not a retry)", () => {
     const onEnd = vi.fn();
     const onRetry = vi.fn();

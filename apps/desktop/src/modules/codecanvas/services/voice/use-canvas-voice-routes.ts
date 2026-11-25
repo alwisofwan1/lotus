@@ -13,13 +13,14 @@ import type { NlModelCaller } from "../nl-model-transport";
 import { getVoiceInputSettings } from "../../hooks/useVoiceInputSettings";
 import type { VoiceAccuracySettings } from "../../hooks/useVoiceAccuracySettings";
 import { useCanvasTerminalSubmit } from "../../hooks/useCanvasTerminalSubmit";
-import { polishDictation } from "./dictation-polish";
+import { DEFAULT_DICTATION_POLISH_TIMEOUT_MS } from "./dictation-polish";
+import { cleanUpCodeVoiceTranscript } from "@/modules/workspace-shell/services/code-voice-transcript";
 import { buildCanvasVocabulary, canvasVoiceNodeNames } from "./canvas-vocabulary";
 import { transformSelection } from "./selection-transform";
 import { noteSelectionRegistry } from "./note-selection-registry";
 import { voiceAgentOutputCorrelationRegistry } from "./voice-agent-output-correlation";
 import { waitForClassicVoiceStage } from "./classic-voice-stage-deadline";
-import { buildSttDecoderContext, LOTUS_VOICE_TERMS, resolveSttExpectedLanguages, type SttCaptureMode } from "./stt-hint";
+import { buildSttDecoderContext, resolveSttExpectedLanguages, type SttCaptureMode } from "./stt-hint";
 import type { DictationDeliveryState, DictationDispatchOptions } from "./canvas-voice-adapter";
 import {
   getTerminalSessionStatus,
@@ -35,7 +36,7 @@ export interface CanvasVoiceRoutesOptions {
   nodes: Node[];
   callModel?: ModelCall;
   getModelCaller: () => NlModelCaller;
-  voiceAccuracy: Pick<VoiceAccuracySettings, "personalTerms" | "expectedLanguages">;
+  voiceAccuracy: Pick<VoiceAccuracySettings, "personalTerms" | "expectedLanguages" | "replacements">;
   onCommandDelivery?: (event: CanvasCommandDeliveryEvent) => void;
   setTrace: Dispatch<SetStateAction<Trace | null>>;
   setText: Dispatch<SetStateAction<string>>;
@@ -82,18 +83,18 @@ export function useCanvasVoiceRoutes({
       const roster = agentStatusRegistry.list();
       // Mode + live vocabulary (Option B): the active Dictation Mode shapes the cleanup, and the canvas
       // names bias correction so "Ren"/"Sora" aren't left mis-heard.
-      const vocabulary = [
-        ...voiceAccuracy.personalTerms,
-        ...LOTUS_VOICE_TERMS,
-        ...buildCanvasVocabulary({ roster, nodeNames: canvasVoiceNodeNames(nodes) }),
-      ];
-      return polishDictation(rawText, callDictationPolishModel, {
+      const vocabulary = buildCanvasVocabulary({ roster, nodeNames: canvasVoiceNodeNames(nodes) });
+      const { text } = await cleanUpCodeVoiceTranscript(rawText, {
+        accuracy: { personalTerms: voiceAccuracy.personalTerms, replacements: voiceAccuracy.replacements },
+        paneNames: vocabulary,
         mode: getVoiceInputSettings().dictationMode,
-        vocabulary,
+        callModel: callDictationPolishModel,
         signal,
+        timeoutMs: DEFAULT_DICTATION_POLISH_TIMEOUT_MS,
       });
+      return text;
     },
-    [callDictationPolishModel, nodes, voiceAccuracy.personalTerms],
+    [callDictationPolishModel, nodes, voiceAccuracy.personalTerms, voiceAccuracy.replacements],
   );
   const dispatchDictation = useCallback(
     async (agentId: string, agentName: string, rawText: string, opts: DictationDispatchOptions) => {

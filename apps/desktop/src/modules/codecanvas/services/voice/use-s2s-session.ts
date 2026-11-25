@@ -126,6 +126,9 @@ export interface S2sSessionHandle {
   stop: () => void;
   /** Manual barge-in (e.g. a push-to-talk key) in addition to server-VAD detection. */
   interrupt: () => void;
+  /** The user's own mic is muted: the agent keeps talking, nothing the room says reaches it. */
+  micMuted: boolean;
+  setMicMuted: (muted: boolean) => void;
 }
 
 /** Who a transcript fragment is from and where it belongs. `turn` is the session turn it arrived in. */
@@ -185,6 +188,12 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
   const portRef = useRef(port);
   portRef.current = port;
   const healthRef = useRef<S2sHealthSnapshot>(INITIAL_HEALTH);
+  const [micMuted, setMicMutedState] = useState(false);
+  const micMutedRef = useRef(false);
+  const setMicMuted = useCallback((muted: boolean) => {
+    micMutedRef.current = muted;
+    setMicMutedState(muted);
+  }, []);
 
   const sessionIdRef = useRef<string | null>(null);
   const sessionRef = useRef<S2sSession>(session);
@@ -366,6 +375,15 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
         // only path that opts in — see `PcmCaptureOptions.voiceProcessing` for what it costs.
         voiceProcessing: true,
         onChunk: (b64) => {
+          if (micMutedRef.current) {
+            // Send silence of the same length, not nothing: server VAD still sees a turn end, and
+            // muted speech cannot barge in. Muting is a choice to listen, not absence: hold idle
+            // auto-close off (the max-duration cap still applies).
+            autoEndRuntimeRef.current?.markActivity(Date.now());
+            const sid = sessionIdRef.current;
+            if (sid) void portRef.current.s2s.send(sid, muteChunk(b64)).catch(() => {});
+            return;
+          }
           const now = Date.now();
           if (isS2sSpeechLikeMicChunk(b64)) {
             // Mic audio is the earliest evidence that the user is taking a turn. Server VAD can lag
@@ -488,12 +506,13 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
     resetSocketState();
     stopCapture();
     playbackRef.current?.setMuted(false);
+    setMicMuted(false); // every new session starts with the mic open
     playbackRef.current?.dispose();
     playbackRef.current = null;
     playerRef.current = null;
     setAgentSpeaking(false);
     updateHealth(preserveErrorHealth ? { socket: "error" } : { socket: "closed", mic: "idle", playback: "idle", tools: "idle" }, true);
-  }, [resetSocketState, stopCapture, updateHealth]);
+  }, [resetSocketState, setMicMuted, stopCapture, updateHealth]);
 
   // Unmount cleanup (P0-1): if the command bar unmounts mid-session (navigation, StrictMode), tear
   // the whole session down — otherwise the WebSocket, mic AudioContext, capture worklet and any
@@ -811,5 +830,10 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
   const stop = useCallback(() => apply({ type: "close" }), [apply]);
   const interrupt = useCallback(() => apply({ type: "bargeIn" }), [apply]);
 
-  return { session, agentSpeaking, health, start, stop, interrupt };
+  return { session, agentSpeaking, health, start, stop, interrupt, micMuted, setMicMuted };
+}
+
+/** Base64 PCM16 silence the same length as `b64`: all-zero bytes encode as "A", padding unchanged. */
+export function muteChunk(b64: string): string {
+  return b64.replace(/[^=]/g, "A");
 }

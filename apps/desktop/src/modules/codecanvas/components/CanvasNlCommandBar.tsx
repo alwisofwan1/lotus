@@ -784,6 +784,8 @@ export function CanvasNlCommandBar({ runCommand, nodes, edges, cwd, callModel, s
             // re-opens on error; the previous single-button retry trapped the user on a failing provider.
             onEnd={() => live.stop()}
             onRetry={() => void live.start()}
+            micMuted={live.micMuted}
+            onToggleMic={() => live.setMicMuted(!live.micMuted)}
           />
         ) : (
           <>

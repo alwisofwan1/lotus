@@ -1,7 +1,8 @@
 /**
  * Dictation Modes (ADR-0034, Option B) — SuperWhisper-style named styles for how a dictation is
- * cleaned before delivery. The master on/off is `VoiceInputSettings.polish` (off = verbatim, no model);
- * when polishing is on, the active mode shapes the polish. `clean` is the default (fix delivery, keep
+ * cleaned before delivery. Automatic cleanup on every surface is `VoiceInputSettings.autoCleanup`
+ * (off = verbatim, no model); `polish` only shows Canvas's manual Polish button. Either way, the
+ * active mode shapes the polish. `clean` is the default (fix delivery, keep
  * meaning); `note` and `commit` add formatting instructions. Adding a mode = one entry here — the
  * polish prompt builder projects `promptLines` and everything downstream is unchanged.
  */

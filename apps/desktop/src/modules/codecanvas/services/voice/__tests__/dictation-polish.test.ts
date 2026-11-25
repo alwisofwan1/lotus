@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { buildDictationPolishPrompt, polishDictation } from "../dictation-polish";
+import { buildDictationPolishPrompt, polishDictation, tidyDictation } from "../dictation-polish";
 
 describe("buildDictationPolishPrompt", () => {
   it("embeds the transcript, the reformatting fixes, and the meaning-preserving guardrails", () => {
@@ -59,7 +59,7 @@ describe("polishDictation", () => {
     const callModel = vi.fn().mockResolvedValue("Audit the architecture and produce a migration plan.");
     const raw = "Tolong analisis dan jelaskan proyek ini secara singkat";
 
-    expect(await polishDictation(raw, callModel)).toBe(raw);
+    expect(await polishDictation(raw, callModel)).toBe(`${raw}.`);
     expect(callModel).not.toHaveBeenCalled();
   });
 
@@ -102,7 +102,7 @@ describe("polishDictation", () => {
 
   it("fails OPEN to the raw transcript when the model errors", async () => {
     const callModel = vi.fn().mockRejectedValue(new Error("model down"));
-    expect(await polishDictation("fix the auth bug", callModel)).toBe("fix the auth bug");
+    expect(await polishDictation("fix the auth bug", callModel)).toBe("Fix the auth bug.");
   });
 
   it("rejects cleanup that drops a path, version, number, or other critical detail", async () => {
@@ -131,7 +131,7 @@ describe("polishDictation", () => {
 
   it("fails open to the raw transcript when the model returns empty", async () => {
     const callModel = vi.fn().mockResolvedValue("   ");
-    expect(await polishDictation("fix the auth bug", callModel)).toBe("fix the auth bug");
+    expect(await polishDictation("fix the auth bug", callModel)).toBe("Fix the auth bug.");
   });
 
   it("does not call the model for an empty transcript", async () => {
@@ -164,5 +164,32 @@ describe("polish request cancellation", () => {
     const model = vi.fn();
     expect(await polishDictation(raw, model, { signal: owner.signal })).toBe(raw);
     expect(model).not.toHaveBeenCalled();
+  });
+});
+
+describe("tidyDictation (model-free cleanup)", () => {
+  it.each([
+    ["um fix the login bug", "Fix the login bug."],
+    ["eh tolong cek emm build nya", "Tolong cek build nya."],
+    ["uh, rename it", "Rename it."],
+    ["is it done?", "Is it done?"],
+    ["open src/app.ts", "Open src/app.ts"],
+    ["restart on port 3000", "Restart on port 3000"],
+    ["pelan pelan saja", "Pelan pelan saja."],
+    ["themes look fine", "Themes look fine."],
+  ])("%s → %s", (raw, want) => {
+    expect(tidyDictation(raw)).toBe(want);
+  });
+
+  it("keeps a commit subject lowercase and unpunctuated", () => {
+    expect(tidyDictation("um fix: handle empty input", "commit")).toBe("fix: handle empty input");
+  });
+});
+
+describe("polishDictation failure on a long turn", () => {
+  it("returns the exact words, untidied, when the model call fails", async () => {
+    const raw = "um please fix the authentication bug in the login flow before you run the focused regression tests";
+    const callModel = vi.fn().mockRejectedValue(new Error("model down"));
+    expect(await polishDictation(raw, callModel)).toBe(raw);
   });
 });

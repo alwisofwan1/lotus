@@ -479,7 +479,14 @@ export function UnifiedComposer({
           {waveTrailing ? <VoiceWave settled={settling} /> : null}
           {listening ? <VoiceTimer /> : null}
           {liveSession?.active ? (
-            <LiveVoiceControls phase={liveSession.phase} agentSpeaking={liveSession.agentSpeaking} onEnd={liveSession.onEnd} onRetry={liveSession.onRetry} />
+            <LiveVoiceControls
+              phase={liveSession.phase}
+              agentSpeaking={liveSession.agentSpeaking}
+              onEnd={liveSession.onEnd}
+              onRetry={liveSession.onRetry}
+              micMuted={liveSession.micMuted}
+              onToggleMic={liveSession.onToggleMic}
+            />
           ) : (
             <VoiceSlot voice={voice} liveVoice={liveVoice} empty={empty && !extras?.ready} sheetOpen={sheetOpen} canSend={canSend} onSend={send} />
           )}
