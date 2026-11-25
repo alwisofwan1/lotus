@@ -4,6 +4,7 @@ import {
   S2S_END_CONVERSATION_TOOL_NAME,
   isS2sEndConversationCall,
   resolveS2sEndFarewell,
+  s2sEndRefusal,
 } from "../s2s-end-conversation";
 
 describe("S2S end_conversation tool", () => {
@@ -33,5 +34,20 @@ describe("S2S end_conversation tool", () => {
     expect(resolveS2sEndFarewell({})).toMatch(/\S/);
     expect(resolveS2sEndFarewell({ farewell: "   " })).toBe(resolveS2sEndFarewell({}));
     expect(resolveS2sEndFarewell({ farewell: 42 })).toBe(resolveS2sEndFarewell({}));
+  });
+});
+
+describe("s2sEndRefusal", () => {
+  it.each(["bye", "oke Lotus, tidur dulu", "udah cukup ya makasih", "Oke, thank you so much. Go to sleep."])("ends on a short sign-off: %s", (words) => {
+    expect(s2sEndRefusal(words, false)).toBeNull();
+  });
+
+  it("keeps a request that starts like a sign-off", () => {
+    expect(s2sEndRefusal("itu aja yang perlu kamu cek di file config", false)).toMatch(/request/);
+  });
+
+  it("keeps the session while a task runs, or before the user said anything", () => {
+    expect(s2sEndRefusal("bye", true)).toMatch(/task/);
+    expect(s2sEndRefusal(null, false)).toMatch(/not said/);
   });
 });

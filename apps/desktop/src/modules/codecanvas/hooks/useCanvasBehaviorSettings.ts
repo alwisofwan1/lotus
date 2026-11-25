@@ -102,13 +102,6 @@ export interface CanvasBehaviorSettings {
   /** Auto-dismiss agent completion toasts after their adaptive foreground/background duration. */
   completionToastAutoDismiss: boolean;
   /**
-   * Auto-close the realtime Live Voice session shortly after each command completes and you fall
-   * silent. On (default) keeps it snappy — say one thing, it acts, then the mic closes. Off keeps the
-   * session open for back-to-back commands; it still closes on an explicit sign-off, long inactivity,
-   * or the 20-minute cap.
-   */
-  voiceAutoCloseAfterCommand: boolean;
-  /**
    * Auto-open a Browser Node when a canvas Terminal's dev server prints its localhost URL
    * (Vite/Next/CRA/…), so "run the app" surfaces the running app on the canvas without a manual
    * open — mirrors the iOS Simulator pane. Opens once per (terminal, origin); navigates the paired
@@ -137,7 +130,6 @@ export const DEFAULT_CANVAS_BEHAVIOR: CanvasBehaviorSettings = {
   terminalShiftEnterNewline: true,
   toastPosition: DEFAULT_TOAST_POSITION,
   completionToastAutoDismiss: true,
-  voiceAutoCloseAfterCommand: true,
   autoOpenBrowserOnDevServer: true,
 };
 

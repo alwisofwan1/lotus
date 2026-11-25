@@ -1,3 +1,4 @@
+import { S2S_END_CONVERSATION_INSTRUCTION } from "./s2s-end-conversation";
 import { SPOKEN_DELIVERY_RULES } from "./narration-rules";
 import {
   buildSpokenResponsePolicyInstructions,
@@ -94,7 +95,7 @@ export function buildS2sCanvasInstructions({
     // spawn request makes the model fill it with the only text available — the runner's own name.
     "Only set brief when the user actually described work to do. 'Open a Claude agent and a Codex agent' is a bare spawn request: send runner and count only, with no brief. Never pass the runner's name, the words 'agent' or 'terminal', or a restatement of the spawn request as a brief.",
     "Close explicit targets directly: close agent, close browser, close music, close node, close all agents, close all browsers, or close everything. Do not ask for confirmation. Only ask a follow-up when the close target is ambiguous.",
-    "When the user clearly signals they are done with live voice — 'bye', 'that's all', 'stop listening', 'udah cukup', 'dadah', 'sampai jumpa', in any language — call end_conversation with a short farewell and stop. Do not end just because the user paused or thanked you mid-task, and do not use end_conversation to close a single node.",
+    S2S_END_CONVERSATION_INSTRUCTION,
     `Current project: ${projectName?.trim() || "unknown"}.`,
     `Visible live agent names: ${listOrNone(agentNames, MAX_AGENTS)}.`,
     `Canvas nodes: ${listOrNone(nodeSummaries, MAX_NODES)}.`,

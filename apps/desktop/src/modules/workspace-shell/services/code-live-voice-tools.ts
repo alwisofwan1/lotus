@@ -1,10 +1,10 @@
+import { S2S_END_CONVERSATION_INSTRUCTION, S2S_END_CONVERSATION_TOOL } from "@/modules/codecanvas/services/voice/s2s-end-conversation";
 import type { VoiceLiveTools } from "@/modules/voice-core/voice-adapter";
 import type { AgentStatusSnapshot } from "@/modules/codecanvas/services/agent-status-registry";
 import { resolveAgentByName } from "@/modules/codecanvas/services/canvas-nl-command";
 import type { AgentNodeStatus } from "@/modules/codecanvas/types/canvas";
 import type { RealtimeTool } from "@/modules/codecanvas/services/voice/s2s-concierge-bridge";
 import type { S2sCanvasToolResult } from "@/modules/codecanvas/services/voice/s2s-canvas-tool-executor";
-import { S2S_END_CONVERSATION_TOOL } from "@/modules/codecanvas/services/voice/s2s-end-conversation";
 import { buildS2sInfoTools, executeS2sInfoToolCall, isS2sInfoTool } from "@/modules/codecanvas/services/voice/s2s-canvas-info-tools";
 import type {
   CodeCanvasMemoryItem,
@@ -164,6 +164,7 @@ function instructionsFor(panes: CodeVoicePane[], focused: CodeVoicePane | undefi
     canClose
       ? "To close a pane, call close_pane with its name, and say what it returns. A busy agent cannot be closed by voice. Only when the user answers yes, call close_pane again with the same name and confirm: true. One pane at a time; you cannot close everything at once."
       : `You cannot close panes. When asked to close one, say exactly: "${CODE_LIVE_VOICE_CLOSE_REPLY}"`,
+    S2S_END_CONVERSATION_INSTRUCTION,
   ].join("\n\n");
 }
 

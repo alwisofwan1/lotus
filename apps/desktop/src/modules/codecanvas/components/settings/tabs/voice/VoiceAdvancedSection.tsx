@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { SettingRow } from "@/modules/lotus-settings/components/SettingsGroup";
 import { useVoiceInputSettings } from "@/modules/codecanvas/hooks/useVoiceInputSettings";
 import { DICTATION_MODES } from "@/modules/codecanvas/services/voice/dictation-mode";
-import { useCanvasBehaviorSettings } from "@/modules/codecanvas/hooks/useCanvasBehaviorSettings";
 import { SettingToggleRow } from "@/modules/lotus-settings/components/SettingToggleRow";
 import { SettingSegmentedRow } from "@/modules/lotus-settings/components/SettingSegmentedRow";
 import { VoiceAccuracyControls } from "./VoiceAccuracyControls";
@@ -24,7 +23,6 @@ const POLISH_OPTIONS = Object.values(DICTATION_MODES).map((mode) => ({ value: mo
  */
 export function VoiceAdvancedSection({ onReload, onRerunSetup, defaultOpen = false }: Props) {
   const { polish, autoCleanup, dictationMode, setPolish, setDictationMode } = useVoiceInputSettings();
-  const { voiceAutoCloseAfterCommand, setBehavior } = useCanvasBehaviorSettings();
   const mode = DICTATION_MODES[dictationMode];
   return (
     <details className="ui-disclosure" open={defaultOpen}>
@@ -49,12 +47,6 @@ export function VoiceAdvancedSection({ onReload, onRerunSetup, defaultOpen = fal
             onChange={setDictationMode}
           />
         )}
-        <SettingToggleRow
-          title="Live voice: auto-close after each command"
-          description="End the Live session once a command completes and you fall silent."
-          checked={voiceAutoCloseAfterCommand}
-          onChange={(v) => setBehavior("voiceAutoCloseAfterCommand", v)}
-        />
         <SettingRow label="Keys" description={<>Stored in ~/.lotus/{"{stt,tts,s2s}"}-providers.json, never uploaded.</>}>
           <Button size="sm" onClick={onReload}>
             <RotateCcw size={13} aria-hidden="true" /> Reload

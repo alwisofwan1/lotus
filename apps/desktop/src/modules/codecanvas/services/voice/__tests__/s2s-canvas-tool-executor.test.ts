@@ -67,7 +67,7 @@ describe("buildS2sCanvasRealtimeTools", () => {
     expect(bare).toContain("new_project");
   });
 
-  it("always advertises end_conversation so the user can stop live voice hands-free", () => {
+  it("always advertises end_conversation; the session hook vetoes it unless the user signed off", () => {
     const idle = buildS2sCanvasRealtimeTools({ nodeKinds: ["terminal", "note"], agentNames: [] }).map((tool) => tool.name);
     expect(idle).toContain("end_conversation");
 

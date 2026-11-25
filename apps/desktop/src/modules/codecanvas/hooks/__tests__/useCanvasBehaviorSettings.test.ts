@@ -30,7 +30,6 @@ describe("useCanvasBehaviorSettings store", () => {
       terminalShiftEnterNewline: true,
       toastPosition: "bottom-right",
       completionToastAutoDismiss: true,
-      voiceAutoCloseAfterCommand: true,
       autoOpenBrowserOnDevServer: true,
     });
   });
@@ -46,15 +45,6 @@ describe("useCanvasBehaviorSettings store", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(legacy));
     resetCanvasBehaviorStoreForTests();
     expect(getCanvasBehaviorSettings().tidyMode).toBe(expected);
-  });
-
-  it("persists the voice auto-close-after-command flag and defaults it on", () => {
-    expect(getCanvasBehaviorSettings().voiceAutoCloseAfterCommand).toBe(true);
-    setCanvasBehaviorSetting("voiceAutoCloseAfterCommand", false);
-    expect(getCanvasBehaviorSettings().voiceAutoCloseAfterCommand).toBe(false);
-    expect(JSON.parse(localStorage.getItem(STORAGE_KEY)!).voiceAutoCloseAfterCommand).toBe(false);
-    resetCanvasBehaviorStoreForTests();
-    expect(getCanvasBehaviorSettings().voiceAutoCloseAfterCommand).toBe(false); // survives reload
   });
 
   it("persists a changed flag to localStorage and reflects it on the getter", () => {

@@ -396,16 +396,17 @@ export function LiveVoiceControls({
     <>
       {talking ? <VoiceWave pulse /> : null}
       {!isError && onToggleMic ? (
+        // Worded, not a bare mic glyph: the same glyph starts dictation everywhere else.
         <button
           type="button"
-          className="ws-round-button"
-          data-variant="voice"
+          className="ws-mute-button"
           aria-pressed={micMuted}
           aria-label={micMuted ? "Unmute microphone" : "Mute microphone"}
           title={micMuted ? "Unmute microphone" : "Mute microphone"}
           onClick={onToggleMic}
         >
-          {micMuted ? <MicOff size={15} strokeWidth={2} /> : <Mic size={15} strokeWidth={2} />}
+          {micMuted ? <MicOff size={14} strokeWidth={2} aria-hidden /> : <Mic size={14} strokeWidth={2} aria-hidden />}
+          {micMuted ? "Muted" : "Mute"}
         </button>
       ) : null}
       {isError && onRetry ? (

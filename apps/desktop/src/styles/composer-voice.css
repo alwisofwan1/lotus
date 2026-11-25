@@ -259,6 +259,30 @@
 }
 .ws-round-button[data-variant="live"]:hover { color: var(--fg); background: var(--ws-hover); }
 
+/* Live Voice mic mute: a worded pill, so it never reads as the dictation mic. Muted is a warning
+   tint, not danger: the session is fine, the agent just cannot hear you. */
+.ws-mute-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px 0 8px;
+  border-radius: var(--ws-r-pill);
+  border: 1px solid color-mix(in oklab, currentColor 28%, transparent);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: background-color var(--ws-dur) var(--ws-ease), color var(--ws-dur) var(--ws-ease);
+}
+.ws-mute-button:hover { color: var(--fg); background: var(--ws-hover); }
+.ws-mute-button[aria-pressed="true"] {
+  border-color: transparent;
+  color: var(--ds-warning);
+  background: color-mix(in oklab, var(--ds-warning) 16%, transparent);
+}
+.ws-composer-live[data-mic-muted="true"] { color: var(--ds-warning); }
+
 /* No voice provider: the mic stays where it always is, dimmed, so a click that opens Settings is
    not a surprise. Still clickable — that click is how you get to the provider. */
 .ws-round-button[data-variant="voice"][data-unavailable="true"] { opacity: 0.45; }

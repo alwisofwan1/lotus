@@ -2,9 +2,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Node } from "@xyflow/react";
 import { useTtsProviderRegistry } from "@/lib/hooks/useTtsProviderRegistry";
-import { useCanvasBehaviorSettings } from "../../hooks/useCanvasBehaviorSettings";
 import { currentNamePool } from "@/lib/agent-naming";
-import { resolveS2sAutoEndPolicy } from "./s2s-auto-end-policy";
+import { S2S_LIVE_VOICE_END_POLICY } from "./s2s-auto-end-policy";
 import { agentStatusRegistry } from "../agent-status-registry";
 import {
   createAgentMessagingDeps,
@@ -115,9 +114,6 @@ export function useCanvasLiveVoiceController({
   const [contextVersion, setContextVersion] = useState(1);
   const contextKeyRef = useRef<string | null>(null);
 
-  // Live Voice auto-end thresholds follow the "auto-close after each command" preference so users can
-  // keep the session open for back-to-back commands (idle + max-duration guardrails still apply).
-  const { voiceAutoCloseAfterCommand } = useCanvasBehaviorSettings();
   const { registry: ttsRegistry } = useTtsProviderRegistry();
   const responseVerbosity = ttsRegistry?.output?.verbosity ?? "normal";
   // Settings → Voice → Speak style picks the register the concierge speaks in. Resolved from the
@@ -126,10 +122,6 @@ export function useCanvasLiveVoiceController({
     personaNameForTone(ttsRegistry?.output?.tone),
     [bundledPersonaSource()],
   ).body;
-  const autoEndPolicy = useMemo(
-    () => resolveS2sAutoEndPolicy({ autoCloseAfterCommand: voiceAutoCloseAfterCommand }),
-    [voiceAutoCloseAfterCommand],
-  );
 
   const liveVoiceContext = useMemo(
     () => buildS2sCanvasLiveVoiceContext(nodes, agentStatusRegistry.list()),
@@ -479,7 +471,7 @@ export function useCanvasLiveVoiceController({
     onAgentFinalTranscript: recordAgentFinalTranscript,
     onConciergeAction: runLiveVoiceTool,
     hasPendingClarification,
-    autoEndPolicy,
+    autoEndPolicy: S2S_LIVE_VOICE_END_POLICY,
     onAutoEnd: (_reason, message) => setTrace({ text: message, tone: "ok" }),
   });
   useEffect(() => noteTurn(session.turn), [noteTurn, session.turn]);

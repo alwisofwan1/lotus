@@ -23,6 +23,8 @@ export interface S2sToolCallRuntimeDeps {
   updateHealth: (patch: S2sToolRuntimeHealthPatch, record?: boolean) => void;
   markTurnSettled: () => void;
   requestGracefulEnd: (reason: S2sAutoEndReason, farewell: string) => void;
+  /** Veto for `end_conversation`: why the session must stay open, or null to end it. */
+  checkEnd?: () => Promise<string | null>;
   latencyTracker: Pick<S2sLatencyTracker, "markToolStart" | "markToolEnd">;
   sendToolResult?: (
     sessionId: string,
@@ -76,6 +78,7 @@ export function createS2sToolCallRuntime({
   updateHealth,
   markTurnSettled,
   requestGracefulEnd,
+  checkEnd = async () => null,
   latencyTracker,
   sendToolResult = tauriVoicePort.s2s.toolResult,
 }: S2sToolCallRuntimeDeps): S2sToolCallRuntime {
@@ -115,16 +118,19 @@ export function createS2sToolCallRuntime({
       batcher.begin(call.callId);
       latencyTracker.markToolStart(getTurn(), call.callId);
       if (isS2sEndConversationCall(call.name)) {
-        const farewell = resolveS2sEndFarewell(call.args);
-        updateHealth({ tools: "ok", lastTool: call.name }, true);
-        if (sessionId) {
-          void batcher.complete(
-            call.callId,
-            JSON.stringify({ ok: true, speak: farewell }),
-          );
-        }
-        latencyTracker.markToolEnd(call.callId);
-        requestGracefulEnd("voice-command", farewell);
+        void checkEnd().then((refusal) => {
+          console.info(`[s2s] end_conversation ${refusal ? `refused — ${refusal}` : "accepted"}`);
+          updateHealth({ tools: "ok", lastTool: call.name }, true);
+          const farewell = resolveS2sEndFarewell(call.args);
+          if (getSessionId()) {
+            void batcher.complete(
+              call.callId,
+              JSON.stringify(refusal ? { ok: false, error: refusal } : { ok: true, speak: farewell }),
+            );
+          }
+          latencyTracker.markToolEnd(call.callId);
+          if (!refusal) requestGracefulEnd("voice-command", farewell);
+        });
         return;
       }
 

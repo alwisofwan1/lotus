@@ -26,6 +26,7 @@ import {
 } from "./s2s-truncate-policy";
 import { createS2sPlayback, type S2sPlayback } from "./s2s-playback";
 import { createPcmCapture, type PcmCapture } from "@/modules/voice-core/pcm-capture";
+import { s2sEndRefusal } from "./s2s-end-conversation";
 import { isS2sSpeechLikeMicChunk, shouldTriggerS2sLocalBargeIn } from "./s2s-local-barge-in";
 import {
   recordS2sVoiceHealthDiagnostic,
@@ -41,7 +42,6 @@ import {
   type ConciergeAction,
   type RealtimeTool,
 } from "./s2s-concierge-bridge";
-import { detectS2sEndVoiceIntent } from "./s2s-end-voice-intent";
 import type { S2sAutoEndPolicy, S2sAutoEndReason } from "./s2s-auto-end-policy";
 import {
   createS2sAutoEndRuntime,
@@ -116,6 +116,9 @@ const INITIAL_HEALTH: S2sHealthSnapshot = {
   audioDeltas: 0,
 };
 
+/** How long `end_conversation` waits for the user's final transcript of the same turn. */
+const END_TRANSCRIPT_WAIT_MS = 1_500;
+
 export interface S2sSessionHandle {
   session: S2sSession;
   /** True while the model is actively speaking (audio scheduled ahead of the clock). */
@@ -188,6 +191,7 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
   const portRef = useRef(port);
   portRef.current = port;
   const healthRef = useRef<S2sHealthSnapshot>(INITIAL_HEALTH);
+  const lastUserFinalRef = useRef<{ turn: number; text: string } | null>(null);
   const [micMuted, setMicMutedState] = useState(false);
   const micMutedRef = useRef(false);
   const setMicMuted = useCallback((muted: boolean) => {
@@ -277,6 +281,15 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
       markTurnSettled: () => autoEndRuntimeRef.current?.markTurnSettled(),
       requestGracefulEnd: (reason, farewell) => {
         autoEndRuntimeRef.current?.requestGracefulEnd(reason, farewell);
+      },
+      checkEnd: async () => {
+        // The tool call can beat the user's final transcript; give this turn's words a moment to land.
+        const turn = sessionRef.current.turn;
+        for (let waited = 0; lastUserFinalRef.current?.turn !== turn && waited < END_TRANSCRIPT_WAIT_MS; waited += 100) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        const last = lastUserFinalRef.current;
+        return s2sEndRefusal(last?.turn === turn ? last.text : null, healthRef.current.tools === "running");
       },
       latencyTracker: latencyTrackerRef.current,
       sendToolResult: (sessionId, callId, output, continueResponse) =>
@@ -377,9 +390,7 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
         onChunk: (b64) => {
           if (micMutedRef.current) {
             // Send silence of the same length, not nothing: server VAD still sees a turn end, and
-            // muted speech cannot barge in. Muting is a choice to listen, not absence: hold idle
-            // auto-close off (the max-duration cap still applies).
-            autoEndRuntimeRef.current?.markActivity(Date.now());
+            // muted speech cannot barge in.
             const sid = sessionIdRef.current;
             if (sid) void portRef.current.s2s.send(sid, muteChunk(b64)).catch(() => {});
             return;
@@ -507,6 +518,7 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
     stopCapture();
     playbackRef.current?.setMuted(false);
     setMicMuted(false); // every new session starts with the mic open
+    lastUserFinalRef.current = null;
     playbackRef.current?.dispose();
     playbackRef.current = null;
     playerRef.current = null;
@@ -622,10 +634,7 @@ export function useS2sSession(opts: UseS2sSessionOpts): S2sSessionHandle {
       if (t.transcript.speaker === "user" && t.transcript.isFinal) {
         latencyTrackerRef.current.markTranscriptFinal(sessionRef.current.turn);
         optsRef.current.onFinalUserTranscript?.(t.transcript.text, t.transcript.itemId);
-        if (detectS2sEndVoiceIntent(t.transcript.text).kind === "end") {
-          autoEndRuntimeRef.current?.end("voice-command", "Live voice ended.");
-          return;
-        }
+        lastUserFinalRef.current = { turn: sessionRef.current.turn, text: t.transcript.text };
       }
       // The assistant transcript is the only frame that names the item its audio belongs to —
       // `response.output_audio.delta` carries a response id but never an item id.

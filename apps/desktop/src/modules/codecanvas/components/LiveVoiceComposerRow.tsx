@@ -47,6 +47,7 @@ export function LiveVoiceComposerRow({ phase, agentSpeaking, health, error, onEn
     agentSpeaking,
     activity: resolveS2sActivityHint({ fallback: "Thinking…", phase, tools: health?.tools, lastTool: health?.lastTool }),
     error: error || health?.lastIssue,
+    micMuted,
   });
   return (
     <>
@@ -56,6 +57,7 @@ export function LiveVoiceComposerRow({ phase, agentSpeaking, health, error, onEn
       <p
         className="ws-composer-live canvas-nl-live-row canvas-nl-live-voice"
         data-state={isError ? "error" : phase}
+        data-mic-muted={micMuted && !agentSpeaking ? "true" : undefined}
         role="status"
         aria-live="polite"
         title={healthText ?? undefined}

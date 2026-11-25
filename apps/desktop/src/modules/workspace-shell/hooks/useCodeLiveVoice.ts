@@ -2,8 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { LiveVoiceStripState } from "@/modules/voice-core/live-voice-strip";
 import type { VoiceLiveTools } from "@/modules/voice-core/voice-adapter";
-import { useCanvasBehaviorSettings } from "@/modules/codecanvas/hooks/useCanvasBehaviorSettings";
-import { resolveS2sAutoEndPolicy } from "@/modules/codecanvas/services/voice/s2s-auto-end-policy";
+import { S2S_LIVE_VOICE_END_POLICY } from "@/modules/codecanvas/services/voice/s2s-auto-end-policy";
 import { useCommandBarLiveVoice, type CommandBarLiveVoice } from "@/modules/codecanvas/services/voice/use-command-bar-live-voice";
 import { useLiveVoiceStripRecorder } from "@/modules/codecanvas/services/voice/use-live-voice-strip-recorder";
 import {
@@ -55,17 +54,12 @@ export function useCodeLiveVoice(input: Omit<CodeLiveVoiceDeps, "pendingClose">)
   );
 
   const advertisedTools = useMemo(() => [...advertised.tools], [advertised]);
-  const { voiceAutoCloseAfterCommand } = useCanvasBehaviorSettings();
-  const autoEndPolicy = useMemo(
-    () => resolveS2sAutoEndPolicy({ autoCloseAfterCommand: voiceAutoCloseAfterCommand }),
-    [voiceAutoCloseAfterCommand],
-  );
   const session = useCommandBarLiveVoice({
     instructions: liveTools.instructions,
     realtimeTools: advertisedTools,
     onTranscript: recordTranscript,
     onConciergeAction,
-    autoEndPolicy,
+    autoEndPolicy: S2S_LIVE_VOICE_END_POLICY,
   });
   useEffect(() => noteTurn(session.turn), [noteTurn, session.turn]);
 

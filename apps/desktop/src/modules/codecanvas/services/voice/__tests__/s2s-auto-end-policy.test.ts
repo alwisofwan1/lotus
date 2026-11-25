@@ -1,35 +1,25 @@
 import { describe, expect, it } from "vitest";
-import { evaluateS2sAutoEnd, resolveS2sAutoEndPolicy, S2S_AUTO_END_DEFAULTS } from "../s2s-auto-end-policy";
+import { evaluateS2sAutoEnd, S2S_AUTO_END_DEFAULTS, S2S_LIVE_VOICE_END_POLICY } from "../s2s-auto-end-policy";
 
-describe("resolveS2sAutoEndPolicy", () => {
-  it("keeps the full defaults when auto-close-after-command is on (or unspecified)", () => {
-    expect(resolveS2sAutoEndPolicy({ autoCloseAfterCommand: true })).toEqual(S2S_AUTO_END_DEFAULTS);
-    expect(resolveS2sAutoEndPolicy()).toEqual(S2S_AUTO_END_DEFAULTS);
-  });
-
-  it("disables per-turn auto-close but preserves idle and max-duration guardrails when off", () => {
-    const policy = resolveS2sAutoEndPolicy({ autoCloseAfterCommand: false });
-    expect(policy.listeningTurnSettleMs).toBe(0);
-    expect(policy.thinkingTurnSettleMs).toBe(0);
-    expect(policy.idleTimeoutMs).toBe(S2S_AUTO_END_DEFAULTS.idleTimeoutMs);
-    expect(policy.maxDurationMs).toBe(S2S_AUTO_END_DEFAULTS.maxDurationMs);
-  });
-
-  it("does not turn-complete-close when the resolved policy has per-turn auto-close off", () => {
-    const policy = resolveS2sAutoEndPolicy({ autoCloseAfterCommand: false });
+describe("S2S_LIVE_VOICE_END_POLICY", () => {
+  it.each([
+    ["turn settled long ago", { phase: "listening" as const, turnSettledAtMs: 0, lastActivityAtMs: 0 }],
+    ["thinking settled long ago", { phase: "thinking" as const, turnSettledAtMs: 0, lastActivityAtMs: 0 }],
+    ["silent for 59 minutes", { phase: "listening" as const, turnSettledAtMs: null, lastActivityAtMs: 0 }],
+  ])("never ends the session on its own: %s", (_name, snap) => {
     const decision = evaluateS2sAutoEnd(
-      {
-        phase: "listening",
-        nowMs: 60_000,
-        startedAtMs: 0,
-        lastActivityAtMs: 60_000,
-        turnSettledAtMs: 0,
-        agentSpeaking: false,
-        hasPendingClarification: false,
-      },
-      policy,
+      { nowMs: 59 * 60_000, startedAtMs: 0, agentSpeaking: false, hasPendingClarification: false, ...snap },
+      S2S_LIVE_VOICE_END_POLICY,
     );
     expect(decision.shouldEnd).toBe(false);
+  });
+
+  it("closes a forgotten session after an hour, and says so", () => {
+    const decision = evaluateS2sAutoEnd(
+      { phase: "listening", nowMs: 60 * 60_000, startedAtMs: 0, lastActivityAtMs: 0, agentSpeaking: false, hasPendingClarification: false },
+      S2S_LIVE_VOICE_END_POLICY,
+    );
+    expect(decision).toMatchObject({ shouldEnd: true, reason: "max-duration", message: "Live voice ended after 60 minutes." });
   });
 });
 

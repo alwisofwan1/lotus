@@ -30,17 +30,19 @@ export const S2S_AUTO_END_DEFAULTS: S2sAutoEndPolicy = {
 };
 
 /**
- * Map the user's "auto-close Live Voice after each command" preference onto a concrete policy.
- * On (default) keeps the snappy per-turn close; off zeroes the settle timers so the session stays
- * open between commands, while the idle-timeout and max-duration guardrails still protect against a
- * forgotten open mic. A zero settle timer is treated as disabled by {@link evaluateS2sAutoEnd}.
+ * Live Voice ends when the user says so (End, or a sign-off the model hears and the app confirms).
+ * No timer closes it mid-conversation: closing a few seconds after each command or after silence
+ * cut real conversations short. The one exception is a session left open for an hour, which costs
+ * realtime minutes for nobody.
  */
-export function resolveS2sAutoEndPolicy(opts?: { autoCloseAfterCommand?: boolean }): S2sAutoEndPolicy {
-  if (opts?.autoCloseAfterCommand === false) {
-    return { ...S2S_AUTO_END_DEFAULTS, listeningTurnSettleMs: 0, thinkingTurnSettleMs: 0 };
-  }
-  return S2S_AUTO_END_DEFAULTS;
-}
+export const S2S_LIVE_VOICE_END_POLICY: S2sAutoEndPolicy = {
+  idleTimeoutMs: 0,
+  clarificationIdleTimeoutMs: 0,
+  listeningTurnSettleMs: 0,
+  thinkingTurnSettleMs: 0,
+  postAgentGraceMs: 0,
+  maxDurationMs: 60 * 60_000,
+};
 
 export interface S2sAutoEndSnapshot {
   phase: S2sPhase;
@@ -69,7 +71,7 @@ export function evaluateS2sAutoEnd(
     policy.maxDurationMs > 0 &&
     snapshot.nowMs - snapshot.startedAtMs >= policy.maxDurationMs
   ) {
-    return { shouldEnd: true, reason: "max-duration", message: "Live voice ended after 20 minutes." };
+    return { shouldEnd: true, reason: "max-duration", message: `Live voice ended after ${Math.round(policy.maxDurationMs / 60_000)} minutes.` };
   }
 
   if (snapshot.hasPendingClarification || snapshot.agentSpeaking) return { shouldEnd: false };

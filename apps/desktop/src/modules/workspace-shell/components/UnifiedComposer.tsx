@@ -424,8 +424,14 @@ export function UnifiedComposer({
         ) : null}
         <ComposerTargetLabel target={liveSession?.active ? { label: "Lotus" } : target} command={sheetOpen && !liveActive} />
         {liveSession?.active ? (
-          <p className="ws-composer-live" data-live-voice={liveSession.phase === "error" ? "error" : "true"} role="status" aria-live="polite">
-            {liveVoiceStatusText({ phase: liveSession.phase, agentSpeaking: liveSession.agentSpeaking, error: liveSession.error })}
+          <p
+            className="ws-composer-live"
+            data-live-voice={liveSession.phase === "error" ? "error" : "true"}
+            data-mic-muted={liveSession.micMuted && !liveSession.agentSpeaking ? "true" : undefined}
+            role="status"
+            aria-live="polite"
+          >
+            {liveVoiceStatusText({ phase: liveSession.phase, agentSpeaking: liveSession.agentSpeaking, error: liveSession.error, micMuted: liveSession.micMuted })}
           </p>
         ) : voiceRow ? (
           <p ref={liveRef} className="ws-composer-live" data-settling={settling ? "true" : undefined} aria-live="polite">

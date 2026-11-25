@@ -137,13 +137,12 @@ describe("buildS2sCanvasInstructions", () => {
     expect(build("expressive")).toContain(delegationContract);
   });
 
-  it("tells the model to end the session hands-free via end_conversation on a natural sign-off", () => {
+  it("tells the model to end only on the user's own sign-off, never on a request starting with 'itu aja'", () => {
     const text = buildS2sCanvasInstructions({ agentNames: [], nodeSummaries: [], projectName: null });
-
     expect(text).toContain("end_conversation");
-    expect(text).toMatch(/that.?s all|stop listening|udah cukup|bye/i);
-    expect(text).toContain("short farewell");
-    expect(text).toMatch(/do not end.*paused|not just because the user paus/i);
+    expect(text).toMatch(/tidur dulu/);
+    expect(text).toMatch(/itu aja/);
+    expect(text).toMatch(/If the app refuses, keep helping/);
   });
 
   it("allows explicit close commands without confirmation while preserving ambiguity clarification", () => {

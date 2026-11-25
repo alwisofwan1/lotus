@@ -864,7 +864,7 @@ describe("useS2sSession — lifecycle hardening", () => {
     expect(onAgentFinalTranscript).toHaveBeenCalledTimes(1);
   });
 
-  it("ends live voice when a final transcript contains a multilingual sleep command", async () => {
+  it("keeps live voice open when the user says a sign-off phrase: only End closes it", async () => {
     const onAutoEnd = vi.fn();
     const { result } = renderHook(() => useS2sSession({ providerId: "openai", onAutoEnd }));
     await act(async () => {
@@ -872,11 +872,11 @@ describe("useS2sSession — lifecycle hardening", () => {
     });
     await waitFor(() => expect(tauri.lastCb).toBeDefined());
 
-    act(() => tauri.lastCb!({ kind: "transcript", text: "oke go to sleep", isFinal: true, speaker: "user" } as never));
+    act(() => tauri.lastCb!({ kind: "transcript", text: "oke itu aja", isFinal: true, speaker: "user" } as never));
 
-    expect(result.current.session.phase).toBe("closed");
-    expect(tauri.close).toHaveBeenCalledWith("sid-1");
-    expect(onAutoEnd).toHaveBeenCalledWith("voice-command", "Live voice ended.");
+    expect(result.current.session.phase).toBe("listening");
+    expect(tauri.close).not.toHaveBeenCalled();
+    expect(onAutoEnd).not.toHaveBeenCalled();
   });
 
   it("does not end live voice when the agent output transcript contains a sleep phrase", async () => {
@@ -903,11 +903,13 @@ describe("useS2sSession — lifecycle hardening", () => {
     await waitFor(() => expect(tauri.lastCb).toBeDefined());
 
     await act(async () => {
+      tauri.lastCb!({ kind: "userSpeechStart" } as never);
+      tauri.lastCb!({ kind: "userSpeechEnd" } as never);
+      tauri.lastCb!({ kind: "transcript", text: "oke Lotus, tidur dulu", isFinal: true, speaker: "user" } as never);
       tauri.lastCb!({ kind: "toolCall", callId: "call-end", name: "end_conversation", arguments: JSON.stringify({ farewell: "Sure — bye!" }) } as never);
       tauri.lastCb!({ kind: "responseDone" } as never);
-      await Promise.resolve();
-      await Promise.resolve();
     });
+    await waitFor(() => expect(tauri.toolResult).toHaveBeenCalledWith("sid-1", "call-end", expect.stringContaining("Sure — bye!")));
 
     // The model's function call is answered (so it isn't left hanging) but end is NOT a canvas action.
     expect(tauri.toolResult).toHaveBeenCalledWith("sid-1", "call-end", expect.stringContaining("Sure — bye!"));
@@ -922,6 +924,28 @@ describe("useS2sSession — lifecycle hardening", () => {
     expect(onAutoEnd).toHaveBeenCalledWith("voice-command", "Sure — bye!");
   });
 
+  it("refuses end_conversation when the user's words were a request, not a sign-off", async () => {
+    const onAutoEnd = vi.fn();
+    const { result } = renderHook(() => useS2sSession({ providerId: "openai", onAutoEnd }));
+    await act(async () => {
+      await result.current.start();
+    });
+    await waitFor(() => expect(tauri.lastCb).toBeDefined());
+
+    await act(async () => {
+      tauri.lastCb!({ kind: "userSpeechStart" } as never);
+      tauri.lastCb!({ kind: "userSpeechEnd" } as never);
+      tauri.lastCb!({ kind: "transcript", text: "itu aja yang perlu kamu cek di file config", isFinal: true, speaker: "user" } as never);
+      tauri.lastCb!({ kind: "toolCall", callId: "call-end", name: "end_conversation", arguments: "{}" } as never);
+      tauri.lastCb!({ kind: "responseDone" } as never);
+    });
+
+    await waitFor(() => expect(tauri.toolResult).toHaveBeenCalledWith("sid-1", "call-end", expect.stringContaining("Not ended")));
+    act(() => tauri.lastCb!({ kind: "agentAudioEnd" } as never));
+    expect(result.current.session.phase).not.toBe("closed");
+    expect(onAutoEnd).not.toHaveBeenCalled();
+  });
+
   it("closes after end_conversation even if the model never speaks a farewell (hard fallback)", async () => {
     vi.useFakeTimers();
     const onAutoEnd = vi.fn();
@@ -933,10 +957,12 @@ describe("useS2sSession — lifecycle hardening", () => {
     expect(tauri.lastCb).toBeDefined();
 
     await act(async () => {
+      tauri.lastCb!({ kind: "userSpeechStart" } as never);
+      tauri.lastCb!({ kind: "userSpeechEnd" } as never);
+      tauri.lastCb!({ kind: "transcript", text: "oke Lotus, tidur dulu", isFinal: true, speaker: "user" } as never);
       tauri.lastCb!({ kind: "toolCall", callId: "call-end", name: "end_conversation", arguments: "{}" } as never);
       tauri.lastCb!({ kind: "responseDone" } as never);
-      await Promise.resolve();
-      await Promise.resolve();
+      for (let i = 0; i < 6; i++) await Promise.resolve();
     });
     expect(result.current.session.phase).not.toBe("closed");
 

@@ -119,12 +119,17 @@ export function liveVoiceStatusText({
   agentSpeaking,
   activity,
   error,
+  micMuted = false,
 }: {
   phase: S2sPhase;
   agentSpeaking: boolean;
   activity?: string;
   error?: string;
+  micMuted?: boolean;
 }): string {
+  if (micMuted && (phase === "listening" || phase === "user" || phase === "agent")) {
+    return phase === "agent" && agentSpeaking ? "Lotus is speaking · mic muted" : "Mic muted · Lotus can't hear you";
+  }
   switch (phase) {
     case "connecting":
       return "Connecting…";

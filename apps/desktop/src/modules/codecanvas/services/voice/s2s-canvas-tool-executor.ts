@@ -13,8 +13,8 @@ import { executeNlEffect, type NlEffectExecutor } from "../canvas-nl-runner";
 import type { IntentParamCtx } from "../canvas-nl-command";
 import { runnerDisplayLabel } from "../canvas-agent-aliases";
 import { meaningfulSpawnBrief } from "./spawn-brief-guard";
-import { S2S_CHOOSE_TARGET_TOOL } from "./s2s-voice-clarification";
 import { S2S_END_CONVERSATION_TOOL } from "./s2s-end-conversation";
+import { S2S_CHOOSE_TARGET_TOOL } from "./s2s-voice-clarification";
 import { assessS2sVoiceAgentTargetConfidence } from "./s2s-voice-target-confidence";
 import type { RealtimeTool } from "./s2s-concierge-bridge";
 import type { S2sToolCall } from "./s2s-stream-bridge";
@@ -162,9 +162,8 @@ export function buildS2sCanvasRealtimeTools(ctx: IntentParamCtx): RealtimeTool[]
     .map(withS2sCloseDescription)
     .map(withS2sSpawnBatchSchema)
     .map(withS2sDispatchSchema);
-  // `end_conversation` is a session-control tool, not a canvas mutation: always advertised so the user
-  // can end Live Voice hands-free by natural sign-off in any language. `choose_target` stays gated on
-  // an in-flight clarification.
+  // `end_conversation` is always offered; the session hook vetoes it unless the user's own last words
+  // were a short sign-off. `choose_target` stays gated on an in-flight clarification.
   const withEnd = [...tools, S2S_END_CONVERSATION_TOOL];
   return ctx.hasPendingClarification ? [...withEnd, S2S_CHOOSE_TARGET_TOOL] : withEnd;
 }
