@@ -3,9 +3,8 @@
 The marketing and waitlist site. Astro 7 + Tailwind 4, static output, deployed to
 Cloudflare Pages.
 
-Decisions live in [`plans/lotus-web/map.md`](../../plans/lotus-web/map.md); the
-execution order lives in [`PLAN.md`](../../plans/lotus-web/PLAN.md). This README only
-covers running it.
+The planning notes behind it (`plans/lotus-web/`, cited below) are kept outside this public
+repo. This README only covers running it.
 
 ```bash
 # from the repo root — pass-through scripts
@@ -77,12 +76,12 @@ is the second caller). There is no `domain/`, `application/` or `infrastructure/
 layer, no repository pattern, no DI container, and no i18n abstraction. On a site
 with one form and no data those are shallow modules — large interface, thin
 implementation — and they cost maintenance without buying capability. Reasoning in
-[`issues/05`](../../plans/lotus-web/issues/05-arsitektur-dan-struktur-folder.md).
+`issues/05`.
 
 ## Claims are constrained
 
 Copy on this site is bound by a forbidden-claims list in
-[`issues/06` §7](../../plans/lotus-web/issues/06-strategi-go-to-market.md). Three of them
+`issues/06` §7. Three of them
 are not caution, they are factually wrong: no privacy claims ("your code never leaves
 your machine" is false — Lotus drives vendor CLIs that send code to their APIs), no
 Windows/Linux availability (bundle targets are macOS only), and no Pocket availability

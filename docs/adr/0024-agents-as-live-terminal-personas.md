@@ -2,7 +2,7 @@
 
 - **Status:** Accepted (implemented)
 - **Date:** 2026-06-28
-- **Amends:** [the promote-agent-terminal decision](../../plans/codecanvas-promote-agent-terminal/PLAN.md), which stated AgentNode "does not migrate into PTY" and "keeps headless and one-shot" as default. This ADR reverses the **default**, not the existence of headless mode.
+- **Amends:** the promote-agent-terminal decision, which stated AgentNode "does not migrate into PTY" and "keeps headless and one-shot" as default. This ADR reverses the **default**, not the existence of headless mode.
 - **Related:** ADR-0025 (Agent Runtime Kernel — the spawn mechanism), ADR-0020 (provider-portable headless billing)
 
 ## Context

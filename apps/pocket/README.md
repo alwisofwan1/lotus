@@ -4,9 +4,8 @@ The mobile client for Lotus — **a remote control for a machine that is already
 not a small copy of the desktop app. It attaches to live sessions; it never clones a repo
 or syncs one.
 
-Decisions live in [`plans/lotus-pocket/PLAN.md`](../../plans/lotus-pocket/PLAN.md) (ADR-1…13),
-the screen shapes in [`design/pocket-flow.html`](../../plans/lotus-pocket/design/pocket-flow.html),
-and the wire format in [`contract/README.md`](../../contract/README.md). Read those before
+The planning notes it cites (`plans/lotus-pocket/`, ADR-1…13 and the screen designs) are kept
+outside this public repo. The wire format is in [`contract/README.md`](../../contract/README.md). Read the contract before
 changing behaviour here — this README covers only how to run and extend the code.
 
 ## Commands
@@ -186,7 +185,7 @@ layering test), TDD, dependency injection through constructors, no wild `dynamic
 ### Launch
 
 Three things sit between the OS launcher and the screen the operator wanted, and they are
-described in [`design/onboarding-splash.html`](../../plans/lotus-pocket/design/onboarding-splash.html).
+described in `design/onboarding-splash.html`.
 
 The **launch window** is `#121214` on both platforms and in both `values/` and
 `values-night/`. The Flutter template shipped `@android:color/white` in the light variant and

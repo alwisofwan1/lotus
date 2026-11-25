@@ -7,7 +7,7 @@ accepted
 ## Context
 
 Lotus is adding a third app, `apps/web` — a static marketing and waitlist site
-([`plans/lotus-web/`](../../plans/lotus-web/)). Two questions had to be settled
+(`plans/lotus-web/`). Two questions had to be settled
 before it existed: what `apps/web` is allowed to reach for, and what stops it from
 breaking the desktop build.
 

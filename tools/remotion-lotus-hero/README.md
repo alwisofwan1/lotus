@@ -3,9 +3,8 @@
 The two-surface explainer video for [`apps/web`](../../apps/web) — CodeSpace, then
 CodeCanvas. 1920×1080, 30 fps, 42 s.
 
-Decided in [`plans/lotus-web/issues/07`](../../plans/lotus-web/issues/07-aset-bukti-hero.md);
-the product analysis it is built on is
-[`research/codespace-codecanvas-analysis.md`](../../research/codespace-codecanvas-analysis.md).
+Decided in the website planning notes (`plans/lotus-web/issues/07`) and built on a product
+analysis (`research/codespace-codecanvas-analysis.md`); both are kept outside this public repo.
 
 ```bash
 bun install
@@ -30,7 +29,7 @@ reasoning that chrome would make an animation feel like a fake screencast. The r
 a generic architecture diagram that looked nothing like Lotus — and it was *less*
 truthful, not more, because the thing being described was a visual product and the video
 refused to show what it looks like. The rule from
-[`issues/06` §7](../../plans/lotus-web/issues/06-strategi-go-to-market.md) is **never
+`issues/06` §7 is **never
 claim what is not real**. Depicting the real UI honours that rule; hiding it does not.
 
 So the chrome is in: top bar with workspace tabs, node title bars with
@@ -87,7 +86,7 @@ others, so it reads as instrument rather than alarm.
 ## Publishing
 
 The mp4 is **4.4 MB**, far over the ~500 KB asset budget in
-[`issues/05` §2](../../plans/lotus-web/issues/05-arsitektur-dan-struktur-folder.md),
+`issues/05` §2,
 so it cannot be a git asset. Host it externally and point the site's demo CTA at the
 URL — that path was written into `issues/07` before this tool existed.
 

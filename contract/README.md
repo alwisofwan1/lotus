@@ -2,7 +2,7 @@
 
 This directory is the agreement between **`packages/host`** (which serves it) and
 **`apps/pocket`** (which consumes it). Decided in
-[`plans/lotus-pocket/PLAN.md`](../plans/lotus-pocket/PLAN.md) ADR-10.
+ADR-10 of the Pocket planning notes (`plans/lotus-pocket/`, kept outside this public repo).
 
 ## What this is, and what it deliberately is not
 
