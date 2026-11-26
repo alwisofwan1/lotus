@@ -19993,7 +19993,7 @@ var TASK_STATUSES = ["todo", "in-progress", "blocked", "in-review", "complete", 
 function resolveTimeoutForPath(path) {
   return IPC_ROUTE_TIMEOUTS_MS[path] ?? IPC_DEFAULT_TIMEOUT_MS;
 }
-function formatTaskEnvelope(task, goal, doneWhen, replyTo) {
+function formatTaskEnvelope(task, goal, doneWhen, replyTo, replyPaneId) {
   const lines = [String(task).trim()];
   const g = typeof goal === "string" ? goal.trim() : "";
   const d = typeof doneWhen === "string" ? doneWhen.trim() : "";
@@ -20002,7 +20002,10 @@ function formatTaskEnvelope(task, goal, doneWhen, replyTo) {
     lines.push("", `Goal: ${g}`);
   if (d)
     lines.push(`Done when: ${d}`);
-  if (r)
+  const p = typeof replyPaneId === "string" ? replyPaneId.trim() : "";
+  if (r && p)
+    lines.push("", `Reply to "${r}" with lotus_dispatch_to_cell paneId "${p}" when done.`);
+  else if (r)
     lines.push("", `Reply to "${r}" with lotus_dispatch_to_cell when done.`);
   return lines.join(`
 `);
@@ -20764,7 +20767,7 @@ var TOOLS = [
   },
   {
     name: "lotus_list_fleet",
-    description: "Find the other agents and panes in Lotus (teammates such as Nia or Lyra, Claude or Codex) by name. " + "Use this \u2014 not ListAgents \u2014 before greeting, messaging or handing work to another agent. " + "List registered Terminal cells. By DEFAULT this lists only the workspace " + "the operator is currently in \u2014 your neighbours \u2014 not every workspace. The " + "reply always says which: `scope` is 'active' (narrowed to the active " + "workspace), 'all', 'explicit' (you named a workspaceId), or 'unknown' " + "(no UI has reported an active workspace yet, so EVERY workspace is listed and " + "the answer is NOT scoped). When narrowing hid anything, `hidden_count`, " + "`hidden_workspace_count` and `scope_note` say how much \u2014 pass scope='all' to " + "see those too. " + "MUST filter is_alive=true before counting or reporting \u2014 dead cells " + "may be included. Default projection is compact but targetable " + "(pane_id, agent_address, workspace_id, cwd, provider, status, is_alive, " + "last_output_preview). To message or dispatch to a member, target its " + "agent_address (a readable name like 'claude-2', preferred \u2014 quote it back " + "exactly as returned) or its pane_id. Both are exact targets; display_name is " + "a human-readable label (not a target) and any aliases are for " + "recognition/discoverability only; never dispatch to a workspace_id or " + "display_name. An agent_address is unique per workspace, so if two workspaces " + "return the same one, disambiguate with pane_id. " + "Use cwd exactly as returned; never invent " + "relative repo paths. Pass verbose=true only when you specifically " + "need display_name or session_id. Prefer the snapshot already " + "injected in <workspace-state> when its snapshot-at is <2s old. " + "The response also includes snapshot_age_ms: ms since the UI last " + "pushed the fleet (null = no workspace UI active yet). A large age " + "means no recent cell changes, not necessarily stale data.",
+    description: "Find the other agents and panes in Lotus (teammates such as Nia or Lyra, Claude or Codex) by name. " + "Use this \u2014 not ListAgents \u2014 before greeting, messaging or handing work to another agent. " + "List registered Terminal cells. By DEFAULT this lists only YOUR OWN workspace " + "\u2014 your neighbours \u2014 not every workspace. The reply always says which: `scope` " + "is 'own' (your pane's workspace), 'active' (the workspace on screen, when your " + "pane is unknown), 'all', 'explicit' (you named a workspaceId), or 'unknown' " + "(no UI has reported an active workspace yet, so EVERY workspace is listed and " + "the answer is NOT scoped). When narrowing hid anything, `hidden_count`, " + "`hidden_workspace_count` and `scope_note` say how much \u2014 pass scope='all' to " + "see those too. " + "MUST filter is_alive=true before counting or reporting \u2014 dead cells " + "may be included. Default projection is compact but targetable " + "(pane_id, agent_address, workspace_id, cwd, provider, status, is_alive, " + "last_output_preview). To message or dispatch to a member, target its " + "pane_id: the one key unique across all workspaces. agent_address (e.g. " + "'claude-2'), display_name and aliases repeat in every workspace, so they are labels " + "for recognition only; never dispatch to a workspace_id. " + "Use cwd exactly as returned; never invent " + "relative repo paths. Pass verbose=true only when you specifically " + "need display_name or session_id. Prefer the snapshot already " + "injected in <workspace-state> when its snapshot-at is <2s old. " + "The response also includes snapshot_age_ms: ms since the UI last " + "pushed the fleet (null = no workspace UI active yet). A large age " + "means no recent cell changes, not necessarily stale data.",
     inputSchema: {
       type: "object",
       properties: {
@@ -20803,7 +20806,7 @@ var TOOLS = [
       properties: {
         paneId: {
           type: "string",
-          description: "Target from lotus_list_fleet: the member's agent_address (a readable name like 'claude-2' \u2014 preferred for agent-to-agent messages) or its exact pane_id (e.g. 'p-nova'). To reach a member of ANOTHER workspace, qualify it as '<workspace>/<name>' (e.g. 'Lotus/claude-1', matching workspace_label or workspace_id) \u2014 a bare agent_address only resolves within your own workspace. NEVER use workspace_id (e.g. 'canvas:projA') or display_name alone as the target \u2014 take agent_address or pane_id from the fleet member record. For v2 addresses use '@swarm/workspace/team/member' format."
+          description: "Target from lotus_list_fleet: the member's exact pane_id \u2014 the one key that is unique across every workspace, so prefer it, above all for a member of another workspace. agent_address (e.g. 'claude-2') and names repeat in every workspace and resolve only within your own; '<workspace>/<name>' (e.g. 'Lotus/claude-1') also reaches another workspace. NEVER use workspace_id (e.g. 'canvas:projA') or display_name alone as the target \u2014 take agent_address or pane_id from the fleet member record. For v2 addresses use '@swarm/workspace/team/member' format."
         },
         command: {
           type: "string",
@@ -21965,6 +21968,9 @@ ${data.imagePath}${dims}
       payload.scope = scope;
     if (verbose)
       payload.verbose = true;
+    const fromPaneId = process.env.LOTUS_PANE_ID;
+    if (typeof fromPaneId === "string" && fromPaneId.length > 0)
+      payload.from_pane_id = fromPaneId;
     const data = await callLotus("/v1/list-fleet", payload);
     return textResult(data);
   },
@@ -21977,7 +21983,7 @@ ${data.imagePath}${dims}
       throw new Error(`dispatch target appears to be a workspace_id ("${dispatchTarget}"), not a pane_id. ` + `Use the pane_id from the fleet member record (e.g. "p-nova" or "canvas:<project>:<node>"), not workspace_id.`);
     }
     const hasTask = typeof args.task === "string" && args.task.trim().length > 0;
-    const command = typeof args.command === "string" && args.command.length > 0 ? args.command : hasTask ? formatTaskEnvelope(args.task, args.goal, args.doneWhen, args.replyTo) : null;
+    const command = typeof args.command === "string" && args.command.length > 0 ? args.command : hasTask ? formatTaskEnvelope(args.task, args.goal, args.doneWhen, args.replyTo, process.env.LOTUS_PANE_ID) : null;
     if (command === null) {
       throw new Error("either command or task is required");
     }
@@ -22390,7 +22396,7 @@ function logToolCall(tool, ok, error2) {
 }
 var SERVER_INSTRUCTIONS = [
   "You run inside Lotus, a multi-pane workbench. Each pane is a named agent (e.g. Nia, Lyra) running Claude, Codex or another CLI; the human calls them by those names.",
-  "When the user names another agent or pane, or asks you to greet, message, ask or hand work to one: call lotus_list_fleet, find the member whose display_name or alias matches, then lotus_dispatch_to_cell to its agent_address or pane_id (set replyTo to your own name for an answer).",
+  "When the user names another agent or pane, or asks you to greet, message, ask or hand work to one: call lotus_list_fleet, find the member whose display_name or alias matches, then lotus_dispatch_to_cell to its pane_id (set replyTo to your own name for an answer). Names and agent addresses like claude-2 repeat across workspaces; pane_id does not.",
   "Built-in tools such as ListAgents and SendMessage only see other Claude sessions, never Lotus panes, so do not use them to find or reach a Lotus agent.",
   "If lotus tools are deferred, load them first, e.g. ToolSearch with query 'select:mcp__lotus__lotus_list_fleet,mcp__lotus__lotus_dispatch_to_cell'."
 ].join(" ");

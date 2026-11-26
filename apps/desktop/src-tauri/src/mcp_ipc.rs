@@ -1356,6 +1356,11 @@ struct ListFleetRequest {
     /// is always reported back so the narrowing is visible rather than silent.
     #[serde(default)]
     scope: Option<String>,
+    /// The caller's own pane (`LOTUS_PANE_ID`). The default scope is the caller's workspace, not
+    /// the one on screen: an agent in project A asked while the user looks at project B used to
+    /// get B's agents, whose names and agent addresses (`claude-2`) repeat A's.
+    #[serde(default, alias = "fromPaneId")]
+    from_pane_id: Option<String>,
     /// When true, return the full `McpFleetMember` shape including display_name
     /// and session_id. When false or omitted (default), return a compact
     /// projection with the fields the planner needs most often — `pane_id`,
@@ -1534,12 +1539,19 @@ async fn list_fleet(
     //      same failure `snapshot_age_ms: null` exists to avoid.
     let requested_scope = req.scope.as_deref().map(str::trim).unwrap_or("active");
     let active_workspace = state.active_workspace_id();
+    let own_workspace = req
+        .from_pane_id
+        .as_deref()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .and_then(|id| state.workspace_of_pane(id));
     let (workspace_filter, scope_label) = match (req.workspace_id, requested_scope) {
         (Some(explicit), _) => (Some(explicit), "explicit"),
         (None, "all") => (None, "all"),
-        (None, _) => match active_workspace.clone() {
-            Some(active) => (Some(active), "active"),
-            None => (None, "unknown"),
+        (None, _) => match (own_workspace, active_workspace.clone()) {
+            (Some(own), _) => (Some(own), "own"),
+            (None, Some(active)) => (Some(active), "active"),
+            (None, None) => (None, "unknown"),
         },
     };
     let filter_members = |fleet: Vec<McpFleetMember>| -> Vec<McpFleetMember> {
@@ -5501,6 +5513,36 @@ mod tests {
         let json: serde_json::Value = serde_json::from_str(&body).unwrap();
         assert_eq!(json["scope"], "active");
         assert_eq!(json["active_workspace_id"], "ws-active");
+        handle.shutdown().await;
+    }
+
+    /// An agent lists its OWN workspace, not the one on screen: asked from project B while the user
+    /// looks at A, the reply was A's agents, whose names and `claude-2` addresses repeat B's, and
+    /// the message went to A. An unknown caller pane still falls back to the screen.
+    #[tokio::test]
+    async fn list_fleet_lists_the_callers_own_workspace_before_the_one_on_screen() {
+        let handle = start_test_server(state_with_two_workspaces(Some("ws-active"))).await;
+
+        let (status, body) = post_json(
+            handle.port,
+            "/v1/list-fleet",
+            Some("tok"),
+            serde_json::json!({ "from_pane_id": "p-b1" }),
+        )
+        .await;
+        assert_eq!(status, 200);
+        assert_eq!(panes_of(&body), vec!["p-b1", "p-b2"]);
+        let json: serde_json::Value = serde_json::from_str(&body).unwrap();
+        assert_eq!(json["scope"], "own");
+
+        let (_, unknown) = post_json(
+            handle.port,
+            "/v1/list-fleet",
+            Some("tok"),
+            serde_json::json!({ "from_pane_id": "p-gone" }),
+        )
+        .await;
+        assert_eq!(panes_of(&unknown), vec!["p-a1", "p-a2"]);
         handle.shutdown().await;
     }
 

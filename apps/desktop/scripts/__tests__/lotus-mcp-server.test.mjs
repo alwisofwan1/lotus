@@ -1247,6 +1247,9 @@ describe("lotus-mcp-server handlers", () => {
     // rides along on every single dispatch, so coaching prose here is paid for again every time.
     const replyLine = text.split("\n").filter(Boolean).at(-1);
     expect(replyLine).toBe('Reply to "Nova" with lotus_dispatch_to_cell when done.');
+    // With the sender's pane id the reply has an address that no other workspace shares.
+    const addressed = formatTaskEnvelope("Review the poem", undefined, undefined, "Nova", "pane-nova-1");
+    expect(addressed.split("\n").at(-1)).toBe('Reply to "Nova" with lotus_dispatch_to_cell paneId "pane-nova-1" when done.');
     // Without replyTo the envelope is unchanged (user-initiated dispatches don't ask for a report).
     expect(formatTaskEnvelope("Review the poem")).not.toContain("lotus_dispatch_to_cell");
   });
