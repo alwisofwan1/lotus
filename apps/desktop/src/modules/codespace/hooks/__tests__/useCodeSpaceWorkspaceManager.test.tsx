@@ -575,6 +575,10 @@ describe("useCodeSpaceWorkspaceManager", () => {
     expect(terminalCell(result.current.workspaces[0]?.cells[0]).terminalCommand).toEqual([
       "ssh",
       "-t",
+      "-o",
+      "ServerAliveInterval=15",
+      "-o",
+      "ServerAliveCountMax=3",
       "-p",
       "2222",
       "alwi@devbox-vps",
@@ -627,6 +631,10 @@ describe("useCodeSpaceWorkspaceManager", () => {
         terminalCommand: [
           "ssh",
           "-t",
+          "-o",
+          "ServerAliveInterval=15",
+          "-o",
+          "ServerAliveCountMax=3",
           "-p",
           "2222",
           "alwi@devbox-vps",
@@ -654,7 +662,7 @@ describe("useCodeSpaceWorkspaceManager", () => {
     expect(result.current.workspaces[0]?.cells[1]).toEqual(
       expect.objectContaining({
         agentCommand: undefined,
-        terminalCommand: ["ssh", "-t", "alwi@devbox-vps", `cd '/home/alwi/app' && ${REMOTE_LOGIN_SHELL}`],
+        terminalCommand: ["ssh", "-t", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "alwi@devbox-vps", `cd '/home/alwi/app' && ${REMOTE_LOGIN_SHELL}`],
       }),
     );
   });
@@ -685,6 +693,10 @@ describe("useCodeSpaceWorkspaceManager", () => {
     expect(terminalCell(result.current.workspaces[0]?.cells[0]).terminalCommand).toEqual([
       "ssh",
       "-t",
+      "-o",
+      "ServerAliveInterval=15",
+      "-o",
+      "ServerAliveCountMax=3",
       "-p",
       "2222",
       "alwi@devbox-vps",

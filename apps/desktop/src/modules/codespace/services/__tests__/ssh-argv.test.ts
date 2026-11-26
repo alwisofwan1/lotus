@@ -53,7 +53,7 @@ describe("remoteArgv", () => {
 
   it("puts the port before the target, like buildSshCommand does", () => {
     const out = remoteArgv({ kind: "ssh", host: "staging", user: "deploy", port: 2222 }, ["ls"]);
-    expect(out.slice(0, 5)).toEqual(["ssh", "-t", "-p", "2222", "deploy@staging"]);
+    expect(out.slice(0, 9)).toEqual(["ssh", "-t", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "-p", "2222", "deploy@staging"]);
   });
 
   /**

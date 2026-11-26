@@ -113,8 +113,21 @@ function buildRemoteInitialCommand(command: string): string {
   return buildRemoteLoginShellCommand(`${command}; ${COMMAND_DONE_MARK}; ${REMOTE_LOGIN_SHELL}`);
 }
 
+/**
+ * Keepalive for an interactive `ssh -t` pane. Without it the pane inherits `~/.ssh/config`, where a
+ * `ServerAliveInterval 60` (and the default count of 3) takes three minutes to notice a dead link.
+ * The pool's own master (`remote_transport.rs`) has used 15 s × 3 from the start; a pane now matches.
+ * Command-line `-o` wins over the config file.
+ */
+export const SSH_KEEPALIVE_ARGS: readonly string[] = [
+  "-o",
+  "ServerAliveInterval=15",
+  "-o",
+  "ServerAliveCountMax=3",
+];
+
 export function buildSshCommand({ target, remoteCwd, initialCommand }: SshCommandOptions): string[] {
-  const args = ["ssh", "-t"];
+  const args = ["ssh", "-t", ...SSH_KEEPALIVE_ARGS];
   const port = target.port ?? undefined;
   if (port !== undefined) {
     args.push("-p", String(port));

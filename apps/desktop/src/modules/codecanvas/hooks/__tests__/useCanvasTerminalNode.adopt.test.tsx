@@ -46,7 +46,7 @@ describe("a canvas terminal that adopted a host cell", () => {
     );
 
     const argv = command();
-    expect(argv?.slice(0, 3)).toEqual(["ssh", "-t", "root@devbox-vps"]);
+    expect(argv?.slice(0, 7)).toEqual(["ssh", "-t", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "root@devbox-vps"]);
     // Each argv element arrives shell-quoted, which is the point: a pane id is host-supplied data
     // and must not be able to become shell syntax on its way to `tmux`.
     const remote = argv?.at(-1) ?? "";

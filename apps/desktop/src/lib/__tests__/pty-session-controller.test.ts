@@ -513,7 +513,7 @@ describe("PtySessionController", () => {
 
       expect(mockCreatePtySession).not.toHaveBeenCalled();
       const [cwd, argv] = mockCreateCommandPtySession.mock.calls[0];
-      expect(argv.slice(0, 5)).toEqual(["ssh", "-t", "-p", "22", "alwi@alpha.example"]);
+      expect(argv.slice(0, 9)).toEqual(["ssh", "-t", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "-p", "22", "alwi@alpha.example"]);
       expect(cwd).toBe("");
       expect(ctrl.getSessionId()).toBe("remote-shell-session");
     });

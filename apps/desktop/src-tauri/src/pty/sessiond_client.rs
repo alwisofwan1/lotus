@@ -23,6 +23,10 @@ const SPAWN_WAIT: Duration = Duration::from_secs(2);
 const CREATE_WAIT: Duration = Duration::from_secs(10);
 const TERMINATE_WAIT: Duration = Duration::from_secs(5);
 const RECONNECT_MAX_BACKOFF: Duration = Duration::from_secs(2);
+/// A remote daemon is reached over SSH: each try can cost a handshake (and a Cloudflare Access
+/// check), so it backs off further than a local socket that is only being restarted.
+const REMOTE_FIRST_BACKOFF: Duration = Duration::from_secs(1);
+const REMOTE_MAX_BACKOFF: Duration = Duration::from_secs(30);
 const LIST_WAIT: Duration = Duration::from_secs(5);
 /// `Link::next` of an adopted mirror until the daemon's drawn screen arrives: everything before
 /// that screen is already in it, so no output is wanted until then.
@@ -70,6 +74,52 @@ pub fn daemon() -> Option<Arc<Daemon>> {
     DAEMON
         .get_or_init(|| Daemon::start(default_socket(), daemon_bin()))
         .clone()
+}
+
+/// One connection per remote machine, keyed by the caller (the SSH target). Each machine has its
+/// own slot so a slow handshake to one never holds up another.
+type RemoteSlot = Arc<Mutex<Option<Arc<Daemon>>>>;
+static REMOTES: OnceLock<Mutex<HashMap<String, RemoteSlot>>> = OnceLock::new();
+
+fn remotes() -> &'static Mutex<HashMap<String, RemoteSlot>> {
+    REMOTES.get_or_init(Default::default)
+}
+
+/// The session daemon on machine `key`, connecting through `source` when there is no live link.
+/// `None` = not reachable now, or the machine runs no daemon: the caller keeps the plain `ssh -t`
+/// pane, so a machine without a Lotus host behaves exactly as before.
+// Wired into the SSH pane spawn path in phase 2 (plans/ssh-pane-durability).
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn remote_daemon(key: &str, source: impl FnOnce() -> SocketSource) -> Option<Arc<Daemon>> {
+    let slot = {
+        let mut map = remotes().lock().unwrap_or_else(|e| e.into_inner());
+        Arc::clone(map.entry(key.to_string()).or_default())
+    };
+    let mut guard = slot.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(daemon) = guard.as_ref() {
+        return Some(Arc::clone(daemon));
+    }
+    let daemon = Daemon::start_remote(key.to_string(), source())?;
+    *guard = Some(Arc::clone(&daemon));
+    Some(daemon)
+}
+
+/// Drops `daemon` from the registry, if it is still the one registered for its machine.
+fn forget_remote(daemon: &Arc<Daemon>) {
+    let Connector::Remote { label, .. } = &daemon.connector else {
+        return;
+    };
+    let slot = remotes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(label)
+        .map(Arc::clone);
+    if let Some(slot) = slot {
+        let mut guard = slot.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.as_ref().is_some_and(|d| Arc::ptr_eq(d, daemon)) {
+            *guard = None;
+        }
+    }
 }
 
 fn connect_at(socket: &Path, bin: &Path) -> Option<(UnixStream, u32)> {
@@ -167,9 +217,57 @@ struct Links {
     lists: HashMap<u64, mpsc::Sender<Vec<SessionInfo>>>,
 }
 
+/// Where a remote daemon's socket is on this machine right now: a Unix socket forwarded over the
+/// SSH pool's master (`RemoteTransport::forward_sessiond`). `Ok(None)` = the machine runs no
+/// session daemon (no Lotus host there), which is a fallback, not an error.
+pub type SocketSource = Box<dyn Fn() -> Result<Option<PathBuf>, String> + Send + Sync>;
+
+/// How a [`Daemon`] reaches its daemon, the first time and after every lost connection.
+#[cfg_attr(not(test), allow(dead_code))]
+pub enum Connector {
+    /// This machine's daemon, started when nothing listens.
+    Local { socket: PathBuf, bin: PathBuf },
+    /// Another machine's daemon. Never started from here: it belongs to that machine's host.
+    Remote { label: String, source: SocketSource },
+}
+
+impl Connector {
+    fn connect(&self) -> Result<(UnixStream, u32), ConnectError> {
+        match self {
+            Connector::Local { socket, bin } => connect_or_spawn(socket, bin, SPAWN_WAIT),
+            Connector::Remote { label, source } => match source() {
+                Ok(Some(socket)) => lotus_sessiond::client::connect(&socket),
+                Ok(None) => Err(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("{label} runs no session daemon"),
+                )
+                .into()),
+                Err(message) => Err(io::Error::other(message).into()),
+            },
+        }
+    }
+
+    fn backoff(&self) -> (Duration, Duration) {
+        match self {
+            Connector::Local { .. } => (Duration::from_millis(50), RECONNECT_MAX_BACKOFF),
+            Connector::Remote { .. } => (REMOTE_FIRST_BACKOFF, REMOTE_MAX_BACKOFF),
+        }
+    }
+
+    fn describe(&self) -> String {
+        match self {
+            Connector::Local { socket, .. } => socket.display().to_string(),
+            Connector::Remote { label, .. } => label.clone(),
+        }
+    }
+
+    fn is_remote(&self) -> bool {
+        matches!(self, Connector::Remote { .. })
+    }
+}
+
 pub struct Daemon {
-    socket: PathBuf,
-    bin: PathBuf,
+    connector: Connector,
     /// The write half; `None` while reconnecting.
     stream: Mutex<Option<UnixStream>>,
     links: Mutex<Links>,
@@ -179,10 +277,29 @@ pub struct Daemon {
 impl Daemon {
     fn start(socket: PathBuf, bin: PathBuf) -> Option<Arc<Daemon>> {
         let (stream, _) = connect_at(&socket, &bin)?;
+        Self::run(Connector::Local { socket, bin }, stream)
+    }
+
+    /// A daemon on another machine; `None` when it cannot be reached now (the caller falls back).
+    #[cfg_attr(not(test), allow(dead_code))]
+    pub fn start_remote(label: String, source: SocketSource) -> Option<Arc<Daemon>> {
+        let connector = Connector::Remote { label, source };
+        match connector.connect() {
+            Ok((stream, pid)) => {
+                eprintln!("[sessiond] connected to {} (pid {pid})", connector.describe());
+                Self::run(connector, stream)
+            }
+            Err(e) => {
+                eprintln!("[sessiond] {}: {e}", connector.describe());
+                None
+            }
+        }
+    }
+
+    fn run(connector: Connector, stream: UnixStream) -> Option<Arc<Daemon>> {
         let write_half = stream.try_clone().ok()?;
         let daemon = Arc::new(Daemon {
-            socket,
-            bin,
+            connector,
             stream: Mutex::new(Some(write_half)),
             links: Mutex::new(Links::default()),
             next_req: AtomicU64::new(1),
@@ -193,6 +310,27 @@ impl Daemon {
             .spawn(move || reader.read_loop(stream))
             .ok()?;
         Some(daemon)
+    }
+
+    /// A session this app starts on another machine says so in its tag. That daemon belongs to
+    /// the machine's Lotus host, which adopts every session whose tag carries a `sessionId`
+    /// (`adoptableSessions` in packages/host); this one must never read as the host's own, so the
+    /// key is deliberately not `sessionId`. A local session has no tag, as before.
+    fn tag(&self, command: &CommandBuilder, canvas_terminal_id: Option<&str>) -> Option<String> {
+        if !self.connector.is_remote() {
+            return None;
+        }
+        let pane_id = command
+            .get_env("LOTUS_PANE_ID")
+            .map(|v| v.to_string_lossy().into_owned());
+        Some(
+            serde_json::json!({
+                "origin": "desktop",
+                "paneId": pane_id,
+                "canvasTerminalId": canvas_terminal_id,
+            })
+            .to_string(),
+        )
     }
 
     fn send(&self, req: &Request, payload: &[u8]) -> io::Result<()> {
@@ -216,6 +354,7 @@ impl Daemon {
         rows: u16,
         on_output: Option<OutputSink>,
     ) -> io::Result<(Pty, String)> {
+        let tag = self.tag(command, canvas_terminal_id.as_deref());
         let spec = SpawnSpec {
             argv: command
                 .get_argv()
@@ -236,7 +375,7 @@ impl Daemon {
                 canvas_terminal_id,
                 window_label: window_label.to_string(),
             },
-            tag: None,
+            tag,
         };
         let req = self.next_req.fetch_add(1, Ordering::Relaxed);
         let (reply_tx, reply_rx) = mpsc::channel();
@@ -425,6 +564,13 @@ impl Daemon {
             if Arc::strong_count(&self) == 1 {
                 return;
             }
+            // A remote link with nothing on it is not worth an SSH handshake every 30 s: let it go,
+            // and the next pane on that machine connects afresh.
+            if self.connector.is_remote() && self.idle() {
+                eprintln!("[sessiond] {}: connection lost with no sessions; closing", self.connector.describe());
+                forget_remote(&self);
+                return;
+            }
             eprintln!("[sessiond] connection lost; reconnecting");
             stream = self.reconnect();
         }
@@ -432,9 +578,10 @@ impl Daemon {
 
     /// Blocks until connected again, then reattaches every live mirror from its last byte.
     fn reconnect(&self) -> UnixStream {
-        let mut backoff = Duration::from_millis(50);
+        let (first, max) = self.connector.backoff();
+        let mut backoff = first;
         loop {
-            match connect_or_spawn(&self.socket, &self.bin, SPAWN_WAIT) {
+            match self.connector.connect() {
                 Ok((stream, pid)) => {
                     if let Ok(write_half) = stream.try_clone() {
                         *self.stream.lock().unwrap_or_else(|e| e.into_inner()) = Some(write_half);
@@ -461,10 +608,18 @@ impl Daemon {
                     eprintln!("[sessiond] daemon now speaks protocol {daemon}; mirrors are lost");
                     self.lose_all();
                 }
-                Err(_) => {}
+                Err(e) => {
+                    if self.connector.is_remote() {
+                        eprintln!(
+                            "[sessiond] {}: reconnect failed ({e}); next try in {} s",
+                            self.connector.describe(),
+                            backoff.as_secs()
+                        );
+                    }
+                }
             }
             std::thread::sleep(backoff);
-            backoff = (backoff * 2).min(RECONNECT_MAX_BACKOFF);
+            backoff = (backoff * 2).min(max);
         }
     }
 
@@ -544,6 +699,11 @@ impl Daemon {
             // The app keeps its own screen; it never asks for a snapshot.
             Event::Hello { .. } | Event::Snapshot { .. } => {}
         }
+    }
+
+    fn idle(&self) -> bool {
+        let links = self.links.lock().unwrap_or_else(|e| e.into_inner());
+        links.sessions.is_empty() && links.pending.is_empty()
     }
 
     fn lose_all(&self) {
@@ -770,6 +930,9 @@ mod tests {
     fn sh(script: &str) -> CommandBuilder {
         let mut cmd = CommandBuilder::new("/bin/sh");
         cmd.args(["-c", script]);
+        // `remote_transport`'s FakeSsh swaps the process PATH for a dir holding only `ssh`, and
+        // a CommandBuilder copies the env when made: run beside it, `sleep` was not found.
+        cmd.env("PATH", "/usr/bin:/bin");
         cmd
     }
 
@@ -982,5 +1145,129 @@ mod tests {
         lotus_pty::write_chunked(&pty.writer, "again\r").unwrap();
         wait_for(&out, "again\r\n");
         d.kill(&id).unwrap();
+    }
+
+    // ── Remote (a machine's daemon over an SSH forward) ──────────────────────────────────────
+
+    /// A source that hands out `socket` and counts how often it was asked: every ask is one
+    /// connect, the first one and each reconnect.
+    fn counting_source(socket: PathBuf) -> (Arc<std::sync::atomic::AtomicUsize>, SocketSource) {
+        let asked = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::clone(&asked);
+        let source: SocketSource = Box::new(move || {
+            counter.fetch_add(1, Ordering::SeqCst);
+            Ok(Some(socket.clone()))
+        });
+        (asked, source)
+    }
+
+    /// The SSH link dropping mid-output is the case this whole path exists for (the agent in a
+    /// pane died with its `ssh -t`, 2026-11-26). The mirror must reconnect through its source
+    /// and hold every line exactly once, in order.
+    #[test]
+    fn a_dropped_remote_link_reconnects_through_its_source_without_gaps() {
+        let Some(bin) = built_daemon() else { return };
+        let (socket, _reap) = short_socket("rdrop");
+        connect_or_spawn(&socket, &bin, SPAWN_WAIT).expect("the machine's daemon");
+        let (asked, source) = counting_source(socket);
+        let d = Daemon::start_remote("test-machine".into(), source).expect("remote daemon");
+        let (out, sink) = collector();
+        let script = "i=1; while [ $i -le 300 ]; do echo line$i; i=$((i+1)); sleep 0.01; done";
+        let (_pty, _) = d
+            .spawn(&sh(script), None, "main", 80, 24, Some(sink))
+            .unwrap();
+
+        wait_for(&out, "line40\r\n");
+        d.stream
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .shutdown(std::net::Shutdown::Both)
+            .unwrap();
+        let text = wait_for(&out, "[Session ended:");
+
+        let lines: Vec<&str> = text
+            .split("\r\n")
+            .filter(|l| l.starts_with("line"))
+            .collect();
+        let want: Vec<String> = (1..=300).map(|i| format!("line{i}")).collect();
+        assert_eq!(lines, want);
+        assert!(text.ends_with("[Session ended:0]\r\n"), "{text:?}");
+        assert!(asked.load(Ordering::SeqCst) >= 2, "never reconnected through the source");
+    }
+
+    /// A machine without a Lotus host has no daemon: that is the plain `ssh -t` pane, not an error,
+    /// and nothing is left registered for it.
+    #[test]
+    fn a_machine_without_a_daemon_is_a_fallback_not_a_connection() {
+        let key = format!("no-daemon-{}", std::process::id());
+        let got = remote_daemon(&key, || Box::new(|| Ok(None)));
+        assert!(got.is_none());
+        let slot = remotes().lock().unwrap().get(&key).map(Arc::clone).unwrap();
+        assert!(slot.lock().unwrap().is_none());
+    }
+
+    /// The far daemon belongs to that machine's host, which adopts any session whose tag carries a
+    /// `sessionId` (`adoptableSessions`). A pane's session must say it is the desktop's instead.
+    #[test]
+    fn a_remote_session_is_tagged_as_the_desktops_not_the_hosts() {
+        let Some(bin) = built_daemon() else { return };
+        let (socket, _reap) = short_socket("rtag");
+        connect_or_spawn(&socket, &bin, SPAWN_WAIT).expect("the machine's daemon");
+        let (_, source) = counting_source(socket);
+        let d = Daemon::start_remote("test-machine".into(), source).expect("remote daemon");
+        let (_pty, id) = d
+            .spawn(&pane("sleep 5", "pane-r1"), Some("term-r1".into()), "main", 80, 24, None)
+            .unwrap();
+
+        let info = d.list().unwrap().into_iter().find(|s| s.id == id).expect("listed");
+        let tag: serde_json::Value = serde_json::from_str(info.tag.as_deref().unwrap()).unwrap();
+        assert_eq!(tag["origin"], "desktop");
+        assert_eq!(tag["paneId"], "pane-r1");
+        assert_eq!(tag["canvasTerminalId"], "term-r1");
+        assert!(tag.get("sessionId").is_none(), "{tag}");
+        d.kill(&id).unwrap();
+    }
+
+    /// A local session keeps no tag, exactly as before this change.
+    #[test]
+    fn a_local_session_has_no_tag() {
+        let Some(bin) = built_daemon() else { return };
+        let (socket, _reap) = short_socket("ltag");
+        let d = Daemon::start(socket, bin).expect("daemon");
+        let (_pty, id) = d.spawn(&pane("sleep 5", "pane-l1"), None, "main", 80, 24, None).unwrap();
+        let info = d.list().unwrap().into_iter().find(|s| s.id == id).expect("listed");
+        assert_eq!(info.tag, None);
+        d.kill(&id).unwrap();
+    }
+
+    /// With no session on it, a lost remote link is let go instead of retried forever (each try
+    /// would be an SSH handshake), and the next pane on that machine connects afresh.
+    #[test]
+    fn a_lost_remote_link_with_no_sessions_is_let_go() {
+        let Some(bin) = built_daemon() else { return };
+        let (socket, _reap) = short_socket("ridle");
+        connect_or_spawn(&socket, &bin, SPAWN_WAIT).expect("the machine's daemon");
+        let key = format!("idle-machine-{}", std::process::id());
+        let (asked, source) = counting_source(socket);
+        let d = remote_daemon(&key, move || source).expect("remote daemon");
+        assert_eq!(asked.load(Ordering::SeqCst), 1);
+        d.stream
+            .lock()
+            .unwrap()
+            .as_ref()
+            .unwrap()
+            .shutdown(std::net::Shutdown::Both)
+            .unwrap();
+
+        let slot = remotes().lock().unwrap().get(&key).map(Arc::clone).unwrap();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while slot.lock().unwrap().is_some() {
+            assert!(std::time::Instant::now() < deadline, "idle remote link was kept");
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        std::thread::sleep(Duration::from_millis(1500));
+        assert_eq!(asked.load(Ordering::SeqCst), 1, "an idle link was reconnected");
     }
 }

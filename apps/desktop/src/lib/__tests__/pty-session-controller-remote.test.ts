@@ -51,8 +51,8 @@ describe("PtySessionController on another machine", () => {
 
     expect(mockCreatePtySession).not.toHaveBeenCalled();
     const [cwd, argv, cols, rows, , paneId, canvasTerminalId] = mockCreateCommandPtySession.mock.calls[0];
-    expect(argv.slice(0, 3)).toEqual(["ssh", "-t", "root@devbox-vps"]);
-    expect(argv[3]).toContain("cd '/srv/devbox/api'");
+    expect(argv.slice(0, 7)).toEqual(["ssh", "-t", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "root@devbox-vps"]);
+    expect(argv[7]).toContain("cd '/srv/devbox/api'");
     expect(cols).toBe(120);
     expect(rows).toBe(40);
     expect(paneId).toBe("pane-2");
@@ -138,7 +138,7 @@ describe("PtySessionController on another machine", () => {
     );
     expect(fallbackMode).toBe("shell");
     const shellArgv = mockCreateCommandPtySession.mock.calls.at(-1)?.[1] as string[];
-    expect(shellArgv.slice(0, 3)).toEqual(["ssh", "-t", "root@devbox-vps"]);
+    expect(shellArgv.slice(0, 7)).toEqual(["ssh", "-t", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "root@devbox-vps"]);
     expect(shellArgv.at(-1)).toContain("cd '/srv/api'");
   });
 });

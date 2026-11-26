@@ -1,4 +1,5 @@
 import {
+  SSH_KEEPALIVE_ARGS,
   formatSshTarget,
   quoteRemoteShellArg,
   validateRemoteCwd,
@@ -56,7 +57,7 @@ export function remoteArgv(
     return [...argv];
   }
 
-  const args = ["ssh", "-t"];
+  const args = ["ssh", "-t", ...SSH_KEEPALIVE_ARGS];
   const port = location.port ?? undefined;
   if (port !== undefined) {
     args.push("-p", String(port));

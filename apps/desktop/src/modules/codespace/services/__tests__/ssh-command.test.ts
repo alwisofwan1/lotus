@@ -16,6 +16,10 @@ describe("ssh-command", () => {
     expect(buildSshCommand({ target: { host: "devbox-vps", port: null } })).toEqual([
       "ssh",
       "-t",
+      "-o",
+      "ServerAliveInterval=15",
+      "-o",
+      "ServerAliveCountMax=3",
       "devbox-vps",
       REMOTE_LOGIN_SHELL,
     ]);
@@ -25,6 +29,10 @@ describe("ssh-command", () => {
     expect(buildSshCommand({ target: { host: "server.example.com", user: "alwi", port: 2222 } })).toEqual([
       "ssh",
       "-t",
+      "-o",
+      "ServerAliveInterval=15",
+      "-o",
+      "ServerAliveCountMax=3",
       "-p",
       "2222",
       "alwi@server.example.com",
@@ -39,6 +47,10 @@ describe("ssh-command", () => {
     })).toEqual([
       "ssh",
       "-t",
+      "-o",
+      "ServerAliveInterval=15",
+      "-o",
+      "ServerAliveCountMax=3",
       "devbox-vps",
       `cd '/home/alwi/workspace/acme-main' && ${REMOTE_LOGIN_SHELL}`,
     ]);
@@ -52,6 +64,10 @@ describe("ssh-command", () => {
     })).toEqual([
       "ssh",
       "-t",
+      "-o",
+      "ServerAliveInterval=15",
+      "-o",
+      "ServerAliveCountMax=3",
       "devbox-vps",
       `cd '/home/alwi/workspace/acme main' && ${agentThenShell("claude")}`,
     ]);
@@ -65,6 +81,10 @@ describe("ssh-command", () => {
     })).toEqual([
       "ssh",
       "-t",
+      "-o",
+      "ServerAliveInterval=15",
+      "-o",
+      "ServerAliveCountMax=3",
       "devbox-vps",
       `cd '/home/alwi/workspace/acme-main' && ${agentThenShell("lazydocker")}`,
     ]);

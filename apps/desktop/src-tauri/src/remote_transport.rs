@@ -57,6 +57,9 @@ struct MasterHandle {
     stderr: Arc<Mutex<VecDeque<u8>>>,
     stderr_done: mpsc::Receiver<()>,
     stopped: bool,
+    /// The machine's session daemon socket, forwarded to this local path over this master.
+    /// A forward lives and dies with its master, so a new master starts without one.
+    sessiond_forward: Option<PathBuf>,
 }
 
 impl MasterHandle {
@@ -106,6 +109,9 @@ impl Drop for MasterHandle {
     fn drop(&mut self) {
         self.stop();
         let _ = std::fs::remove_file(&self.socket_path);
+        if let Some(forward) = &self.sessiond_forward {
+            let _ = std::fs::remove_file(forward);
+        }
     }
 }
 
@@ -180,130 +186,52 @@ impl RemoteTransport {
         let key = TransportKey::from(target);
         let slot = self.slot(&key);
         let mut guard = slot.lock().unwrap_or_else(|e| e.into_inner());
+        ensure_master(&mut guard, &key, target)
+    }
 
-        // Reuse existing master if still alive and socket present.
-        if let Some(handle) = guard.as_mut() {
-            let alive = matches!(handle.process.try_wait(), Ok(None));
-            if alive && handle.socket_path.exists() {
-                return Ok(handle.socket_path.clone());
-            }
-            // Dead or stale — evict and re-spawn below.
-            *guard = None;
-        }
-
-        // An expired Cloudflare Access token makes ssh hang its whole budget, and the cloudflared it
-        // starts opens a browser tab that dies with it, so a sign-in there saves no token. Every
-        // reconnect would open another such tab. Ask first (~1 s, only when no master is live).
-        if let Some(app) = crate::ssh_config::access_hostname_for(&target.host) {
-            if crate::remote_access::access_status(&app).state == crate::remote_access::AccessState::NeedsLogin {
-                return Err(AppError::Other(format!(
-                    "Cloudflare Access sign-in for {} has expired. Sign in, then retry.",
-                    target.host
-                )));
-            }
-        }
-
-        // Spawn a new master.
-        let socket_path = socket_path_for(&key);
-        let ssh_target = format_ssh_target(target)?;
-        // Only this app instance owns this path. A stale file must not count as authentication.
-        match std::fs::remove_file(&socket_path) {
-            Ok(()) => {}
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => return Err(error.into()),
-        }
-
-        let mut cmd = std::process::Command::new("ssh").no_window();
-        cmd.args([
-            "-NM",
-            "-o",
-            "BatchMode=yes",
-            "-o",
-            "ConnectTimeout=30",
-            "-o",
-            "ConnectionAttempts=1",
-            "-o",
-            "ControlPersist=no",
-            // A quiet link (an idle chat stream) must not be dropped by NAT or Cloudflare unnoticed.
-            "-o",
-            "ServerAliveInterval=15",
-            "-o",
-            "ServerAliveCountMax=3",
-            "-S",
-        ])
-        .arg(&socket_path)
-        .stdin(Stdio::null())
-        .stdout(Stdio::null())
-        .stderr(Stdio::piped());
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::process::CommandExt;
-            cmd.process_group(0);
-        }
-
-        if let Some(port) = target.port {
-            cmd.arg("-p").arg(port.to_string());
-        }
-        cmd.arg(&ssh_target);
-
-        let mut child = cmd.spawn().map_err(AppError::Io)?;
-        let stderr = Arc::new(Mutex::new(VecDeque::new()));
-        let captured = Arc::clone(&stderr);
-        let (done, stderr_done) = mpsc::channel();
-        if let Some(mut pipe) = child.stderr.take() {
-            std::thread::spawn(move || {
-                let mut chunk = [0_u8; 1024];
-                while let Ok(count) = pipe.read(&mut chunk) {
-                    if count == 0 {
-                        break;
-                    }
-                    let mut tail = captured.lock().unwrap_or_else(|e| e.into_inner());
-                    tail.extend(&chunk[..count]);
-                    while tail.len() > 8192 {
-                        tail.pop_front();
-                    }
-                }
-                let _ = done.send(());
-            });
-        }
-        let mut handle = MasterHandle {
-            socket_path: socket_path.clone(),
-            process: child,
-            stderr,
-            stderr_done,
-            stopped: false,
+    /// The machine's `lotus-sessiond` socket, forwarded to a local Unix socket over the master.
+    ///
+    /// `Ok(None)` = the machine runs no session daemon (no Lotus host installed): the caller keeps
+    /// the plain `ssh -t` pane. Every pane on the machine shares this one master, so the link is
+    /// one SSH connection however many panes are open, and a pane whose link drops reconnects here.
+    /// Probed 2026-11-26 against a real host: `hello` answered protocol 1 through the forward.
+    pub fn forward_sessiond(&self, target: &SshToolTarget) -> Result<Option<PathBuf>, AppError> {
+        let key = TransportKey::from(target);
+        let slot = self.slot(&key);
+        let mut guard = slot.lock().unwrap_or_else(|e| e.into_inner());
+        let master = ensure_master(&mut guard, &key, target)?;
+        let Some(handle) = guard.as_mut() else {
+            return Err(AppError::Other("SSH master vanished".into()));
         };
-
-        // Wait for the socket to appear — the master writes it after
-        // authentication, so its presence means the connection is live.
-        // Allow SSH its full 30 s handshake budget plus a small scheduling margin. Browser
-        // authentication is handled before entering the picker, rather than inside this deadline.
-        const MASTER_TIMEOUT: Duration = Duration::from_secs(35);
-        let deadline = Instant::now() + MASTER_TIMEOUT;
-        loop {
-            if let Some(status) = handle.process.try_wait()? {
-                handle.stop();
-                let detail = handle.diagnostic();
-                return Err(AppError::Other(format!(
-                    "SSH connection failed (target: {ssh_target}, status: {status}). {detail}"
-                )));
+        if let Some(forward) = &handle.sessiond_forward {
+            if forward.exists() {
+                return Ok(Some(forward.clone()));
             }
-            if socket_path.exists() {
-                break;
-            }
-            if Instant::now() >= deadline {
-                handle.stop();
-                let detail = handle.diagnostic();
-                return Err(AppError::Other(format!(
-                    "SSH connection timed out after {} s (target: {ssh_target}). {detail}",
-                    MASTER_TIMEOUT.as_secs(),
-                )));
-            }
-            std::thread::sleep(Duration::from_millis(100));
+            handle.sessiond_forward = None;
         }
-        *guard = Some(handle);
-        Ok(socket_path)
+
+        let ssh_target = format_ssh_target(target)?;
+        let Some(remote) = remote_sessiond_socket(&master, target.port, &ssh_target)? else {
+            return Ok(None);
+        };
+        let local = forward_path_for(&key);
+        let _ = std::fs::remove_file(&local);
+        let mut cmd = slave_ssh(&master, target.port);
+        let out = cmd
+            .args(["-O", "forward", "-L"])
+            .arg(format!("{}:{remote}", local.display()))
+            .arg(&ssh_target)
+            .stdin(Stdio::null())
+            .output()
+            .map_err(AppError::Io)?;
+        if !out.status.success() || !local.exists() {
+            return Err(AppError::Other(format!(
+                "Could not forward the session daemon of {ssh_target}: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            )));
+        }
+        handle.sessiond_forward = Some(local.clone());
+        Ok(Some(local))
     }
 
     /// Kill the master for `target` and remove its socket.
@@ -342,6 +270,206 @@ impl RemoteTransport {
     }
 }
 
+/// Returns the live master's socket for `key`, spawning one when there is none. The caller holds
+/// that machine's slot, so concurrent callers for one machine share a single handshake.
+fn ensure_master(
+    guard: &mut Option<MasterHandle>,
+    key: &TransportKey,
+    target: &SshToolTarget,
+) -> Result<PathBuf, AppError> {
+
+    // Reuse existing master if still alive and socket present.
+    if let Some(handle) = guard.as_mut() {
+        let alive = matches!(handle.process.try_wait(), Ok(None));
+        if alive && handle.socket_path.exists() {
+            return Ok(handle.socket_path.clone());
+        }
+        // Dead or stale — evict and re-spawn below.
+        *guard = None;
+    }
+
+    // An expired Cloudflare Access token makes ssh hang its whole budget, and the cloudflared it
+    // starts opens a browser tab that dies with it, so a sign-in there saves no token. Every
+    // reconnect would open another such tab. Ask first (~1 s, only when no master is live).
+    if let Some(app) = crate::ssh_config::access_hostname_for(&target.host) {
+        if crate::remote_access::access_status(&app).state == crate::remote_access::AccessState::NeedsLogin {
+            return Err(AppError::Other(format!(
+                "Cloudflare Access sign-in for {} has expired. Sign in, then retry.",
+                target.host
+            )));
+        }
+    }
+
+    // Spawn a new master.
+    let socket_path = socket_path_for(key);
+    let ssh_target = format_ssh_target(target)?;
+    // Only this app instance owns this path. A stale file must not count as authentication.
+    match std::fs::remove_file(&socket_path) {
+        Ok(()) => {}
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
+        Err(error) => return Err(error.into()),
+    }
+
+    let mut cmd = std::process::Command::new("ssh").no_window();
+    cmd.args([
+        "-NM",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=30",
+        "-o",
+        "ConnectionAttempts=1",
+        "-o",
+        "ControlPersist=no",
+        // A quiet link (an idle chat stream) must not be dropped by NAT or Cloudflare unnoticed.
+        "-o",
+        "ServerAliveInterval=15",
+        "-o",
+        "ServerAliveCountMax=3",
+        // A forward (`forward_sessiond`) re-binds its local socket after a reconnect; a file
+        // left by the previous master must not make that bind fail.
+        "-o",
+        "StreamLocalBindUnlink=yes",
+        "-S",
+    ])
+    .arg(&socket_path)
+    .stdin(Stdio::null())
+    .stdout(Stdio::null())
+    .stderr(Stdio::piped());
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
+
+    if let Some(port) = target.port {
+        cmd.arg("-p").arg(port.to_string());
+    }
+    cmd.arg(&ssh_target);
+
+    let mut child = cmd.spawn().map_err(AppError::Io)?;
+    let stderr = Arc::new(Mutex::new(VecDeque::new()));
+    let captured = Arc::clone(&stderr);
+    let (done, stderr_done) = mpsc::channel();
+    if let Some(mut pipe) = child.stderr.take() {
+        std::thread::spawn(move || {
+            let mut chunk = [0_u8; 1024];
+            while let Ok(count) = pipe.read(&mut chunk) {
+                if count == 0 {
+                    break;
+                }
+                let mut tail = captured.lock().unwrap_or_else(|e| e.into_inner());
+                tail.extend(&chunk[..count]);
+                while tail.len() > 8192 {
+                    tail.pop_front();
+                }
+            }
+            let _ = done.send(());
+        });
+    }
+    let mut handle = MasterHandle {
+        socket_path: socket_path.clone(),
+        process: child,
+        stderr,
+        stderr_done,
+        stopped: false,
+        sessiond_forward: None,
+    };
+
+    // Wait for the socket to appear — the master writes it after
+    // authentication, so its presence means the connection is live.
+    // Allow SSH its full 30 s handshake budget plus a small scheduling margin. Browser
+    // authentication is handled before entering the picker, rather than inside this deadline.
+    const MASTER_TIMEOUT: Duration = Duration::from_secs(35);
+    let deadline = Instant::now() + MASTER_TIMEOUT;
+    loop {
+        if let Some(status) = handle.process.try_wait()? {
+            handle.stop();
+            let detail = handle.diagnostic();
+            return Err(AppError::Other(format!(
+                "SSH connection failed (target: {ssh_target}, status: {status}). {detail}"
+            )));
+        }
+        if socket_path.exists() {
+            break;
+        }
+        if Instant::now() >= deadline {
+            handle.stop();
+            let detail = handle.diagnostic();
+            return Err(AppError::Other(format!(
+                "SSH connection timed out after {} s (target: {ssh_target}). {detail}",
+                MASTER_TIMEOUT.as_secs(),
+            )));
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    *guard = Some(handle);
+    Ok(socket_path)
+}
+
+/// A slave `ssh` that rides `master` (never opens its own connection).
+fn slave_ssh(master: &std::path::Path, port: Option<u16>) -> std::process::Command {
+    let mut cmd = std::process::Command::new("ssh").no_window();
+    cmd.args(["-o", "BatchMode=yes", "-o", "ControlMaster=no", "-S"]).arg(master);
+    if let Some(port) = port {
+        cmd.arg("-p").arg(port.to_string());
+    }
+    cmd
+}
+
+/// Where the Lotus host keeps its session daemon socket (`packages/host` → `sessiondDir`).
+const REMOTE_SESSIOND_SOCKET: &str = "$HOME/.lotus/host-sessiond/sessiond.sock";
+
+/// The absolute path of the machine's session daemon socket, or `None` when there is none.
+/// A forward needs an absolute path: ssh does not expand `~` or `$HOME` on the far side.
+fn remote_sessiond_socket(
+    master: &std::path::Path,
+    port: Option<u16>,
+    ssh_target: &str,
+) -> Result<Option<String>, AppError> {
+    const PROBE_TIMEOUT: Duration = Duration::from_secs(15);
+    let script = format!("p=\"{REMOTE_SESSIOND_SOCKET}\"; [ -S \"$p\" ] && printf %s \"$p\"; exit 0");
+    let mut child = slave_ssh(master, port)
+        .arg(ssh_target)
+        .arg(script)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(AppError::Io)?;
+    let deadline = Instant::now() + PROBE_TIMEOUT;
+    let status = loop {
+        if let Some(status) = child.try_wait()? {
+            break status;
+        }
+        if Instant::now() >= deadline {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(AppError::Other(format!(
+                "Looking for the session daemon on {ssh_target} timed out"
+            )));
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    };
+    let mut stdout = String::new();
+    if let Some(mut pipe) = child.stdout.take() {
+        let _ = pipe.read_to_string(&mut stdout);
+    }
+    if !status.success() {
+        let mut stderr = String::new();
+        if let Some(mut pipe) = child.stderr.take() {
+            let _ = pipe.read_to_string(&mut stderr);
+        }
+        return Err(AppError::Other(format!(
+            "Looking for the session daemon on {ssh_target} failed: {}",
+            stderr.trim()
+        )));
+    }
+    let path = stdout.trim();
+    Ok((path.starts_with('/')).then(|| path.to_string()))
+}
+
 // ── Orphans ───────────────────────────────────────────────────────────────────
 
 /// Stop SSH masters left behind by a Lotus that died without reaching `shutdown` — a crash, a
@@ -367,6 +495,11 @@ pub fn reap_orphans() {
         if alive {
             continue;
         }
+        // A forward is only a file once its master is gone: there is nothing to stop.
+        if entry.file_name().to_string_lossy().starts_with(FORWARD_PREFIX) {
+            let _ = std::fs::remove_file(entry.path());
+            continue;
+        }
         // `-O exit` talks to the socket only; the host argument is never resolved.
         let _ = std::process::Command::new("ssh")
             .no_window()
@@ -384,9 +517,12 @@ pub fn reap_orphans() {
 #[cfg(not(unix))]
 pub fn reap_orphans() {}
 
-/// The pid in `lotus-ssh-<pid>-<hash>.sock`.
+/// The pid in `lotus-ssh-<pid>-<hash>.sock` (or a `lotus-sd-` forward).
 fn socket_owner(name: &str) -> Option<u32> {
-    name.strip_prefix("lotus-ssh-")?.strip_suffix(".sock")?.split('-').next()?.parse().ok()
+    let rest = name
+        .strip_prefix(SOCKET_PREFIX)
+        .or_else(|| name.strip_prefix(FORWARD_PREFIX))?;
+    rest.strip_suffix(".sock")?.split('-').next()?.parse().ok()
 }
 
 // ── Socket path ───────────────────────────────────────────────────────────────
@@ -402,10 +538,22 @@ pub(crate) fn socket_path_for_target(target: &SshToolTarget) -> PathBuf {
 }
 
 fn socket_path_for(key: &TransportKey) -> PathBuf {
+    socket_file(SOCKET_PREFIX, key)
+}
+
+/// The local end of `forward_sessiond`: same naming as the master socket, its own prefix.
+fn forward_path_for(key: &TransportKey) -> PathBuf {
+    socket_file(FORWARD_PREFIX, key)
+}
+
+const SOCKET_PREFIX: &str = "lotus-ssh-";
+const FORWARD_PREFIX: &str = "lotus-sd-";
+
+fn socket_file(prefix: &str, key: &TransportKey) -> PathBuf {
     let mut hasher = DefaultHasher::new();
     key.hash(&mut hasher);
     let hash = hasher.finish();
-    std::env::temp_dir().join(format!("lotus-ssh-{}-{hash:016x}.sock", std::process::id()))
+    std::env::temp_dir().join(format!("{prefix}{}-{hash:016x}.sock", std::process::id()))
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -666,6 +814,100 @@ mod tests {
             started.elapsed()
         );
         assert!(connecting.join().unwrap().is_err());
+    }
+
+    #[test]
+    fn a_forward_name_gives_back_its_owner_pid_and_differs_from_the_master() {
+        let key = TransportKey::from(&target("host", Some("alwi"), Some(22)));
+        let forward = forward_path_for(&key);
+        let name = forward.file_name().unwrap().to_string_lossy().into_owned();
+        assert!(name.starts_with("lotus-sd-"), "{name}");
+        assert_eq!(socket_owner(&name), Some(std::process::id()));
+        assert_ne!(forward, socket_path_for(&key));
+        assert!(forward.to_str().unwrap().len() <= 104);
+    }
+
+    /// A forward left by a dead Lotus is only a file: it is removed, and no `ssh -O exit` is sent
+    /// for it (there is no master behind it to stop).
+    #[cfg(unix)]
+    #[test]
+    fn reap_removes_an_orphan_forward_without_calling_ssh() {
+        let _lock = crate::paths::TEST_ENV_LOCK.lock().unwrap();
+        let calls = tempfile::NamedTempFile::new().unwrap();
+        let _ssh = FakeSsh::new(&format!("echo \"$@\" >> '{}'\n", calls.path().display()));
+        let mut child = std::process::Command::new("/usr/bin/true").spawn().unwrap();
+        let dead = child.id();
+        child.wait().unwrap();
+        let orphan = std::env::temp_dir().join(format!("lotus-sd-{dead}-00000000feedf00d.sock"));
+        std::fs::write(&orphan, "").unwrap();
+
+        reap_orphans();
+
+        assert!(!orphan.exists());
+        let log = std::fs::read_to_string(calls.path()).unwrap();
+        assert!(!log.contains("feedf00d"), "{log}");
+    }
+
+    /// A fake `ssh` that plays a master (binds its `-S` socket), answers the daemon probe with
+    /// `probe_answer`, and "forwards" by creating the `-L` local path. Every call is logged.
+    #[cfg(unix)]
+    fn fake_ssh_for_forward(log: &std::path::Path, probe_answer: &str) -> FakeSsh {
+        FakeSsh::new(&format!(
+            r#"echo "$@" >> '{log}'
+case " $* " in
+  *" -NM "*)
+    while [ "$1" != -S ]; do shift; done; shift
+    exec /usr/bin/python3 -c 'import socket,sys,time; s=socket.socket(socket.AF_UNIX); s.bind(sys.argv[1]); s.listen(); time.sleep(120)' "$1";;
+  *" -O forward "*)
+    prev=; for a; do [ "$prev" = -L ] && spec=$a; prev=$a; done
+    : > "${{spec%%:*}}"; exit 0;;
+  *) printf '%s' '{probe_answer}'; exit 0;;
+esac
+"#,
+            log = log.display()
+        ))
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn forward_sessiond_forwards_the_hosts_socket_once_per_master() {
+        let _lock = crate::paths::TEST_ENV_LOCK.lock().unwrap();
+        let log = tempfile::NamedTempFile::new().unwrap();
+        let remote = "/home/dev/.lotus/host-sessiond/sessiond.sock";
+        let _ssh = fake_ssh_for_forward(log.path(), remote);
+        let transport = RemoteTransport::new();
+        let target = target("lotus-test-forward", Some("dev"), None);
+
+        let local = transport.forward_sessiond(&target).unwrap().expect("a forward");
+        assert!(local.exists());
+        assert_eq!(transport.forward_sessiond(&target).unwrap(), Some(local.clone()));
+
+        let calls = std::fs::read_to_string(log.path()).unwrap();
+        let forwards: Vec<&str> = calls.lines().filter(|l| l.contains("-O forward")).collect();
+        assert_eq!(forwards.len(), 1, "{calls}");
+        assert!(forwards[0].contains(&format!("{}:{remote}", local.display())), "{calls}");
+        assert!(forwards[0].contains("ControlMaster=no"), "{calls}");
+        let master = calls.lines().find(|l| l.contains("-NM")).unwrap();
+        assert!(master.contains("StreamLocalBindUnlink=yes"), "{master}");
+
+        transport.shutdown();
+        assert!(!local.exists(), "the forward outlived its master");
+    }
+
+    /// No socket on the machine (no Lotus host there) is `None`: the pane keeps plain `ssh -t`.
+    #[cfg(unix)]
+    #[test]
+    fn forward_sessiond_is_none_on_a_machine_without_a_daemon() {
+        let _lock = crate::paths::TEST_ENV_LOCK.lock().unwrap();
+        let log = tempfile::NamedTempFile::new().unwrap();
+        let _ssh = fake_ssh_for_forward(log.path(), "");
+        let transport = RemoteTransport::new();
+        let target = target("lotus-test-no-daemon", None, None);
+
+        assert_eq!(transport.forward_sessiond(&target).unwrap(), None);
+        let calls = std::fs::read_to_string(log.path()).unwrap();
+        assert!(!calls.contains("-O forward"), "{calls}");
+        transport.shutdown();
     }
 
     /// Run manually with LOTUS_SSH_SMOKE_TARGET and LOTUS_SSH_SMOKE_DIR after Access login.
