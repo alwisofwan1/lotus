@@ -13,7 +13,7 @@ pub enum NotionRef {
     Key(String),
 }
 
-/// `https://www.notion.so/team/Title-<id>`, `…?p=<id>` (a page opened over a database), a bare id
+/// `https://www.notion.so/team/Title-<id>` (or `app.notion.com/p/…`), `…?p=<id>` (a page opened over a database), a bare id
 /// with or without dashes, or `TKT-1234`.
 pub fn parse_ref(input: &str) -> Result<NotionRef, String> {
     let text = input.trim();
@@ -26,7 +26,9 @@ pub fn parse_ref(input: &str) -> Result<NotionRef, String> {
     if let Some(rest) = text.strip_prefix("https://").or_else(|| text.strip_prefix("http://")) {
         let (host, path) = rest.split_once('/').unwrap_or((rest, ""));
         let host = host.to_ascii_lowercase();
-        if host == "notion.so" || host.ends_with(".notion.so") || host.ends_with(".notion.site") {
+        // Notion's own links moved to `app.notion.com`; agents copy those, so both domains count.
+        let notion_host = |domain: &str| host == domain || host.ends_with(&format!(".{domain}"));
+        if notion_host("notion.so") || notion_host("notion.com") || host.ends_with(".notion.site") {
             let (path, query) = path.split_once('?').unwrap_or((path, ""));
             let query = query.split('#').next().unwrap_or_default();
             // A page opened over its database: the link names the database, `p` names the page.
@@ -120,6 +122,9 @@ mod tests {
             format!("https://www.notion.so/initech/Login-flow-{ID}?pvs=4#abc"),
             format!("https://www.notion.so/{ID}"),
             format!("https://initech.notion.site/Spec-{ID}/"),
+            format!("https://app.notion.com/p/Login-flow-{ID}"),
+            format!("https://app.notion.com/p/initech/Login-flow-{ID}"),
+            format!("https://app.notion.com/p/{ID}"),
             format!("https://www.notion.so/initech/ffffffffffffffffffffffffffffffff?v=0000&p={ID}&pm=s"),
             ID.to_string(),
             "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d".to_string(),
@@ -188,7 +193,7 @@ mod tests {
 
     #[test]
     fn anything_else_is_refused_and_never_pasted_into_a_path() {
-        for bad in ["", "TKT-", "TKT-12a", "https://evil.example/x-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", "../../v1/users", "1a2b"] {
+        for bad in ["", "TKT-", "TKT-12a", "https://evil.example/x-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", "https://notnotion.com/x-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d", "../../v1/users", "1a2b"] {
             assert!(parse_ref(bad).unwrap_err().contains("is not a Notion link"), "{bad}");
         }
     }
