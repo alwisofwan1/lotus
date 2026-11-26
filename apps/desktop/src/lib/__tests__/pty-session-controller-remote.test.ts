@@ -208,13 +208,36 @@ describe("PtySessionController on another machine", () => {
       warn.mockRestore();
     });
 
-    it("leaves a cell's own stored ssh command under ssh -t: its last word may be the host", async () => {
+    it("leaves a stored ssh command under ssh -t when it carries no remote command", async () => {
       mockCreateRemotePtySession.mockResolvedValue("remote-session");
       const ctrl = await controller();
       await ctrl.connectToCommand("/srv", ["ssh", "-t", "root@devbox-vps"], 80, 24, vi.fn(), "pane-r6", SSH, "t");
 
       expect(mockCreateRemotePtySession).not.toHaveBeenCalled();
       expect(mockCreateCommandPtySession.mock.calls[0][1]).toEqual(["ssh", "-t", "root@devbox-vps"]);
+    });
+
+    it("moves a Code cell's stored ssh command into the daemon, older ones without keepalive too", async () => {
+      mockCreateRemotePtySession.mockResolvedValue("remote-session");
+      const stored = ["ssh", "-t", "-p", "2222", "root@devbox-vps", "cd '/srv' && exec ${SHELL:-bash} -l"];
+      const ctrl = await controller();
+      await ctrl.connectToCommand("/srv", stored, 80, 24, vi.fn(), "pane-r8", SSH, "t");
+
+      const [target, remoteCommand] = mockCreateRemotePtySession.mock.calls[0];
+      expect(target).toEqual({ host: "devbox-vps", user: "root", port: 2222 });
+      expect(remoteCommand).toBe("cd '/srv' && exec ${SHELL:-bash} -l");
+      expect(mockCreateCommandPtySession).not.toHaveBeenCalled();
+    });
+
+    it("moves a Canvas node's ssh command into the daemon although the node passes no location", async () => {
+      mockCreateRemotePtySession.mockResolvedValue("remote-session");
+      const { buildSshCommand } = await import("@/modules/codespace/services/ssh-command");
+      const argv = buildSshCommand({ target: { host: "devbox-vps" }, remoteCwd: "/srv" });
+      const ctrl = await controller();
+      await ctrl.connectToCommand("", argv, 80, 24, vi.fn(), "pane-r9", null, "t");
+
+      expect(mockCreateRemotePtySession.mock.calls[0][0]).toEqual({ host: "devbox-vps" });
+      expect(mockCreateCommandPtySession).not.toHaveBeenCalled();
     });
 
     it("never touches a local pane", async () => {

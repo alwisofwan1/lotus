@@ -11,7 +11,7 @@ import {
   reconcilePtySessions,
 } from "@/lib/tauri-api";
 import type { CodeSpaceStoredWorkspaceLocation } from "@/lib/tauri/codespace";
-import { buildSshCommand, type SshTarget } from "@/modules/codespace/services/ssh-command";
+import { buildSshCommand, parseSshArgv, type SshTarget } from "@/modules/codespace/services/ssh-command";
 import { remoteArgv } from "@/modules/codespace/services/ssh-argv";
 import { remoteCallbackEnv } from "@/lib/remote-callback";
 
@@ -41,12 +41,6 @@ function sshTargetOf(location?: CodeSpaceStoredWorkspaceLocation | null): SshTar
  * (`pty.rs::resolve_session_cwd`), and the real directory is carried inside the ssh command.
  */
 const SSH_CLIENT_CWD = "";
-
-/**
- * An `ssh -t` argv this file built itself, so its last element is known to be the remote command.
- * A cell's stored `ssh …` command is not: it may end in the host, with no command at all.
- */
-const OWN_SSH_ARGV = new WeakSet<readonly string[]>();
 
 /**
  * Shown once in a pane on a machine without a Lotus host: its process lives under `ssh -t`, so a
@@ -95,7 +89,6 @@ export class PtySessionController {
       // A shell on another machine: `ssh -t <target> "cd <cwd> && exec $SHELL -l"`, built by the
       // one function that already owns that string.
       const argv = buildSshCommand({ target, remoteCwd: cwd });
-      OWN_SSH_ARGV.add(argv);
       return this.connectToCommand(SSH_CLIENT_CWD, argv, cols, rows, onOutput, paneId, location, canvasTerminalId);
     }
     activeControllers.add(this);
@@ -204,8 +197,11 @@ export class PtySessionController {
 
     // On another machine, the process goes into that machine's session daemon when it runs one:
     // there a dropped link only pauses the pane, under `ssh -t` it kills the agent.
-    const machine = target ?? sshTargetOf(location);
-    const remoteCommand = target || OWN_SSH_ARGV.has(command) ? spawnArgv.at(-1) : undefined;
+    // Code cells and Canvas nodes store the `ssh -t` argv they built; it is read back here, and
+    // the machine comes from that argv, since a Canvas node passes no location.
+    const parsed = parseSshArgv(spawnArgv);
+    const machine = parsed?.target;
+    const remoteCommand = parsed?.remoteCommand;
     if (machine && remoteCommand) {
       const placed = await this.tryRemoteDaemon(machine, remoteCommand, cols, rows, guardedOnOutput, paneId, canvasTerminalId);
       if (placed === "running") return;

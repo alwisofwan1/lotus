@@ -126,6 +126,41 @@ export const SSH_KEEPALIVE_ARGS: readonly string[] = [
   "ServerAliveCountMax=3",
 ];
 
+/**
+ * Reads back an argv `buildSshCommand` or `remoteArgv` made — including one stored in a Code cell
+ * or a Canvas node before keepalive was added — as the machine plus the command it hands the far
+ * shell. `null` for any other shape (an extra flag, no remote command): that argv stays `ssh -t`.
+ */
+export function parseSshArgv(argv: readonly string[]): { target: SshTarget; remoteCommand: string } | null {
+  if (argv[0] !== "ssh" || argv[1] !== "-t") return null;
+  let i = 2;
+  let port: number | undefined;
+  while (i < argv.length - 2) {
+    if (argv[i] === "-o" && /^ServerAlive(Interval|CountMax)=\d+$/.test(argv[i + 1])) {
+      i += 2;
+    } else if (argv[i] === "-p" && /^\d+$/.test(argv[i + 1])) {
+      port = Number(argv[i + 1]);
+      i += 2;
+    } else {
+      return null;
+    }
+  }
+  if (argv.length - i !== 2) return null;
+  const [destination, remoteCommand] = [argv[i], argv[i + 1]];
+  const at = destination.lastIndexOf("@");
+  const target: SshTarget = {
+    host: at >= 0 ? destination.slice(at + 1) : destination,
+    ...(at >= 0 ? { user: destination.slice(0, at) } : {}),
+    ...(port !== undefined ? { port } : {}),
+  };
+  try {
+    if (formatSshTarget(target) !== destination) return null;
+  } catch {
+    return null;
+  }
+  return remoteCommand.trim() ? { target, remoteCommand } : null;
+}
+
 export function buildSshCommand({ target, remoteCwd, initialCommand }: SshCommandOptions): string[] {
   const args = ["ssh", "-t", ...SSH_KEEPALIVE_ARGS];
   const port = target.port ?? undefined;

@@ -106,3 +106,21 @@ describe("ssh-command", () => {
     expect(() => validateRemoteCwd("/home/alwi/$(whoami)")).toThrow(/unsupported/i);
   });
 });
+
+describe("parseSshArgv", () => {
+  it("reads back what buildSshCommand built", async () => {
+    const { buildSshCommand, parseSshArgv } = await import("../ssh-command");
+    const argv = buildSshCommand({ target: { host: "devbox-vps", user: "dev", port: 2200 }, remoteCwd: "/srv" });
+    expect(parseSshArgv(argv)).toEqual({ target: { host: "devbox-vps", user: "dev", port: 2200 }, remoteCommand: argv.at(-1) });
+  });
+
+  it("refuses any other shape", async () => {
+    const { parseSshArgv } = await import("../ssh-command");
+    expect(parseSshArgv(["ssh", "-t", "devbox-vps"])).toBeNull();
+    expect(parseSshArgv(["ssh", "devbox-vps", "ls"])).toBeNull();
+    expect(parseSshArgv(["ssh", "-t", "-A", "devbox-vps", "ls"])).toBeNull();
+    expect(parseSshArgv(["ssh", "-t", "-o", "ProxyCommand=x", "devbox-vps", "ls"])).toBeNull();
+    expect(parseSshArgv(["ssh", "-t", "bad host", "ls"])).toBeNull();
+    expect(parseSshArgv(["claude"])).toBeNull();
+  });
+});
