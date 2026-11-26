@@ -114,6 +114,23 @@ pub fn connected_remote(key: &str) -> Option<Arc<Daemon>> {
     guard.as_ref().map(Arc::clone)
 }
 
+/// Every machine with a live daemon connection right now, by key.
+pub fn connected_remotes() -> Vec<(String, Arc<Daemon>)> {
+    let slots: Vec<(String, RemoteSlot)> = remotes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .map(|(k, v)| (k.clone(), Arc::clone(v)))
+        .collect();
+    slots
+        .into_iter()
+        .filter_map(|(key, slot)| {
+            let guard = slot.lock().unwrap_or_else(|e| e.into_inner());
+            guard.as_ref().map(|d| (key, Arc::clone(d)))
+        })
+        .collect()
+}
+
 /// Drops `daemon` from the registry, if it is still the one registered for its machine.
 fn forget_remote(daemon: &Arc<Daemon>) {
     let Connector::Remote { label, .. } = &daemon.connector else {

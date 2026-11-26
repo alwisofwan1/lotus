@@ -146,6 +146,14 @@ pub fn adopt_session(
 /// alone. Returns how many were ended.
 pub fn reconcile_sessions(window_label: &str, pane_ids: &[String]) -> Result<usize, AppError> {
     #[cfg(unix)]
+    let remote_ended = super::remote::note_restored_panes(window_label, pane_ids);
+    #[cfg(not(unix))]
+    let remote_ended = 0;
+    reconcile_local(window_label, pane_ids).map(|ended| ended + remote_ended)
+}
+
+fn reconcile_local(window_label: &str, pane_ids: &[String]) -> Result<usize, AppError> {
+    #[cfg(unix)]
     if let Some(d) = super::sessiond_client::daemon() {
         let listed = d.list().map_err(|e| other(e.to_string()))?;
         let mut ended = 0;
@@ -162,7 +170,7 @@ pub fn reconcile_sessions(window_label: &str, pane_ids: &[String]) -> Result<usi
 }
 
 #[cfg(unix)]
-fn sessions_without_a_pane(
+pub(super) fn sessions_without_a_pane(
     listed: &[lotus_sessiond::proto::SessionInfo],
     window_label: &str,
     pane_ids: &[String],

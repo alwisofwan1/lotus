@@ -285,6 +285,10 @@ pub fn reap_stranded_orphans() -> usize {
 /// A page of this window is (re)loading: its sessions lost their page. In-process PTYs die with
 /// it; daemon sessions are only let go of, for the new page to adopt by pane (ADR-0067).
 pub fn release_sessions_for_window(window_label: &str, state: &PtyState) -> Result<usize, AppError> {
+    // The page that listed this window's panes is gone; until the next page lists them again, no
+    // remote sweep may judge which sessions lost their pane.
+    #[cfg(unix)]
+    super::remote::forget_restored_panes(window_label);
     Ok(release(take_window_sessions(window_label, state)?))
 }
 

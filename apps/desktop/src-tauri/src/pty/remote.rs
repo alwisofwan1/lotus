@@ -10,6 +10,7 @@ use super::sessiond_client::{self, Daemon, SocketSource};
 use super::*;
 use crate::remote_transport::RemoteSessiond;
 use lotus_sessiond::proto::SessionInfo;
+use std::sync::OnceLock;
 
 /// Who the far process runs as. Comes from the machine itself (`RemoteTransport`'s probe): the
 /// daemon there reads no environment of its own, so the client sends a complete one.
@@ -163,9 +164,93 @@ fn insert(state: &PtyState, session: PtySession) -> Result<String, AppError> {
     Ok(session_id)
 }
 
-/// The connection to `machine`'s daemon, made through `source` when there is none.
+/// The connection to `machine`'s daemon, made through `source` when there is none. A new
+/// connection first ends, in the background, the sessions whose pane is gone (see
+/// [`note_restored_panes`]).
 pub fn machine_daemon(machine: &str, source: impl FnOnce() -> SocketSource) -> Option<Arc<Daemon>> {
-    sessiond_client::remote_daemon(machine, source)
+    let was_connected = sessiond_client::connected_remote(machine).is_some();
+    let daemon = sessiond_client::remote_daemon(machine, source)?;
+    if !was_connected {
+        let (machine, sweep) = (machine.to_string(), Arc::clone(&daemon));
+        let _ = std::thread::Builder::new()
+            .name("sessiond-remote-sweep".into())
+            .spawn(move || {
+                sweep_orphans(&machine, &sweep);
+            });
+    }
+    Some(daemon)
+}
+
+/// Each window's pane ids as its page last listed them (`reconcile_sessions`). Only a window in
+/// here is swept: one whose page is still loading has not said which panes it has.
+static RESTORED_PANES: OnceLock<Mutex<HashMap<String, Vec<String>>>> = OnceLock::new();
+
+fn restored_panes() -> &'static Mutex<HashMap<String, Vec<String>>> {
+    RESTORED_PANES.get_or_init(Default::default)
+}
+
+/// A window listed its panes: remember them, and end this desktop's sessions on every machine
+/// connected now whose pane is gone. A machine connected later is swept as it connects. Ending
+/// them is the point: a remote agent left without a pane spends quota and keeps editing files
+/// where nobody sees it (an app quit with "Keep running", then the pane deleted). Returns how many
+/// were ended.
+pub fn note_restored_panes(window_label: &str, pane_ids: &[String]) -> usize {
+    restored_panes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(window_label.to_string(), pane_ids.to_vec());
+    sessiond_client::connected_remotes()
+        .iter()
+        .map(|(machine, daemon)| sweep_orphans(machine, daemon))
+        .sum()
+}
+
+/// The window's page is reloading: its pane list is stale until the new page sends one.
+pub fn forget_restored_panes(window_label: &str) {
+    restored_panes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .remove(window_label);
+}
+
+fn sweep_orphans(machine: &str, daemon: &Arc<Daemon>) -> usize {
+    let windows: Vec<(String, Vec<String>)> = restored_panes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .map(|(w, p)| (w.clone(), p.clone()))
+        .collect();
+    if windows.is_empty() {
+        return 0;
+    }
+    let listed = match daemon.list() {
+        Ok(listed) => listed,
+        Err(e) => {
+            eprintln!("[sessiond] {machine}: could not list for the orphan sweep: {e}");
+            return 0;
+        }
+    };
+    let mut ended = 0;
+    for (window, panes) in &windows {
+        for id in orphans(&listed, window, panes, |id| daemon.mirrors(id)) {
+            eprintln!("[sessiond] {machine}: its pane is gone; ending {id}");
+            if daemon.kill(&id).is_ok() {
+                ended += 1;
+            }
+        }
+    }
+    ended
+}
+
+/// This desktop's sessions (never the machine host's own) of `window` whose pane is gone.
+fn orphans(
+    listed: &[SessionInfo],
+    window: &str,
+    pane_ids: &[String],
+    mirrored: impl Fn(&str) -> bool,
+) -> Vec<String> {
+    let desktops: Vec<SessionInfo> = listed.iter().filter(|s| is_desktops(s)).cloned().collect();
+    super::session::sessions_without_a_pane(&desktops, window, pane_ids, mirrored)
 }
 
 #[cfg(test)]
@@ -203,6 +288,22 @@ mod tests {
         ];
         let found = find_pane_session(&listed, "p1", |id| id == "mirrored").map(|s| s.id.as_str());
         assert_eq!(found, Some("mine"));
+    }
+
+    #[test]
+    fn the_sweep_ends_only_the_desktops_sessions_whose_pane_is_gone() {
+        let mut listed = vec![
+            info("kept", "p1", Some(r#"{"origin":"desktop"}"#)),
+            info("gone", "p2", Some(r#"{"origin":"desktop"}"#)),
+            info("hosts", "p3", Some(r#"{"sessionId":"s3"}"#)),
+            info("untagged", "p4", None),
+            info("mirrored", "p5", Some(r#"{"origin":"desktop"}"#)),
+        ];
+        let mut other_window = info("other-window", "p6", Some(r#"{"origin":"desktop"}"#));
+        other_window.owner.window_label = "w2".into();
+        listed.push(other_window);
+        let ended = orphans(&listed, "main", &["p1".into()], |id| id == "mirrored");
+        assert_eq!(ended, vec!["gone".to_string()]);
     }
 
     #[test]
@@ -334,6 +435,104 @@ mod tests {
         }
         assert!(transport.acquire(&target).unwrap().exists());
         drop(id);
+        transport.shutdown();
+    }
+
+    /// A session left behind (detached, its pane gone) is ended by the next pane list.
+    /// `LOTUS_SSH_LIVE_TARGET=devbox-vps cargo test --lib live_ -- --ignored --nocapture`
+    #[test]
+    #[ignore = "requires an SSH host running a Lotus host"]
+    fn live_a_session_whose_pane_is_gone_is_ended_by_the_sweep() {
+        use crate::cli_tools::SshToolTarget;
+        use crate::remote_transport::RemoteTransport;
+        use std::time::{Duration, Instant};
+
+        let host = std::env::var("LOTUS_SSH_LIVE_TARGET").expect("set LOTUS_SSH_LIVE_TARGET");
+        let target = SshToolTarget {
+            host: host.clone(),
+            user: None,
+            port: None,
+        };
+        let transport = Arc::new(RemoteTransport::new());
+        let found = transport
+            .forward_sessiond(&target)
+            .unwrap()
+            .expect("no daemon on that host");
+        let (source_transport, source_target) = (Arc::clone(&transport), target.clone());
+        let machine = format!("sweep-test:{host}");
+        let daemon = machine_daemon(&machine, move || {
+            Box::new(move || {
+                source_transport
+                    .forward_sessiond(&source_target)
+                    .map(|f| f.map(|f| f.socket))
+                    .map_err(|e| e.to_string())
+            })
+        })
+        .expect("daemon");
+        let state: PtyState = Default::default();
+        let user = RemoteUser::from(&found);
+        let sink = || -> OutputSink { Box::new(|_| false) };
+        spawn_remote_session(
+            &daemon,
+            &machine,
+            &user,
+            "sleep 300",
+            "sweep-win".into(),
+            Some("pane-gone"),
+            None,
+            80,
+            24,
+            sink(),
+            &state,
+        )
+        .unwrap();
+        spawn_remote_session(
+            &daemon,
+            &machine,
+            &user,
+            "sleep 300",
+            "sweep-win".into(),
+            Some("pane-kept"),
+            None,
+            80,
+            24,
+            sink(),
+            &state,
+        )
+        .unwrap();
+        // The app quit with "Keep running": both are let go of, and both run on.
+        release_sessions_for_window("sweep-win", &state).unwrap();
+        let ids = |pane: &str| -> Vec<String> {
+            daemon
+                .list()
+                .unwrap()
+                .into_iter()
+                .filter(|s| s.owner.pane_id.as_deref() == Some(pane))
+                .map(|s| s.id)
+                .collect()
+        };
+        assert_eq!(ids("pane-gone").len(), 1);
+
+        let ended = note_restored_panes("sweep-win", &["pane-kept".into()]);
+        assert_eq!(ended, 1);
+        let start = Instant::now();
+        while !ids("pane-gone").is_empty() {
+            assert!(
+                start.elapsed() < Duration::from_secs(10),
+                "pane-gone still runs"
+            );
+            std::thread::sleep(Duration::from_millis(200));
+        }
+        let kept = ids("pane-kept");
+        assert_eq!(
+            kept.len(),
+            1,
+            "the session whose pane is still there must stay"
+        );
+        println!("ended pane-gone; pane-kept still runs as {}", kept[0]);
+        // Clean up after ourselves.
+        note_restored_panes("sweep-win", &[]);
+        forget_restored_panes("sweep-win");
         transport.shutdown();
     }
 }

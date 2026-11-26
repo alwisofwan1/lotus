@@ -641,7 +641,11 @@ pub mod commands {
 
     #[tauri::command]
     pub async fn reconcile_sessions(window: Window, pane_ids: Vec<String>) -> Result<usize, AppError> {
-        pty::reconcile_sessions(window.label(), &pane_ids)
+        let window_label = window.label().to_string();
+        // A remote daemon answers `list` over the network: keep it off the async runtime.
+        tauri::async_runtime::spawn_blocking(move || pty::reconcile_sessions(&window_label, &pane_ids))
+            .await
+            .map_err(|e| AppError::Other(e.to_string()))?
     }
 
     #[tauri::command]
