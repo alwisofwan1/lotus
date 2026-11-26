@@ -1,0 +1,73 @@
+/* The link strip over a remote pane (SshLinkStrip.tsx). Sits on top of the terminal, under the
+   focus-mode veil, so it never moves the terminal's grid. */
+.ws-link-strip {
+  --ws-link-tone: var(--ds-warning);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 4px 8px 4px 12px;
+  font-size: var(--ds-t-meta, 12px);
+  color: var(--ds-text);
+  background: color-mix(in srgb, var(--ws-link-tone) 14%, var(--ds-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--ws-link-tone) 40%, transparent);
+  box-shadow: inset 3px 0 0 var(--ws-link-tone);
+}
+
+.ws-link-strip[data-tone="success"] { --ws-link-tone: var(--ds-success); }
+.ws-link-strip[data-tone="danger"] { --ws-link-tone: var(--ds-danger); }
+
+.ws-link-strip__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-link-strip__spinner {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--ws-link-tone) 35%, transparent);
+  border-top-color: var(--ws-link-tone);
+  animation: ws-link-spin 900ms linear infinite;
+}
+
+.ws-link-strip__action {
+  flex: none;
+  padding: 2px 10px;
+  border-radius: 6px;
+  font: inherit;
+  color: var(--ds-text);
+  background: transparent;
+  border: 1px solid var(--ds-border);
+  cursor: pointer;
+}
+
+.ws-link-strip__action:hover:not(:disabled) { background: color-mix(in srgb, var(--ds-text) 6%, transparent); }
+.ws-link-strip__action:disabled { opacity: 0.6; cursor: default; }
+
+.ws-link-strip__action[data-primary="true"] {
+  color: var(--ds-surface);
+  background: var(--ds-text);
+  border-color: var(--ds-text);
+}
+
+/* The terminal is dimmed while its input is held: it shows, but it does not take keys. */
+.ws-pane-surface[data-link-held="true"] > :not(.ws-link-strip):not(.ws-pane-veil) {
+  opacity: 0.55;
+  transition: opacity 160ms ease;
+}
+
+@keyframes ws-link-spin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ws-link-strip__spinner { animation: none; }
+}

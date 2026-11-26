@@ -326,6 +326,28 @@ pub struct Daemon {
     stream: Mutex<Option<UnixStream>>,
     links: Mutex<Links>,
     next_req: AtomicU64,
+    /// Set by [`Daemon::retry_now`]: cuts a reconnect backoff short.
+    wake: (Mutex<bool>, std::sync::Condvar),
+}
+
+/// A remote daemon link as a pane shows it (plans/ssh-pane-durability, phase 3).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LinkState {
+    Connected,
+    /// `attempt` 0 = just lost; `error` is why the last try failed.
+    Reconnecting {
+        attempt: u32,
+        next_in_ms: u64,
+        error: Option<String>,
+    },
+}
+
+type LinkObserver = Box<dyn Fn(&str, &LinkState) + Send + Sync>;
+static LINK_OBSERVER: OnceLock<LinkObserver> = OnceLock::new();
+
+/// Called with a remote machine's key on every change of its link. Set once, by the app.
+pub fn set_link_observer(observer: LinkObserver) {
+    let _ = LINK_OBSERVER.set(observer);
 }
 
 impl Daemon {
@@ -356,6 +378,7 @@ impl Daemon {
             stream: Mutex::new(Some(write_half)),
             links: Mutex::new(Links::default()),
             next_req: AtomicU64::new(1),
+            wake: (Mutex::new(false), std::sync::Condvar::new()),
         });
         let reader = Arc::clone(&daemon);
         std::thread::Builder::new()
@@ -626,6 +649,11 @@ impl Daemon {
                 return;
             }
             eprintln!("[sessiond] connection lost; reconnecting");
+            self.report(LinkState::Reconnecting {
+                attempt: 0,
+                next_in_ms: 0,
+                error: None,
+            });
             stream = self.reconnect();
         }
     }
@@ -634,6 +662,9 @@ impl Daemon {
     fn reconnect(&self) -> UnixStream {
         let (first, max) = self.connector.backoff();
         let mut backoff = first;
+        let mut attempt = 0u32;
+        // A "retry now" sent while the link was still up means nothing for this outage.
+        *self.wake.0.lock().unwrap_or_else(|e| e.into_inner()) = false;
         loop {
             match self.connector.connect() {
                 Ok((stream, pid)) => {
@@ -655,6 +686,7 @@ impl Daemon {
                             // A daemon that no longer has it answers `error { id }` → lost.
                             let _ = self.send(&Request::Attach { id, from }, b"");
                         }
+                        self.report(LinkState::Connected);
                         return stream;
                     }
                 }
@@ -670,11 +702,44 @@ impl Daemon {
                             backoff.as_secs()
                         );
                     }
+                    attempt += 1;
+                    self.report(LinkState::Reconnecting {
+                        attempt,
+                        next_in_ms: backoff.as_millis() as u64,
+                        error: Some(e.to_string()),
+                    });
                 }
             }
-            std::thread::sleep(backoff);
-            backoff = (backoff * 2).min(max);
+            if self.sleep_unless_woken(backoff) {
+                backoff = first;
+            } else {
+                backoff = (backoff * 2).min(max);
+            }
         }
+    }
+
+    /// Tells the app's observer about a remote link; a local daemon's link is not a pane's concern.
+    fn report(&self, state: LinkState) {
+        if let (Connector::Remote { label, .. }, Some(observer)) = (&self.connector, LINK_OBSERVER.get()) {
+            observer(label, &state);
+        }
+    }
+
+    /// Sleeps `wait`, or less when [`Daemon::retry_now`] is called. `true` = woken early.
+    fn sleep_unless_woken(&self, wait: Duration) -> bool {
+        let (flag, cvar) = &self.wake;
+        let guard = flag.lock().unwrap_or_else(|e| e.into_inner());
+        let (mut guard, _) = cvar
+            .wait_timeout_while(guard, wait, |woken| !*woken)
+            .unwrap_or_else(|e| e.into_inner());
+        std::mem::replace(&mut *guard, false)
+    }
+
+    /// Cuts the current reconnect wait short ("Retry now", or a sign-in that just finished).
+    pub fn retry_now(&self) {
+        let (flag, cvar) = &self.wake;
+        *flag.lock().unwrap_or_else(|e| e.into_inner()) = true;
+        cvar.notify_all();
     }
 
     fn on_event(&self, event: Event, payload: Vec<u8>) {
@@ -1249,6 +1314,30 @@ mod tests {
         assert_eq!(lines, want);
         assert!(text.ends_with("[Session ended:0]\r\n"), "{text:?}");
         assert!(asked.load(Ordering::SeqCst) >= 2, "never reconnected through the source");
+    }
+
+    /// "Retry now" in a pane must not wait out a 30 s backoff.
+    #[test]
+    fn retry_now_cuts_a_reconnect_wait_short() {
+        let d = Arc::new(Daemon {
+            connector: Connector::Remote {
+                label: "retry-test".into(),
+                source: Box::new(|| Ok(None)),
+            },
+            stream: Mutex::new(None),
+            links: Mutex::new(Links::default()),
+            next_req: AtomicU64::new(1),
+            wake: (Mutex::new(false), std::sync::Condvar::new()),
+        });
+        let sleeper = Arc::clone(&d);
+        let started = std::time::Instant::now();
+        let waiting = std::thread::spawn(move || sleeper.sleep_unless_woken(Duration::from_secs(30)));
+        std::thread::sleep(Duration::from_millis(100));
+        d.retry_now();
+        assert!(waiting.join().unwrap(), "not woken");
+        assert!(started.elapsed() < Duration::from_secs(5));
+        // Without a wake it sleeps the whole wait and says so.
+        assert!(!d.sleep_unless_woken(Duration::from_millis(50)));
     }
 
     /// A machine without a Lotus host has no daemon: that is the plain `ssh -t` pane, not an error,

@@ -21,6 +21,7 @@ import type { TerminalRuntimeStatus } from "@/modules/codespace/services/termina
 import type { ChatCellData, GridCell, WorkbenchCellData, Workspace } from "@/modules/codespace/components/types";
 import { paneFileDropAttributes } from "@/modules/workspace-shell/services/pane-file-drop";
 import { PaneHeaderSlot } from "@/modules/workspace-shell/components/PaneCard";
+import { SshLinkStrip, holdsInput, useLinkStrip } from "@/modules/workspace-shell/components/SshLinkStrip";
 import "@/styles/pane-veil.css";
 
 interface PaneBodyProps {
@@ -111,8 +112,14 @@ export function PaneBody({
     // both boot a fresh agent, so both get the focus-mode sheen until it prints.
     boot: cell.type === "terminal" && !cell.runtimeSessionId,
   });
+  // A remote pane's link to its machine (plans/ssh-pane-durability, phase 3).
+  const link = useLinkStrip(
+    cell.type === "terminal" ? cell.runtimeSessionId : null,
+    cell.type === "terminal" && cell.terminalCommand?.[0] === "ssh",
+  );
+  const linkHeld = holdsInput(link.state);
   // React's capture handlers run at the root, before xterm's own textarea listeners see the key.
-  const holdInput = veilPhase === "restart"
+  const holdInput = veilPhase === "restart" || linkHeld
     ? (event: SyntheticEvent) => {
       event.preventDefault();
       event.stopPropagation();
@@ -194,6 +201,7 @@ export function PaneBody({
       onKeyPressCapture={holdInput}
       onBeforeInputCapture={holdInput}
       onPasteCapture={holdInput}
+      data-link-held={linkHeld ? "true" : undefined}
       {...paneFileDropAttributes(cell, workspace)}
     >
       {surface ? (
@@ -219,8 +227,14 @@ export function PaneBody({
               onRuntimeStatusChange={(status) => onRuntimeStatusChange(cell.id, status)}
               // Only the PTY's own end marker calls this; closing or restarting a pane aborts the
               // session first, so its marker never arrives here (terminal-v2-session-manager).
-              onExit={cell.agentCommand ? () => onAgentExit?.(cell.id) : undefined}
+              onExit={(code) => {
+                link.onExit(code);
+                if (cell.agentCommand) onAgentExit?.(cell.id);
+              }}
             />
+      ) : null}
+      {cell.type === "terminal" ? (
+        <SshLinkStrip state={link.state} sessionId={cell.runtimeSessionId} />
       ) : null}
       {/*
         Covers the repaint focus mode on/off triggers (see `pane-reveal-veil`). Painted in the

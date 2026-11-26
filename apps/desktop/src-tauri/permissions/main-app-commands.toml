@@ -13,6 +13,8 @@ commands.allow = [
   "adopt_session",
   "create_remote_session",
   "adopt_remote_session",
+  "retry_session_link",
+  "sign_in_session_link",
   "reconcile_sessions",
   "quit_with_agents",
   "get_quit_choice",

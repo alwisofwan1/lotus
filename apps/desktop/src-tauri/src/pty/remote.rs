@@ -172,6 +172,39 @@ fn insert(state: &PtyState, session: PtySession) -> Result<String, AppError> {
     Ok(session_id)
 }
 
+/// The SSH target behind each machine key, for signing in again from a pane.
+static TARGETS: OnceLock<Mutex<HashMap<String, crate::cli_tools::SshToolTarget>>> = OnceLock::new();
+
+pub fn remember_target(machine: &str, target: &crate::cli_tools::SshToolTarget) {
+    TARGETS
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(machine.to_string(), target.clone());
+}
+
+pub fn target_of(machine: &str) -> Option<crate::cli_tools::SshToolTarget> {
+    TARGETS.get()?.lock().unwrap_or_else(|e| e.into_inner()).get(machine).cloned()
+}
+
+/// The machine a store session runs on; `None` for this one.
+pub fn machine_of_session(state: &PtyState, session_id: &str) -> Option<String> {
+    state.lock().ok()?.0.get(session_id)?.machine.clone()
+}
+
+/// The store ids of every session on `machine`, for telling their panes about its link.
+pub fn sessions_on_machine(state: &PtyState, machine: &str) -> Vec<String> {
+    let Ok(store) = state.lock() else {
+        return Vec::new();
+    };
+    store
+        .0
+        .iter()
+        .filter(|(_, s)| s.machine.as_deref() == Some(machine))
+        .map(|(id, _)| id.clone())
+        .collect()
+}
+
 /// The connection to `machine`'s daemon, made through `source` when there is none. A new
 /// connection first ends, in the background, the sessions whose pane is gone (see
 /// [`note_restored_panes`]).

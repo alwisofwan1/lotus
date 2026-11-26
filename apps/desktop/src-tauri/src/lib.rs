@@ -344,6 +344,48 @@ fn codechat_database_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, 
         .map_err(|err| err.to_string())
 }
 
+/// What a pane hears about its remote link (`pty-link`). `needsSignIn`: the last try failed on an
+/// expired Cloudflare Access sign-in, which retrying alone will not fix.
+#[cfg(unix)]
+fn pty_link_payload(session_ids: Vec<String>, state: &pty::sessiond_client::LinkState) -> serde_json::Value {
+    use pty::sessiond_client::LinkState;
+    match state {
+        LinkState::Connected => serde_json::json!({ "sessionIds": session_ids, "state": "connected" }),
+        LinkState::Reconnecting { attempt, next_in_ms, error } => {
+            let needs_sign_in = error
+                .as_deref()
+                .is_some_and(|e| e.contains("Cloudflare Access sign-in") && e.contains("expired"));
+            serde_json::json!({
+                "sessionIds": session_ids,
+                "state": if needs_sign_in { "needs-sign-in" } else { "reconnecting" },
+                "attempt": attempt,
+                "nextInMs": next_in_ms,
+            })
+        }
+    }
+}
+
+#[cfg(all(test, unix))]
+mod pty_link_payload_tests {
+    use super::pty_link_payload;
+    use crate::pty::sessiond_client::LinkState;
+
+    #[test]
+    fn an_expired_access_sign_in_reads_as_needs_sign_in_not_a_plain_retry() {
+        let expired = LinkState::Reconnecting {
+            attempt: 2,
+            next_in_ms: 4000,
+            error: Some("Cloudflare Access sign-in for devbox-vps has expired. Sign in, then retry.".into()),
+        };
+        assert_eq!(pty_link_payload(vec!["s1".into()], &expired)["state"], "needs-sign-in");
+        let dropped = LinkState::Reconnecting { attempt: 1, next_in_ms: 2000, error: Some("Connection refused".into()) };
+        let payload = pty_link_payload(vec!["s1".into()], &dropped);
+        assert_eq!(payload["state"], "reconnecting");
+        assert_eq!(payload["nextInMs"], 2000);
+        assert_eq!(pty_link_payload(vec![], &LinkState::Connected)["state"], "connected");
+    }
+}
+
 pub mod commands {
     use super::*;
     use tauri::{ipc::Channel, Manager, State, Window};
@@ -572,6 +614,7 @@ pub mod commands {
             crate::cli_tools::format_ssh_target(target)?,
             target.port.unwrap_or(22)
         );
+        pty::remote::remember_target(&machine, target);
         let source_app = app.clone();
         let source_target = target.clone();
         let daemon = pty::remote::machine_daemon(&machine, move || {
@@ -585,6 +628,52 @@ pub mod commands {
         })
         .ok_or_else(|| AppError::Other(format!("Could not reach the session daemon on {machine}")))?;
         Ok(Some((daemon, machine, pty::remote::RemoteUser::from(&found))))
+    }
+
+    /// "Retry now" on a pane whose remote link is down: cuts the reconnect wait short.
+    #[cfg(unix)]
+    #[tauri::command]
+    pub fn retry_session_link(session_id: String, state: State<'_, PtyState>) -> bool {
+        let Some(machine) = pty::remote::machine_of_session(&state, &session_id) else {
+            return false;
+        };
+        match pty::sessiond_client::connected_remote(&machine) {
+            Some(daemon) => {
+                daemon.retry_now();
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// "Sign in" on a pane whose machine's Cloudflare Access sign-in expired. Opens the sign-in,
+    /// then retries the link as soon as it is saved, so the pane comes back by itself.
+    #[cfg(unix)]
+    #[tauri::command]
+    pub async fn sign_in_session_link(
+        app: tauri::AppHandle,
+        session_id: String,
+    ) -> Result<Option<String>, AppError> {
+        let machine = pty::remote::machine_of_session(&app.state::<PtyState>(), &session_id)
+            .ok_or_else(|| AppError::Other("This pane does not run on another machine.".into()))?;
+        let target = pty::remote::target_of(&machine)
+            .ok_or_else(|| AppError::Other(format!("No SSH target known for {machine}")))?;
+        let hostname = crate::ssh_config::access_hostname_for(&target.host)
+            .ok_or_else(|| AppError::Other(format!("{} is not behind Cloudflare Access", target.host)))?;
+        let url = machine_access_login(app, hostname.clone()).await?;
+        std::thread::spawn(move || {
+            // The browser sign-in takes as long as the person does; check every 3 s for 5 min.
+            for _ in 0..100 {
+                std::thread::sleep(std::time::Duration::from_secs(3));
+                if remote_access::access_status(&hostname).state == remote_access::AccessState::SignedIn {
+                    if let Some(daemon) = pty::sessiond_client::connected_remote(&machine) {
+                        daemon.retry_now();
+                    }
+                    return;
+                }
+            }
+        });
+        Ok(url)
     }
 
     /// A pane's output channel, read on the way past for OSC 7501 program status.
@@ -6131,6 +6220,22 @@ pub fn run() {
                 std::thread::spawn(move || pty::sessiond_client::warm_up(app));
             }
 
+            // A remote pane's link (plans/ssh-pane-durability, phase 3): tell its panes when it
+            // drops, retries, needs a sign-in, or is back.
+            #[cfg(unix)]
+            {
+                let app = app.handle().clone();
+                pty::sessiond_client::set_link_observer(Box::new(move |machine, state| {
+                    let Some(store) = app.try_state::<PtyState>() else { return };
+                    let session_ids = pty::remote::sessions_on_machine(&store, machine);
+                    if session_ids.is_empty() {
+                        return;
+                    }
+                    let payload = pty_link_payload(session_ids, state);
+                    let _ = tauri::Emitter::emit(&app, "pty-link", payload);
+                }));
+            }
+
             // Dev builds ship as the same bundle id but use ~/.lotus-dev/ and
             // a separate `mcpServers.lotus-dev` registration. Surface the
             // distinction in the window chrome so a developer never confuses
@@ -6814,6 +6919,10 @@ pub fn run() {
             commands::create_remote_session,
             #[cfg(unix)]
             commands::adopt_remote_session,
+            #[cfg(unix)]
+            commands::retry_session_link,
+            #[cfg(unix)]
+            commands::sign_in_session_link,
             commands::reconcile_sessions,
             commands::quit_with_agents,
             commands::get_quit_choice,
