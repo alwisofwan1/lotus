@@ -2,10 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockCreatePtySession = vi.fn();
 const mockCreateCommandPtySession = vi.fn();
+const mockCreateRemotePtySession = vi.fn();
+const mockAdoptRemotePtySession = vi.fn();
 
 vi.mock("@/lib/tauri-api", () => ({
   createPtySession: (...args: unknown[]) => mockCreatePtySession(...args),
   createCommandPtySession: (...args: unknown[]) => mockCreateCommandPtySession(...args),
+  createRemotePtySession: (...args: unknown[]) => mockCreateRemotePtySession(...args),
+  adoptRemotePtySession: (...args: unknown[]) => mockAdoptRemotePtySession(...args),
+  adoptPtySession: vi.fn().mockResolvedValue(null),
   killPtySession: vi.fn().mockResolvedValue(undefined),
   writeToSession: vi.fn().mockResolvedValue(undefined),
   resizeSession: vi.fn().mockResolvedValue(undefined),
@@ -24,6 +29,9 @@ describe("PtySessionController on another machine", () => {
     vi.clearAllMocks();
     mockCreatePtySession.mockResolvedValue("shell-session");
     mockCreateCommandPtySession.mockResolvedValue("command-session");
+    // Most cases below are about the `ssh -t` argv: a machine without a Lotus host.
+    mockAdoptRemotePtySession.mockResolvedValue(null);
+    mockCreateRemotePtySession.mockResolvedValue(null);
   });
 
   it("still opens a plain local shell when there is no machine", async () => {
@@ -140,5 +148,80 @@ describe("PtySessionController on another machine", () => {
     const shellArgv = mockCreateCommandPtySession.mock.calls.at(-1)?.[1] as string[];
     expect(shellArgv.slice(0, 7)).toEqual(["ssh", "-t", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=3", "root@devbox-vps"]);
     expect(shellArgv.at(-1)).toContain("cd '/srv/api'");
+  });
+
+  describe("on a machine whose Lotus host runs a session daemon", () => {
+    it("starts a shell pane in that daemon, with the command ssh -t would have sent", async () => {
+      mockCreateRemotePtySession.mockResolvedValue("remote-session");
+      const ctrl = await controller();
+      await ctrl.connect("/srv/api", 100, 30, vi.fn(), "pane-r1", SSH, "term-r1");
+
+      expect(mockCreateCommandPtySession).not.toHaveBeenCalled();
+      const [target, remoteCommand, cols, rows, , paneId, terminalId] = mockCreateRemotePtySession.mock.calls[0];
+      expect(target).toEqual({ host: "devbox-vps", user: "root" });
+      expect(remoteCommand).toContain("cd '/srv/api'");
+      expect([cols, rows, paneId, terminalId]).toEqual([100, 30, "pane-r1", "term-r1"]);
+      expect(ctrl.getSessionId()).toBe("remote-session");
+      expect(ctrl.wasAdopted()).toBe(false);
+    });
+
+    it("starts a runner pane there with the same login-shell command, callback env included", async () => {
+      mockCreateRemotePtySession.mockResolvedValue("remote-session");
+      const ctrl = await controller();
+      await ctrl.connectToCommand("/srv/api", ["claude"], 80, 24, vi.fn(), "pane-r2", SSH, "term-r2");
+
+      const remoteCommand = mockCreateRemotePtySession.mock.calls[0][1] as string;
+      expect(remoteCommand.startsWith("cd '/srv/api' && LOTUS_PANE_ID='pane-r2' exec ${SHELL:-bash} -lic ")).toBe(true);
+      expect(mockCreateCommandPtySession).not.toHaveBeenCalled();
+    });
+
+    it("takes over the pane's own session there instead of starting a second one", async () => {
+      mockAdoptRemotePtySession.mockResolvedValue("adopted-remote");
+      const ctrl = await controller();
+      await ctrl.connectToCommand("/srv/api", ["claude"], 80, 24, vi.fn(), "pane-r3", SSH, "term-r3");
+
+      expect(mockAdoptRemotePtySession.mock.calls[0][1]).toBe("pane-r3");
+      expect(mockCreateRemotePtySession).not.toHaveBeenCalled();
+      expect(mockCreateCommandPtySession).not.toHaveBeenCalled();
+      expect(ctrl.wasAdopted()).toBe(true);
+    });
+
+    it("falls back to ssh -t with a notice when the machine runs no daemon", async () => {
+      const { NO_REMOTE_DAEMON_NOTICE } = await import("../pty-session-controller");
+      const onOutput = vi.fn();
+      const ctrl = await controller();
+      await ctrl.connect("/srv/api", 80, 24, onOutput, "pane-r4", SSH, "term-r4");
+
+      expect(onOutput).toHaveBeenCalledWith(NO_REMOTE_DAEMON_NOTICE);
+      expect(mockCreateCommandPtySession.mock.calls[0][1][0]).toBe("ssh");
+    });
+
+    it("falls back to ssh -t quietly when the daemon cannot be reached", async () => {
+      mockCreateRemotePtySession.mockRejectedValue(new Error("forward failed"));
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const onOutput = vi.fn();
+      const ctrl = await controller();
+      await ctrl.connect("/srv/api", 80, 24, onOutput, "pane-r5", SSH, "term-r5");
+
+      expect(onOutput).not.toHaveBeenCalled();
+      expect(mockCreateCommandPtySession.mock.calls[0][1][0]).toBe("ssh");
+      warn.mockRestore();
+    });
+
+    it("leaves a cell's own stored ssh command under ssh -t: its last word may be the host", async () => {
+      mockCreateRemotePtySession.mockResolvedValue("remote-session");
+      const ctrl = await controller();
+      await ctrl.connectToCommand("/srv", ["ssh", "-t", "root@devbox-vps"], 80, 24, vi.fn(), "pane-r6", SSH, "t");
+
+      expect(mockCreateRemotePtySession).not.toHaveBeenCalled();
+      expect(mockCreateCommandPtySession.mock.calls[0][1]).toEqual(["ssh", "-t", "root@devbox-vps"]);
+    });
+
+    it("never touches a local pane", async () => {
+      const ctrl = await controller();
+      await ctrl.connectToCommand("/repo", ["claude"], 80, 24, vi.fn(), "pane-r7", null, "t");
+      expect(mockAdoptRemotePtySession).not.toHaveBeenCalled();
+      expect(mockCreateRemotePtySession).not.toHaveBeenCalled();
+    });
   });
 });

@@ -57,9 +57,20 @@ struct MasterHandle {
     stderr: Arc<Mutex<VecDeque<u8>>>,
     stderr_done: mpsc::Receiver<()>,
     stopped: bool,
-    /// The machine's session daemon socket, forwarded to this local path over this master.
+    /// The machine's session daemon, forwarded to a local socket over this master.
     /// A forward lives and dies with its master, so a new master starts without one.
-    sessiond_forward: Option<PathBuf>,
+    sessiond_forward: Option<RemoteSessiond>,
+}
+
+/// A machine's session daemon as this app reaches it, plus the login facts a process started
+/// there needs: the daemon never reads its own environment, so the spawner builds all of it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RemoteSessiond {
+    /// The local end of the forward.
+    pub socket: PathBuf,
+    pub home: String,
+    pub user: String,
+    pub shell: String,
 }
 
 impl MasterHandle {
@@ -110,7 +121,7 @@ impl Drop for MasterHandle {
         self.stop();
         let _ = std::fs::remove_file(&self.socket_path);
         if let Some(forward) = &self.sessiond_forward {
-            let _ = std::fs::remove_file(forward);
+            let _ = std::fs::remove_file(&forward.socket);
         }
     }
 }
@@ -195,7 +206,7 @@ impl RemoteTransport {
     /// the plain `ssh -t` pane. Every pane on the machine shares this one master, so the link is
     /// one SSH connection however many panes are open, and a pane whose link drops reconnects here.
     /// Probed 2026-11-26 against a real host: `hello` answered protocol 1 through the forward.
-    pub fn forward_sessiond(&self, target: &SshToolTarget) -> Result<Option<PathBuf>, AppError> {
+    pub fn forward_sessiond(&self, target: &SshToolTarget) -> Result<Option<RemoteSessiond>, AppError> {
         let key = TransportKey::from(target);
         let slot = self.slot(&key);
         let mut guard = slot.lock().unwrap_or_else(|e| e.into_inner());
@@ -204,16 +215,17 @@ impl RemoteTransport {
             return Err(AppError::Other("SSH master vanished".into()));
         };
         if let Some(forward) = &handle.sessiond_forward {
-            if forward.exists() {
+            if forward.socket.exists() {
                 return Ok(Some(forward.clone()));
             }
             handle.sessiond_forward = None;
         }
 
         let ssh_target = format_ssh_target(target)?;
-        let Some(remote) = remote_sessiond_socket(&master, target.port, &ssh_target)? else {
+        let Some(probe) = probe_remote_sessiond(&master, target.port, &ssh_target)? else {
             return Ok(None);
         };
+        let remote = &probe.socket;
         let local = forward_path_for(&key);
         let _ = std::fs::remove_file(&local);
         let mut cmd = slave_ssh(&master, target.port);
@@ -230,8 +242,14 @@ impl RemoteTransport {
                 String::from_utf8_lossy(&out.stderr).trim()
             )));
         }
-        handle.sessiond_forward = Some(local.clone());
-        Ok(Some(local))
+        let found = RemoteSessiond {
+            socket: local,
+            home: probe.home,
+            user: probe.user,
+            shell: probe.shell,
+        };
+        handle.sessiond_forward = Some(found.clone());
+        Ok(Some(found))
     }
 
     /// Kill the master for `target` and remove its socket.
@@ -421,15 +439,40 @@ fn slave_ssh(master: &std::path::Path, port: Option<u16>) -> std::process::Comma
 /// Where the Lotus host keeps its session daemon socket (`packages/host` → `sessiondDir`).
 const REMOTE_SESSIOND_SOCKET: &str = "$HOME/.lotus/host-sessiond/sessiond.sock";
 
-/// The absolute path of the machine's session daemon socket, or `None` when there is none.
+/// What the probe found on the machine. `socket` is the far path here.
+struct SessiondProbe {
+    socket: String,
+    home: String,
+    user: String,
+    shell: String,
+}
+
+/// One line each: socket, home, user, shell. Anything short of an absolute socket path, an
+/// absolute home and a user means no daemon.
+fn parse_probe(stdout: &str) -> Option<SessiondProbe> {
+    let mut lines = stdout.lines().map(str::trim);
+    let socket = lines.next().filter(|p| p.starts_with('/'))?.to_string();
+    let home = lines.next().filter(|h| h.starts_with('/'))?.to_string();
+    let user = lines.next().filter(|u| !u.is_empty())?.to_string();
+    let shell = lines
+        .next()
+        .filter(|s| s.starts_with('/'))
+        .unwrap_or("/bin/sh")
+        .to_string();
+    Some(SessiondProbe { socket, home, user, shell })
+}
+
+/// The machine's session daemon socket (absolute) and login facts, or `None` when it runs none.
 /// A forward needs an absolute path: ssh does not expand `~` or `$HOME` on the far side.
-fn remote_sessiond_socket(
+fn probe_remote_sessiond(
     master: &std::path::Path,
     port: Option<u16>,
     ssh_target: &str,
-) -> Result<Option<String>, AppError> {
+) -> Result<Option<SessiondProbe>, AppError> {
     const PROBE_TIMEOUT: Duration = Duration::from_secs(15);
-    let script = format!("p=\"{REMOTE_SESSIOND_SOCKET}\"; [ -S \"$p\" ] && printf %s \"$p\"; exit 0");
+    let script = format!(
+        "p=\"{REMOTE_SESSIOND_SOCKET}\"; [ -S \"$p\" ] || exit 0; printf '%s\\n' \"$p\" \"$HOME\" \"$(id -un)\" \"${{SHELL:-/bin/sh}}\""
+    );
     let mut child = slave_ssh(master, port)
         .arg(ssh_target)
         .arg(script)
@@ -466,8 +509,7 @@ fn remote_sessiond_socket(
             stderr.trim()
         )));
     }
-    let path = stdout.trim();
-    Ok((path.starts_with('/')).then(|| path.to_string()))
+    Ok(parse_probe(&stdout))
 }
 
 // ── Orphans ───────────────────────────────────────────────────────────────────
@@ -817,6 +859,17 @@ mod tests {
     }
 
     #[test]
+    fn a_probe_needs_a_socket_a_home_and_a_user() {
+        let p = parse_probe("/h/.lotus/host-sessiond/sessiond.sock\n/h\nalwi\n/bin/zsh\n").unwrap();
+        assert_eq!((p.home.as_str(), p.user.as_str(), p.shell.as_str()), ("/h", "alwi", "/bin/zsh"));
+        // No shell reported: POSIX sh, as sshd would use.
+        assert_eq!(parse_probe("/s.sock\n/h\nalwi\n").unwrap().shell, "/bin/sh");
+        assert!(parse_probe("").is_none());
+        assert!(parse_probe("/s.sock\n").is_none());
+        assert!(parse_probe("motd text\n/h\nalwi\n").is_none());
+    }
+
+    #[test]
     fn a_forward_name_gives_back_its_owner_pid_and_differs_from_the_master() {
         let key = TransportKey::from(&target("host", Some("alwi"), Some(22)));
         let forward = forward_path_for(&key);
@@ -861,7 +914,7 @@ case " $* " in
   *" -O forward "*)
     prev=; for a; do [ "$prev" = -L ] && spec=$a; prev=$a; done
     : > "${{spec%%:*}}"; exit 0;;
-  *) printf '%s' '{probe_answer}'; exit 0;;
+  *) printf '{probe_answer}'; exit 0;;
 esac
 "#,
             log = log.display()
@@ -874,13 +927,15 @@ esac
         let _lock = crate::paths::TEST_ENV_LOCK.lock().unwrap();
         let log = tempfile::NamedTempFile::new().unwrap();
         let remote = "/home/dev/.lotus/host-sessiond/sessiond.sock";
-        let _ssh = fake_ssh_for_forward(log.path(), remote);
+        let _ssh = fake_ssh_for_forward(log.path(), &format!("{remote}\\n/home/dev\\ndev\\n/usr/bin/zsh\\n"));
         let transport = RemoteTransport::new();
         let target = target("lotus-test-forward", Some("dev"), None);
 
-        let local = transport.forward_sessiond(&target).unwrap().expect("a forward");
+        let found = transport.forward_sessiond(&target).unwrap().expect("a forward");
+        let local = found.socket.clone();
         assert!(local.exists());
-        assert_eq!(transport.forward_sessiond(&target).unwrap(), Some(local.clone()));
+        assert_eq!((found.home.as_str(), found.user.as_str(), found.shell.as_str()), ("/home/dev", "dev", "/usr/bin/zsh"));
+        assert_eq!(transport.forward_sessiond(&target).unwrap(), Some(found));
 
         let calls = std::fs::read_to_string(log.path()).unwrap();
         let forwards: Vec<&str> = calls.lines().filter(|l| l.contains("-O forward")).collect();

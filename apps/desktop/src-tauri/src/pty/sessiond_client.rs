@@ -88,8 +88,6 @@ fn remotes() -> &'static Mutex<HashMap<String, RemoteSlot>> {
 /// The session daemon on machine `key`, connecting through `source` when there is no live link.
 /// `None` = not reachable now, or the machine runs no daemon: the caller keeps the plain `ssh -t`
 /// pane, so a machine without a Lotus host behaves exactly as before.
-// Wired into the SSH pane spawn path in phase 2 (plans/ssh-pane-durability).
-#[cfg_attr(not(test), allow(dead_code))]
 pub fn remote_daemon(key: &str, source: impl FnOnce() -> SocketSource) -> Option<Arc<Daemon>> {
     let slot = {
         let mut map = remotes().lock().unwrap_or_else(|e| e.into_inner());
@@ -102,6 +100,18 @@ pub fn remote_daemon(key: &str, source: impl FnOnce() -> SocketSource) -> Option
     let daemon = Daemon::start_remote(key.to_string(), source())?;
     *guard = Some(Arc::clone(&daemon));
     Some(daemon)
+}
+
+/// The live connection to `key`'s daemon, never a new one (letting go of a mirror needs no link
+/// that is not already there).
+pub fn connected_remote(key: &str) -> Option<Arc<Daemon>> {
+    let slot = remotes()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .get(key)
+        .map(Arc::clone)?;
+    let guard = slot.lock().unwrap_or_else(|e| e.into_inner());
+    guard.as_ref().map(Arc::clone)
 }
 
 /// Drops `daemon` from the registry, if it is still the one registered for its machine.
@@ -223,7 +233,6 @@ struct Links {
 pub type SocketSource = Box<dyn Fn() -> Result<Option<PathBuf>, String> + Send + Sync>;
 
 /// How a [`Daemon`] reaches its daemon, the first time and after every lost connection.
-#[cfg_attr(not(test), allow(dead_code))]
 pub enum Connector {
     /// This machine's daemon, started when nothing listens.
     Local { socket: PathBuf, bin: PathBuf },
@@ -281,7 +290,6 @@ impl Daemon {
     }
 
     /// A daemon on another machine; `None` when it cannot be reached now (the caller falls back).
-    #[cfg_attr(not(test), allow(dead_code))]
     pub fn start_remote(label: String, source: SocketSource) -> Option<Arc<Daemon>> {
         let connector = Connector::Remote { label, source };
         match connector.connect() {

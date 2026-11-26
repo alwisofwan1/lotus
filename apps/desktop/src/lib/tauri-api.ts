@@ -7,6 +7,7 @@
 
 import { loadTauriCore, isTauri, tauriInvoke } from "@/lib/tauri/runtime";
 import { safeTauriUnlisten } from "@/lib/tauri-listener-cleanup";
+import type { SshTarget } from "@/modules/codespace/services/ssh-command";
 export { isTauri } from "@/lib/tauri/runtime";
 export { getSettings, openNewWindow, openPathInEditor, saveSettings } from "@/lib/tauri/app";
 export {
@@ -804,6 +805,60 @@ export async function adoptPtySession(paneId: string, onOutput: (data: string) =
   channel.onmessage = makePtyDecoder(onOutput);
   return (invoke as (cmd: string, args?: Record<string, unknown>) => Promise<string | null>)(
     "adopt_session", { paneId, onOutput: channel }
+  );
+}
+
+/**
+ * A pane on another machine, started in that machine's session daemon so a dropped SSH link no
+ * longer kills it (plans/ssh-pane-durability). `null` = the machine runs no session daemon: run
+ * the pane under `ssh -t` instead. `remoteCommand` is the string `ssh -t` would have sent.
+ */
+export async function createRemotePtySession(
+  target: SshTarget,
+  remoteCommand: string,
+  cols: number,
+  rows: number,
+  onOutput: (data: string) => void,
+  paneId?: string,
+  canvasTerminalId?: string,
+): Promise<string | null> {
+  if (!isTauri()) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { invoke, Channel } = await loadTauriCore() as any;
+  const channel = new Channel();
+  channel.onmessage = makePtyDecoder(onOutput);
+  return (invoke as (cmd: string, args?: Record<string, unknown>) => Promise<string | null>)(
+    "create_remote_session",
+    {
+      target: { host: target.host, user: target.user ?? null, port: target.port ?? null },
+      remoteCommand,
+      paneId: paneId ?? null,
+      canvasTerminalId: canvasTerminalId ?? null,
+      cols,
+      rows,
+      onOutput: channel,
+    },
+  );
+}
+
+/** A remote pane's session left running in its machine's daemon. `null` = none: start one. */
+export async function adoptRemotePtySession(
+  target: SshTarget,
+  paneId: string,
+  onOutput: (data: string) => void,
+): Promise<string | null> {
+  if (!isTauri()) return null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { invoke, Channel } = await loadTauriCore() as any;
+  const channel = new Channel();
+  channel.onmessage = makePtyDecoder(onOutput);
+  return (invoke as (cmd: string, args?: Record<string, unknown>) => Promise<string | null>)(
+    "adopt_remote_session",
+    {
+      target: { host: target.host, user: target.user ?? null, port: target.port ?? null },
+      paneId,
+      onOutput: channel,
+    },
   );
 }
 

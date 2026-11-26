@@ -3,6 +3,8 @@ use crate::no_window::NoWindow;
 mod orphan_reaper;
 #[cfg(unix)]
 pub mod sessiond_client;
+#[cfg(unix)]
+pub mod remote;
 mod shell_integration;
 pub(crate) use lotus_pty::{output_tail, process_tree, size_lease};
 pub use lotus_pty::OutputSink;

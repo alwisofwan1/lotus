@@ -11,6 +11,8 @@ commands.allow = [
   "close_window_sessions",
   "list_sessions",
   "adopt_session",
+  "create_remote_session",
+  "adopt_remote_session",
   "reconcile_sessions",
   "quit_with_agents",
   "get_quit_choice",

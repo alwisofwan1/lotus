@@ -478,6 +478,115 @@ pub mod commands {
         )
     }
 
+    /// A pane on another machine, started in that machine's `lotus-sessiond` so a dropped link
+    /// no longer kills its process (plans/ssh-pane-durability). `null` = the machine runs no
+    /// session daemon: the pane falls back to `ssh -t`. `remote_command` is the string `ssh -t`
+    /// would have handed the far shell.
+    #[cfg(unix)]
+    #[tauri::command]
+    #[allow(clippy::too_many_arguments)]
+    pub async fn create_remote_session(
+        app: tauri::AppHandle,
+        window: Window,
+        target: crate::cli_tools::SshToolTarget,
+        remote_command: String,
+        pane_id: Option<String>,
+        canvas_terminal_id: Option<String>,
+        cols: u16,
+        rows: u16,
+        on_output: pty::PtyOutputChannel,
+        mcp: State<'_, McpIpcSharedState>,
+    ) -> Result<Option<String>, AppError> {
+        let on_output = pane_output_sink(on_output, pane_id.as_deref(), &mcp);
+        let window_label = window.label().to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let Some((daemon, machine, user)) = remote_machine(&app, &target)? else {
+                return Ok(None);
+            };
+            let state = app.state::<PtyState>();
+            pty::remote::spawn_remote_session(
+                &daemon,
+                &machine,
+                &user,
+                &remote_command,
+                window_label,
+                pane_id.as_deref(),
+                canvas_terminal_id,
+                cols,
+                rows,
+                on_output,
+                &state,
+            )
+            .map(Some)
+        })
+        .await
+        .map_err(|e| AppError::Other(e.to_string()))?
+    }
+
+    /// A remote pane looking for its session after a restart or reload. `null` = none there
+    /// (or the machine runs no daemon).
+    #[cfg(unix)]
+    #[tauri::command]
+    pub async fn adopt_remote_session(
+        app: tauri::AppHandle,
+        window: Window,
+        target: crate::cli_tools::SshToolTarget,
+        pane_id: String,
+        on_output: pty::PtyOutputChannel,
+        mcp: State<'_, McpIpcSharedState>,
+    ) -> Result<Option<String>, AppError> {
+        let on_output = pane_output_sink(on_output, Some(&pane_id), &mcp);
+        let window_label = window.label().to_string();
+        tauri::async_runtime::spawn_blocking(move || {
+            let Some((daemon, machine, _)) = remote_machine(&app, &target)? else {
+                return Ok(None);
+            };
+            let state = app.state::<PtyState>();
+            pty::remote::adopt_remote_session(&daemon, &machine, window_label, &pane_id, on_output, &state)
+        })
+        .await
+        .map_err(|e| AppError::Other(e.to_string()))?
+    }
+
+    /// The daemon connection for `target`'s machine, its key, and who runs there. `None` = the
+    /// machine runs no session daemon. The link reconnects through the same forward, so a dead
+    /// master is rebuilt on the next try.
+    #[cfg(unix)]
+    fn remote_machine(
+        app: &tauri::AppHandle,
+        target: &crate::cli_tools::SshToolTarget,
+    ) -> Result<
+        Option<(
+            Arc<pty::sessiond_client::Daemon>,
+            String,
+            pty::remote::RemoteUser,
+        )>,
+        AppError,
+    > {
+        let transport = app.state::<crate::remote_transport::RemoteTransport>();
+        let Some(found) = transport.forward_sessiond(target)? else {
+            return Ok(None);
+        };
+        let machine = format!(
+            "{}:{}",
+            crate::cli_tools::format_ssh_target(target)?,
+            target.port.unwrap_or(22)
+        );
+        let source_app = app.clone();
+        let source_target = target.clone();
+        let daemon = pty::remote::machine_daemon(&machine, move || {
+            Box::new(move || {
+                source_app
+                    .state::<crate::remote_transport::RemoteTransport>()
+                    .forward_sessiond(&source_target)
+                    .map(|found| found.map(|f| f.socket))
+                    .map_err(|e| e.to_string())
+            })
+        })
+        .ok_or_else(|| AppError::Other(format!("Could not reach the session daemon on {machine}")))?;
+        Ok(Some((daemon, machine, pty::remote::RemoteUser::from(&found))))
+    }
+
     /// A pane's output channel, read on the way past for OSC 7501 program status.
     fn pane_output_sink(
         on_output: pty::PtyOutputChannel,
@@ -6697,6 +6806,10 @@ pub fn run() {
             commands::close_window_sessions,
             commands::list_sessions,
             commands::adopt_session,
+            #[cfg(unix)]
+            commands::create_remote_session,
+            #[cfg(unix)]
+            commands::adopt_remote_session,
             commands::reconcile_sessions,
             commands::quit_with_agents,
             commands::get_quit_choice,

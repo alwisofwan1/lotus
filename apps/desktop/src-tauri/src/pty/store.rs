@@ -334,8 +334,12 @@ fn release(sessions: Vec<PtySession>) -> usize {
     let count = sessions.len();
     let (remote, local): (Vec<_>, Vec<_>) = sessions.into_iter().partition(|s| s.daemon_id.is_some());
     #[cfg(unix)]
-    if let Some(d) = super::sessiond_client::daemon() {
-        for s in &remote {
+    for s in &remote {
+        let daemon = match s.machine.as_deref() {
+            Some(machine) => super::sessiond_client::connected_remote(machine),
+            None => super::sessiond_client::daemon(),
+        };
+        if let Some(d) = daemon {
             d.detach(s.daemon_id.as_deref().unwrap_or_default());
         }
     }

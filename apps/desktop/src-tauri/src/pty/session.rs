@@ -11,6 +11,8 @@ pub struct PtySession {
     pub(super) sizing: size_lease::Sizing,
     /// The session's id in `lotus-sessiond` when it runs there (ADR-0067); `None` in-process.
     pub daemon_id: Option<String>,
+    /// The machine whose daemon holds it (`sessiond_client::remote_daemon` key); `None` = this one.
+    pub machine: Option<String>,
 }
 
 #[derive(Default)]
@@ -64,6 +66,7 @@ pub(crate) fn spawn_session(
         canvas_terminal_id,
         sizing: size_lease::Sizing::default(),
         daemon_id,
+        machine: None,
     };
 
     {
@@ -125,6 +128,7 @@ pub fn adopt_session(
             canvas_terminal_id: info.owner.canvas_terminal_id.clone(),
             sizing: size_lease::Sizing::default(),
             daemon_id: Some(info.id.clone()),
+            machine: None,
         };
         state
             .lock()

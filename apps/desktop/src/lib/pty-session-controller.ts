@@ -1,6 +1,8 @@
 import {
   adoptPtySession,
+  adoptRemotePtySession,
   createCommandPtySession,
+  createRemotePtySession,
   createPtySession,
   killPtySession,
   writeToSession,
@@ -39,6 +41,19 @@ function sshTargetOf(location?: CodeSpaceStoredWorkspaceLocation | null): SshTar
  * (`pty.rs::resolve_session_cwd`), and the real directory is carried inside the ssh command.
  */
 const SSH_CLIENT_CWD = "";
+
+/**
+ * An `ssh -t` argv this file built itself, so its last element is known to be the remote command.
+ * A cell's stored `ssh …` command is not: it may end in the host, with no command at all.
+ */
+const OWN_SSH_ARGV = new WeakSet<readonly string[]>();
+
+/**
+ * Shown once in a pane on a machine without a Lotus host: its process lives under `ssh -t`, so a
+ * dropped link still ends it (plans/ssh-pane-durability, decision 2).
+ */
+export const NO_REMOTE_DAEMON_NOTICE =
+  "\x1b[2m[Lotus] This machine runs no Lotus host, so this pane is a plain SSH session: if the link drops, its process ends.\x1b[0m\r\n";
 
 /** Tracks all active controllers for orphan reaping */
 const activeControllers = new Set<PtySessionController>();
@@ -79,16 +94,9 @@ export class PtySessionController {
     if (target) {
       // A shell on another machine: `ssh -t <target> "cd <cwd> && exec $SHELL -l"`, built by the
       // one function that already owns that string.
-      return this.connectToCommand(
-        SSH_CLIENT_CWD,
-        buildSshCommand({ target, remoteCwd: cwd }),
-        cols,
-        rows,
-        onOutput,
-        paneId,
-        null,
-        canvasTerminalId,
-      );
+      const argv = buildSshCommand({ target, remoteCwd: cwd });
+      OWN_SSH_ARGV.add(argv);
+      return this.connectToCommand(SSH_CLIENT_CWD, argv, cols, rows, onOutput, paneId, location, canvasTerminalId);
     }
     activeControllers.add(this);
 
@@ -194,6 +202,20 @@ export class PtySessionController {
       }
     }
 
+    // On another machine, the process goes into that machine's session daemon when it runs one:
+    // there a dropped link only pauses the pane, under `ssh -t` it kills the agent.
+    const machine = target ?? sshTargetOf(location);
+    const remoteCommand = target || OWN_SSH_ARGV.has(command) ? spawnArgv.at(-1) : undefined;
+    if (machine && remoteCommand) {
+      const placed = await this.tryRemoteDaemon(machine, remoteCommand, cols, rows, guardedOnOutput, paneId, canvasTerminalId);
+      if (placed === "running") return;
+      if (this.aborted) {
+        activeControllers.delete(this);
+        return;
+      }
+      if (placed === "no-daemon") guardedOnOutput(NO_REMOTE_DAEMON_NOTICE);
+    }
+
     try {
       this.pendingSpawn = createCommandPtySession(
         spawnCwd,
@@ -243,6 +265,59 @@ export class PtySessionController {
     if (wanted) this.resize(wanted.cols, wanted.rows);
     if (this.aborted) await this.abortConfirmed();
     return true;
+  }
+
+  /**
+   * Puts the pane in `machine`'s session daemon: its own session from before if one is there,
+   * else a new one. `"no-daemon"` / `"failed"` = run it under `ssh -t` as before; a failure never
+   * leaves the pane without a terminal.
+   */
+  private async tryRemoteDaemon(
+    machine: SshTarget,
+    remoteCommand: string,
+    cols: number,
+    rows: number,
+    onOutput: (data: string) => void,
+    paneId?: string,
+    canvasTerminalId?: string,
+  ): Promise<"running" | "no-daemon" | "failed"> {
+    let id: string | null = null;
+    let adopted = false;
+    try {
+      if (paneId) {
+        this.pendingSpawn = adoptRemotePtySession(machine, paneId, onOutput).then((found) => found ?? "");
+        id = (await this.pendingSpawn) || null;
+        adopted = id !== null;
+      }
+      if (!id && !this.aborted) {
+        let noDaemon = false;
+        this.pendingSpawn = createRemotePtySession(machine, remoteCommand, cols, rows, onOutput, paneId, canvasTerminalId)
+          .then((created) => {
+            noDaemon = created === null;
+            return created ?? "";
+          });
+        id = (await this.pendingSpawn) || null;
+        if (noDaemon) return "no-daemon";
+      }
+    } catch (err) {
+      console.warn("[pty] remote session daemon unavailable — using ssh -t:", err);
+      return "failed";
+    } finally {
+      this.pendingSpawn = null;
+    }
+    if (!id) return "failed";
+    this.ptyId = id;
+    if (adopted) {
+      this.adopted = true;
+      this.lastResize = null;
+      const wanted = this.pendingResize;
+      this.pendingResize = null;
+      if (wanted) this.resize(wanted.cols, wanted.rows);
+    } else {
+      this.adoptSpawnGeometry(cols, rows);
+    }
+    if (this.aborted) await this.abortConfirmed();
+    return "running";
   }
 
   wasAdopted(): boolean {
