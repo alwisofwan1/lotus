@@ -17,7 +17,7 @@ pub struct CliToolAvailability {
     pub version: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct SshToolTarget {
     pub host: String,

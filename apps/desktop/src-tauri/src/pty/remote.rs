@@ -280,7 +280,95 @@ fn sweep_orphans(machine: &str, daemon: &Arc<Daemon>) -> usize {
             }
         }
     }
+    // Nothing of this desktop's is left there: the start-up sweep need not come back. Not when
+    // this run started a session there: the sweep runs beside the connect that creates it, so
+    // its list may predate that session.
+    let ours = listed.iter().filter(|s| is_ours(s, sessiond_client::desktop_id())).count();
+    if ours == ended && !used_this_run(machine) {
+        forget_machine(machine);
+    }
     ended
+}
+
+/// The machines this desktop started a remote session on and has not seen empty since, kept on
+/// disk (phase 4). A machine is swept only when something connects to it, so an agent whose pane
+/// was deleted while its machine was out of use would otherwise run there for good: at start-up
+/// the app connects to each of these once, and the connection's sweep ends what has no pane.
+fn known_machines_file() -> Option<std::path::PathBuf> {
+    if cfg!(test) {
+        return None;
+    }
+    Some(crate::paths::lotus_state_dir().join("remote-machines.json"))
+}
+
+type KnownMachines = HashMap<String, crate::cli_tools::SshToolTarget>;
+
+fn read_known(file: &std::path::Path) -> KnownMachines {
+    std::fs::read_to_string(file)
+        .ok()
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+fn update_known(change: impl FnOnce(&mut KnownMachines) -> bool) {
+    static LOCK: Mutex<()> = Mutex::new(());
+    let Some(file) = known_machines_file() else { return };
+    let _guard = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut known = read_known(&file);
+    if !change(&mut known) {
+        return;
+    }
+    let written = serde_json::to_string_pretty(&known)
+        .map_err(|e| e.to_string())
+        .and_then(|text| {
+            if let Some(dir) = file.parent() {
+                std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+            }
+            std::fs::write(&file, text).map_err(|e| e.to_string())
+        });
+    if let Err(e) = written {
+        eprintln!("[sessiond] could not save {}: {e}", file.display());
+    }
+}
+
+static USED_THIS_RUN: OnceLock<Mutex<std::collections::HashSet<String>>> = OnceLock::new();
+
+fn used_this_run(machine: &str) -> bool {
+    USED_THIS_RUN
+        .get()
+        .is_some_and(|used| used.lock().unwrap_or_else(|e| e.into_inner()).contains(machine))
+}
+
+/// A session of this desktop now runs on `machine`.
+pub fn note_machine_in_use(machine: &str, target: &crate::cli_tools::SshToolTarget) {
+    USED_THIS_RUN
+        .get_or_init(Default::default)
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .insert(machine.to_string());
+    update_known(|known| {
+        if known.get(machine) == Some(target) {
+            return false;
+        }
+        known.insert(machine.to_string(), target.clone());
+        true
+    });
+}
+
+/// `machine` holds nothing of this desktop's any more, or no longer runs a session daemon.
+pub fn forget_machine(machine: &str) {
+    update_known(|known| known.remove(machine).is_some());
+}
+
+/// The known machines not connected now: the start-up sweep's list.
+pub fn machines_to_sweep() -> Vec<(String, crate::cli_tools::SshToolTarget)> {
+    let Some(file) = known_machines_file() else { return Vec::new() };
+    let mut out: Vec<_> = read_known(&file)
+        .into_iter()
+        .filter(|(machine, _)| sessiond_client::connected_remote(machine).is_none())
+        .collect();
+    out.sort_by(|a, b| a.0.cmp(&b.0));
+    out
 }
 
 /// This Lotus's sessions of `window` whose pane is gone.
@@ -332,6 +420,34 @@ mod tests {
         ];
         let found = find_pane_session(&listed, "p1", "me", |id| id == "mirrored").map(|s| s.id.as_str());
         assert_eq!(found, Some("mine"));
+    }
+
+    #[test]
+    fn the_known_machines_file_round_trips_and_a_bad_one_reads_as_empty() {
+        let dir = std::env::temp_dir().join(format!("lotus-known-machines-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("remote-machines.json");
+        let target = crate::cli_tools::SshToolTarget {
+            host: "devbox-vps".into(),
+            user: Some("dev".into()),
+            port: None,
+        };
+        let known: KnownMachines = [("dev@devbox-vps:22".to_string(), target.clone())].into();
+        std::fs::write(&file, serde_json::to_string(&known).unwrap()).unwrap();
+        assert_eq!(read_known(&file).get("dev@devbox-vps:22"), Some(&target));
+
+        std::fs::write(&file, "{not json").unwrap();
+        assert!(read_known(&file).is_empty());
+        assert!(read_known(&dir.join("missing.json")).is_empty());
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn a_machine_used_this_run_is_remembered_as_such() {
+        let target = crate::cli_tools::SshToolTarget { host: "devbox-vps".into(), user: None, port: Some(2222) };
+        assert!(!used_this_run("devbox-vps:2222"));
+        note_machine_in_use("devbox-vps:2222", &target);
+        assert!(used_this_run("devbox-vps:2222"));
     }
 
     #[test]

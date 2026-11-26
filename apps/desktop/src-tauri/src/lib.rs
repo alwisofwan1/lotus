@@ -559,6 +559,7 @@ pub mod commands {
                 on_output,
                 &state,
             )
+            .inspect(|_| pty::remote::note_machine_in_use(&machine, &target))
             .map(Some)
         })
         .await
@@ -732,9 +733,40 @@ pub mod commands {
     pub async fn reconcile_sessions(window: Window, pane_ids: Vec<String>) -> Result<usize, AppError> {
         let window_label = window.label().to_string();
         // A remote daemon answers `list` over the network: keep it off the async runtime.
-        tauri::async_runtime::spawn_blocking(move || pty::reconcile_sessions(&window_label, &pane_ids))
+        let ended = tauri::async_runtime::spawn_blocking(move || pty::reconcile_sessions(&window_label, &pane_ids))
             .await
-            .map_err(|e| AppError::Other(e.to_string()))?
+            .map_err(|e| AppError::Other(e.to_string()))?;
+        #[cfg(unix)]
+        sweep_known_machines_once(window.app_handle());
+        ended
+    }
+
+    /// Once per run, after the first window has listed its panes: connect to each machine this
+    /// desktop left a session on, so the connection's sweep ends the ones whose pane is gone
+    /// (plans/ssh-pane-durability, phase 4). In the background; an expired Cloudflare sign-in or
+    /// an unreachable machine only skips that machine until the next start.
+    #[cfg(unix)]
+    fn sweep_known_machines_once(app: &tauri::AppHandle) {
+        static STARTED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+        if STARTED.swap(true, std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
+        let app = app.clone();
+        let _ = std::thread::Builder::new()
+            .name("sessiond-known-machines".into())
+            .spawn(move || {
+                for (machine, target) in pty::remote::machines_to_sweep() {
+                    match remote_machine(&app, &target) {
+                        // Connected: `machine_daemon` sweeps it on its own thread.
+                        Ok(Some(_)) => eprintln!("[sessiond] {machine}: connected for the start-up sweep"),
+                        Ok(None) => {
+                            eprintln!("[sessiond] {machine}: no session daemon there any more; forgetting it");
+                            pty::remote::forget_machine(&machine);
+                        }
+                        Err(e) => eprintln!("[sessiond] {machine}: start-up sweep skipped: {e}"),
+                    }
+                }
+            });
     }
 
     #[tauri::command]
