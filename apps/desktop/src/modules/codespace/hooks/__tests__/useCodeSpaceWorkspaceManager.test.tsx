@@ -128,6 +128,30 @@ describe("useCodeSpaceWorkspaceManager", () => {
     expect(pane().terminalCommand).toEqual(expect.arrayContaining(["--resume", "4f1c"]));
   });
 
+  it("relaunching a pane closes its PTY and hands the terminal a fresh copy of the same argv", () => {
+    const { result } = renderHook(() => useCodeSpaceWorkspaceManager());
+    act(() => {
+      result.current.createWorkspace(template, "/tmp/relaunch", ["claude"], "Relaunch");
+    });
+    const workspaceId = result.current.workspaces[0]!.id;
+    let cellId = "";
+    act(() => {
+      cellId = result.current.addPane(workspaceId, "claude") ?? "";
+    });
+    const pane = () => result.current.workspaces[0]!.cells.find((c) => c.id === cellId) as TerminalCellData;
+    const before = pane().terminalCommand;
+    closeTerminalSession.mockClear();
+
+    act(() => {
+      result.current.relaunchTerminal(workspaceId, cellId);
+    });
+
+    expect(closeTerminalSession).toHaveBeenCalledWith(cellId);
+    expect(pane().terminalCommand).toEqual(before);
+    expect(pane().terminalCommand).not.toBe(before);
+    expect(pane().runtimeSessionId).toBeNull();
+  });
+
   describe("a reopened folder keeps its workspace id", () => {
     it("reuses the id a closed workspace of the same folder had", () => {
       const { result } = renderHook(() => useCodeSpaceWorkspaceManager());

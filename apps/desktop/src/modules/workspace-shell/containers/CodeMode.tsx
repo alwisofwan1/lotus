@@ -256,6 +256,7 @@ export function CodeMode({
     updateBrowserCellLink,
     updateWorkbenchCell,
     moveTerminalToAccount,
+    relaunchTerminal,
     fallBackToShell,
     // The launch wizard comes with the state engine — the shell shows it, it is not rebuilt.
     view,
@@ -1780,6 +1781,7 @@ export function CodeMode({
             updateCellRuntimeStatus(paneWorkspace.id, paneId, status)
           }
           onAgentExit={(paneId) => fallBackToShell(paneWorkspace.id, paneId)}
+          onRelaunch={(paneId) => relaunchTerminal(paneWorkspace.id, paneId)}
           onBrowserUrlChange={(paneId, url) => updateBrowserCellUrl(paneWorkspace.id, paneId, url)}
           onBrowserPick={(_, payload) => {
             if (cell.type === "browser") pickInBrowser(paneWorkspace, cell, payload);

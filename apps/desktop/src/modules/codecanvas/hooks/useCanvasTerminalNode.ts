@@ -11,6 +11,7 @@ import { tmuxSessionFor } from "@/modules/codecanvas/services/remote-host";
 import { getActiveProjectLocation } from "@/modules/codecanvas/services/canvas-active-project";
 import { machineKey } from "@/modules/codecanvas/services/machine";
 import { getCanvasBehaviorSettings } from "./useCanvasBehaviorSettings";
+import { useLinkStrip, type LinkStrip } from "@/modules/workspace-shell/components/SshLinkStrip";
 import type { TerminalRuntimeStatus } from "@/modules/codespace/services/terminal-session-registry";
 import {
   subscribeTerminalActivity,
@@ -71,6 +72,9 @@ export interface UseCanvasTerminalNodeResult {
   searchVisible: boolean;
   openSearch: () => void;
   closeSearch: () => void;
+  /** A remote node's link to its machine (plans/ssh-pane-durability, phase 3). */
+  link: LinkStrip;
+  sessionId: string | null;
 }
 
 /** canvas:default scopes all canvas PTYs out of the CodeSpace fleet snapshot. */
@@ -100,6 +104,9 @@ export function useCanvasTerminalNode({
   const [runtimeStatus, setRuntimeStatus] = useState<TerminalRuntimeStatus>("idle");
   const [activity, setActivity] = useState<TerminalActivity>("idle");
   const [currentCwd, setCurrentCwd] = useState(cwd);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  // A dropped plain `ssh -t` node already gets the "Terminal exited" recovery, so no red strip.
+  const link = useLinkStrip(sessionId, false);
 
   useEffect(() => subscribeTerminalActivity(runtimePaneId, setActivity), [runtimePaneId]);
   const [searchAPI, setSearchAPI] = useState<CanvasSearchAPI | null>(null);
@@ -147,6 +154,7 @@ export function useCanvasTerminalNode({
     fontSize: CANVAS_TERMINAL_TYPOGRAPHY.fontSize,
     history: [],
     onRuntimeStatusChange: setRuntimeStatus,
+    onRuntimeSessionIdChange: setSessionId,
     onCurrentDirectoryChange: handleCwdChange,
     terminalTheme,
     allowTransparency,
@@ -198,6 +206,8 @@ export function useCanvasTerminalNode({
     assignWorktree,
     unassignWorktree,
     searchVisible,
+    link: link.state,
+    sessionId,
     openSearch,
     closeSearch,
   };

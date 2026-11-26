@@ -22,6 +22,7 @@ let mockRuntimeStatus: TerminalRuntimeStatus = "idle";
 let mockSearchAPI: CanvasSearchAPI | null = null;
 let mockActivePanel: CanvasActivePanel = null;
 let mockSearchVisible = false;
+let mockLink: import("@/modules/workspace-shell/components/SshLinkStrip").LinkStrip = { kind: "none" };
 const mockToggleWT = vi.fn();
 const mockToggleSK = vi.fn();
 const mockClosePanel = vi.fn();
@@ -46,6 +47,8 @@ vi.mock("@/modules/codecanvas/hooks/useCanvasTerminalNode", () => ({
     searchVisible:     mockSearchVisible,
     openSearch:        mockOpenSearch,
     closeSearch:       mockCloseSearch,
+    link:              mockLink,
+    sessionId:         "pty-1",
   })),
 }));
 
@@ -121,6 +124,7 @@ describe("TerminalNode", () => {
   beforeEach(() => {
     localStorage.clear();
     mockRuntimeStatus = "idle";
+    mockLink = { kind: "none" };
     mockSearchAPI = null;
     mockActivePanel = null;
     mockSearchVisible = false;
@@ -299,6 +303,25 @@ describe("TerminalNode", () => {
       fireEvent.click(screen.getByRole("button", { name: "Restart terminal" }));
 
       expect(dispatchCommand).toHaveBeenCalledWith({ kind: "recover-terminal", nodeId: "term-1" });
+    });
+  });
+
+  describe("link to a remote machine", () => {
+    it("shows the reconnect strip and holds keys while the link is down", () => {
+      mockLink = { kind: "needs-sign-in" };
+      render(<TerminalNode {...makeProps()} />);
+
+      expect(screen.getByText(/Sign-in Cloudflare kedaluwarsa/)).toBeInTheDocument();
+      const body = screen.getByTestId("canvas-terminal-body");
+      expect(body).toHaveAttribute("data-link-held", "true");
+      const key = new KeyboardEvent("keydown", { key: "a", bubbles: true, cancelable: true });
+      body.dispatchEvent(key);
+      expect(key.defaultPrevented).toBe(true);
+    });
+
+    it("holds nothing while the link is up", () => {
+      render(<TerminalNode {...makeProps()} />);
+      expect(screen.getByTestId("canvas-terminal-body")).not.toHaveAttribute("data-link-held");
     });
   });
 

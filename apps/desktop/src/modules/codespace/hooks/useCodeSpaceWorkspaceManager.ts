@@ -920,6 +920,29 @@ export function useCodeSpaceWorkspaceManager() {
   }, []);
 
   /**
+   * Start a terminal pane's launch again in place ("Buka lagi" on an SSH pane whose link dropped).
+   * The PTY is closed, and a fresh copy of the same argv makes the terminal effect run again; with
+   * no session to reattach to, it starts the command anew.
+   */
+  const relaunchTerminal = useCallback((workspaceId: string, cellId: string) => {
+    closeTerminalSession(cellId);
+    setWorkspaces((previous) =>
+      previous.map((workspace) =>
+        workspace.id !== workspaceId
+          ? workspace
+          : {
+              ...workspace,
+              cells: workspace.cells.map((cell) =>
+                cell.id !== cellId || cell.type !== "terminal" || !cell.terminalCommand
+                  ? cell
+                  : { ...cell, terminalCommand: [...cell.terminalCommand], runtimeSessionId: null },
+              ),
+            },
+      ),
+    );
+  }, []);
+
+  /**
    * The agent in a local pane exited (Ctrl+C, /exit, a crash): the pane falls back to a plain shell
    * in the same folder instead of sitting dead. An agent pane runs its argv directly, with no shell
    * under it, so clearing the launch is what makes the runtime start a login shell in its place.
@@ -1071,6 +1094,7 @@ export function useCodeSpaceWorkspaceManager() {
     updateSshWorkspaceCwd,
     updateWorkbenchCell,
     moveTerminalToAccount,
+    relaunchTerminal,
     fallBackToShell,
     updateBrowserCellUrl,
     updateChatPaneThread,

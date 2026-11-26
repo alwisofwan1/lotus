@@ -61,13 +61,32 @@
 }
 
 /* The terminal is dimmed while its input is held: it shows, but it does not take keys. */
-.ws-pane-surface[data-link-held="true"] > :not(.ws-link-strip):not(.ws-pane-veil) {
+.ws-pane-surface[data-link-held="true"] > :not(.ws-link-strip):not(.ws-pane-veil),
+.canvas-node-body[data-link-held="true"] > :not(.ws-link-strip) {
   opacity: 0.55;
   transition: opacity 160ms ease;
 }
 
+/* The header dot (SshLinkDot), portalled into the pane header's extra slot. */
+.ws-link-dot {
+  --ws-link-tone: var(--ds-warning);
+  flex: none;
+  width: 7px;
+  height: 7px;
+  margin: 0 6px;
+  border-radius: 50%;
+  background: var(--ws-link-tone);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ws-link-tone) 22%, transparent);
+}
+.ws-link-dot[data-kind="reconnecting"] { animation: ws-link-pulse 1.2s ease-in-out infinite; }
+.ws-link-dot[data-kind="back"] { --ws-link-tone: var(--ds-success); }
+.ws-link-dot[data-kind="dropped"] { --ws-link-tone: var(--ds-danger); }
+
+@keyframes ws-link-pulse { 50% { opacity: 0.35; } }
+
 @keyframes ws-link-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
-  .ws-link-strip__spinner { animation: none; }
+  .ws-link-strip__spinner,
+  .ws-link-dot { animation: none; }
 }

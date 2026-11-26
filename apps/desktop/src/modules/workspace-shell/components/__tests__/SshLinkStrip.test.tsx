@@ -9,6 +9,7 @@ vi.mock("@/lib/tauri/runtime", () => ({
 
 import {
   BACK_NOTICE_MS,
+  SshLinkDot,
   SshLinkStrip,
   holdsInput,
   linkStripReducer,
@@ -18,11 +19,24 @@ import {
 
 const none: LinkStrip = { kind: "none" };
 
-function Harness({ sessionId, plainSsh = false, exitCode }: { sessionId: string; plainSsh?: boolean; exitCode?: number }) {
+function Harness({
+  sessionId,
+  plainSsh = false,
+  exitCode,
+  onRelaunch,
+  slot = null,
+}: {
+  sessionId: string;
+  plainSsh?: boolean;
+  exitCode?: number;
+  onRelaunch?: () => void;
+  slot?: Element | null;
+}) {
   const link = useLinkStrip(sessionId, plainSsh);
   return (
     <>
-      <SshLinkStrip state={link.state} sessionId={sessionId} />
+      <SshLinkStrip state={link.state} sessionId={sessionId} onRelaunch={onRelaunch} />
+      <SshLinkDot state={link.state} slot={slot} />
       <button type="button" onClick={() => link.onExit(exitCode ?? 0)}>exit</button>
     </>
   );
@@ -85,5 +99,25 @@ describe("SshLinkStrip", () => {
     render(<Harness sessionId="pty-1" plainSsh exitCode={255} />);
     act(() => screen.getByRole("button", { name: "exit" }).click());
     expect(screen.getByText(/proses ikut berhenti/)).toBeTruthy();
+  });
+
+  it("'Buka lagi' on a dropped plain ssh pane starts it again, once", () => {
+    const onRelaunch = vi.fn();
+    render(<Harness sessionId="pty-1" plainSsh exitCode={255} onRelaunch={onRelaunch} />);
+    act(() => screen.getByRole("button", { name: "exit" }).click());
+    const reopen = screen.getByRole("button", { name: "Buka lagi" });
+    act(() => reopen.click());
+    act(() => reopen.click());
+    expect(onRelaunch).toHaveBeenCalledTimes(1);
+  });
+
+  it("puts a dot in the pane header while the link is down", () => {
+    const slot = document.createElement("span");
+    document.body.appendChild(slot);
+    render(<Harness sessionId="pty-1" slot={slot} />);
+    expect(slot.querySelector(".ws-link-dot")).toBeNull();
+    act(() => dispatchPtyLink({ sessionIds: ["pty-1"], state: "reconnecting", attempt: 0, nextInMs: 0 }));
+    expect(slot.querySelector(".ws-link-dot")?.getAttribute("data-kind")).toBe("reconnecting");
+    slot.remove();
   });
 });

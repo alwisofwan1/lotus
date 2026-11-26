@@ -21,7 +21,7 @@ import type { TerminalRuntimeStatus } from "@/modules/codespace/services/termina
 import type { ChatCellData, GridCell, WorkbenchCellData, Workspace } from "@/modules/codespace/components/types";
 import { paneFileDropAttributes } from "@/modules/workspace-shell/services/pane-file-drop";
 import { PaneHeaderSlot } from "@/modules/workspace-shell/components/PaneCard";
-import { SshLinkStrip, holdsInput, useLinkStrip } from "@/modules/workspace-shell/components/SshLinkStrip";
+import { SshLinkDot, SshLinkStrip, holdsInput, useLinkStrip } from "@/modules/workspace-shell/components/SshLinkStrip";
 import "@/styles/pane-veil.css";
 
 interface PaneBodyProps {
@@ -38,6 +38,8 @@ interface PaneBodyProps {
   onRuntimeStatusChange: (paneId: string, status: TerminalRuntimeStatus) => void;
   /** The agent's process exited on its own (Ctrl+C, /exit): the pane goes back to a shell. */
   onAgentExit?: (paneId: string) => void;
+  /** Start a terminal pane's launch again in place: "Buka lagi" on an SSH pane whose link dropped. */
+  onRelaunch?: (paneId: string) => void;
   onBrowserUrlChange: (paneId: string, url: string) => void;
   /** An element picked on a Browser pane's page. */
   onBrowserPick?: (paneId: string, payload: BrowserAnnotationPayload) => void;
@@ -72,6 +74,7 @@ export function PaneBody({
   onRuntimeSessionIdChange,
   onRuntimeStatusChange,
   onAgentExit,
+  onRelaunch,
   onBrowserUrlChange,
   onBrowserPick,
   browserLink,
@@ -234,7 +237,14 @@ export function PaneBody({
             />
       ) : null}
       {cell.type === "terminal" ? (
-        <SshLinkStrip state={link.state} sessionId={cell.runtimeSessionId} />
+        <>
+          <SshLinkStrip
+            state={link.state}
+            sessionId={cell.runtimeSessionId}
+            onRelaunch={onRelaunch && (() => onRelaunch(cell.id))}
+          />
+          <SshLinkDot state={link.state} slot={headerSlot} />
+        </>
       ) : null}
       {/*
         Covers the repaint focus mode on/off triggers (see `pane-reveal-veil`). Painted in the

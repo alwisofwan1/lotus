@@ -1,4 +1,5 @@
 import { useEffect, useReducer, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   retrySessionLink,
   signInSessionLink,
@@ -87,22 +88,48 @@ function secondsLeft(retryAt: number, now: number): number {
   return Math.max(0, Math.ceil((retryAt - now) / 1000));
 }
 
-/** Ticks once a second while a retry countdown is on screen. */
+/** Ticks while a retry countdown is on screen; a quarter second keeps the first tick fresh. */
 function useNow(active: boolean): number {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (!active) return;
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 1000);
+    const timer = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(timer);
   }, [active]);
   return now;
 }
 
-export function SshLinkStrip({ state, sessionId }: { state: LinkStrip; sessionId: string | null | undefined }) {
+const DOT_LABEL: Record<Exclude<LinkStrip["kind"], "none">, string> = {
+  reconnecting: "Koneksi ke VPS putus, menyambung lagi",
+  "needs-sign-in": "Koneksi ke VPS putus, perlu sign in",
+  back: "Tersambung lagi ke VPS",
+  dropped: "Koneksi ke VPS putus, proses berhenti",
+};
+
+/** The same state as a dot in the pane header, so a link that is down shows on every pane at a glance. */
+export function SshLinkDot({ state, slot }: { state: LinkStrip; slot: Element | null }) {
+  if (state.kind === "none" || !slot) return null;
+  return createPortal(
+    <span className="ws-link-dot" data-kind={state.kind} role="img" aria-label={DOT_LABEL[state.kind]} title={DOT_LABEL[state.kind]} />,
+    slot,
+  );
+}
+
+export function SshLinkStrip({
+  state,
+  sessionId,
+  onRelaunch,
+}: {
+  state: LinkStrip;
+  sessionId: string | null | undefined;
+  /** "Buka lagi" on a dropped plain ssh pane: start its launch again. */
+  onRelaunch?: () => void;
+}) {
   const now = useNow(state.kind === "reconnecting");
-  const [busy, setBusy] = useState(false);
-  useEffect(() => setBusy(false), [state]);
+  // A click waits for the next state: busy belongs to the state it was pressed on.
+  const [pressedOn, setPressedOn] = useState<LinkStrip | null>(null);
+  const busy = pressedOn === state;
+  const setBusy = (on: boolean) => setPressedOn(on ? state : null);
 
   if (state.kind === "none") return null;
 
@@ -161,6 +188,20 @@ export function SshLinkStrip({ state, sessionId }: { state: LinkStrip; sessionId
   return (
     <div className="ws-link-strip" data-tone="danger" role="status">
       <span className="ws-link-strip__text">Koneksi putus, proses ikut berhenti. VPS tanpa Lotus host.</span>
+      {onRelaunch ? (
+        <button
+          type="button"
+          className="ws-link-strip__action"
+          onClick={() => {
+            if (busy) return;
+            setBusy(true);
+            onRelaunch();
+          }}
+          disabled={busy}
+        >
+          Buka lagi
+        </button>
+      ) : null}
     </div>
   );
 }

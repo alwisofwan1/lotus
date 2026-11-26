@@ -1,6 +1,7 @@
 "use client";
 import { memo, useCallback, useMemo } from "react";
-import type { KeyboardEvent } from "react";
+import type { KeyboardEvent, SyntheticEvent } from "react";
+import { SshLinkStrip, holdsInput } from "@/modules/workspace-shell/components/SshLinkStrip";
 import { writeTerminalSession } from "@/modules/codespace/services/terminal-session-registry";
 import type { NodeProps } from "@xyflow/react";
 import { useDroppable } from "@dnd-kit/core";
@@ -110,6 +111,8 @@ export const TerminalNode = memo(function TerminalNode({ id, data, selected }: N
     searchVisible,
     openSearch,
     closeSearch,
+    link,
+    sessionId,
   } = useCanvasTerminalNode({
     id, cwd, runtimeScope, runtimePaneId,
     onCwdChange: handleCwdChange,
@@ -124,6 +127,15 @@ export const TerminalNode = memo(function TerminalNode({ id, data, selected }: N
     launchCommand,
     claudeAccount,
   });
+
+  // While the link to the machine is down the far process cannot take keys: hold them.
+  const linkHeld = holdsInput(link);
+  const holdInput = linkHeld
+    ? (event: SyntheticEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    : undefined;
 
   // Auto-cd the PTY to the worktree directory on assignment.
   const handleAssignWorktree = useCallback(
@@ -242,7 +254,13 @@ export const TerminalNode = memo(function TerminalNode({ id, data, selected }: N
         data-canvas-command-delivery-target={id}
         onKeyDown={handleKeyDown}
         onPointerDown={(e) => e.stopPropagation()}
+        data-link-held={linkHeld ? "true" : undefined}
+        onKeyDownCapture={holdInput}
+        onKeyPressCapture={holdInput}
+        onBeforeInputCapture={holdInput}
+        onPasteCapture={holdInput}
       >
+        <SshLinkStrip state={link} sessionId={sessionId} />
         <CanvasPtyViewport
           containerRef={containerRef}
           collapsed={collapsed}
