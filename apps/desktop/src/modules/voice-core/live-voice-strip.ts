@@ -10,6 +10,7 @@
  * the reply), so a turn draws the user's line first whatever order its lines arrived in.
  */
 
+import { CONFIRM_ACTION_TOOL_NAME, WORK_ON_TOOL_NAME } from "./assistant/assistant-tools";
 import type { S2sPhase } from "./s2s-session";
 
 export type LiveVoiceStripLine =
@@ -40,7 +41,7 @@ export type LiveVoiceStripEvent =
       /** The text is everything heard for the item so far and replaces it (xAI `…updated`). */
       cumulative?: boolean;
     }
-  | { type: "tool"; turn: number; name: string; args: Record<string, unknown>; ok: boolean }
+  | { type: "tool"; turn: number; name: string; args: Record<string, unknown>; ok: boolean; summary?: string }
   /** A new session starts with an empty strip. */
   | { type: "reset" };
 
@@ -54,7 +55,14 @@ export function initialLiveVoiceStrip(): LiveVoiceStripState {
 const TOOL_SUBJECT_KEYS = ["target", "name", "agent", "kind", "node", "project", "query"] as const;
 
 /** "spawn_agent · Reviewer": the tool, then what it acted on when its arguments say. */
-export function toolLineLabel(name: string, args: Record<string, unknown>): string {
+export function toolLineLabel(name: string, args: Record<string, unknown>, summary?: string): string {
+  // The assistant's tools read as what happened, never as a tool name.
+  if (name === WORK_ON_TOOL_NAME) return typeof args.request === "string" && args.request.trim() ? `Task · ${args.request.trim()}` : "Task";
+  if (name === CONFIRM_ACTION_TOOL_NAME) return args.approve === true ? "You said yes" : "You said no";
+  // A tool's own summary ("Sent to Kai") reads better than its name; its first line only, since
+  // some carry an output dump after it.
+  const said = summary?.split("\n")[0].trim().replace(/:$/, "");
+  if (said) return said.length > 80 ? `${said.slice(0, 79).trimEnd()}…` : said;
   for (const key of TOOL_SUBJECT_KEYS) {
     const value = args[key];
     if (typeof value === "string" && value.trim()) return `${name} · ${value.trim()}`;
@@ -78,7 +86,7 @@ function userFirst(lines: LiveVoiceStripLine[]): LiveVoiceStripLine[] {
 export function reduceLiveVoiceStrip(state: LiveVoiceStripState, event: LiveVoiceStripEvent): LiveVoiceStripState {
   if (event.type === "reset") return initialLiveVoiceStrip();
   if (event.type === "tool") {
-    const line: LiveVoiceStripLine = { key: `tool:${state.seq}`, kind: "tool", text: toolLineLabel(event.name, event.args), ok: event.ok };
+    const line: LiveVoiceStripLine = { key: `tool:${state.seq}`, kind: "tool", text: toolLineLabel(event.name, event.args, event.summary), ok: event.ok };
     return { turns: withTurn(state, event.turn, (lines) => [...lines, line]), actions: state.actions + 1, seq: state.seq + 1 };
   }
   if (!event.text.trim()) return state;
@@ -121,10 +129,13 @@ export function liveVoiceStatusText({
   error,
   micMuted = false,
   ending = false,
+  working = false,
 }: {
   phase: S2sPhase;
   agentSpeaking: boolean;
   activity?: string;
+  /** The assistant brain has a request and no answer yet. */
+  working?: boolean;
   error?: string;
   micMuted?: boolean;
   /** A sign-off was accepted; the goodbye is playing. */
@@ -134,6 +145,7 @@ export function liveVoiceStatusText({
   if (micMuted && (phase === "listening" || phase === "user" || phase === "agent")) {
     return phase === "agent" && agentSpeaking ? "Lotus is speaking · mic muted" : "Mic muted · Lotus can't hear you";
   }
+  if (working && (phase === "listening" || phase === "thinking" || (phase === "agent" && !agentSpeaking))) return "Working on it…";
   switch (phase) {
     case "connecting":
       return "Connecting…";

@@ -1549,6 +1549,7 @@ export function CodeMode({
     },
     readOutput: outputTail.read,
     projectId: activeWorkspaceCwd ? localProjectIdForRoot(activeWorkspaceCwd) : null,
+    assistantCwd: activeWorkspace?.location?.kind === "ssh" ? null : activeWorkspaceCwd || null,
     memoryWrite: codecanvasMemoryWrite,
     memorySearch: codecanvasMemorySearch,
   });
@@ -2240,6 +2241,7 @@ export function CodeMode({
             micMuted: codeLive.live.micMuted,
             onToggleMic: () => codeLive.live.setMicMuted(!codeLive.live.micMuted),
             ending: codeLive.live.ending,
+            working: codeLive.live.working,
             endNote: codeLive.endNote,
           }}
           insert={composerInsert}

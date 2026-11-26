@@ -17,6 +17,7 @@ export interface LiveVoiceComposerRowProps {
   micMuted?: boolean;
   onToggleMic?: () => void;
   ending?: boolean;
+  working?: boolean;
 }
 
 /** Sanitized transport health, for the status line's tooltip — never shown as primary copy. */
@@ -40,7 +41,7 @@ function describeHealth(health?: S2sHealthSnapshot): string | null {
  * ("→ Lotus"), what Live Voice is doing, and offers End. Children of the input row's grid, like the
  * field and the voice slot they stand in for.
  */
-export function LiveVoiceComposerRow({ phase, agentSpeaking, health, error, onEnd, onRetry, micMuted, onToggleMic, ending }: LiveVoiceComposerRowProps) {
+export function LiveVoiceComposerRow({ phase, agentSpeaking, health, error, onEnd, onRetry, micMuted, onToggleMic, ending, working }: LiveVoiceComposerRowProps) {
   const isError = phase === "error";
   const healthText = describeHealth(health);
   const status = liveVoiceStatusText({
@@ -50,6 +51,7 @@ export function LiveVoiceComposerRow({ phase, agentSpeaking, health, error, onEn
     error: error || health?.lastIssue,
     micMuted,
     ending,
+    working,
   });
   return (
     <>

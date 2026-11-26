@@ -64,6 +64,8 @@ export interface ComposerLiveSession {
   micMuted?: boolean;
   onToggleMic?: () => void;
   ending?: boolean;
+  /** The assistant brain is on a request: the status says "Working on it…". */
+  working?: boolean;
   /** Why the session closed by itself, shown in place of the summary. */
   endNote?: string;
 }

@@ -2310,6 +2310,17 @@ pub mod commands {
         runtime.set_agent_name(&thread_id, &name)
     }
 
+    /// Locks a chat to the app's approvals (the Live Voice assistant brain). One way: never cleared.
+    #[tauri::command]
+    pub fn chat_thread_set_strict_permissions(runtime: State<'_, crate::chat_runtime::ChatRuntime>, thread_id: String) -> Result<(), String> {
+        runtime.set_strict_permissions(&thread_id)
+    }
+
+    #[tauri::command]
+    pub async fn chat_thread_warm(runtime: State<'_, crate::chat_runtime::ChatRuntime>, thread_id: String) -> Result<(), String> {
+        runtime.warm(&thread_id).await
+    }
+
     #[tauri::command]
     pub async fn chat_thread_regenerate_title(runtime: State<'_, crate::chat_runtime::ChatRuntime>, thread_id: String) -> Result<String, String> {
         runtime.regenerate_title(&thread_id).await
@@ -6941,6 +6952,8 @@ pub fn run() {
             commands::chat_thread_stop,
             commands::chat_thread_rename,
             commands::chat_thread_set_agent_name,
+            commands::chat_thread_set_strict_permissions,
+            commands::chat_thread_warm,
             commands::chat_thread_regenerate_title,
             commands::chat_thread_archive,
             commands::chat_thread_pin,

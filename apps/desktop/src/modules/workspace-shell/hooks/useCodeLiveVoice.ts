@@ -5,6 +5,8 @@ import type { VoiceLiveTools } from "@/modules/voice-core/voice-adapter";
 import { S2S_LIVE_VOICE_END_POLICY } from "@/modules/codecanvas/services/voice/s2s-auto-end-policy";
 import { useCommandBarLiveVoice, type CommandBarLiveVoice } from "@/modules/codecanvas/services/voice/use-command-bar-live-voice";
 import { useLiveVoiceStripRecorder } from "@/modules/codecanvas/services/voice/use-live-voice-strip-recorder";
+import { useVoiceAssistant } from "@/modules/voice-core/assistant/use-voice-assistant";
+import { getAssistantSettings } from "@/modules/voice-core/assistant/assistant-settings";
 import {
   codeLiveVoiceContextKey,
   createCodeLiveVoiceTools,
@@ -27,10 +29,19 @@ export interface CodeLiveVoice {
  * Code tools acting on the panes. The session reducer, Speaker Queue, reconnect and auto-end are the
  * ones Canvas runs; only the tools and the instructions are Code's.
  */
-export function useCodeLiveVoice(input: Omit<CodeLiveVoiceDeps, "pendingClose">): CodeLiveVoice {
+export function useCodeLiveVoice({
+  assistantCwd,
+  ...input
+}: Omit<CodeLiveVoiceDeps, "pendingClose"> & {
+  /** The local folder the assistant brain works in; null = no brain (a remote folder has none). */
+  assistantCwd?: string | null;
+}): CodeLiveVoice {
   // One "Close …?" at a time, kept across renders until it is answered.
   const pendingClose = useRef<string | null>(null);
-  const deps: CodeLiveVoiceDeps = { ...input, pendingClose };
+  // One "Should I send it?" at a time, the same way.
+  const pendingSend = useRef<{ paneId: string; text: string } | null>(null);
+  const deps: CodeLiveVoiceDeps = { ...input, pendingClose, pendingSend, confirmMode: () => getAssistantSettings().confirm };
+  const assistant = useVoiceAssistant(assistantCwd);
   // Deps are fresh closures every render; a tool call acts on the panes as they are when it runs.
   const depsRef = useRef(deps);
   useEffect(() => {
@@ -42,12 +53,19 @@ export function useCodeLiveVoice(input: Omit<CodeLiveVoiceDeps, "pendingClose">)
   // THIS render's deps: the ref is only updated after render, so it would describe the panes as they
   // were one render ago — and the render after has the same key, so a spawned agent was never told.
   const contextKey = codeLiveVoiceContextKey(deps);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt on what the tools say, keyed above
-  const advertised = useMemo(() => createCodeLiveVoiceTools(deps), [contextKey]);
+  const { decorate, handles, execute: executeAssistant } = assistant;
+  const advertised = useMemo(
+    () => {
+      const tools = createCodeLiveVoiceTools(deps);
+      return { ...tools, ...decorate(tools) };
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt on what the tools say, keyed above
+    [contextKey, decorate],
+  );
   const execute = useCallback(
     (call: { callId: string; name: string; args: Record<string, unknown> }) =>
-      recordTool(call, () => executeCodeLiveVoiceTool(call, depsRef.current)),
-    [recordTool],
+      recordTool(call, () => (handles(call.name) ? executeAssistant(call) : executeCodeLiveVoiceTool(call, depsRef.current))),
+    [recordTool, handles, executeAssistant],
   );
   const onConciergeAction = useCallback((_action: unknown, call: { callId: string; name: string; args: Record<string, unknown> }) => execute(call), [execute]);
   const liveTools = useMemo<VoiceLiveTools>(
@@ -71,9 +89,12 @@ export function useCodeLiveVoice(input: Omit<CodeLiveVoiceDeps, "pendingClose">)
   // A new session starts with an empty strip; the last one's stays readable until then.
   const live: CommandBarLiveVoice = {
     ...session,
+    working: assistant.working,
     start: () => {
       reset();
       setEndNote(undefined);
+      // The brain's thread and process start alongside the voice, not on the first request.
+      assistant.prepare();
       return session.start();
     },
   };

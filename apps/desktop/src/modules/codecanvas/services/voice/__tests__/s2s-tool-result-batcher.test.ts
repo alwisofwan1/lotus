@@ -25,6 +25,23 @@ describe("S2S tool result batcher", () => {
     ]);
   });
 
+  it("does not ask the provider to speak when every result in the batch is silent", async () => {
+    const send = vi.fn(async () => undefined);
+    const batcher = createS2sToolResultBatcher({ send });
+
+    batcher.begin("quiet");
+    await batcher.complete("quiet", '{"ok":true}', true);
+    await batcher.markResponseDone();
+    expect(send).toHaveBeenLastCalledWith({ callId: "quiet", output: '{"ok":true}', silent: true }, false);
+
+    batcher.begin("quiet-2");
+    batcher.begin("loud");
+    await batcher.complete("quiet-2", '{"ok":true}', true);
+    await batcher.complete("loud", '{"ok":true}');
+    await batcher.markResponseDone();
+    expect(send).toHaveBeenLastCalledWith({ callId: "loud", output: '{"ok":true}' }, true);
+  });
+
   it("flushes immediately when response.done arrives after all local tools settle", async () => {
     const send = vi.fn(async () => undefined);
     const batcher = createS2sToolResultBatcher({ send });

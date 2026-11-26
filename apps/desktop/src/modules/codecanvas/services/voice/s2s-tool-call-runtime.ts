@@ -146,7 +146,8 @@ export function createS2sToolCallRuntime({
             lastIssue: typeof sanitized.error === "string" ? sanitized.error : undefined,
           }, true);
           if (!sanitized.clarify) markTurnSettled();
-          return batcher.complete(call.callId, JSON.stringify(sanitized));
+          const silent = (result as { silent?: unknown } | null)?.silent === true;
+          return batcher.complete(call.callId, JSON.stringify(sanitized), silent);
         })
         .catch((error) => {
           latencyTracker.markToolEnd(call.callId);

@@ -365,6 +365,18 @@ impl Store {
             conn.execute_batch("ALTER TABLE chat_threads ADD COLUMN agent_name TEXT;")
                 .map_err(|e| e.to_string())?;
         }
+        // The Live Voice assistant brain: a session that loads no user/project settings.
+        let has_strict: bool = conn
+            .query_row(
+                "SELECT COUNT(*) > 0 FROM pragma_table_info('chat_threads') WHERE name = 'strict_permissions'",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if !has_strict {
+            conn.execute_batch("ALTER TABLE chat_threads ADD COLUMN strict_permissions INTEGER NOT NULL DEFAULT 0;")
+                .map_err(|e| e.to_string())?;
+        }
         Ok(Self { conn })
     }
 
@@ -658,6 +670,22 @@ impl Store {
     }
 
     /// Where a fork's next session branches off the original's; `None` once it runs on its own.
+    /// Marks the thread strict for good: there is no way back, so a brain thread stays locked down.
+    pub fn set_strict_permissions(&self, thread_id: &str) -> Result<(), String> {
+        match self.conn.execute("UPDATE chat_threads SET strict_permissions = 1 WHERE id = ?1", [thread_id]).map_err(|e| e.to_string())? {
+            0 => Err(format!("no chat {thread_id}")),
+            _ => Ok(()),
+        }
+    }
+
+    pub fn strict_permissions(&self, thread_id: &str) -> Result<bool, String> {
+        self.conn
+            .query_row("SELECT strict_permissions FROM chat_threads WHERE id = ?1", [thread_id], |row| row.get::<_, i64>(0))
+            .optional()
+            .map(|v| v == Some(1))
+            .map_err(|e| e.to_string())
+    }
+
     pub fn fork_at(&self, thread_id: &str) -> Result<Option<String>, String> {
         self.conn
             .query_row("SELECT fork_at FROM chat_threads WHERE id = ?1", [thread_id], |row| row.get(0))
@@ -875,6 +903,18 @@ mod tests {
             machine: None,
             agent_name: None,
         }
+    }
+
+    #[test]
+    fn strict_permissions_stick_to_their_thread() {
+        let store = Store::in_memory();
+        store.create_thread(&thread("a")).unwrap();
+        store.create_thread(&thread("b")).unwrap();
+        assert!(!store.strict_permissions("a").unwrap());
+        store.set_strict_permissions("a").unwrap();
+        assert!(store.strict_permissions("a").unwrap());
+        assert!(!store.strict_permissions("b").unwrap());
+        assert!(store.set_strict_permissions("gone").is_err());
     }
 
     #[test]

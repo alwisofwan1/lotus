@@ -119,6 +119,11 @@ describe("toolLineLabel", () => {
     expect(toolLineLabel("dispatch", { target: "Rowan", task: "check auth" })).toBe("dispatch · Rowan");
     expect(toolLineLabel("create_node", { kind: "note" })).toBe("create_node · note");
     expect(toolLineLabel("arrange", {})).toBe("arrange");
+    expect(toolLineLabel("work_on", { request: " pause the game " })).toBe("Task · pause the game");
+    expect(toolLineLabel("confirm_action", { approve: true })).toBe("You said yes");
+    expect(toolLineLabel("confirm_action", { approve: "yes" })).toBe("You said no");
+    expect(toolLineLabel("dispatch", { target: "Kai" }, "Sent to Kai")).toBe("Sent to Kai");
+    expect(toolLineLabel("read_agent_output", { name: "Kai" }, "Kai output:\nline one")).toBe("Kai output");
   });
 });
 
@@ -135,6 +140,8 @@ describe("summary and status", () => {
 
   it("says what Live Voice is doing", () => {
     expect(liveVoiceStatusText({ phase: "connecting", agentSpeaking: false })).toBe("Connecting…");
+    expect(liveVoiceStatusText({ phase: "listening", agentSpeaking: false, working: true })).toBe("Working on it…");
+    expect(liveVoiceStatusText({ phase: "agent", agentSpeaking: true, working: true })).toBe("Lotus is speaking — talk to interrupt");
     expect(liveVoiceStatusText({ phase: "reconnecting", agentSpeaking: false })).toBe("Connection dropped — reconnecting…");
     expect(liveVoiceStatusText({ phase: "listening", agentSpeaking: false })).toBe("Listening…");
     expect(liveVoiceStatusText({ phase: "user", agentSpeaking: false })).toBe("Listening…");

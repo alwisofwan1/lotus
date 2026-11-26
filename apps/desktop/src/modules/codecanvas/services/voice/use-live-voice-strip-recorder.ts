@@ -28,7 +28,7 @@ export function useLiveVoiceStripRecorder(): LiveVoiceStripRecorder {
     async <R extends { ok: boolean }>(call: { name: string; args: Record<string, unknown> }, run: () => Promise<R>): Promise<R> => {
       const turn = turnRef.current;
       const result = await run();
-      dispatch({ type: "tool", turn, name: call.name, args: call.args, ok: result.ok });
+      dispatch({ type: "tool", turn, name: call.name, args: call.args, ok: result.ok, summary: "summary" in result && typeof result.summary === "string" ? result.summary : undefined });
       return result;
     },
     [],

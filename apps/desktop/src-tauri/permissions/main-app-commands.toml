@@ -161,6 +161,8 @@ commands.allow = [
   "chat_thread_stop",
   "chat_thread_rename",
   "chat_thread_set_agent_name",
+  "chat_thread_set_strict_permissions",
+  "chat_thread_warm",
   "chat_thread_regenerate_title",
   "chat_handoff_seed",
   "chat_thread_archive",

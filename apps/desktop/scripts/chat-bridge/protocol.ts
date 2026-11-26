@@ -37,6 +37,9 @@ export const threadStartParams = z.object({
   forkAt: z.string().min(1).optional(),
   // Settings › Chat › Reading › Concise replies, read by the host at each session start.
   conciseReplies: z.boolean().default(false),
+  // The Live Voice assistant brain (mockups/live-voice-assistant.html): no user or project
+  // settings, so no `allow` rule there can skip the app's approval. Set by the host per thread, never cleared.
+  strictPermissions: z.boolean().default(false),
   auth: sessionAuthSchema.optional(),
   // The "api" runner's endpoint and key (#288), from the host's model registry.
   api: z

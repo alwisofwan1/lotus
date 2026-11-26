@@ -432,7 +432,7 @@ export function UnifiedComposer({
             role="status"
             aria-live="polite"
           >
-            {liveVoiceStatusText({ phase: liveSession.phase, agentSpeaking: liveSession.agentSpeaking, error: liveSession.error, micMuted: liveSession.micMuted, ending: liveSession.ending })}
+            {liveVoiceStatusText({ phase: liveSession.phase, agentSpeaking: liveSession.agentSpeaking, error: liveSession.error, micMuted: liveSession.micMuted, ending: liveSession.ending, working: liveSession.working })}
           </p>
         ) : voiceRow ? (
           <p ref={liveRef} className="ws-composer-live" data-settling={settling ? "true" : undefined} aria-live="polite">

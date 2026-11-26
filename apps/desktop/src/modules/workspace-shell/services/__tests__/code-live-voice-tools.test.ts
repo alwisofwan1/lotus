@@ -15,6 +15,8 @@ interface Setup {
   output?: Record<string, string>;
   projectId?: string | null;
   canClose?: boolean;
+  /** No pendingSend: a risky message is refused instead of asked about. */
+  noConfirmSend?: boolean;
 }
 
 /** A Code window of fake panes, recording what Live Voice did to them. */
@@ -49,6 +51,7 @@ function makeCode(setup: Setup = {}) {
       return { id: "m1" } as never;
     },
     memorySearch: async () => [{ item: { title: "Ship on Friday", body: "Ship on Friday." } } as never],
+    ...(setup.noConfirmSend ? {} : { pendingSend: { current: null } }),
     ...(setup.canClose ? { close: (paneId: string) => closed.push(paneId), pendingClose: { current: null } } : {}),
   };
   const live = createCodeLiveVoiceTools(deps);
@@ -64,6 +67,53 @@ function agentEnum(live: ReturnType<typeof createCodeLiveVoiceTools>): unknown {
 }
 
 describe("Code Live Voice tools", () => {
+  describe("a risky message waits for a spoken yes", () => {
+    it("asks before telling an agent to push, and sends the asked text on yes", async () => {
+      const { run, sent } = makeCode();
+      const asked = await run("dispatch", { target: "Rowan", task: "commit the poem and push to main" });
+      expect(asked.speak).toBe('That asks Rowan to push: "commit the poem and push to main". Should I send it?');
+      expect(sent).toEqual([]);
+      // The model re-words it on the yes; the user heard the first wording, so that one goes.
+      await run("dispatch", { target: "Rowan", task: "push it", confirm: true });
+      expect(sent).toEqual([{ paneId: "p1", text: "commit the poem and push to main" }]);
+    });
+
+    it("forgets the question when the conversation moves on, or the yes names another agent", async () => {
+      const { run, sent } = makeCode({ panes: [{ id: "p1", name: "Rowan", kind: "terminal" }, { id: "p4", name: "Kai", kind: "terminal" }] });
+      await run("say_to_agent", { target: "Rowan", message: "hapus folder build" });
+      await run("focus", { target: "Kai" });
+      expect((await run("say_to_agent", { target: "Rowan", message: "hapus folder build", confirm: true })).speak).toMatch(/Should I send it\?$/);
+      await run("dispatch", { target: "Kai", task: "merge it", confirm: true });
+      expect(sent).toEqual([]);
+    });
+
+    it("asks when the voice model marks it risky, whatever the words", async () => {
+      const { run, sent } = makeCode();
+      const asked = await run("dispatch", { target: "Rowan", task: "taruh puisinya di GitHub", risky: "high" });
+      expect(asked.speak).toBe('That asks Rowan to do something that leaves this computer or is hard to undo: "taruh puisinya di GitHub". Should I send it?');
+      expect(sent).toEqual([]);
+    });
+
+    it("asks on the words even when the model says it is safe", async () => {
+      const { run, sent } = makeCode();
+      expect((await run("dispatch", { target: "Rowan", task: "naikkan ke GitHub", risky: "none" })).speak).toMatch(/deploy or publish/);
+      expect((await run("dispatch", { target: "Rowan", task: "bersihkan folder lama", risky: "none" })).speak).toMatch(/delete something/);
+      expect(sent).toEqual([]);
+    });
+
+    it("sends safe messages straight away", async () => {
+      const { run, sent } = makeCode();
+      await run("dispatch", { target: "Rowan", task: "write a short poem" });
+      expect(sent).toEqual([{ paneId: "p1", text: "write a short poem" }]);
+    });
+
+    it("refuses a risky message where no yes can be asked", async () => {
+      const { run, sent } = makeCode({ noConfirmSend: true });
+      expect(await run("dispatch", { target: "Rowan", task: "git push" })).toMatchObject({ ok: false });
+      expect(sent).toEqual([]);
+    });
+  });
+
   it("offers the pane tools and no close tool", () => {
     const { live } = makeCode();
     const names = live.tools.map((tool) => tool.name);

@@ -143,7 +143,7 @@ describe("useCanvasLiveVoiceController", () => {
         lines: [
           expect.objectContaining({ kind: "you", text: "Open the board" }),
           expect.objectContaining({ kind: "lotus", text: "On it." }),
-          expect.objectContaining({ kind: "tool", text: "focus · Board", ok: true }),
+          expect.objectContaining({ kind: "tool", text: "Dispatch to Codex", ok: true }),
         ],
       },
     ]);
@@ -207,6 +207,33 @@ describe("useCanvasLiveVoiceController", () => {
     });
 
     expect(harness.executedCall?.args.task).toBe(exactMessage);
+  });
+
+  it("holds a risky dispatch for a spoken yes, then sends what was asked about, not the yes", async () => {
+    renderHook(() => useCanvasLiveVoiceController({ nodes: [], cwd: "/repo", runCommand: vi.fn(), runApp: vi.fn(), setTrace: vi.fn() }));
+    let asked: unknown;
+    await act(async () => {
+      harness.liveOptions?.onFinalUserTranscript?.("Ask Codex to push the branch to main.");
+      asked = await harness.liveOptions?.onConciergeAction?.({}, { callId: "r1", name: "dispatch", args: { target: "Codex", task: "Push the branch to main.", risky: "high" } });
+    });
+    expect(asked).toMatchObject({ ok: true, speak: expect.stringMatching(/^That asks Codex to push: .*Should I send it\?$/) });
+    expect(harness.executedCall).toBeNull();
+
+    await act(async () => {
+      harness.liveOptions?.onFinalUserTranscript?.("Ya.");
+      await harness.liveOptions?.onConciergeAction?.({}, { callId: "r2", name: "dispatch", args: { target: "Codex", task: "yes", confirm: true } });
+    });
+    expect(String(harness.executedCall?.args.task)).toMatch(/push the branch to main/i);
+    expect(String(harness.executedCall?.args.task)).not.toMatch(/\bya\b/i);
+  });
+
+  it("sends a safe dispatch without asking", async () => {
+    renderHook(() => useCanvasLiveVoiceController({ nodes: [], cwd: "/repo", runCommand: vi.fn(), runApp: vi.fn(), setTrace: vi.fn() }));
+    await act(async () => {
+      harness.liveOptions?.onFinalUserTranscript?.("Ask Codex to write a short poem.");
+      await harness.liveOptions?.onConciergeAction?.({}, { callId: "s1", name: "dispatch", args: { target: "Codex", task: "Write a short poem.", risky: "none" } });
+    });
+    expect(harness.executedCall).not.toBeNull();
   });
 
   it("accumulates split VAD segments: two final transcripts then a dispatch compiles with both segments joined", async () => {

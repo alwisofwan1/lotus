@@ -18,6 +18,9 @@ import {
 
 import { InputQueue } from "./input-queue";
 import { readFileSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { lotusMcpServers } from "./acp-session";
 
 import { IMAGE_MIME_TYPES, type AttachmentParams, type InteractionDecision, type SessionAuth, type ToolPermissionRequest } from "./protocol";
 
@@ -130,6 +133,35 @@ export function otherLotusHidden(profileKey: string | undefined): { disallowedTo
   return other ? { disallowedTools: [`mcp__${other}__*`] } : null;
 }
 
+/**
+ * Which settings the session loads. A strict session loads none: an `allow` rule there runs a tool
+ * without asking (probed 2026-11-25: `Bash(touch:*)` in a loaded layer skipped canUseTool, with no
+ * layer it asked). The Lotus MCP lives in `~/.claude.json`'s user scope, so it is passed explicitly.
+ */
+export function settingsFor(
+  strict: boolean,
+  env: Record<string, string | undefined>,
+  readClaudeJson: () => unknown = () => JSON.parse(readFileSync(join(homedir(), ".claude.json"), "utf8")),
+): { settingSources: ("user" | "project" | "local")[]; mcpServers?: Record<string, { type: "stdio"; command: string; args: string[]; env: Record<string, string> }> } {
+  if (!strict) return { settingSources: ["user", "project", "local"] };
+  let servers: Array<Record<string, unknown>> = [];
+  try {
+    servers = lotusMcpServers(readClaudeJson(), env);
+  } catch {}
+  const mcpServers = Object.fromEntries(
+    servers.map((server) => [
+      server.name as string,
+      {
+        type: "stdio" as const,
+        command: server.command as string,
+        args: server.args as string[],
+        env: Object.fromEntries((server.env as { name: string; value: string }[]).map(({ name, value }) => [name, value])),
+      },
+    ]),
+  );
+  return { settingSources: [], mcpServers };
+}
+
 type ContentBlock = Exclude<SDKUserMessage["message"]["content"], string>[number];
 
 /**
@@ -204,6 +236,8 @@ export interface ClaudeSessionOptions {
   resumeSessionId?: string;
   forkAt?: string;
   conciseReplies?: boolean;
+  /** Load no user/project/local settings: every action the CLI would ask about reaches `requestPermission`. */
+  strictPermissions?: boolean;
   /** A resumed chat's earlier messages that may name outside paths (`outsideReadRules`). */
   priorInputs?: readonly { text: string; attachments: readonly Pick<AttachmentParams, "kind" | "path">[] }[];
   requestPermission: (request: ToolPermissionRequest) => Promise<InteractionDecision>;
@@ -259,7 +293,7 @@ export class ClaudeSession {
         pathToClaudeCodeExecutable: this.options.claudePath,
         systemPrompt: { type: "preset", preset: "claude_code", append: lotusNote(this.options.conciseReplies, DELEGATION_NOTE) },
         ...otherLotusHidden(this.options.env.LOTUS_PROFILE_KEY),
-        settingSources: ["user", "project", "local"],
+        ...settingsFor(this.options.strictPermissions === true, this.options.env),
         includePartialMessages: true,
         // Echoes each input when the CLI takes it in, so a steer is placed where it landed.
         extraArgs: { "replay-user-messages": null },

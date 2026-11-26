@@ -2,6 +2,7 @@
 import type { ComponentProps } from "react";
 import { SettingRow } from "@/modules/lotus-settings/components/SettingsGroup";
 import { VoiceProviderList } from "../VoiceProviderList";
+import { AssistantBrainSettings } from "./AssistantBrainSettings";
 
 interface Props {
   list: ComponentProps<typeof VoiceProviderList>;
@@ -19,6 +20,7 @@ export function LivePanel({ list }: Props) {
         description="Beta. You talk, it talks back in realtime and can hand work to your agents. Billed per minute on your key."
       />
       <VoiceProviderList {...list} />
+      <AssistantBrainSettings />
     </>
   );
 }

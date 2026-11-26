@@ -1013,6 +1013,18 @@ impl ChatRuntime {
         self.inner.core.lock().store()?.set_agent_name(thread_id, name)
     }
 
+    /// The Live Voice assistant brain: its session loads no user/project settings, so every action
+    /// reaches the app's approval. Read at session start; a running session picks it up when it restarts.
+    pub fn set_strict_permissions(&self, thread_id: &str) -> Result<(), String> {
+        self.inner.core.lock().store()?.set_strict_permissions(thread_id)
+    }
+
+    /// Starts the thread's agent process now, before any message, so the first turn skips the cold
+    /// spawn (the Live Voice assistant calls it when a session begins). A live session is left as is.
+    pub async fn warm(&self, thread_id: &str) -> Result<(), String> {
+        self.ensure_session(thread_id).await.map(|_| ())
+    }
+
     /// The Command Rail's read mark: opening a thread, or watching it while a turn ends.
     pub fn mark_read(&self, thread_id: &str) -> Result<(), String> {
         self.inner.core.lock().store()?.mark_read(thread_id, now_ms())
@@ -1328,6 +1340,9 @@ impl ChatRuntime {
                 if let Some(at) = self.inner.core.lock().store()?.fork_at(thread_id)? {
                     params["forkAt"] = json!(at);
                 }
+            }
+            if self.inner.core.lock().store()?.strict_permissions(thread_id)? {
+                params["strictPermissions"] = json!(true);
             }
             // Read at each session start, so a chat picks up the toggle when it next wakes.
             if record.runner != "api" && concise_replies(&crate::settings::get_settings()) {

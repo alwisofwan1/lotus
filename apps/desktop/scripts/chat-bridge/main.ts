@@ -126,6 +126,7 @@ async function handle(method: string, rawParams: unknown): Promise<unknown> {
         resumeSessionId: params.resumeSessionId,
         forkAt: params.forkAt,
         conciseReplies: params.conciseReplies,
+        strictPermissions: params.strictPermissions,
         priorInputs: params.priorInputs,
         requestPermission,
         onMessage: (message) => {

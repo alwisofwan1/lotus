@@ -185,6 +185,16 @@ export function setChatAgentName(threadId: string, name: string): Promise<void> 
 }
 
 /** The thread menu's "Regenerate title": a new title from the whole chat; it replaces a rename too. */
+/** Locks a chat to the app's approvals: its session loads no user/project settings. One way. */
+export function setChatStrictPermissions(threadId: string): Promise<void> {
+  return call("chat_thread_set_strict_permissions", { threadId });
+}
+
+/** Starts the thread's agent process ahead of the first message. */
+export function warmChatThread(threadId: string): Promise<void> {
+  return call("chat_thread_warm", { threadId });
+}
+
 export function regenerateChatTitle(threadId: string): Promise<string> {
   return call("chat_thread_regenerate_title", { threadId });
 }

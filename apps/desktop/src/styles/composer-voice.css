@@ -330,6 +330,17 @@
   line-height: 1.45;
 }
 .ws-live-strip-line[data-kind="lotus"] { color: var(--text-secondary); }
+/* What was said wraps to three lines: one line cut a read-back mid-word, and ellipsis never shows on
+   a flex container's bare text. */
+.ws-live-strip-line[data-kind="you"],
+.ws-live-strip-line[data-kind="lotus"] {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  white-space: normal;
+}
+.ws-live-strip-line[data-kind="you"] .ws-live-strip-who,
+.ws-live-strip-line[data-kind="lotus"] .ws-live-strip-who { margin-right: 6px; }
 .ws-live-strip-line[data-kind="tool"] {
   padding-left: 12px;
   font-family: var(--font-mono, ui-monospace, monospace);

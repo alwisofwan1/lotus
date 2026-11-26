@@ -39,6 +39,9 @@ import { useCommandBarLiveVoice, type CommandBarLiveVoice } from "./use-command-
 import type { VoiceLiveTools } from "@/modules/voice-core/voice-adapter";
 import type { LiveVoiceStripState } from "@/modules/voice-core/live-voice-strip";
 import { useLiveVoiceStripRecorder } from "./use-live-voice-strip-recorder";
+import { useVoiceAssistant } from "@/modules/voice-core/assistant/use-voice-assistant";
+import { clipQuote, riskyAsk, withRiskyMessageParams } from "@/modules/voice-core/risky-ask";
+import { getAssistantSettings } from "@/modules/voice-core/assistant/assistant-settings";
 import { copyS2sVoiceDiagnostics } from "./s2s-voice-diagnostics-copy";
 import { recordS2sVoiceDiagnostic } from "./s2s-voice-diagnostics";
 import { buildS2sVoiceContextKey } from "./s2s-voice-context-version";
@@ -144,7 +147,7 @@ export function useCanvasLiveVoiceController({
       hasProjectMemory: !!activeProjectId,
       hasPendingClarification,
     };
-    return [...buildS2sCanvasRealtimeTools(toolCtx), ...buildS2sInfoTools(toolCtx)];
+    return [...withRiskyMessageParams(buildS2sCanvasRealtimeTools(toolCtx), ["dispatch", "say_to_agent"]), ...buildS2sInfoTools(toolCtx)];
   }, [activeProjectId, hasPendingClarification, liveVoiceContext, projects]);
 
   // hasBrowserNodes/hasOpenProjects mirror the exact gates `realtimeTools` uses below (see
@@ -208,9 +211,14 @@ export function useCanvasLiveVoiceController({
   useEffect(() => () => transcriptWaitQueueRef.current.reset(), []);
 
   const handleLiveVoiceTool = useCallback(
-    async (_action: unknown, call: { callId: string; name: string; args: Record<string, unknown> }) => {
+    async (
+      _action: unknown,
+      call: { callId: string; name: string; args: Record<string, unknown> },
+      /** What the user had said for this call, read by the risky-message gate first (or kept across its "yes"). */
+      held?: { transcript: string | null },
+    ) => {
       let memoryCall = applyS2sVoiceDialogueMemory(call, dialogueRef.current);
-      let transcript = authoritativeUserTranscript(bufferRef.current);
+      let transcript = held ? held.transcript : authoritativeUserTranscript(bufferRef.current);
       if (memoryCall.name === "dispatch") {
         const target = typeof memoryCall.args.target === "string" ? memoryCall.args.target : "the selected agent";
         const intent = typeof memoryCall.args.intent === "string" ? memoryCall.args.intent : undefined;
@@ -222,7 +230,7 @@ export function useCanvasLiveVoiceController({
         const candidateTask = typeof memoryCall.args.task === "string" ? memoryCall.args.task : intent ?? "";
         const socialMessage = resolveSocialAgentMessage(candidateTask, target);
         if (!socialMessage) {
-          if (!transcript) {
+          if (!transcript && !held) {
             // The dispatch call often arrives before the async input transcription completes. Grace-wait
             // briefly for the segment instead of immediately degrading to paraphrase mode.
             transcript = await waitForFinalUserTranscript();
@@ -451,20 +459,52 @@ export function useCanvasLiveVoiceController({
 
   const { strip, recordTranscript, recordTool, noteTurn, reset: resetStrip } = useLiveVoiceStripRecorder();
   // Every tool call, whichever path it took, is one line in the strip and one action in the summary.
+  const assistant = useVoiceAssistant(cwd || null);
+  const { decorate: decorateForAssistant, handles: assistantHandles, execute: executeAssistant } = assistant;
+  // One "Should I send it?" at a time (voice-core/risky-ask.ts): a message to an agent that asks for a
+  // push, a delete, a send… waits for the user's yes, then goes exactly as it was asked about.
+  const pendingRiskyRef = useRef<{ target: string; call: { callId: string; name: string; args: Record<string, unknown> }; transcript: string | null } | null>(null);
+  const gateRiskyMessage = useCallback(
+    async (action: unknown, call: { callId: string; name: string; args: Record<string, unknown> }): Promise<S2sCanvasToolResult> => {
+      const pending = pendingRiskyRef.current;
+      pendingRiskyRef.current = null;
+      if (call.name !== "dispatch" && call.name !== "say_to_agent") return handleLiveVoiceTool(action, call);
+      const target = typeof call.args.target === "string" ? call.args.target.trim() : "";
+      if (call.args.confirm === true && pending && pending.target.toLowerCase() === target.toLowerCase()) {
+        return handleLiveVoiceTool(action, pending.call, { transcript: pending.transcript });
+      }
+      // The user's own words count too when they are already in; no waiting for them, so a safe
+      // message is never slower than before.
+      const transcript = authoritativeUserTranscript(bufferRef.current);
+      const text = [call.args.task, call.args.intent, call.args.message]
+        .filter((value): value is string => typeof value === "string")
+        .join(" ")
+        .trim();
+      const risk = riskyAsk(`${text} ${transcript ?? ""}`, call.args.risky, getAssistantSettings().confirm);
+      if (!risk) return handleLiveVoiceTool(action, call);
+      pendingRiskyRef.current = { target, call, transcript };
+      bufferRef.current = consumeUserTranscript(bufferRef.current);
+      const name = target || "the agent";
+      return { ok: true, summary: `Asked before telling ${name} to ${risk}`, speak: `That asks ${name} to ${risk}: "${clipQuote(text || transcript || "")}". Should I send it?` };
+    },
+    [handleLiveVoiceTool],
+  );
   const runLiveVoiceTool = useCallback(
     (action: unknown, call: { callId: string; name: string; args: Record<string, unknown> }) =>
-      recordTool(call, () => handleLiveVoiceTool(action, call)),
-    [handleLiveVoiceTool, recordTool],
+      recordTool(call, () => (assistantHandles(call.name) ? executeAssistant(call) : gateRiskyMessage(action, call))),
+    [assistantHandles, executeAssistant, gateRiskyMessage, recordTool],
   );
 
+  const advertised = useMemo(() => decorateForAssistant({ instructions, tools: realtimeTools }), [decorateForAssistant, instructions, realtimeTools]);
   const liveTools = useMemo<VoiceLiveTools>(
-    () => ({ instructions, tools: realtimeTools, execute: (call) => runLiveVoiceTool(undefined, call) }),
-    [runLiveVoiceTool, instructions, realtimeTools],
+    () => ({ instructions: advertised.instructions, tools: advertised.tools, execute: (call) => runLiveVoiceTool(undefined, call) }),
+    [runLiveVoiceTool, advertised],
   );
+  const advertisedTools = useMemo(() => [...advertised.tools], [advertised]);
 
   const session = useCommandBarLiveVoice({
     instructions: liveTools.instructions,
-    realtimeTools,
+    realtimeTools: advertisedTools,
     onTranscript: recordTranscript,
     onUserTranscriptProgress: recordUserTranscriptProgress,
     onFinalUserTranscript: recordFinalUserTranscript,
@@ -478,8 +518,11 @@ export function useCanvasLiveVoiceController({
   // A new session starts with an empty strip; the last one's stays readable until then.
   const live: CommandBarLiveVoice = {
     ...session,
+    working: assistant.working,
     start: () => {
       resetStrip();
+      // The brain's thread and process start alongside the voice, not on the first request.
+      assistant.prepare();
       return session.start();
     },
   };

@@ -3,6 +3,8 @@ export const S2S_TOOL_RESULT_FALLBACK_MS = 150;
 export interface S2sToolResultItem {
   callId: string;
   output: string;
+  /** The user asked for no spoken reply to this result (Live Voice assistant readback off). */
+  silent?: boolean;
 }
 
 export interface S2sToolResultBatcherDeps {
@@ -14,7 +16,7 @@ export interface S2sToolResultBatcherDeps {
 
 export interface S2sToolResultBatcher {
   begin: (callId: string) => void;
-  complete: (callId: string, output: string) => Promise<void>;
+  complete: (callId: string, output: string, silent?: boolean) => Promise<void>;
   markResponseDone: () => Promise<void>;
   reset: () => void;
 }
@@ -52,9 +54,11 @@ export function createS2sToolResultBatcher({
     responseDone = false;
     flushChain = flushChain
       .then(async () => {
+        // The provider speaks after the batch unless every result in it asked for silence.
+        const speak = batch.some((item) => !item.silent);
         for (let index = 0; index < batch.length; index += 1) {
           if (generation !== batchGeneration) return;
-          await send(batch[index], index === batch.length - 1);
+          await send(batch[index], speak && index === batch.length - 1);
         }
       })
       .catch((error) => {
@@ -78,9 +82,9 @@ export function createS2sToolResultBatcher({
       active.add(callId);
     },
 
-    complete(callId, output) {
+    complete(callId, output, silent = false) {
       if (!active.delete(callId)) return flushChain;
-      completed.set(callId, { callId, output });
+      completed.set(callId, { callId, output, ...(silent && { silent }) });
       if (active.size > 0) return flushChain;
       if (responseDone) return flush();
       scheduleFallback();

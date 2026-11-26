@@ -1,5 +1,6 @@
 import { S2S_END_CONVERSATION_INSTRUCTION, S2S_END_CONVERSATION_TOOL } from "@/modules/codecanvas/services/voice/s2s-end-conversation";
 import type { VoiceLiveTools } from "@/modules/voice-core/voice-adapter";
+import { CONFIRM_MESSAGE_PARAM, RISKY_MESSAGE_PARAM, clipQuote, riskyAsk, type ConfirmMode } from "@/modules/voice-core/risky-ask";
 import type { AgentStatusSnapshot } from "@/modules/codecanvas/services/agent-status-registry";
 import { resolveAgentByName } from "@/modules/codecanvas/services/canvas-nl-command";
 import type { AgentNodeStatus } from "@/modules/codecanvas/types/canvas";
@@ -26,6 +27,11 @@ import type { PaneActivity } from "../types";
  * when it answers that question, for that pane, with no other tool in between. An agent that is
  * working or waiting for the user is never closed by voice. One pane at a time;
  * close_all is refused. Without a `close` dep there is no close at all, and a spoken close gets ⌘W.
+ *
+ * A message that asks an agent to push, merge, commit, delete, deploy, send or close something waits
+ * for the same spoken yes (`riskyAsk`): the agent runs it with its own permissions, so this is the
+ * last point a misheard word can be stopped. On the yes, the text the user heard is sent, not a
+ * re-worded one.
  */
 
 export const CODE_LIVE_VOICE_CLOSE_REPLY = "I can't close panes by voice — use ⌘W.";
@@ -51,7 +57,12 @@ export interface CodeLiveVoiceDeps {
   close?: (paneId: string) => void;
   /** The pane Lotus last asked "Close …?" about, until answered or the conversation moves on. */
   pendingClose?: { current: string | null };
+  /** A risky message waiting for the user's yes, until answered or the conversation moves on. */
+  pendingSend?: { current: { paneId: string; text: string } | null };
+  /** Settings › Voice › Live "Confirm actions"; absent = always. Read on each call, so a change applies at once. */
+  confirmMode?: () => ConfirmMode;
 }
+
 
 type Result = S2sCanvasToolResult;
 type Call = { name: string; args: Record<string, unknown> };
@@ -105,13 +116,13 @@ function paneTools(agentNames: string[], paneNames: string[], launchable: string
         type: "function",
         name: "say_to_agent",
         description: "Pass a short message to one agent, as if the user typed it in that agent's pane. Use for 'tell Rowan …', 'ask Codex …'.",
-        parameters: { type: "object", properties: { target, message: { type: "string", description: "What to tell the agent, in full." } }, required: ["message"] },
+        parameters: { type: "object", properties: { target, message: { type: "string", description: "What to tell the agent, in full." }, risky: RISKY_MESSAGE_PARAM, confirm: CONFIRM_MESSAGE_PARAM }, required: ["message", "risky"] },
       },
       {
         type: "function",
         name: "dispatch",
         description: "Give one agent a piece of work. Use for 'have Rowan review the auth module', 'get Codex to fix the build'.",
-        parameters: { type: "object", properties: { target, task: { type: "string", description: "The task, stated in full with every constraint the user said." } }, required: ["task"] },
+        parameters: { type: "object", properties: { target, task: { type: "string", description: "The task, stated in full with every constraint the user said." }, risky: RISKY_MESSAGE_PARAM, confirm: CONFIRM_MESSAGE_PARAM }, required: ["task", "risky"] },
       },
     );
   }
@@ -161,6 +172,7 @@ function instructionsFor(panes: CodeVoicePane[], focused: CodeVoicePane | undefi
       ? `Agent CLIs you can start in a new pane: ${launchable.join(", ")}. These are not open panes; count and name only the panes above.`
       : "No agent CLI is installed to start.",
     "Messages and tasks go to the agent straight away, so pass the user's words faithfully; never invent a task.",
+    "Always set risky on a message: high when it leaves this computer or is hard to undo (push, merge, upload, deploy, delete, clean up, send, open or close a PR), local when it only changes local files (edit, commit), none otherwise. A risky message may first return a question: say it, and only when the user answers yes, call the same tool again with confirm: true.",
     canClose
       ? "To close a pane, call close_pane with its name, and say what it returns. A busy agent cannot be closed by voice. Only when the user answers yes, call close_pane again with the same name and confirm: true. One pane at a time; you cannot close everything at once."
       : `You cannot close panes. When asked to close one, say exactly: "${CODE_LIVE_VOICE_CLOSE_REPLY}"`,
@@ -231,10 +243,19 @@ function messageTarget(target: string, panes: CodeVoicePane[], focusedId: string
 }
 
 async function sendToAgent(call: Call, deps: CodeLiveVoiceDeps, field: "message" | "task"): Promise<Result> {
-  const text = trimmed(call.args[field]);
-  if (!text) return { ok: false, error: `No ${field}.`, speak: field === "task" ? "What should they do?" : "What should I tell them?" };
   const agent = messageTarget(trimmed(call.args.target), deps.getPanes(), deps.focusedId());
   if ("ok" in agent) return agent;
+  const pending = deps.pendingSend?.current;
+  if (deps.pendingSend) deps.pendingSend.current = null;
+  // The yes sends what was asked about, word for word, to the agent it was for.
+  const text = call.args.confirm === true && pending?.paneId === agent.id ? pending.text : trimmed(call.args[field]);
+  if (!text) return { ok: false, error: `No ${field}.`, speak: field === "task" ? "What should they do?" : "What should I tell them?" };
+  const risk = text === pending?.text ? null : riskyAsk(text, call.args.risky, deps.confirmMode?.() ?? "always");
+  if (risk) {
+    if (!deps.pendingSend) return { ok: false, error: `Asks to ${risk}.`, speak: `I can't ask ${agent.name} to ${risk} by voice. Type it in their pane.` };
+    deps.pendingSend.current = { paneId: agent.id, text };
+    return { ok: true, summary: `Asked before telling ${agent.name} to ${risk}`, speak: `That asks ${agent.name} to ${risk}: "${clipQuote(text)}". Should I send it?` };
+  }
   const outcome = await deps.send(agent.id, text);
   if (!outcome.ok) return { ok: false, error: outcome.reason, speak: `I couldn't reach ${agent.name}: ${outcome.reason}` };
   return { ok: true, summary: `Sent to ${agent.name}`, speak: `Sent to ${agent.name}.` };
@@ -286,8 +307,9 @@ function closePane(call: Call, deps: CodeLiveVoiceDeps): Result {
 
 /** Runs one Live Voice tool call against the panes. Never throws: a failure is a spoken error. */
 export async function executeCodeLiveVoiceTool(call: Call, deps: CodeLiveVoiceDeps): Promise<Result> {
-  // A "Close …?" is answered by the next close_pane, or not at all.
+  // A "Close …?" is answered by the next close_pane, or not at all; a "Should I send it?" likewise.
   if (call.name !== "close_pane" && deps.pendingClose) deps.pendingClose.current = null;
+  if (call.name !== "dispatch" && call.name !== "say_to_agent" && deps.pendingSend) deps.pendingSend.current = null;
   try {
     return await runTool(call, deps);
   } catch (error) {

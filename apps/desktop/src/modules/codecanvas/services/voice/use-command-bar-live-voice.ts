@@ -26,6 +26,8 @@ export interface CommandBarLiveVoice {
   micMuted: boolean;
   setMicMuted: (muted: boolean) => void;
   ending: boolean;
+  /** The assistant brain is on a request (set by the surface that owns the brain). */
+  working?: boolean;
 }
 
 /**
