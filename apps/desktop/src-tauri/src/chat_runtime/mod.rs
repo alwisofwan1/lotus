@@ -1019,6 +1019,13 @@ impl ChatRuntime {
         self.inner.core.lock().store()?.set_strict_permissions(thread_id)
     }
 
+    /// The threads people see (Chat rail, pane titles, alerts): all but the voice assistant's
+    /// brain, which lives behind Live Voice. Its delegated work keeps showing, as a top-level chat.
+    pub fn list_visible_threads(&self) -> Result<Vec<ThreadRecord>, String> {
+        let hidden = self.inner.core.lock().store()?.strict_thread_ids()?;
+        Ok(self.list_threads()?.into_iter().filter(|thread| !hidden.contains(&thread.id)).collect())
+    }
+
     /// Starts the thread's agent process now, before any message, so the first turn skips the cold
     /// spawn (the Live Voice assistant calls it when a session begins). A live session is left as is.
     pub async fn warm(&self, thread_id: &str) -> Result<(), String> {

@@ -2010,7 +2010,7 @@ pub mod commands {
     pub fn chat_threads_list(
         runtime: State<'_, crate::chat_runtime::ChatRuntime>,
     ) -> Result<Vec<crate::chat_runtime::ThreadRecord>, String> {
-        runtime.list_threads()
+        runtime.list_visible_threads()
     }
 
     #[tauri::command]

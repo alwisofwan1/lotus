@@ -79,7 +79,7 @@ export function assistantResult(outcome: BrainOutcome, readback: AssistantReadba
     case "approval":
       return { ok: true, summary: `Asks to ${outcome.action}`, speak: `This will ${outcome.action}. Should I go ahead?` };
     case "pending":
-      return { ok: true, summary: "Still working", speak: "This is taking a while. I'll put the answer in the Lotus Assistant chat." };
+      return { ok: true, summary: "Still working", speak: "This is taking a while. Ask me again in a moment for the result." };
     case "error":
       return { ok: false, error: outcome.message, speak: "I couldn't do that." };
   }

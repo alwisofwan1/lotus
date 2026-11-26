@@ -678,6 +678,13 @@ impl Store {
         }
     }
 
+    /// The strict threads: today only Live Voice's assistant brain, which the Chat rail never lists.
+    pub fn strict_thread_ids(&self) -> Result<HashSet<String>, String> {
+        let mut stmt = self.conn.prepare("SELECT id FROM chat_threads WHERE strict_permissions = 1").map_err(|e| e.to_string())?;
+        let ids = stmt.query_map([], |row| row.get::<_, String>(0)).map_err(|e| e.to_string())?;
+        ids.collect::<Result<_, _>>().map_err(|e| e.to_string())
+    }
+
     pub fn strict_permissions(&self, thread_id: &str) -> Result<bool, String> {
         self.conn
             .query_row("SELECT strict_permissions FROM chat_threads WHERE id = ?1", [thread_id], |row| row.get::<_, i64>(0))
@@ -914,6 +921,7 @@ mod tests {
         store.set_strict_permissions("a").unwrap();
         assert!(store.strict_permissions("a").unwrap());
         assert!(!store.strict_permissions("b").unwrap());
+        assert_eq!(store.strict_thread_ids().unwrap(), HashSet::from(["a".to_string()]));
         assert!(store.set_strict_permissions("gone").is_err());
     }
 

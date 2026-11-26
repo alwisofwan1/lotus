@@ -40,7 +40,7 @@ export type BrainOutcome =
   | { kind: "answer"; text: string }
   /** The brain wants to do something risky; nothing runs until `decide`. */
   | { kind: "approval"; action: string }
-  /** Still working after the wait; the answer lands in the chat thread. */
+  /** Still working after the wait; the answer stays in the brain thread for the next ask. */
   | { kind: "pending" }
   | { kind: "error"; message: string };
 

@@ -63,7 +63,7 @@ export function AssistantBrainSettings() {
     <>
       <SettingSegmentedRow
         title="Assistant brain"
-        description="Live Voice hands questions and work to this agent. It runs as the Lotus Assistant chat and uses your own subscription."
+        description="Live Voice hands questions and work to this agent. It runs in the background on your own subscription and stays out of the Chat list. Work it hands off shows up in Chat."
         options={BRAIN_OPTIONS}
         value={settings.brain}
         // A model of one runner means nothing to the other.
@@ -88,7 +88,7 @@ export function AssistantBrainSettings() {
           />
           <SettingSegmentedRow
             title="Read results aloud"
-            description="Off shows the answer in the strip and the chat, and saves voice tokens. Questions before risky actions are always spoken."
+            description="Off shows the answer only in the strip, and saves voice tokens. Questions before risky actions are always spoken."
             options={READBACK_OPTIONS}
             value={settings.readback}
             onChange={(readback) => updateAssistantSettings({ readback })}
