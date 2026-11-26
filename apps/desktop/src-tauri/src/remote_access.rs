@@ -355,10 +355,12 @@ mod tests {
         let (bin, spawns, release) = (dir.path().join("cloudflared"), dir.path().join("spawns"), dir.path().join("release"));
         // Like the real one: prints the URL, then waits for the browser (here: the release file).
         // Only `access login` is counted: PATH is process-wide, so the token checks other tests run
-        // in parallel land here too.
+        // in parallel land here too. It also gives up once the temp dir is gone: a release file
+        // written just before the dir is dropped can be missed, and the loop then outlived every
+        // run as an orphan (45 of them from 40 parallel runs).
         std::fs::write(&bin, format!(
-            "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n[ \"$2\" = login ] || exit 1\necho x >> '{}'\nprintf 'https://reuse.example/login\\n'\nwhile [ ! -e '{}' ]; do /bin/sleep 0.05; done\n",
-            spawns.display(), release.display()
+            "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n[ \"$2\" = login ] || exit 1\necho x >> '{}'\nprintf 'https://reuse.example/login\\n'\nwhile [ ! -e '{}' ]; do [ -d '{}' ] || exit 1; /bin/sleep 0.05; done\n",
+            spawns.display(), release.display(), dir.path().display()
         )).unwrap();
         std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o700)).unwrap();
         let original = std::env::var_os("PATH");
@@ -378,6 +380,14 @@ mod tests {
         let third = access_login("reuse.example").unwrap();
         let spawned_after = spawned();
         std::fs::write(&release, "").unwrap();
+        // Let the third login end before the temp dir goes; stop it if it does not.
+        let deadline = Instant::now() + Duration::from_secs(3);
+        while PENDING.lock().unwrap().contains_key("https://reuse.example") && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
+        }
+        if let Some(login) = PENDING.lock().unwrap().remove("https://reuse.example") {
+            login.stop();
+        }
         match original {
             Some(path) => std::env::set_var("PATH", path),
             None => std::env::remove_var("PATH"),
