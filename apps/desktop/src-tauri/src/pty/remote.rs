@@ -112,7 +112,7 @@ pub fn adopt_remote_session(
     state: &PtyState,
 ) -> Result<Option<String>, AppError> {
     let listed = daemon.list().map_err(|e| other(e.to_string()))?;
-    let Some(info) = find_pane_session(&listed, pane_id, |id| daemon.mirrors(id)) else {
+    let Some(info) = find_pane_session(&listed, pane_id, sessiond_client::desktop_id(), |id| daemon.mirrors(id)) else {
         return Ok(None);
     };
     let pty = daemon
@@ -139,18 +139,26 @@ pub fn adopt_remote_session(
 fn find_pane_session<'a>(
     listed: &'a [SessionInfo],
     pane_id: &str,
+    client: &str,
     mirrored: impl Fn(&str) -> bool,
 ) -> Option<&'a SessionInfo> {
-    listed
-        .iter()
-        .find(|s| s.owner.pane_id.as_deref() == Some(pane_id) && is_desktops(s) && !mirrored(&s.id))
+    listed.iter().find(|s| {
+        s.owner.pane_id.as_deref() == Some(pane_id) && is_ours(s, client) && !mirrored(&s.id)
+    })
 }
 
-fn is_desktops(s: &SessionInfo) -> bool {
-    s.tag
+/// Started by this Lotus: tag `origin: desktop` (never the machine host's own) and this app's
+/// `client` id (never another Lotus sharing the machine: dev vs release, another computer).
+fn is_ours(s: &SessionInfo, client: &str) -> bool {
+    let Some(tag) = s
+        .tag
         .as_deref()
         .and_then(|t| serde_json::from_str::<serde_json::Value>(t).ok())
-        .is_some_and(|v| v.get("origin").and_then(|o| o.as_str()) == Some("desktop"))
+    else {
+        return false;
+    };
+    tag.get("origin").and_then(|o| o.as_str()) == Some("desktop")
+        && tag.get("client").and_then(|c| c.as_str()) == Some(client)
 }
 
 fn insert(state: &PtyState, session: PtySession) -> Result<String, AppError> {
@@ -232,7 +240,7 @@ fn sweep_orphans(machine: &str, daemon: &Arc<Daemon>) -> usize {
     };
     let mut ended = 0;
     for (window, panes) in &windows {
-        for id in orphans(&listed, window, panes, |id| daemon.mirrors(id)) {
+        for id in orphans(&listed, window, panes, sessiond_client::desktop_id(), |id| daemon.mirrors(id)) {
             eprintln!("[sessiond] {machine}: its pane is gone; ending {id}");
             if daemon.kill(&id).is_ok() {
                 ended += 1;
@@ -242,15 +250,16 @@ fn sweep_orphans(machine: &str, daemon: &Arc<Daemon>) -> usize {
     ended
 }
 
-/// This desktop's sessions (never the machine host's own) of `window` whose pane is gone.
+/// This Lotus's sessions of `window` whose pane is gone.
 fn orphans(
     listed: &[SessionInfo],
     window: &str,
     pane_ids: &[String],
+    client: &str,
     mirrored: impl Fn(&str) -> bool,
 ) -> Vec<String> {
-    let desktops: Vec<SessionInfo> = listed.iter().filter(|s| is_desktops(s)).cloned().collect();
-    super::session::sessions_without_a_pane(&desktops, window, pane_ids, mirrored)
+    let ours: Vec<SessionInfo> = listed.iter().filter(|s| is_ours(s, client)).cloned().collect();
+    super::session::sessions_without_a_pane(&ours, window, pane_ids, mirrored)
 }
 
 #[cfg(test)]
@@ -282,27 +291,32 @@ mod tests {
         let listed = [
             info("hosts", "p1", Some(r#"{"sessionId":"s1"}"#)),
             info("untagged", "p1", None),
-            info("mirrored", "p1", Some(r#"{"origin":"desktop"}"#)),
-            info("other-pane", "p2", Some(r#"{"origin":"desktop"}"#)),
-            info("mine", "p1", Some(r#"{"origin":"desktop","paneId":"p1"}"#)),
+            info("mirrored", "p1", Some(r#"{"origin":"desktop","client":"me"}"#)),
+            info("other-pane", "p2", Some(r#"{"origin":"desktop","client":"me"}"#)),
+            info("other-lotus", "p1", Some(r#"{"origin":"desktop","client":"dev"}"#)),
+            info("no-client", "p1", Some(r#"{"origin":"desktop"}"#)),
+            info("mine", "p1", Some(r#"{"origin":"desktop","client":"me","paneId":"p1"}"#)),
         ];
-        let found = find_pane_session(&listed, "p1", |id| id == "mirrored").map(|s| s.id.as_str());
+        let found = find_pane_session(&listed, "p1", "me", |id| id == "mirrored").map(|s| s.id.as_str());
         assert_eq!(found, Some("mine"));
     }
 
     #[test]
     fn the_sweep_ends_only_the_desktops_sessions_whose_pane_is_gone() {
         let mut listed = vec![
-            info("kept", "p1", Some(r#"{"origin":"desktop"}"#)),
-            info("gone", "p2", Some(r#"{"origin":"desktop"}"#)),
+            info("kept", "p1", Some(r#"{"origin":"desktop","client":"me"}"#)),
+            info("gone", "p2", Some(r#"{"origin":"desktop","client":"me"}"#)),
             info("hosts", "p3", Some(r#"{"sessionId":"s3"}"#)),
             info("untagged", "p4", None),
-            info("mirrored", "p5", Some(r#"{"origin":"desktop"}"#)),
+            info("mirrored", "p5", Some(r#"{"origin":"desktop","client":"me"}"#)),
+            // Another Lotus on the same machine (the dev app, another computer): its pane is
+            // simply not in this app's list, which must not read as "gone".
+            info("other-lotus", "p7", Some(r#"{"origin":"desktop","client":"dev"}"#)),
         ];
-        let mut other_window = info("other-window", "p6", Some(r#"{"origin":"desktop"}"#));
+        let mut other_window = info("other-window", "p6", Some(r#"{"origin":"desktop","client":"me"}"#));
         other_window.owner.window_label = "w2".into();
         listed.push(other_window);
-        let ended = orphans(&listed, "main", &["p1".into()], |id| id == "mirrored");
+        let ended = orphans(&listed, "main", &["p1".into()], "me", |id| id == "mirrored");
         assert_eq!(ended, vec!["gone".to_string()]);
     }
 

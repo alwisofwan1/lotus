@@ -114,6 +114,34 @@ pub fn connected_remote(key: &str) -> Option<Arc<Daemon>> {
     guard.as_ref().map(Arc::clone)
 }
 
+/// Which Lotus started a remote session: one id per state dir, so the dev and release apps on
+/// this Mac, and a Lotus on another computer, never adopt or sweep each other's sessions on a
+/// shared machine. Kept in `<state dir>/desktop-id`; made once.
+pub fn desktop_id() -> &'static str {
+    static ID: OnceLock<String> = OnceLock::new();
+    ID.get_or_init(|| {
+        if cfg!(test) {
+            return "test-desktop".to_string();
+        }
+        let file = crate::paths::lotus_state_dir().join("desktop-id");
+        if let Ok(existing) = std::fs::read_to_string(&file) {
+            let existing = existing.trim();
+            if !existing.is_empty() {
+                return existing.to_string();
+            }
+        }
+        let made = uuid::Uuid::new_v4().to_string();
+        if let Some(dir) = file.parent() {
+            let _ = std::fs::create_dir_all(dir);
+        }
+        if let Err(e) = std::fs::write(&file, &made) {
+            // Still unique for this run; the next run gets another id and leaves these alone.
+            eprintln!("[sessiond] could not save {}: {e}", file.display());
+        }
+        made
+    })
+}
+
 /// Every machine with a live daemon connection right now, by key.
 pub fn connected_remotes() -> Vec<(String, Arc<Daemon>)> {
     let slots: Vec<(String, RemoteSlot)> = remotes()
@@ -351,6 +379,7 @@ impl Daemon {
         Some(
             serde_json::json!({
                 "origin": "desktop",
+                "client": desktop_id(),
                 "paneId": pane_id,
                 "canvasTerminalId": canvas_terminal_id,
             })
@@ -1249,6 +1278,7 @@ mod tests {
         let info = d.list().unwrap().into_iter().find(|s| s.id == id).expect("listed");
         let tag: serde_json::Value = serde_json::from_str(info.tag.as_deref().unwrap()).unwrap();
         assert_eq!(tag["origin"], "desktop");
+        assert_eq!(tag["client"], desktop_id());
         assert_eq!(tag["paneId"], "pane-r1");
         assert_eq!(tag["canvasTerminalId"], "term-r1");
         assert!(tag.get("sessionId").is_none(), "{tag}");
