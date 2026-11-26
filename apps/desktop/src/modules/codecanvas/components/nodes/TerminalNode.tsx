@@ -2,6 +2,7 @@
 import { memo, useCallback, useMemo } from "react";
 import type { KeyboardEvent, SyntheticEvent } from "react";
 import { SshLinkStrip, holdsInput } from "@/modules/workspace-shell/components/SshLinkStrip";
+import { HostOfferStrip } from "@/modules/managed-host/HostOfferStrip";
 import { writeTerminalSession } from "@/modules/codespace/services/terminal-session-registry";
 import type { NodeProps } from "@xyflow/react";
 import { useDroppable } from "@dnd-kit/core";
@@ -261,6 +262,14 @@ export const TerminalNode = memo(function TerminalNode({ id, data, selected }: N
         onPasteCapture={holdInput}
       >
         <SshLinkStrip state={link} sessionId={sessionId} />
+        {link.kind === "none" ? (
+          <HostOfferStrip
+            sessionId={sessionId}
+            canvas
+            busy={activity === "running"}
+            onRelaunch={dispatchCommand ? recoverTerminal : undefined}
+          />
+        ) : null}
         <CanvasPtyViewport
           containerRef={containerRef}
           collapsed={collapsed}

@@ -14,6 +14,7 @@ import type { CodeSpaceStoredWorkspaceLocation } from "@/lib/tauri/codespace";
 import { buildSshCommand, parseSshArgv, type SshTarget } from "@/modules/codespace/services/ssh-command";
 import { remoteArgv } from "@/modules/codespace/services/ssh-argv";
 import { remoteCallbackEnv } from "@/lib/remote-callback";
+import { markPlainSshSession } from "@/lib/plain-ssh-sessions";
 
 /**
  * The machine a session runs on, or null for this one.
@@ -47,7 +48,8 @@ const SSH_CLIENT_CWD = "";
  * dropped link still ends it (plans/ssh-pane-durability, decision 2).
  */
 export const NO_REMOTE_DAEMON_NOTICE =
-  "\x1b[2m[Lotus] This machine runs no Lotus host, so this pane is a plain SSH session: if the link drops, its process ends.\x1b[0m\r\n";
+  "\x1b[2m[Lotus] VPS ini belum punya Lotus host: kalau koneksi putus, proses ikut berhenti.\r\n"
+  + "        Pasang host dari banner di atas, atau Settings → Hosts.\x1b[0m\r\n";
 
 /** Tracks all active controllers for orphan reaping */
 const activeControllers = new Set<PtySessionController>();
@@ -186,15 +188,6 @@ export class PtySessionController {
       onOutput(data);
     };
 
-    if (paneId) {
-      if (await this.tryAdopt(paneId, guardedOnOutput)) return;
-      if (this.aborted) {
-        // Closed while we looked for a session to adopt: nothing was started, so nothing to kill.
-        activeControllers.delete(this);
-        return;
-      }
-    }
-
     // On another machine, the process goes into that machine's session daemon when it runs one:
     // there a dropped link only pauses the pane, under `ssh -t` it kills the agent.
     // Code cells and Canvas nodes store the `ssh -t` argv they built; it is read back here, and
@@ -202,6 +195,20 @@ export class PtySessionController {
     const parsed = parseSshArgv(spawnArgv);
     const machine = parsed?.target;
     const remoteCommand = parsed?.remoteCommand;
+
+    if (paneId) {
+      if (await this.tryAdopt(paneId, guardedOnOutput)) {
+        // This side's daemon holds only local PTYs, so an adopted ssh command is a plain `ssh -t`.
+        if (machine && remoteCommand && this.ptyId) markPlainSshSession(this.ptyId, machine);
+        return;
+      }
+      if (this.aborted) {
+        // Closed while we looked for a session to adopt: nothing was started, so nothing to kill.
+        activeControllers.delete(this);
+        return;
+      }
+    }
+
     if (machine && remoteCommand) {
       const placed = await this.tryRemoteDaemon(machine, remoteCommand, cols, rows, guardedOnOutput, paneId, canvasTerminalId);
       if (placed === "running") return;
@@ -224,6 +231,7 @@ export class PtySessionController {
         target || alreadyRemote ? null : this.claudeAccount,
       );
       this.ptyId = await this.pendingSpawn;
+      if (machine && remoteCommand) markPlainSshSession(this.ptyId, machine);
       this.adoptSpawnGeometry(cols, rows);
     } catch (err) {
       activeControllers.delete(this);

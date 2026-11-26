@@ -1782,6 +1782,7 @@ export function CodeMode({
           }
           onAgentExit={(paneId) => fallBackToShell(paneWorkspace.id, paneId)}
           onRelaunch={(paneId) => relaunchTerminal(paneWorkspace.id, paneId)}
+          busy={paneActivities.get(cell.id)?.activity === "working"}
           onBrowserUrlChange={(paneId, url) => updateBrowserCellUrl(paneWorkspace.id, paneId, url)}
           onBrowserPick={(_, payload) => {
             if (cell.type === "browser") pickInBrowser(paneWorkspace, cell, payload);

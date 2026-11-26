@@ -196,6 +196,17 @@ describe("PtySessionController on another machine", () => {
       expect(mockCreateCommandPtySession.mock.calls[0][1][0]).toBe("ssh");
     });
 
+    it("marks a plain ssh -t session with its machine, and never a daemon-backed one", async () => {
+      const { plainSshMachine } = await import("@/lib/plain-ssh-sessions");
+      mockCreateCommandPtySession.mockResolvedValue("plain-ssh-1");
+      await (await controller()).connect("/srv/api", 80, 24, vi.fn(), "pane-m1", SSH, "term-m1");
+      expect(plainSshMachine("plain-ssh-1")?.host).toBe("devbox-vps");
+
+      mockCreateRemotePtySession.mockResolvedValue("daemon-1");
+      await (await controller()).connect("/srv/api", 80, 24, vi.fn(), "pane-m2", SSH, "term-m2");
+      expect(plainSshMachine("daemon-1")).toBeNull();
+    });
+
     it("falls back to ssh -t quietly when the daemon cannot be reached", async () => {
       mockCreateRemotePtySession.mockRejectedValue(new Error("forward failed"));
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

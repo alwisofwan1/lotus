@@ -22,6 +22,7 @@ import type { ChatCellData, GridCell, WorkbenchCellData, Workspace } from "@/mod
 import { paneFileDropAttributes } from "@/modules/workspace-shell/services/pane-file-drop";
 import { PaneHeaderSlot } from "@/modules/workspace-shell/components/PaneCard";
 import { SshLinkDot, SshLinkStrip, holdsInput, useLinkStrip } from "@/modules/workspace-shell/components/SshLinkStrip";
+import { HostOfferStrip } from "@/modules/managed-host/HostOfferStrip";
 import "@/styles/pane-veil.css";
 
 interface PaneBodyProps {
@@ -40,6 +41,8 @@ interface PaneBodyProps {
   onAgentExit?: (paneId: string) => void;
   /** Start a terminal pane's launch again in place: "Buka lagi" on an SSH pane whose link dropped. */
   onRelaunch?: (paneId: string) => void;
+  /** The pane's agent is working now: "Buka lagi" on a plain SSH pane would stop it. */
+  busy?: boolean;
   onBrowserUrlChange: (paneId: string, url: string) => void;
   /** An element picked on a Browser pane's page. */
   onBrowserPick?: (paneId: string, payload: BrowserAnnotationPayload) => void;
@@ -75,6 +78,7 @@ export function PaneBody({
   onRuntimeStatusChange,
   onAgentExit,
   onRelaunch,
+  busy = false,
   onBrowserUrlChange,
   onBrowserPick,
   browserLink,
@@ -244,6 +248,13 @@ export function PaneBody({
             onRelaunch={onRelaunch && (() => onRelaunch(cell.id))}
           />
           <SshLinkDot state={link.state} slot={headerSlot} />
+          {link.state.kind === "none" ? (
+            <HostOfferStrip
+              sessionId={cell.runtimeSessionId}
+              busy={busy}
+              onRelaunch={onRelaunch && (() => onRelaunch(cell.id))}
+            />
+          ) : null}
         </>
       ) : null}
       {/*

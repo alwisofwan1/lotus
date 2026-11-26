@@ -21,6 +21,7 @@
 
 .ws-link-strip[data-tone="success"] { --ws-link-tone: var(--ds-success); }
 .ws-link-strip[data-tone="danger"] { --ws-link-tone: var(--ds-danger); }
+.ws-link-strip[data-tone="neutral"] { --ws-link-tone: var(--ds-text-muted); }
 
 .ws-link-strip__text {
   flex: 1 1 auto;
@@ -53,6 +54,19 @@
 
 .ws-link-strip__action:hover:not(:disabled) { background: color-mix(in srgb, var(--ds-text) 6%, transparent); }
 .ws-link-strip__action:disabled { opacity: 0.6; cursor: default; }
+
+/* Closes an offer (HostOfferStrip); a link strip has none, it goes when the link comes back. */
+.ws-link-strip__close {
+  flex: none;
+  display: inline-flex;
+  padding: 3px;
+  border: 0;
+  border-radius: 4px;
+  color: var(--ds-text-muted);
+  background: transparent;
+  cursor: pointer;
+}
+.ws-link-strip__close:hover { color: var(--ds-text); background: color-mix(in srgb, var(--ds-text) 6%, transparent); }
 
 .ws-link-strip__action[data-primary="true"] {
   color: var(--ds-surface);
