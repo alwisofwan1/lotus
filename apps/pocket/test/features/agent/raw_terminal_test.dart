@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/app/theme/app_theme.dart';
 import 'package:lotus_pocket/app/theme/registry.dart';
 import 'package:lotus_pocket/app/theme/theme.dart';
+import 'package:lotus_pocket/app/theme/theme_variant.dart';
 import 'package:lotus_pocket/data/output_buffer.dart';
 import 'package:lotus_pocket/features/agent/widgets/raw_terminal.dart';
 import 'package:lotus_pocket/features/agent/widgets/key_bar.dart';
@@ -66,9 +67,10 @@ void main() {
     ValueChanged<String>? onAsk,
     ValueChanged<bool>? onFinding,
     String agent = 'Atlas',
+    ThemeData? theme,
   }) =>
       tester.pumpWidget(MaterialApp(
-        theme: buildAppTheme(),
+        theme: theme ?? buildAppTheme(),
         home: Scaffold(
           // `live` belongs to the page, not to the terminal: the composer has to stand
           // down when the pane takes the keyboard. A `StatefulBuilder` is the smallest
@@ -1124,6 +1126,30 @@ void main() {
       final current =
           controller.highlights.where((h) => h.color == themeRegistry.first.dark.terminal[TermRole.findHitCurrent]);
       expect(current, hasLength(1));
+    });
+
+    testWidgets('a theme change repaints open highlights in the new palette', (tester) async {
+      await show(tester);
+      emit(wordy);
+      await settle(tester);
+      await openFind(tester, 'fox');
+
+      const current = Color(0x66123456);
+      const other = Color(0x33123456);
+      final base = themeRegistry.first.dark;
+      await show(tester, theme: buildAppTheme(ThemeVariant(
+        brightness: base.brightness,
+        tokens: base.tokens,
+        terminal: base.terminal.copyWith({TermRole.findHitCurrent: current, TermRole.findHit: other}),
+        shape: base.shape,
+        elevation: base.elevation,
+      )));
+      await tester.pump(const Duration(milliseconds: 400)); // past MaterialApp's theme lerp
+
+      final colours = viewOf(tester).controller!.highlights.map((h) => h.color).toList();
+      expect(colours, hasLength(6));
+      expect(colours.where((c) => c == current), hasLength(1));
+      expect(colours.where((c) => c == other), hasLength(5));
     });
 
     testWidgets('closing it takes the highlights with it', (tester) async {

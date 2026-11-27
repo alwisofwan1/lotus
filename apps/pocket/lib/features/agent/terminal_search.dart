@@ -30,16 +30,25 @@ class TerminalSearch extends ChangeNotifier {
   TerminalSearch({
     required this.terminal,
     required this.controller,
-    required this.otherHit,
-    required this.currentHit,
-  });
+    required Color otherHit,
+    required Color currentHit,
+  })  : _otherHit = otherHit,
+        _currentHit = currentHit;
 
   final Terminal terminal;
   final TerminalController controller;
 
   /// Two weights of the app's own ink: a hit is neither "needs you" nor "failed".
-  final Color otherHit;
-  final Color currentHit;
+  Color _otherHit;
+  Color _currentHit;
+
+  /// Repaints open highlights in new colours, e.g. after a theme switch.
+  void restyle({required Color otherHit, required Color currentHit}) {
+    if (otherHit == _otherHit && currentHit == _currentHit) return;
+    _otherHit = otherHit;
+    _currentHit = currentHit;
+    _paint();
+  }
 
   /// A ceiling on the work, not on the operator. A 4000-line buffer of a screen-painting
   /// CLI can hold thousands of matches for `e`, and drawing them all costs more than it
@@ -146,7 +155,7 @@ class TerminalSearch extends ChangeNotifier {
       _painted.add(controller.highlight(
         p1: buffer.createAnchor(hit.start, hit.line),
         p2: buffer.createAnchor(hit.end, hit.line),
-        color: i == _at ? currentHit : otherHit,
+        color: i == _at ? _currentHit : _otherHit,
       ));
     }
   }

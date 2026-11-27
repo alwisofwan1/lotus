@@ -165,6 +165,16 @@ class _RawTerminalState extends State<RawTerminal> with _SelectionLift {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final palette = context.terminalPalette;
+    _search?.restyle(
+      otherHit: palette[TermRole.findHit],
+      currentHit: palette[TermRole.findHitCurrent],
+    );
+  }
+
+  @override
   void didUpdateWidget(RawTerminal old) {
     super.didUpdateWidget(old);
     // Keys on: take the keyboard rather than making the operator tap the surface too.
