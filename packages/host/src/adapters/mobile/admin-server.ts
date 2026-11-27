@@ -18,10 +18,7 @@ export interface AdminServerOptions {
 
 /**
  * Serves the admin router on loopback and advertises its port for Rust.
- *
- * The direction is deliberate: the child binds port 0 and reports back, rather
- * than Rust picking a port and passing it down, because a port chosen before
- * spawn can be taken by someone else before the child gets to bind it.
+ * The child binds port 0 and reports back: a port picked before spawn can be taken first.
  */
 export class AdminServer {
   private server: Server | null = null;

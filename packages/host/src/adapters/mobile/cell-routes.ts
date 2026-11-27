@@ -31,9 +31,7 @@ export interface CellRouteDeps {
   fleetSnapshot: () => Promise<FleetMember[]>;
   /**
    * Says a pane just received input, so the output tail reads it quickly for a moment.
-   *
-   * Here rather than inferred by the tail: that class sees output, and *somebody typed*
-   * is not a question output can answer — a pane printing on its own looks the same.
+   * Output cannot tell "somebody typed" from a pane printing on its own.
    */
   onInput?: (paneId: string) => void;
   /** A phone sent this pane an ask — `/m/cells` with a prompt, or `/dispatch` (`issues/04`). */
@@ -48,20 +46,10 @@ export interface CellRouteDeps {
   guarded: GuardedRoute;
 }
 
+/** `/m/cell/:paneId/*` — everything that acts on one agent. Split from `http-routes.ts`. */
 /**
- * `/m/cell/:paneId/*` — everything that acts on one agent: what it is told, what it is
- * shown asking, and whether it goes on existing.
- *
- * Its own module for the reason `device-routes.ts` is: `http-routes.ts` reached the
- * 300-line limit when closing a cell arrived, and the seam was already there. What is
- * left behind is pairing, the bootstrap read, dictation, and tasks.
- */
-/**
- * What the phone may ask for, so a typo cannot become a posture — the legacy pair plus every
- * stop this host advertises, from the one place both are defined ({@link permissionModeIds}).
- *
- * Coarse on purpose: it catches a typo, not a mismatch. Whether `read-only` makes sense *for
- * the runner being spawned* is a judgement only the machine that owns the registry can make.
+ * What the phone may ask for, so a typo cannot become a posture ({@link permissionModeIds}).
+ * Coarse: whether a mode suits the runner is for the machine that owns the registry.
  */
 const PERMISSION_MODES = new Set<string>(permissionModeIds());
 
@@ -69,13 +57,9 @@ export function addCellRoutes(router: Router, deps: CellRouteDeps): void {
   const { guarded } = deps;
 
   /**
-   * Starts a cell. `POST /m/cells` — the collection, because this creates a member of
-   * it; every other route here names one pane.
-   *
-   * `permissionMode` is validated and forwarded rather than defaulted. A host that
-   * quietly picked one would be answering a question the operator was shown and asked,
-   * and the whole reason the field exists is that a running cell cannot be turned back
-   * (ADR-8).
+   * Starts a cell. `POST /m/cells`.
+   * `permissionMode` is validated and forwarded, never defaulted: a running cell cannot be
+   * turned back (ADR-8), so the host must not answer a question the operator was asked.
    */
   router.add("POST", "/m/cells", guarded(async ({ req, res, device }) => {
     const body = await body_(req, res);
@@ -166,20 +150,9 @@ export function addCellRoutes(router: Router, deps: CellRouteDeps): void {
   }));
 
   /**
-   * Writes bytes to the pane's PTY **exactly as given** — no submit key appended.
-   *
-   * The difference from `/dispatch` is the whole point. Dispatch is *a sentence for the
-   * agent*: it strips the trailing newline, pauses, then sends CR separately, because a
-   * TUI swallows a paste that carries its own Enter (`build_dispatch_write_plan`, and
-   * the 2026-08-06 measurement behind it). This route is *a key press*. `Ctrl-C` is one
-   * byte with no line to submit, `↑` is three, and typing `l` must not become a line.
-   *
-   * Nothing here interprets the bytes. The phone's emulator already encodes them — it
-   * knows the pane's cursor-key mode because it is drawing the same stream — so a
-   * second opinion on this side could only ever disagree with the first.
-   *
-   * Capped because the body is a key press, not a paste: anything larger is either a
-   * mistake or a client using the wrong route.
+   * Writes bytes to the pane's PTY exactly as given — no submit key appended.
+   * Unlike `/dispatch` (a sentence, CR sent separately), this is a key press: `Ctrl-C`, `↑`.
+   * The phone's emulator already encodes the bytes. Capped: larger is the wrong route.
    */
   router.add("POST", "/m/cell/:paneId/input", guarded(async ({ req, res, params, device }) => {
     const body = await body_(req, res);
@@ -215,16 +188,8 @@ export function addCellRoutes(router: Router, deps: CellRouteDeps): void {
 
   /**
    * Moves a running cell's posture. `POST /m/cell/:paneId/posture`.
-   *
-   * The stop used to be fixed for the life of a cell — `--permission-mode` is a spawn flag, so
-   * loosening one meant killing it and losing the conversation, and on a phone that is realised
-   * only after the agent is half done. Probed 2026-09-09: Claude takes it back over its control
-   * channel, and the runner keeps deciding what the mode means.
-   *
-   * **409 rather than 200 when it could not move**, and the difference is the whole point: a
-   * cell with no bridge behind it, or a runner that cannot be asked, must not answer the phone
-   * with a posture it is not on. That is the failure this route exists to avoid, and it is the
-   * same one `/input` learned the hard way (`structured-sessions.ts`).
+   * 409, not 200, when it could not move: a cell with no bridge, or a runner that cannot be
+   * asked, must not answer with a posture it is not on (as `/input`, `structured-sessions.ts`).
    */
   router.add("POST", "/m/cell/:paneId/posture", guarded(async ({ req, res, params, device }) => {
     const body = await body_(req, res);
@@ -256,12 +221,9 @@ export function addCellRoutes(router: Router, deps: CellRouteDeps): void {
   }));
 
   /**
-   * Ends a cell. `DELETE` on the pane itself, because this is about the pane existing
-   * rather than about something happening inside it.
-   *
-   * The 503 the desktop answers when its window is not on a workspace is passed
-   * through untouched: it is the one refusal the operator can act on, and rewording it
-   * as a fault would send them looking for a broken machine.
+   * Ends a cell. `DELETE` on the pane itself.
+   * The desktop's 503 (window not on a workspace) passes through untouched: it is the one
+   * refusal the operator can act on.
    */
   router.add("DELETE", "/m/cell/:paneId", guarded(async ({ res, params, device }) => {
     const paneId = params["paneId"] ?? "";

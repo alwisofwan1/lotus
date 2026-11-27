@@ -1,26 +1,9 @@
 import type { IncomingMessage } from "node:http";
 
 /**
- * Who a request is throttled as.
- *
- * The façade binds loopback and is reached through the private path the machine already
- * has (ADR-C), so `socket.remoteAddress` is `127.0.0.1` for every request that arrives
- * through a tunnel — one bucket for the whole internet, which is the same denial of
- * service the budget in `pairing.ts` used to be.
- *
- * So the forwarded-for headers are read, and the trust argument is spelled out rather
- * than assumed:
- *
- * - Nothing that is not already on this machine can write them, because nothing that is
- *   not already on this machine can open the socket. The only writer is the local tunnel
- *   daemon, which is as trusted as the hop it is.
- * - An attacker who reaches the route CAN put whatever they like in the header, and so
- *   choose their own bucket. That is intended: the worst they achieve is throttling
- *   nobody but themselves. What they must not be able to do is exhaust somebody else's
- *   bucket, and a key they control cannot be the operator's.
- * - Rotating the header defeats the throttle entirely. That is why the throttle is not
- *   the defence — `PAIRING_LOCKOUT_MS` is, and it is global on purpose. This is the
- *   cheap layer that keeps one noisy source from reaching the expensive one.
+ * Who a request is throttled as. Behind a tunnel `remoteAddress` is always `127.0.0.1`
+ * (ADR-C), so forwarded-for is read; an attacker can only pick their own bucket. Rotating
+ * defeats it, so the global `PAIRING_LOCKOUT_MS` is the real defence.
  */
 export function clientKey(req: IncomingMessage): string {
   const cf = header(req, "cf-connecting-ip");

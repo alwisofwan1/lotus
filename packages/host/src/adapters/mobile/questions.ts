@@ -4,33 +4,10 @@ import type { UserQuestion, UserQuestionOption } from "../../types/question.js";
 export type { UserQuestion, UserQuestionOption };
 
 /**
- * `AskUserQuestion` — the one gated tool that is not asking for permission at all.
- *
- * It is how Claude puts a real question to the operator: *which of these do you want?* Every
- * other tool arriving at `--permission-prompt-tool` wants a yes or a no, and answering this
- * one with a yes is how a Pocket cell came to show `AskUserQuestion` above two buttons
- * reading **Allow once** and **Deny** — the question itself, and every option it offered,
- * thrown away before the operator saw them.
- *
- * Worse than losing the words: allowing it does not answer it. Probed against the real CLI on
- * 2026-09-08 — the tool runs, finds no interface to ask through, and returns *"No answer
- * received — question left unanswered."* So the agent is told nobody replied, whatever the
- * operator tapped.
- *
- * **The answer rides back as the tool's own input, rewritten.** `--permission-prompt-tool`
- * may return an `updatedInput`, and the CLI honours it: the same probe added an `answers` map
- * and the tool returned *"Your questions have been answered: 'Tabs or spaces?'='Spaces'"*, with
- * the agent carrying on from it. That is the whole mechanism, and it is the one `bb` uses
- * through the SDK's `canUseTool` (`interactions.ts` → `buildClaudeUserQuestionOutput`).
+ * `AskUserQuestion` — the one gated tool that is not asking permission: allow/deny discards
+ * the question. The answer rides back as the tool's input via `updatedInput.answers`, as `bb` does.
  */
-/**
- * What this tool call is asking, or `undefined` when it cannot be put to the operator as one
- * choice.
- *
- * **Fails closed, like every other reading on this path.** `undefined` sends the call back to
- * the ordinary allow/deny card — which is wrong in a visible, recoverable way, where a
- * half-read question would be wrong invisibly.
- */
+/** What this tool call asks, or `undefined` if not one choice. Fails closed to allow/deny. */
 export function readUserQuestions(input: unknown): UserQuestion[] | undefined {
   if (!isRecord(input)) return undefined;
   const questions = input["questions"];
@@ -46,11 +23,9 @@ export function readUserQuestions(input: unknown): UserQuestion[] | undefined {
 }
 
 /**
- * The single question this bridge can answer with one printed digit.
- *
- * `undefined` for a set of two or more: the phone answers with a digit (ADR-8), and replying to
- * the first alone would leave the agent believing the rest were answered as well. A caller that
- * only wants to **render** the questions wants [`readUserQuestions`], which keeps them all.
+ * The single question this bridge can answer with one printed digit (ADR-8). `undefined` for
+ * two or more: answering the first alone would imply the rest were answered. To render all of
+ * them use [`readUserQuestions`].
  */
 export function readUserQuestion(input: unknown): UserQuestion | undefined {
   const all = readUserQuestions(input);
@@ -85,12 +60,8 @@ function readOne(raw: unknown): UserQuestion | undefined {
 }
 
 /**
- * The tool's input with the operator's choice written into it.
- *
- * Keyed by the question's own text, which is what the CLI reads it back by. An input this
- * module could not read is returned untouched: the caller has already fallen back to a plain
- * approval by then, and rewriting an input we did not understand is how a tool comes to run
- * against arguments nobody chose.
+ * The tool's input with the operator's choice written into it, keyed by the question's text
+ * (how the CLI reads it back). An unreadable input is returned untouched, never rewritten.
  */
 export function answerUserQuestion(input: unknown, label: string): Record<string, unknown> {
   const read = readUserQuestion(input);

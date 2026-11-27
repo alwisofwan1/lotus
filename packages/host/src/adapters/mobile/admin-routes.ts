@@ -20,13 +20,9 @@ export interface AdminRouterDeps {
 }
 
 /**
- * The desktop's private control surface, served on loopback only.
- *
- * It exists because `createPairingCode()` is an in-process method: the settings
- * UI cannot reach it, and Rust deliberately holds no device credentials (ADR-5).
- * Keeping it on a separate listener from `/m/*` is the point, not tidiness — the
- * mobile façade binds a tailnet address, so an admin route living there would be
- * callable from the network.
+ * The desktop's private control surface, served on loopback only: `createPairingCode()` is
+ * in-process and Rust holds no device credentials (ADR-5). Kept off `/m/*` because that
+ * façade binds a tailnet address and would expose admin routes to the network.
  */
 export function buildAdminRouter(deps: AdminRouterDeps): Router {
   const router = new Router();

@@ -23,16 +23,9 @@ export interface ConversationRouteDeps {
 }
 
 /**
- * `GET /m/cell/:paneId/conversation` — the same page `/transcript` serves, as turns of
- * typed parts with per-runner capabilities beside them (`types/conversation.ts`).
- *
- * Built **on** the transcript read rather than beside it: the desktop is still the only
- * process that reads a runner's file, and this route asks it the same question and
- * reshapes the answer. `before` / `limit` are forwarded verbatim for that reason, and the
- * cursor comes back untouched — an index into the same list.
- *
- * A desktop without the transcript route (404) answers the way `/transcript` does:
- * `hostSupports: false`, no turns, every capability `never`. Never a 404 to the phone.
+ * `GET /m/cell/:paneId/conversation` — the `/transcript` page as typed parts
+ * (`types/conversation.ts`). Built on the transcript read, so `before` / `limit` and the
+ * cursor pass through. A desktop without that route (404) answers `hostSupports: false`.
  */
 export function addConversationRoutes(router: Router, deps: ConversationRouteDeps): void {
   router.add("GET", "/m/cell/:paneId/conversation", deps.guarded(async ({ req, res, params }) => {

@@ -23,12 +23,8 @@ export interface DeviceRouteDeps {
 }
 
 /**
- * `/m/devices/*` — the credential's own lifecycle: list, refresh, revoke, and where
- * to wake this phone.
- *
- * Its own module because `http-routes.ts` reached the 300-line limit, and this is the
- * seam that was already there: everything here acts on the **device record**, while
- * everything left behind acts on a cell, a task, or the fleet.
+ * `/m/devices/*` — the credential's own lifecycle: list, refresh, revoke, and where to wake
+ * this phone. Split from `http-routes.ts` (300-line limit): this acts on the device record.
  */
 export function addDeviceRoutes(router: Router, deps: DeviceRouteDeps): void {
   const { guarded } = deps;
@@ -47,10 +43,8 @@ export function addDeviceRoutes(router: Router, deps: DeviceRouteDeps): void {
 
   /**
    * Where to wake this device when its socket is closed (ADR-4).
-   *
-   * Registers against **the calling device**, taken from the bearer rather than from
-   * the body: a `deviceId` parameter here would let one paired phone redirect another
-   * phone's wake-ups to itself.
+   * Registers against the calling device, taken from the bearer: a body `deviceId` would let
+   * one phone redirect another's wake-ups.
    */
   router.add("POST", "/m/devices/push-token", guarded(async ({ req, res, device }) => {
     const body = await body_(req, res);

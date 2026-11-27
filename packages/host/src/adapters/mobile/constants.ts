@@ -2,21 +2,9 @@
 // rather than in `core/` so `core/` stays transport-agnostic.
 
 /**
- * Bearer lifetime. A refresh pushes this forward; the hard ceiling below wins.
- *
- * Was 12 hours until `plans/lotus-pocket` measured what that actually cost: the
- * client can only refresh proactively while the app is open, so 12 hours meant
- * re-pairing after any absence longer than that — including an ordinary weekend
- * away from the laptop (Friday evening to Monday morning is ~60 hours). Re-pairing
- * needs the desktop and an 8-digit code that dies in 5 minutes
- * (`PAIRING_CODE_TTL_MS`), which is exactly the kind of "must reach the machine
- * while away from it" cost ADR-8 already rejected for manual revocation.
- *
- * 72 hours covers that weekend with room either side. The cost, named rather than
- * hidden: nothing on this host verifies the client's biometric gate — it never sees
- * more than a bearer — so a stolen unlocked phone can carry this token for the
- * full 72 hours rather than 12. That is judged acceptable only because the token
- * is reachable exclusively over the operator's own tailnet.
+ * Bearer lifetime; a refresh pushes it forward, the hard ceiling below wins. 72h so a
+ * weekend away does not force re-pairing (ADR-8). The host never verifies the biometric gate,
+ * so a stolen unlocked phone carries it the full 72h: acceptable only over the operator's tailnet.
  */
 export const DEVICE_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;
 

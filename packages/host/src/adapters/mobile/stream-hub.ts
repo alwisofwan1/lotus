@@ -36,10 +36,8 @@ export interface StreamHubDeps {
   host: MobileHostIdentity;
 
   /**
-   * Whether this host can wake a backgrounded app. Read on every `hello` rather than
-   * baked into a string list, because `hello` is the authoritative place a client
-   * learns what it may rely on (ADR-10) — and there is exactly one function producing
-   * that list, for the reason `hostFeatures` documents at length.
+   * Whether this host can wake a backgrounded app. Read on every `hello`, the authoritative
+   * place a client learns what it may rely on (ADR-10).
    */
   pushEnabled?: boolean;
   structuredSpawn?: boolean;
@@ -50,13 +48,9 @@ export interface StreamHubDeps {
   /** Whether it opens directories for browsing — `projects-browse`. */
   projectsBrowse?: boolean;
   /**
-   * Told when a delta breaks the conversation grammar, so a producer that misbehaves against a
-   * real CLI is heard here rather than on somebody's phone.
-   *
-   * The delta is broadcast either way. A rule this host states is not a reason to withhold a
-   * step from a client that may render it perfectly well — `bb` validates for the same reason
-   * and keeps the timeline moving. Absent means no checking at all, for tests that build a hub
-   * without one.
+   * Told when a delta breaks the conversation grammar, so a misbehaving producer is heard here
+   * rather than on a phone. The delta is broadcast either way (as `bb` does). Absent means no
+   * checking, for tests.
    */
   onGrammarViolation?: (paneId: string, violation: GrammarViolation) => void;
 }
@@ -64,11 +58,9 @@ export interface StreamHubDeps {
 
 
 /**
- * One WebSocket per device carrying every push-shaped event (ADR-10).
- *
- * Cell output is the reason subscriptions exist: a phone tails one cell at a
- * time, so forwarding every pane's PTY traffic to every connection would spend
- * the operator's battery on output nobody is looking at.
+ * One WebSocket per device carrying every push-shaped event (ADR-10). Cell output is
+ * subscription-gated: forwarding every pane's PTY traffic would spend the battery on output
+ * nobody is looking at.
  */
 export class StreamHub {
   private readonly connections = new Set<StreamConnection>();
@@ -148,12 +140,9 @@ export class StreamHub {
   }
 
   /**
-   * One conversation delta, broadcast like a notification rather than sent to subscribers.
-   *
-   * Deliberately not gated on `subscribe` the way `cell.output` is: a phone follows several
-   * neighbouring cells at once so a swipe lands on a page that is already current
-   * (`live_transcript.dart`), and a delta is a few hundred bytes where PTY output is a
-   * stream.
+   * One conversation delta, broadcast like a notification rather than sent to subscribers:
+   * a phone follows several neighbouring cells at once (`live_transcript.dart`) and a delta is
+   * a few hundred bytes.
    */
   publishConversation(paneId: string, agentType: string, update: ConversationUpdate): void {
     if (this.deps.onGrammarViolation !== undefined) {
@@ -186,12 +175,8 @@ export class StreamHub {
   }
 
   /**
-   * Replays what one connection missed, per cell it follows.
-   *
-   * Sent to that connection alone: a reconnect is one device catching up, and broadcasting the
-   * backfill would replay another phone's history onto it. A cell whose cursor fell off the
-   * ring gets `conversation.truncated` instead — one REST fetch repairs it, where a silent
-   * partial replay would leave the transcript missing its middle.
+   * Replays what one connection missed, per cell it follows, to that connection alone. A cell
+   * whose cursor fell off the ring gets `conversation.truncated`: one REST fetch repairs it.
    */
   resumeConversations(
     cursors: ReadonlyArray<{ paneId: string; cursor: number }>,

@@ -134,9 +134,7 @@ export function buildMobileRouter(deps: MobileRouterDeps): Router {
 
   /**
    * Dictation. The phone records, this host transcribes with its own key (ADR-11).
-   *
-   * The only route here whose body is measured in megabytes, so it reads with its
-   * own cap rather than raising the default for every other route.
+   * Bodies are megabytes, so it reads with its own cap rather than raising the default.
    */
   router.add("POST", "/m/stt", guarded(async ({ req, res, device }) => {
     const body = await body_(req, res, STT_MAX_BODY_BYTES);
@@ -260,10 +258,8 @@ function authenticate(req: IncomingMessage, deps: MobileRouterDeps): Device | nu
 }
 
 /**
- * Falls back when the desktop API does not have the route at all (404).
- *
- * Only 404 — every other failure still propagates, because "this host cannot do
- * it" and "this host is broken" must not look the same to the phone.
+ * Falls back when the desktop API lacks the route (404). Only 404: "cannot do it" and
+ * "is broken" must not look the same to the phone.
  */
 async function orNotSupported<T>(call: () => Promise<T>, fallback: T): Promise<T> {
   try {

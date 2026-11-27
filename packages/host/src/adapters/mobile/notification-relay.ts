@@ -18,21 +18,9 @@ export interface NotificationRelayDeps {
 }
 
 /**
- * Keeps the desktop's hook-event stream attached, and **re-attaches when it ends**.
- *
- * Its own module because it is its own concern, and because the adapter that used to
- * hold it inline attached exactly once: on the first interruption it logged a warning
- * and returned, leaving every paired phone connected, healthy-looking, and never told
- * anything again. Nothing recovered it but restarting the runtime.
- *
- * That is the whole product going quiet, not a corner case. This stream feeds live Chat
- * *and* every FCM wake-up (ADR-4), so job story #1 — "an agent needs you" — depends on
- * it entirely. And the common trigger is routine: the desktop **spawns** this process,
- * so any desktop rebuild races the API coming back up.
- *
- * Found on 2026-08-07 while verifying live streaming against a real host. The phone's
- * header kept updating while its transcript stayed empty — two producers over one
- * socket, and only one of them had died.
+ * Keeps the desktop's hook-event stream attached, and **re-attaches when it ends**. It feeds
+ * live Chat and every FCM wake-up (ADR-4), and a desktop rebuild routinely races this process;
+ * one detach silences every paired phone while it looks healthy.
  */
 export class NotificationRelay {
   private stopped = false;
@@ -53,10 +41,8 @@ export class NotificationRelay {
   }
 
   /**
-   * Ends the loop and closes the open stream.
-   *
-   * Order matters: the flag is set before closing, or the loop reads its own close as
-   * an interruption and reconnects to a desktop it is walking away from.
+   * Ends the loop and closes the open stream. The flag is set before closing, or the loop
+   * reads its own close as an interruption and reconnects.
    */
   stop(): void {
     this.stopped = true;

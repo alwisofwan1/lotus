@@ -44,19 +44,8 @@ export const CLAUDE_EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const
 export const CODEX_EFFORTS = ["minimal", "low", "medium", "high", "xhigh"] as const;
 
 /**
- * What `claude --permission-mode <mode>` accepts, from `claude --help` (2026-08-27), in
- * the order they free the agent: *plan* may change nothing, *manual* asks per action,
- * *acceptEdits* writes on its own, *bypassPermissions* asks nothing.
- *
- * **The CLI lists six and this offers four.** `auto` and `dontAsk` are real values on that
- * build and are deliberately withheld: nobody here has measured what either does, and a
- * stop whose consequence cannot be written in one honest sentence is worse than a stop that
- * is missing. Adding them later is this array plus a label — no client changes, which is
- * the point of advertising the scale rather than hardcoding it.
- *
- * `manual` is the default because it is what `claude` already does with no flag at all, and
- * because a gated cell asks by raising `needs-input` — which the phone is standing by to
- * answer (ADR-8).
+ * What `claude --permission-mode <mode>` accepts, in the order they free the agent. `auto` and
+ * `dontAsk` are withheld until their effect can be stated plainly. `manual` is the default (ADR-8).
  */
 export const CLAUDE_PERMISSIONS: RunnerPermission[] = [
   { id: "plan", label: "plan" },
@@ -66,17 +55,9 @@ export const CLAUDE_PERMISSIONS: RunnerPermission[] = [
 ];
 
 /**
- * Codex's scale, in Codex's own words (`/approvals`), because it is not Claude's scale
- * wearing different labels: there is no `--permission-mode` on `codex` at all. Each stop
- * here is a *pair* — `--sandbox` and `--ask-for-approval` — collapsed to the one word the
- * CLI's own picker uses, and expanded again by whichever spawn path runs it.
- *
- * **The two defaults differ, and that is a fact about this repo rather than a preference.**
- * A PTY Codex has been launched `--dangerously-bypass-approvals-and-sandbox` since long
- * before the phone existed (`agent-runner.ts`), while a structured one is started
- * `approvalPolicy: "on-request"` (`structured-sessions.ts`) — and only the structured one
- * can put its approval in front of the operator, because it has no terminal to ask into.
- * Marking both keeps each path exactly where it already was on the day this scale arrived.
+ * Codex's scale, in its own words (`/approvals`): each stop is a `--sandbox` + `--ask-for-approval`
+ * pair. The defaults differ: PTY bypasses approvals (`agent-runner.ts`), structured is `on-request`
+ * (`structured-sessions.ts`) and is the only one that can ask the operator.
  */
 export const CODEX_PERMISSIONS: RunnerPermission[] = [
   { id: "read-only", label: "read only" },
@@ -104,24 +85,9 @@ function claudeTuning(): {
 }
 
 /**
- * Adds the tunable surface to each runner the desktop listed.
- *
- * **A custom runner is tuned when — and only when — it is claude-family and pins nothing.**
- * This used to refuse every custom runner, on the stated grounds that its command already
- * carries `--model`. That is true of `ccs acme --model opus` and false of
- * `ccs initech --dangerously-skip-permissions`, and the second is the common shape: a
- * second-account Claude wrapper. The desktop appends `--model`/`--effort` to exactly those
- * runners (`live-agent-spawn.ts`, "the phone's summon sheet"), so refusing them withheld a
- * picker the machine would have honoured — while the operator watched their own agent spawn
- * on whatever the CLI defaulted to. What the assumption was reaching for is now a fact the
- * registry sends: {@link RunnerSummary.pinsTuning}.
- *
- * A custom runner that is *not* claude-family still gets nothing, and for the original
- * reason: Lotus does not know the flags of a command the operator invented (`opencode`,
- * `grok`), so it claims none.
- *
- * `codexModels` is read per call, not once: the catalog is a file codex-cli refreshes
- * per account, and a phone that paired yesterday should see today's list.
+ * Adds the tunable surface to each runner the desktop listed. A custom runner is tuned only when
+ * claude-family and pinning nothing ({@link RunnerSummary.pinsTuning}); others get nothing, as
+ * Lotus does not know their flags. `codexModels` is read per call (catalog is per account).
  */
 export function tuneRunners(
   runners: RunnerSummary[],
@@ -132,13 +98,9 @@ export function tuneRunners(
   // Only where there is a choice to make: a machine with one account needs no picker, and an
   // empty one would read as "your accounts are missing".
   const claudeProfiles = profiles.length > 1 ? { profiles: [...profiles] } : {};
-  // A claude-family runner **is** headless when the claude bridge is here and this machine has
-  // that account: `ccs initech` is the same binary under another config dir, so the bridge
-  // runs it with `profileId` and the cell gets the streaming Chat and the structured
-  // permission a native claude cell gets (`core/runner-family.ts`).
-  //
-  // Anything else custom stays out, and for the original reason: Lotus does not know what a
-  // command the operator invented speaks.
+  // A claude-family runner is headless when the claude bridge is here and has that account
+  // (`ccs initech` is the same binary under another config dir; `core/runner-family.ts`).
+  // Anything else custom stays out: Lotus does not know what a command the operator invented speaks.
   const account = new Set(profiles.map((p) => p.id));
   const familyHeadless = (runner: RunnerSummary): boolean => {
     const family = runnerFamily(runner.id);
@@ -219,20 +181,16 @@ export function tuneRunners(
 }
 
 /**
- * `gpt-5.4-codex` → `5.4-codex`, `gpt-5.4` → `5.4`. The `gpt-` prefix is the same on
- * every row of a four-way segmented control, so it carries no information there. The
- * cache's `display_name` is deliberately *not* used: it is title-cased marketing copy
- * (`GPT-5.4 Codex`) and the control is set in lowercase serif like every other label.
+ * `gpt-5.4-codex` → `5.4-codex`: the `gpt-` prefix carries no information in a segmented
+ * control. The cache's title-cased `display_name` is not used.
  */
 export function shortCodexLabel(slug: string): string {
   return slug.replace(/^gpt-/, "");
 }
 
 /**
- * The catalog codex-cli keeps per ChatGPT account, read on every call rather than once
- * at start: the file does not exist on a machine that has not run codex yet, and it
- * changes when the account does. `list()` answers `[]` for a missing file, which
- * `tuneRunners` turns into "no picker" rather than an empty one.
+ * The catalog codex-cli keeps per ChatGPT account, read on every call: it changes with the
+ * account. `list()` answers `[]` for a missing file, which `tuneRunners` turns into "no picker".
  */
 export function codexModelsFromHome(): ModelOption[] {
   return new CodexModelCatalog(join(homedir(), ".codex", "models_cache.json")).list();

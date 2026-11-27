@@ -13,11 +13,8 @@ interface Challenge {
 
 /**
  * Brings a lapsed device back on a signature from its hardware-bound key.
- *
- * Two steps, so a signature can never be replayed: the host names a fresh nonce, the
- * phone signs it after the operator proves presence, and the nonce is spent whether the
- * signature checks out or not. One outstanding challenge per device, kept in memory —
- * the map is bounded by the paired devices that registered a key, not by callers.
+ * The host names a nonce, the phone signs it, and the nonce is spent pass or fail, so a
+ * signature cannot be replayed. One in-memory challenge per device.
  */
 export class RenewalService {
   private readonly challenges = new Map<string, Challenge>();

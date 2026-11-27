@@ -11,11 +11,8 @@ export interface ProjectRouteDeps {
 
 /**
  * `/m/projects/*` — bringing a repository onto the machine the phone is talking to.
- *
- * Every route here forwards: this façade owns no filesystem, and `adapters` never imports
- * from `server` (`packages/host/CLAUDE.md`). The machine that owns `PROJECTS_ROOT` is the
- * only one that can clone into it, and on a standalone host that machine is this process
- * reached over its own loopback API.
+ * Every route forwards: this façade owns no filesystem, and `adapters` never imports from
+ * `server` (`packages/host/CLAUDE.md`).
  */
 export function addProjectRoutes(router: Router, deps: ProjectRouteDeps): void {
   const { guarded } = deps;
@@ -40,10 +37,7 @@ export function addProjectRoutes(router: Router, deps: ProjectRouteDeps): void {
 
   /**
    * `GET /m/fs?path=` — directories only, inside the roots this host opens (ADR-A).
-   *
-   * A read rather than a mutation, so it carries no gate beyond the bearer every route here
-   * has: it can reveal nothing the bearer does not already reach, and asking for a fingerprint
-   * to open a folder is a gate nobody reads.
+   * A read, so no gate beyond the bearer: it reveals nothing the bearer does not already reach.
    */
   router.add("GET", "/m/fs", guarded(async ({ req, res }) => {
     const path = query(req, "path");
@@ -72,12 +66,9 @@ export function addProjectRoutes(router: Router, deps: ProjectRouteDeps): void {
 }
 
 /**
- * Answers with what the machine said, including when it said no.
- *
- * A refusal here is never this façade's own: `400` names a folder that cannot be used,
- * `409` one already taken, `503` a host with no workspace root, and `404` a host that
- * predates these routes at all. Collapsing any of them into a 500 would turn four
- * different sentences into one that helps with none of them.
+ * Answers with what the machine said, including when it said no. A refusal is never this
+ * façade's own: 400 bad folder, 409 taken, 503 no workspace root, 404 older host. Collapsing
+ * them into a 500 would help with none of them.
  */
 async function forward(
   res: Parameters<typeof send>[0],

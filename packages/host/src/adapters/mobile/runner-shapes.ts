@@ -1,28 +1,19 @@
 import type { RunnerSummary } from "../../types/runners.js";
 
 /**
- * A runner as `/m/bootstrap` describes it: what the desktop said, plus what a phone
- * may tune when it starts one.
- *
- * The four added fields are **optional on purpose, and their absence has one
- * meaning: the phone must not offer that control** (`contract/README.md`, Compatibility).
- * A host older than this file sends none of them and the summon sheet ends at the
- * runner name — the same rule `projects[]` follows, and the same reason: a control
- * the machine cannot honour is worse than empty space (Pocket ADR-14).
+ * A runner as `/m/bootstrap` describes it, plus what a phone may tune when it starts one.
+ * The added fields are optional on purpose: absence means the phone must not offer that
+ * control (`contract/README.md`, Compatibility; Pocket ADR-14).
  */
 export interface TunedRunner extends RunnerSummary {
   /**
-   * The stops this runner's permission scale offers, least free first. Absent means the
-   * phone offers no such control — an older host, or a runner whose flags Lotus does not
-   * know (`cursor`, `gemini`), where a posture chosen here would be a brake with nothing
-   * on the other end of it.
+   * The stops this runner's permission scale offers, least free first. Absent means no such
+   * control: an older host, or a runner whose flags Lotus does not know.
    */
   permissions?: RunnerPermission[];
   /**
-   * What `--model` may be set to. Aliases, never pinned ids: the CLI resolves
-   * `sonnet` to the current model of that tier, so the phone's list cannot go stale
-   * between releases. The one marked `default` is what the CLI would pick anyway;
-   * the phone shows it as the resting choice and sends nothing for it.
+   * What `--model` may be set to. Aliases, never pinned ids, so the list cannot go stale. The
+   * one marked `default` is the resting choice and sends nothing.
    */
   models?: RunnerModel[];
   /**
@@ -33,56 +24,28 @@ export interface TunedRunner extends RunnerSummary {
   efforts?: string[];
   /**
    * The accounts this machine is logged into for this runner, least surprising first.
-   *
-   * Absent means **the phone offers no picker**, the same rule `models`/`efforts` follow, and
-   * the ways to get there must not be told apart: a host older than the field, a runner whose
-   * accounts Lotus cannot enumerate, or a machine with only the CLI's own default.
-   *
-   * One cell runs as one account, chosen at spawn and unchangeable after — which is why this
-   * rides beside the other spawn-time knobs rather than being something a cell can be moved
-   * between. It is account *selection*: each account's limits stay its own.
+   * Absent means no picker (same rule as `models`/`efforts`). One cell runs as one account,
+   * chosen at spawn; each account's limits stay its own.
    */
   profiles?: RunnerProfile[];
 
   /**
    * Whether this host can start this runner with **no terminal** — `POST /m/cells {tui:false}`.
-   *
-   * Per runner, not per host: `structured-spawn` in `hostCaps` says the host has a structured
-   * path at all, and this says which runners it actually reaches. Before it existed the phone
-   * inferred the answer ("the host can, and this is Codex"), which was true only while Codex
-   * was the one bridge — the ACP bridge made that inference wrong for `cursor`.
-   *
-   * Absent reads as `false`, the same rule the fields above follow: a host that cannot say
-   * must not have the phone guess for it.
+   * Per runner: `structured-spawn` in `hostCaps` says only that the host has a structured path.
+   * Absent reads as `false`: a host that cannot say must not have the phone guess.
    */
   headless?: boolean;
 
   /**
-   * Whether this runner can be started **with** a terminal. Absent reads as yes, which is
-   * what every host before this field could do and every PTY runner still does.
-   *
-   * `false` is a provider this machine reaches only through a bridge — `cursor` is the case
-   * that made the field necessary. It has no PTY runner, so it never reached
-   * `/api/runners`, so the summon sheet never offered it at all and Chat could not be opened
-   * on an agent this host could perfectly well run. Advertised now, and advertised honestly:
-   * the phone must not offer a terminal that would fail to start.
+   * Whether this runner can be started **with** a terminal. Absent reads as yes.
+   * `false` is a provider reached only through a bridge (`cursor`, no PTY runner): the phone
+   * must not offer a terminal that would fail to start.
    */
   terminal?: boolean;
 
   /**
-   * Whether a cell of this runner started **with** a terminal has a Chat page at all.
-   * Absent reads as yes.
-   *
-   * `false` is codex: its whole surface into Lotus is one end-of-turn notify, and no host
-   * reads its transcript file, so a terminal codex cell shows *"codex does not report the
-   * steps it takes"* and always will. The same runner over its bridge streams a full
-   * conversation — so this is not a limit of the runner, it is a limit of the **path**.
-   *
-   * The phone reads it to pick the resting path: a runner whose terminal cell is a Chat dead
-   * end and which has a bridge rests on the bridge. Reported on a real device on 2026-09-08,
-   * twice: the operator meant to start codex for Chat and got a terminal cell both times,
-   * because the terminal was the resting choice and the alternative was one tap under
-   * *Start*. `bb` never has this problem because it has no terminal path for agents at all.
+   * Whether a cell started **with** a terminal has a Chat page at all; absent reads as yes.
+   * `false` is codex: no transcript read, so its terminal cell never has steps. The phone rests it on its bridge.
    */
   chatInTerminal?: boolean;
 }
@@ -94,11 +57,8 @@ export interface HeadlessRunner {
 }
 
 /**
- * One account a runner may be started as.
- *
- * Deliberately the same shape as {@link RunnerModel}, for the same reason it sits beside it:
- * the phone must not carry a table of what accounts exist on which machine. `default` is the
- * CLI's own config dir; the rest are whatever the operator named them.
+ * One account a runner may be started as. Same shape as {@link RunnerModel}: the phone must
+ * not carry a table of accounts. `default` is the CLI's own config dir.
  */
 export interface RunnerProfile {
   /** What a spawn sends. `default` is the runner's own directory. */
@@ -117,17 +77,9 @@ export interface RunnerModel {
 }
 
 /**
- * One stop on a runner's permission scale, as `/m/bootstrap` advertises it.
- *
- * Deliberately the same shape as {@link RunnerModel}, and it sits beside it for the same
- * reason: the phone must not carry a table of what each CLI accepts. Claude takes six values
- * on `--permission-mode` and Codex takes none of them — it has a sandbox axis and an approval
- * axis instead — so a scale invented in the app would be wrong for one of them on the day
- * either CLI moves.
- *
- * **Absent means no scale, which means the phone offers no control at all** — the same rule
- * `models`/`efforts` follow (Pocket ADR-14). A host that cannot honour a posture must not let
- * one be chosen.
+ * One stop on a runner's permission scale, as `/m/bootstrap` advertises it. Same shape as
+ * {@link RunnerModel}: the phone carries no table of what each CLI accepts. Absent means no
+ * scale, so no control (Pocket ADR-14).
  */
 export interface RunnerPermission {
   /** What a spawn sends: `manual`, `acceptEdits`, `read-only`. */
@@ -141,13 +93,9 @@ export interface RunnerPermission {
    */
   default?: boolean;
   /**
-   * The resting stop when the same runner is spawned with no terminal (`tui: false`).
-   *
-   * Exists because Codex's two paths genuinely disagree and always have: a PTY Codex is
-   * launched `--dangerously-bypass-approvals-and-sandbox`, while a structured Codex is
-   * started `approvalPolicy: "on-request"` — and that one can route its approvals to the
-   * phone, so resting it on *never asks* would throw away the only reason it can ask.
-   * Omitted where the two agree, which is every runner but Codex.
+   * The resting stop when the runner is spawned with no terminal (`tui: false`). Codex's paths
+   * disagree: PTY is `--dangerously-bypass-approvals-and-sandbox`, structured is `on-request`
+   * and can route approvals to the phone. Omitted where the two agree.
    */
   defaultHeadless?: boolean;
 }

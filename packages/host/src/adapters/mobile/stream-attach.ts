@@ -10,12 +10,9 @@ import type { StreamHub } from "./stream-hub.js";
 import { StreamHeartbeat } from "./stream-heartbeat.js";
 
 /**
- * What happens the moment a phone's `/m/stream` socket attaches.
- *
- * Its own seam because three separate concerns meet here and each has a reason an operator has
- * already paid for: a device revoked while its socket was open must be turned away rather than
- * fed; a client needs the fleet it can see NOW, not the next change to it; and every socket has
- * to be kept honest, because nothing else can tell a dead one from a quiet one (`issues/10`).
+ * What happens the moment a phone's `/m/stream` socket attaches: a revoked device is turned
+ * away, a client gets the fleet as of NOW, and every socket is kept honest, since nothing
+ * else tells a dead one from a quiet one (`issues/10`).
  */
 export interface StreamAttachDeps {
   devices: Pick<DeviceStore, "list">;
@@ -52,13 +49,9 @@ export function attachStreamSocket(ws: WebSocket, deviceId: string, deps: Stream
 }
 
 /**
- * Who may open a `/m/stream` socket on [server], and what keeps the ones that are open honest.
- *
- * Lives here rather than in the adapter because it is the same subject as
- * {@link attachStreamSocket} — one is the door, the other is what happens once through it — and
- * because the adapter was at the 300-line ceiling when `projects-create` arrived. The bearer
- * rides in the query string for the one reason ADR-10 allows: a browser cannot set a header on
- * a WebSocket upgrade.
+ * Who may open a `/m/stream` socket on [server], and what keeps open ones honest. Beside
+ * {@link attachStreamSocket}: one is the door, the other what happens after. The bearer rides
+ * in the query string because a browser cannot set a header on a WebSocket upgrade (ADR-10).
  */
 export function serveStreamSockets(
   server: Server,

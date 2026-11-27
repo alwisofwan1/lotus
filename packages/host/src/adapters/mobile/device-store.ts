@@ -5,11 +5,8 @@ import { atomicWriteSync } from "../../core/atomic-write.js";
 import { DEVICE_HARD_TTL_MS, DEVICE_TOKEN_TTL_MS } from "./constants.js";
 
 /**
- * What the operator's device receives once, at pairing or refresh time.
- *
- * Declared as [Device] plus the bearer rather than as its own field list: the two used
- * to be written out separately, and adding `push` to one silently left the other
- * behind — the compiler caught it, but only because `issue()` returns the same summary.
+ * What the operator's device receives once, at pairing or refresh time: [Device] plus the
+ * bearer, so a new field cannot land in one and be missed in the other.
  */
 export interface IssuedToken extends Device {
   token: string;
@@ -41,28 +38,16 @@ interface DeviceRecord extends Omit<Device, "push"> {
   tokenHash: string;
 
   /**
-   * FCM registration token, stored in the clear because sending requires it — unlike
-   * the bearer above, which is only ever compared and so is stored hashed.
-   *
-   * It lives **on the device record** rather than in a store of its own, so that
-   * revoking a device drops its ability to be woken in the same operation. A separate
-   * table would leave a revoked phone still receiving wake-ups, which is the kind of
-   * gap ADR-8 spends its whole argument closing.
+   * FCM registration token, stored in the clear because sending requires it (the bearer is
+   * only compared, so it is hashed). On the device record so revoking a device ends its
+   * wake-ups in the same operation (ADR-8).
    */
   pushToken?: string;
 
   /**
-   * The bearer this one replaced, kept alive until the phone proves it holds the new one.
-   *
-   * A refresh rotates *before* its reply reaches the phone, so a reply lost to a dropped
-   * link or a 10-second timeout used to leave the phone holding a token the host had
-   * already forgotten — still inside its TTL, so Pocket read the 401 as "revoked from the
-   * desktop" and the only way back was a fresh pairing code. Keeping the old hash closes
-   * that: the phone can keep using it, or refresh again with it.
-   *
-   * It costs nothing an attacker did not already have. The old bearer lives no longer
-   * than [previousExpiresAt] — the expiry it carried *before* the refresh — and dies the
-   * moment the new one is first presented, which is the proof the reply arrived.
+   * The bearer this one replaced, kept until the phone proves it holds the new one: a refresh
+   * reply lost in transit would otherwise force re-pairing. Lives no longer than
+   * [previousExpiresAt]; dies when the new bearer is first presented.
    */
   previousTokenHash?: string;
   previousExpiresAt?: number;
@@ -77,11 +62,8 @@ interface StoreData {
 
 /**
  * Device credentials for the mobile façade (ADR-5, ADR-8).
- *
- * Two expiries, because one is not enough: `expiresAt` is the 72-hour TTL a
- * refresh can push forward, and `hardExpiresAt` is the 30-day ceiling it cannot.
- * Without the ceiling a stolen unlocked phone refreshes forever and the TTL is
- * decoration.
+ * Two expiries: `expiresAt` is the 72h TTL a refresh can push forward, `hardExpiresAt` the
+ * 30-day ceiling it cannot. Without it a stolen unlocked phone refreshes forever.
  */
 export class DeviceStore {
   private data: StoreData = { devices: {} };
@@ -125,10 +107,8 @@ export class DeviceStore {
   }
 
   /**
-   * Rotates the bearer and pushes the TTL forward. Returns null past the hard
-   * ceiling — that is the point where the operator must pair again from scratch.
-   *
-   * The bearer it replaces is not dropped yet: see `previousTokenHash`.
+   * Rotates the bearer and pushes the TTL forward. Returns null past the hard ceiling, where
+   * the operator must pair again. The old bearer lives on: see `previousTokenHash`.
    */
   refresh(token: string): IssuedToken | null {
     const found = this.findByToken(token);
@@ -157,11 +137,9 @@ export class DeviceStore {
   }
 
   /**
-   * A fresh bearer for a device that proved presence with its hardware key — the caller
-   * verified the signature (`renewal.ts`). Unlike [refresh] this works past the TTL and
-   * past the ceiling, and moves both: the ceiling now counts from the last *verified*
-   * proof of presence, which is what it always stood in for. A revoked device has no
-   * record, so it cannot come back this way.
+   * A fresh bearer for a device that proved presence with its hardware key (signature
+   * verified by the caller, `renewal.ts`). Unlike [refresh] it works past the TTL and ceiling
+   * and moves both. A revoked device has no record, so it cannot return this way.
    */
   renewWithKey(deviceId: string): IssuedToken | null {
     const record = this.data.devices[deviceId];
@@ -183,10 +161,8 @@ export class DeviceStore {
   }
 
   /**
-   * Records where to wake this device, replacing any previous token.
-   *
-   * Replacing rather than accumulating: FCM rotates registration tokens, and a device
-   * holding two live tokens would be rung twice for one event.
+   * Records where to wake this device, replacing any previous token: FCM rotates tokens, and
+   * two live ones would ring twice per event.
    */
   setPushToken(deviceId: string, pushToken: string): boolean {
     const record = this.data.devices[deviceId];
@@ -206,11 +182,8 @@ export class DeviceStore {
   }
 
   /**
-   * Every device that can currently be woken.
-   *
-   * Filtered by the same expiry rules as [verify]: a credential past its TTL or its
-   * ceiling cannot be used to fetch anything, so waking that phone would deliver it to
-   * a screen that can only ask for a new pairing.
+   * Every device that can currently be woken, filtered by the same expiry rules as [verify]:
+   * waking a phone past its TTL or ceiling would reach a screen that can only re-pair.
    */
   withPushToken(): PushTarget[] {
     const at = this.now();

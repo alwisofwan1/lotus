@@ -4,13 +4,9 @@ import type { CellRouteDeps } from "./cell-routes.js";
 import { pageQuery, send, sendUpstream } from "./http-util.js";
 
 /**
- * The two routes that **ask a cell what it is saying**, rather than doing something to it.
- *
- * Split out of `cell-routes.ts` when that file crossed the 300-line rule — the same limit that
- * split it out of `http-routes.ts` — and the seam is the one already implicit there: everything
- * left behind changes a cell (start it, prompt it, move its posture, stop it, end it), and
- * everything here only reads one. They fail differently too: a read that cannot be served says
- * so in its own body, where a write that cannot be honoured has to refuse with a status.
+ * The two routes that ask a cell what it is saying, split from `cell-routes.ts` (300-line
+ * limit): everything there changes a cell, everything here only reads one. A read that
+ * cannot be served says so in its body; a write has to refuse with a status.
  */
 export function addCellReadRoutes(router: Router, deps: CellRouteDeps): void {
   const { guarded } = deps;
@@ -40,10 +36,8 @@ export function addCellReadRoutes(router: Router, deps: CellRouteDeps): void {
 }
 
 /**
- * Falls back when the desktop API does not have the route at all (404).
- *
- * Only 404 — every other failure still propagates, because "this host cannot do it"
- * and "this host is broken" must not look the same to the phone.
+ * Falls back when the desktop API lacks the route (404). Only 404: "cannot do it" and
+ * "is broken" must not look the same to the phone.
  */
 async function orNotSupported<T>(call: () => Promise<T>, fallback: T): Promise<T> {
   try {

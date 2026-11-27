@@ -36,11 +36,8 @@ export interface SessionHistoryDiagnosticsOptions {
 const DEFAULT_FLUSH_MS = 5_000;
 
 /**
- * Buffers Fase 0 counters in memory and flushes them to one JSONL file.
- *
- * `record` is called from `output-tail.ts`'s poll loop, which ticks every 70ms while a
- * pane is being typed into — one `fs` write per event would turn measurement into the
- * write storm PLAN.md explicitly forbids, so writes only happen on the flush timer.
+ * Buffers Fase 0 counters in memory and flushes them to one JSONL file. `record` runs on
+ * `output-tail.ts`'s 70ms poll, so writes happen only on the flush timer (PLAN.md).
  */
 export class SessionHistoryDiagnostics {
   private buffer: SessionHistoryRecord[] = [];

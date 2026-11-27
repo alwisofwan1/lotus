@@ -1,24 +1,13 @@
 /**
  * `projects` as `/m/bootstrap` sends it, from either shape the desktop may answer with.
- *
- * Moved out of `http-routes.ts` on 2026-08-27 when the structured spawn needed the same
- * normalisation to resolve a workspace to its directory — and that file was at the
- * 300-line ceiling.
+ * Shared with the structured spawn, which resolves a workspace to its directory.
  */
 import { str } from "./http-util.js";
 
 /**
- * One project shape for the phone, from two hosts that describe projects differently.
- *
- * A desktop answers `{ items: [{ workspaceId, name, path, lastOpenedAt }] }` — its
- * CodeCanvas registry. A Standalone Host answers a bare `HostedProject[]` from its
- * `PROJECTS_ROOT` scan, which has `id`/`name`/`path` and no notion of when a project
- * was last opened. Both are legitimate answers to "what projects exist here", so the
- * normalisation happens once, here, rather than as a fork inside the client.
- *
- * `lastOpenedAt` is `0` where a host cannot know it. That is honest and it sorts
- * correctly: a standalone's projects fall to the bottom of a most-recent-first list,
- * which is exactly where projects with no recorded activity belong.
+ * One project shape for the phone, from two hosts that describe projects differently
+ * (desktop `{ items: [...] }` registry vs a standalone's bare `HostedProject[]`).
+ * `lastOpenedAt` is `0` where a host cannot know it, so such projects sort last.
  */
 export function normalizeProjects(raw: unknown): Array<{
   workspaceId: string;

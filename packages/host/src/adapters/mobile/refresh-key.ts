@@ -1,13 +1,9 @@
 import { createPublicKey, verify, type KeyObject } from "node:crypto";
 
 /**
- * The hardware-bound refresh key a phone registers at pairing (PLAN.md §Kredensial,
- * addendum 2026-08-05: "kunci refresh yang terikat hardware").
- *
- * An EC P-256 keypair generated inside the phone's Keystore, usable only after the
- * operator proves presence. The host keeps the public half and, from it, can finally
- * *verify* the biometric gate it used to have to take on trust: a valid signature is a
- * proof of presence the bearer never was.
+ * The hardware-bound refresh key a phone registers at pairing (PLAN.md §Kredensial). An EC
+ * P-256 keypair in the phone's Keystore: a valid signature is a proof of presence that lets
+ * the host verify the biometric gate it otherwise takes on trust.
  */
 
 /** What a renewal signs. Versioned and newline-separated so no field can bleed into another. */

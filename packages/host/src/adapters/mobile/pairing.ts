@@ -4,28 +4,15 @@ import { PAIRING_CODE_LENGTH, PAIRING_CODE_TTL_MS } from "./constants.js";
 import type { DeviceStore, IssuedToken } from "./device-store.js";
 
 /**
- * Failed redeems tolerated before redeeming is locked out.
- *
- * An 8-digit code is only ~10^8 wide, so a redeem endpoint with no budget is
- * brute-forceable inside the 5-minute window. Five is generous for a human
- * mistyping a code and useless to a script.
+ * Failed redeems tolerated before redeeming is locked out. An 8-digit code is ~10^8 wide,
+ * so no budget is brute-forceable inside the 5-minute window.
  */
 export const MAX_PAIRING_ATTEMPTS = 5;
 
 /**
- * How long redeeming stays shut after the budget runs out.
- *
- * Until 2026-09-05 the budget dropped every pending code instead. That was the right
- * shape while the route sat behind a private path a guesser could not reach; `issues/07`
- * removed that assumption by putting `/m/pair` on the internet with no Cloudflare Access
- * in front of it. A destructive budget is then a denial of service for the price of five
- * requests — and the victim is the operator, who cannot pair at all.
- *
- * A lockout stops the guessing just as hard: at five tries per minute an attacker needs
- * ~38 years of wall-clock to cover 10^8, against a code that dies in five minutes. The
- * legitimate code survives, and the operator can clear the lockout outright by issuing a
- * new one from the loopback-only admin surface — which they can reach and an outsider
- * cannot.
+ * How long redeeming stays shut after the budget runs out. A lockout, not dropping pending
+ * codes: with `/m/pair` on the internet (`issues/07`) that would be a denial of service against
+ * the operator. The operator can clear it by issuing a code from the loopback-only admin surface.
  */
 export const PAIRING_LOCKOUT_MS = 60 * 1000;
 

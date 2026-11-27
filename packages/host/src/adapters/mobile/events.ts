@@ -31,16 +31,9 @@ export interface HelloEvent {
 }
 
 /**
- * One thing that changed in a cell's conversation, as `Part`s rather than hook entries.
- *
- * The live counterpart of `GET /m/cell/:paneId/conversation`, and additive beside
- * `notification`: both are broadcast for the same step, so a phone built before this frame
- * keeps working unchanged (ADR-4). It exists to end a duplication rather than to add a
- * capability — the entry→part rule was written twice, in `parts-from-entries.ts` and again
- * in the app's `conversation_builder.dart`, pinned equal by a test. Sending the answer means
- * there is one implementation of it.
- *
- * `agentType` rides along because a `Part` carries no runner and the phone files by cell.
+ * One thing that changed in a cell's conversation, as `Part`s. Additive beside
+ * `notification` so older phones keep working (ADR-4); gives the entry→part rule one
+ * implementation instead of two. `agentType` rides along because a `Part` carries no runner.
  */
 export interface ConversationUpdateEvent {
   type: "conversation";
@@ -56,10 +49,8 @@ export interface ConversationUpdateEvent {
 }
 
 /**
- * The client asked to resume from further back than this host still holds.
- *
- * The twin of `cell.truncated`, and the same honesty: a hole named is a hole the client can
- * repair with one REST fetch, while a hole hidden is a transcript missing its middle.
+ * The client asked to resume from further back than this host still holds. Twin of
+ * `cell.truncated`: a named hole can be repaired with one REST fetch.
  */
 export interface ConversationTruncatedEvent {
   type: "conversation.truncated";
@@ -89,12 +80,8 @@ export interface NotificationForwardEvent {
   event: NotificationEvent;
 }
 
-// `ChatTokenEvent` lived here with a golden fixture and types on both sides, and
-// **nothing ever published it** — `POST /api/bridge/chat` is request/response, so there
-// were no tokens to stream in the first place. Removed 2026-08-06 rather than left as a
-// contract that reads as supported: the same class of gap as `cell.output` (dab5261e),
-// except a fixture made this one look finished. It comes back with its producer, if a
-// streaming bridge and a surface for it are ever decided (PLAN §2.3 F7).
+// No `ChatTokenEvent`: `POST /api/bridge/chat` is request/response, so nothing would
+// publish it. It returns with a streaming bridge (PLAN §2.3 F7).
 
 /** Sent instead of silently dropping output the ring buffer no longer holds. */
 export interface OutputTruncatedEvent {
@@ -131,10 +118,8 @@ export interface PingMessage {
 
 /**
  * "Here is the last cursor I hold for each cell I follow — send me the rest."
- *
- * A list, unlike `resume`, because the phone follows a window of neighbouring cells at once
- * (`live_conversation.dart`), and a reconnect has to repair all of them in one round trip
- * rather than one socket message per cell.
+ * A list, unlike `resume`: the phone follows several cells (`live_conversation.dart`) and
+ * repairs all of them in one round trip.
  */
 export interface ConversationResumeMessage {
   type: "conversation.resume";
@@ -148,11 +133,8 @@ export type ClientMessage =
   | PingMessage;
 
 /**
- * Parses an inbound frame, returning null for anything malformed.
- *
- * The socket is reachable from another device, so every frame is untrusted:
- * this validates shape rather than trusting a cast, and bounds id length so a
- * frame cannot be used to push unbounded strings into logs or lookups.
+ * Parses an inbound frame, returning null for anything malformed. The socket is reachable
+ * from another device: validate shape rather than cast, and bound id length.
  */
 export function parseClientMessage(raw: string): ClientMessage | null {
   let parsed: unknown;

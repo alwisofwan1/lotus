@@ -20,12 +20,8 @@ import { ApiError } from "../../core/api-error.js";
 import { readJson } from "../../server/routes/utils.js";
 
 /**
- * The request/response plumbing every `/m/*` route shares.
- *
- * Extracted when `http-routes.ts` crossed the 300-line limit inherited from this
- * package's own CLAUDE.md — and the file it left behind is the better shape anyway:
- * these five functions had nothing to do with the route table, and `device-routes.ts`
- * needed them without needing anything else from it.
+ * The request/response plumbing every `/m/*` route shares, split from `http-routes.ts`
+ * (300-line limit); `device-routes.ts` needs it without the route table.
  */
 
 export function send(res: ServerResponse, status: number, body: unknown): void {
@@ -82,19 +78,9 @@ export function pageQuery(req: IncomingMessage): { before?: number; limit?: numb
 }
 
 /**
- * Answers a phone with what the **desktop** said, when the desktop is what refused.
- *
- * Returns whether it answered; a caller that gets `false` still has the error to deal with.
- *
- * **Which failures a client may read is one decision, and it lives here rather than in each
- * route.** A 4xx (and the desktop's 503, which means *open the window*) is a statement about
- * the request that was just made, so the caller is exactly who should read it. A 5xx is the
- * machine's own trouble and is not forwarded — whatever the window happened to say about its
- * internals is not the phone's to see.
- *
- * Measured 2026-08-27: only 503 was forwarded, so the desktop's 400 naming
- * `permissionMode: "manual"` — the field and the value, precisely — reached the operator as
- * `Internal Server Error`.
+ * Answers a phone with what the **desktop** said, when the desktop refused; returns whether
+ * it answered. A 4xx (and 503, "open the window") is about the request, so the caller reads
+ * it; a 5xx is the machine's own trouble and is not forwarded.
  */
 export function sendUpstream(res: ServerResponse, err: unknown): boolean {
   if (!(err instanceof ApiError)) return false;

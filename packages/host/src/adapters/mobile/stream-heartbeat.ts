@@ -1,21 +1,7 @@
 /**
- * Keeps `/m/stream` sockets honest, and it is `issues/10` reopened.
- *
- * That issue was written about Cloudflare's idle timeout and deprioritised when Tailscale took
- * Cloudflare out of the path. That closed one of its two halves. The other half is worse and has
- * nothing to do with any proxy: **with no ping in either direction, nobody can tell a dead socket
- * from a quiet one.** The host keeps writing frames into a connection that no longer reaches
- * anyone, and the phone keeps believing it is subscribed, so its reconnect never fires.
- *
- * Measured on devbox-vps 2026-09-06, with an operator watching a Chat page that would not move:
- * the phone held **three** established sockets at once, and their ports changed between two
- * readings — it had been reconnecting all along while every previous socket stayed open here,
- * receiving frames nothing would ever read. A TCP ACK is not proof an app read anything; the
- * kernel acknowledges into a buffer whether or not anyone drains it.
- *
- * A protocol-level ping fixes both directions at once, and needs nothing from the client: every
- * WebSocket implementation answers a ping automatically, so an old phone build benefits without
- * being rebuilt.
+ * Keeps `/m/stream` sockets honest (`issues/10`): with no ping nobody can tell a dead socket
+ * from a quiet one, and the phone's reconnect never fires. A protocol-level ping fixes both
+ * directions and every WebSocket client answers it.
  */
 
 /** How often to ping. Under every NAT idle window worth worrying about, and cheap. */

@@ -18,11 +18,9 @@ export interface RenewRouteDeps {
 }
 
 /**
- * `/m/devices/renew*` — the way back in for a device whose bearer lapsed, without a new
- * pairing code. No bearer, by construction: the bearer is what lapsed. What stands in
- * for it is a signature from the hardware key registered at pairing, over a nonce this
- * host just issued. Unknown device, missing key, stale nonce and bad signature all answer
- * the same 401, so the route says nothing about which device ids exist.
+ * `/m/devices/renew*` — the way back in for a lapsed device without a new pairing code.
+ * No bearer (it lapsed); a signature from the hardware key over a fresh nonce stands in.
+ * Every failure answers the same 401, so device ids cannot be probed.
  */
 export function addRenewRoutes(router: Router, deps: RenewRouteDeps): void {
   const renewal = new RenewalService(deps.devices, deps.now);

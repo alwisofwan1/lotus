@@ -7,16 +7,8 @@ import { body_, send, str } from "./http-util.js";
 import type { MobileRouterDeps } from "./http-routes.js";
 
 /**
- * Redeem attempts one source may burst before `/m/pair` answers 429.
- *
- * `issues/07` put this route on the internet with nothing in front of it, and `/m/pair`
- * is the only door on it that takes no bearer.
- *
- * Deliberately BELOW `MAX_PAIRING_ATTEMPTS` (5). Equal, the throttle would be
- * decoration: a single source would spend the global budget on the same request that
- * finally throttles it, so the first guesser always drives the host into lockout and the
- * per-source bucket protects nobody. At three, one source cannot reach the lockout alone,
- * and a human mistyping a code twice still gets a third go.
+ * Redeem attempts one source may burst before `/m/pair` answers 429 (`issues/07`). Below
+ * `MAX_PAIRING_ATTEMPTS` (5), or one source would spend the global budget and lock the host out.
  */
 export const PAIR_RATE_CAPACITY = 3;
 
@@ -24,18 +16,15 @@ export const PAIR_RATE_CAPACITY = 3;
 export const PAIR_RATE_REFILL_PER_SEC = 0.1;
 
 /**
- * Sources tracked at once. The key comes from a header the caller controls
- * (`client-key.ts`), so an uncapped map is a memory exhaustion primitive — one request
- * per forged source. Past the cap the least recently seen source is forgotten, which
- * costs it nothing but its own throttle state.
+ * Sources tracked at once. The key comes from a caller-controlled header (`client-key.ts`),
+ * so an uncapped map is a memory-exhaustion primitive; the least recently seen is forgotten.
  */
 export const PAIR_RATE_MAX_KEYS = 1024;
 
 /**
  * `POST /m/pair` — the only route on this façade that takes no bearer, and since
- * `issues/07` the only unauthenticated door facing the internet. Its own module because
- * everything guarding it (throttle, lockout, source key) belongs next to it rather than
- * scattered through the router that owns forty authenticated routes.
+ * `issues/07` the only unauthenticated door facing the internet. Its guards (throttle,
+ * lockout, source key) live beside it, not in the router.
  */
 export function addPairRoute(
   router: Router,

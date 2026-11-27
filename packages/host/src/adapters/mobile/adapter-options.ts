@@ -24,11 +24,8 @@ export interface MobileAdapterOptions {
 
   /**
    * What can ring a phone whose socket is closed (ADR-4). Absent means this host
-   * cannot push — an ordinary deployment, not a fault, and `hostCaps` says so rather
-   * than leaving the app to register a token that will never be used.
-   *
-   * A sender rather than a `PushService`: the device store is built here, so this is
-   * the only place the two can be joined without one arriving half-built.
+   * cannot push — not a fault, and `hostCaps` says so.
+   * A sender rather than a `PushService`: the device store is built here.
    */
   pushSender?: PushSender;
 

@@ -1,26 +1,9 @@
 import type { Server } from "node:http";
 
 /**
- * What to try, for the two ways binding the mobile façade actually fails.
- *
- * Its own module because `index.ts` is at the 300-line limit, and because this is a
- * pure question — an errno and an address in, a next move out — that reads better away
- * from the listener plumbing.
- *
- * `EADDRNOTAVAIL` is the one that was missing, and it is the likelier of the two on a
- * laptop: the operator picks a LAN address in Settings, it is stored, and the next DHCP
- * lease or a different Wi-Fi gives the machine a new one. The stored address then
- * belongs to no interface, the bind fails, and — because a failed bind is deliberately
- * non-fatal, so PTYs and MCP keep working — the runtime stays up with nothing
- * listening.
- *
- * That is the failure mode `MobileTab`'s own copy warns about ("a host that is UP …
- * where every indicator reads healthy and no phone can route to it"), except worse:
- * here even the runtime process is alive, so nothing on the desktop looks wrong.
- *
- * Measured 2026-08-07 while trying to test Chat on a real phone: `10.229.135.108` in
- * the config, `192.168.1.11` on `en0`, host runtime alive, port 8787 dead, a paired
- * phone reaching nothing. Time went into chasing Chat when there was no transport.
+ * What to try when binding the mobile façade fails (`EADDRINUSE`, `EADDRNOTAVAIL`).
+ * A stale stored LAN address (new DHCP lease) fails the bind non-fatally: the runtime stays
+ * up with nothing listening.
  */
 export function bindFailureHint(code: string | undefined, host: string): string | undefined {
   switch (code) {

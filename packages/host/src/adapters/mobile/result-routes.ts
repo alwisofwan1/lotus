@@ -24,17 +24,8 @@ export interface ResultRouteDeps {
 }
 
 /**
- * `/m/cell/:paneId/result` and `/diff` — what the agent left behind, from the disk.
- *
- * The hook ring tells the phone which files an agent *said* it edited; this asks the
- * working tree what actually differs from `HEAD`. Two reasons that is a separate route
- * and not a field on the transcript: it is the only source for a runner that reports
- * nothing (Codex's ring is empty forever), and it is git's answer rather than the
- * agent's — the two disagree exactly when it matters.
- *
- * Base capability, not desktop-only: the host runs on the machine that owns `cwd` in
- * both modes. What it needs from the desktop is only the pane's `cwd`, which the fleet
- * snapshot already carries.
+ * `/m/cell/:paneId/result` and `/diff` — what the agent left behind, from the working tree
+ * rather than what it said it edited (Codex reports nothing). Needs only the pane's `cwd`.
  */
 export function addResultRoutes(router: Router, deps: ResultRouteDeps): void {
   const { guarded } = deps;

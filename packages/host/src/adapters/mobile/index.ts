@@ -34,11 +34,9 @@ export type { MobileAdapterOptions } from "./adapter-options.js";
 const FLEET_POLL_MS = 3_000;
 
 /**
- * The `/m/*` façade: one WebSocket per device for push, HTTP for mutations.
- *
- * This is the only network-facing listener in the host. The Rust API it proxies
- * stays bound to localhost (ADR-3), which is why device tokens, the audit trail
- * and rate limiting all live here rather than there.
+ * The `/m/*` façade: one WebSocket per device for push, HTTP for mutations. The only
+ * network-facing listener in the host; the Rust API stays on localhost (ADR-3), so device
+ * tokens, audit and rate limiting live here.
  */
 export class MobileAdapter implements RemoteAdapter {
   readonly name = "mobile";
@@ -274,10 +272,8 @@ export class MobileAdapter implements RemoteAdapter {
   }
 
   /**
-   * Forwards desktop notification events to every device.
-   *
-   * `needs-input` is the event this product exists for (job story #1), and until now it
-   * reached the phone from nowhere: `publishNotification` had no caller outside tests.
+   * Forwards desktop notification events to every device. `needs-input` is the event this
+   * product exists for (job story #1).
    */
   private async fleet(): Promise<FleetMember[]> {
     const desktop = (await this.opts.api.listFleet({ pageSize: 100 })).items;

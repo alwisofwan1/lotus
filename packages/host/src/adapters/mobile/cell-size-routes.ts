@@ -8,12 +8,7 @@ const MAX_ROWS = 300;
 
 /**
  * `/m/cell/:paneId/size` — the phone draws a pane at its own size while Terminal is open
- * (ADR-6 addendum 2026-10-05, `plans/lotus-pocket/PLAN.md`).
- *
- * A façade over the desktop's lease (`pty/size_lease.rs`): the rule — who wins, how long a
- * hold lasts, which desktop bytes count as a person — lives on the machine that owns the PTY,
- * because that is where the desktop's own typing is seen. Advertised as `pty-size`, desktop only:
- * a Standalone Host serves no such route on its API.
+ * (ADR-6 addendum). A façade over the desktop's lease (`pty/size_lease.rs`); `pty-size`.
  */
 export function addCellSizeRoutes(router: Router, deps: CellRouteDeps): void {
   const { guarded } = deps;
