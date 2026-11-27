@@ -3,11 +3,8 @@ import type { PermissionResponse } from "../../../types/permission.js";
 import type { UserQuestionOption } from "../../../types/question.js";
 
 /**
- * What `/permission` says about a cell — a question, a permission, or neither.
- *
- * A question is reported **whole**, options and their sentences together; the old
- * `{key,label}` prompt rides along beside it so a phone built before `question` still draws
- * buttons and still answers with the same digits (ADR-4).
+ * What `/permission` says about a cell: a question, a permission, or neither. A question is
+ * reported **whole**; the old `{key,label}` prompt rides along for older phones (ADR-4).
  */
 export function permissionReport(paneId: string, conversation: BridgeConversation): PermissionResponse {
   const asked = conversation.pendingQuestion?.();

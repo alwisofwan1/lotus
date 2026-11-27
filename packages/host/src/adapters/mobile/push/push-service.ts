@@ -9,8 +9,7 @@ import { AskLedger, composeMessage, wakeKindFor } from "./push-policy.js";
 /**
  * At most one wake-up every 30s per device, six in a burst.
  *
- * A guard against a chatty fleet, kept beneath the policy in `push-policy.ts`: what
- * this buys is that a runaway agent cannot drain a battery through this path.
+ * Sits beneath `push-policy.ts` so a runaway agent cannot drain a battery.
  */
 const BURST = 6;
 const REFILL_PER_SEC = 1 / 30;
@@ -30,11 +29,8 @@ export interface PushServiceDeps {
 }
 
 /**
- * Turns a notification event into wake-ups for every device that asked for them.
- *
- * Subscribes to the same events the WebSocket already forwards, which is the point:
- * the socket covers the foreground and this covers the background, from one source
- * (ADR-4). Which events qualify, and what they say, lives in `push-policy.ts`.
+ * Notification events → wake-ups. Same source as the WebSocket: socket covers foreground,
+ * this covers background (ADR-4). Qualifying events live in `push-policy.ts`.
  */
 export class PushService {
   private readonly limiter: RateLimiter;
@@ -54,12 +50,8 @@ export class PushService {
   }
 
   /**
-   * The fleet, for the agent's name — or nothing, never a throw.
-   *
-   * `notify` runs inside the relay's `for await` over the desktop's event stream, and a
-   * rejection there ends the stream: every event until the reconnect is lost, and the
-   * wake-up that was being composed goes with it. A name is decoration; the wake-up
-   * is the point.
+   * The fleet, for the agent's name — or nothing, never a throw: a rejection inside the
+   * relay's `for await` ends the event stream until reconnect.
    */
   private async names(): Promise<FleetMember[]> {
     try {
@@ -73,9 +65,7 @@ export class PushService {
   /**
    * Sends a wake-up if this event deserves one.
    *
-   * Failures are logged and swallowed: push is the second channel, and an FCM outage
-   * must never break the first one. The caller is the notification forwarding loop
-   * that also feeds live sockets.
+   * Failures are logged and swallowed: an FCM outage must not break the socket loop that calls this.
    */
   async notify(event: NotificationEvent): Promise<void> {
     const kind = wakeKindFor(event, this.asked);
@@ -116,8 +106,7 @@ export class PushService {
 /**
  * The service, or `null` for a host with no push credentials.
  *
- * The decision lives beside the class rather than at the wiring site: "can this host wake a
- * phone" is a fact about the service, and the caller only needs the answer.
+ * "Can this host wake a phone" is a fact about the service, so the decision lives here.
  */
 export function pushServiceOrNull(
   deps: Omit<PushServiceDeps, "sender"> & { sender?: PushServiceDeps["sender"] },

@@ -3,30 +3,14 @@ import type { CliHookSource } from "../hooks/cli-payload.js";
 import { readClaudeTranscript } from "./claude-transcript.js";
 
 /**
- * A TUI cell's Chat page, read from the runner's own transcript file (slice 3.3).
- *
- * **The three silences are the substance here, not the entries.** `contract/README.md` keeps
- * them apart because an operator's next move differs for each, and collapsing any two throws
- * that away:
- *
- * | answer | means | what to do |
- * |---|---|---|
- * | `hostSupports: false` | this host cannot know | open the raw terminal |
- * | `transcriptOutlook: "never"` | no Chat for this cell, ever — the runner reports nothing, or this host has no reader for what it writes | stop waiting, use the terminal |
- * | both absent, `entries: []` | this pane has nothing **yet** | wait, or refresh |
- *
- * And `undefined` — this module's own fourth answer — means *ask someone else*: the pane is not
- * one this host runs, so a client with a desktop behind it should hear from the desktop rather
- * than from a local opinion.
+ * A TUI cell's Chat page from the runner's transcript (slice 3.3). Three silences stay distinct
+ * (`contract/README.md`): `hostSupports: false`, `transcriptOutlook: "never"`, and `entries: []`
+ * (nothing **yet**). `undefined` means *ask the desktop*: not a pane this host runs.
  */
 
 /**
- * Runners whose transcript format this host can read. Codex and Cursor are gaps, not refusals.
- *
- * Exported because it answers two questions with one fact: whether *this* pane has a page
- * (here), and whether a **terminal** cell of a runner can ever have one (`spawn-tuning.ts`,
- * `chatInTerminal`). A phone that knows the second can rest such a runner on its bridge
- * instead of starting a cell whose Chat is a dead end.
+ * Runners whose transcript format this host can read (Codex/Cursor are gaps). Exported for
+ * `spawn-tuning.ts` (`chatInTerminal`).
  */
 export const READABLE_TRANSCRIPTS = new Set(["claude"]);
 const READABLE = READABLE_TRANSCRIPTS;
@@ -67,13 +51,8 @@ export function readTuiTranscript(
   const provider = deps.providerOf(paneId);
   if (provider === undefined) return undefined;
 
-  // A runner whose file this host has no reader for. `"never"` — the same answer the desktop
-  // gives about the same cell, and the reason it is not `hostSupports: false` any more: that
-  // says *this machine records nothing*, which the phone renders as "check Lotus on that
-  // desktop". Printed over a codex cell beside a working claude one, on a host with no desktop
-  // behind it, that sends the operator to fix something that is not broken (2026-09-08).
-  // Both answers are approximations of "no Chat for this cell, ever"; this is the one whose
-  // advice — the raw terminal — is the advice that works.
+  // No reader for this runner's file: `"never"`, not `hostSupports: false`, which the phone
+  // renders as "check Lotus on that desktop" — wrong advice on a host with no desktop.
   if (!READABLE.has(provider)) return { paneId, total: 0, entries: [], transcriptOutlook: "never" };
 
   const source = deps.sourceOf(paneId);
@@ -108,11 +87,8 @@ function cannotKnow(paneId: string, transcriptPath?: string): TranscriptResponse
 }
 
 /**
- * One page ending just before `before`, newest page first.
- *
- * The cursor is an **index, not a timestamp**, for the same two reasons the desktop chose one:
- * these files are append-only, which makes an index stable across reads, and hook timestamps are
- * known to collide inside a single millisecond.
+ * One page ending just before `before`, newest first. The cursor is an **index, not a
+ * timestamp**: files are append-only, and hook timestamps can collide within a millisecond.
  */
 function page(
   paneId: string,

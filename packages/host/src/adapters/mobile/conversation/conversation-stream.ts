@@ -4,23 +4,9 @@ import type { TranscriptEntry } from "../../../types/transcript.js";
 import { turnsFromEntries } from "./parts-from-entries.js";
 
 /**
- * A stream of hook entries, turned into a stream of `Part` deltas.
- *
- * The host already knows how to turn a whole transcript into turns
- * (`turnsFromEntries`). What it could not do was say *what changed* when one more entry
- * arrived — so the live channel carried entries and the phone converted them itself
- * (`conversation_builder.dart`, a Dart port pinned equal to the TS one by a test). Two
- * implementations of one rule. This is the piece that lets the host send the answer.
- *
- * **Re-converts the whole cell on each entry**, then diffs by part id. The same trade
- * `TranscriptEmitter` makes and for the same reason: the conversion is a pure function of
- * the entries, a cell holds a few hundred of them, and an incremental converter would have
- * to re-derive turn boundaries and tool pairing against a list being appended to — the
- * place every bug in this area has come from. A cursor over a converted list is obviously
- * correct.
- *
- * Emits nothing for an entry that changes nothing, so a hook that fires twice for the same
- * step does not put a duplicate on the wire.
+ * Hook entries → `Part` deltas, so the phone need not convert (`conversation_builder.dart` is
+ * a pinned port). **Re-converts the whole cell per entry** and diffs by part id, like
+ * `TranscriptEmitter`: pure and small, unlike an incremental converter. A no-op entry emits nothing.
  */
 export class ConversationStream {
   private readonly entries = new Map<string, TranscriptEntry[]>();
@@ -31,11 +17,8 @@ export class ConversationStream {
   constructor(private readonly maxEntriesPerPane = 500) {}
 
   /**
-   * One more entry for a pane. Returns the deltas it produced, oldest first.
-   *
-   * Turn deltas come before the parts inside them, which is the order a reader that opens
-   * turns on demand needs — and the order [`AcpConversation`] and `NativeConversation`
-   * already emit in.
+   * Returns the deltas one more entry produced; turn deltas precede their parts, as in
+   * [`AcpConversation`] and `NativeConversation`.
    */
   push(paneId: string, entry: TranscriptEntry): ConversationUpdate[] {
     const held = this.entries.get(paneId) ?? [];
@@ -46,13 +29,8 @@ export class ConversationStream {
   }
 
   /**
-   * The pane's whole entry list, as the host holds it — and the deltas that amounts to.
-   *
-   * The lane's own accumulated copy is *replaced* rather than appended to, which is the
-   * whole point: a turn id is derived from the entry that opened the turn, so a lane
-   * converting a list that has drifted from the one `/transcript` serves files the same
-   * steps under a different turn. Measured on a phone on 2026-09-08 as one exchange drawn
-   * twice. One list, one derivation, and the two cannot disagree.
+   * The lane's copy is *replaced*, not appended to: a turn id derives from the entry that opened
+   * it, so a drifted list files steps under another turn (exchange drawn twice).
    */
   replace(paneId: string, entries: readonly TranscriptEntry[]): ConversationUpdate[] {
     const held = entries.length > this.maxEntriesPerPane
@@ -110,11 +88,8 @@ export class ConversationStream {
 }
 
 /**
- * What makes a part "the same part as last time".
- *
- * `seq` is deliberately excluded: `turnsFromEntries` numbers parts by position, so one new
- * entry in the middle would renumber everything after it and every part would look changed.
- * The id and the content are what a client dedupes on.
+ * "Same part as last time": id and content. `seq` is excluded as it is positional, so one new
+ * entry would "change" everything after it.
  */
 function stableKey(part: Part): string {
   const { seq: _seq, ...rest } = part;
@@ -122,15 +97,9 @@ function stableKey(part: Part): string {
 }
 
 /**
- * A broadcast hook event, read back as the transcript entry it describes.
- *
- * The two shapes are the same facts in two casings — the wire uses snake_case because the
- * hook scripts write it — and the phone has been doing this conversion since Chat existed
- * (`live_transcript.dart` → `toTranscriptEntry()`). Doing it here is what lets the host
- * answer in parts.
- *
- * Absent stays absent: `lines_added` and `body_truncated` are omitted rather than defaulted,
- * because "changed nothing" and "no diff applies" are different claims (`contract/README.md`).
+ * A broadcast hook event as a transcript entry (snake_case wire; mirrors the phone's
+ * `toTranscriptEntry()`). Absent stays absent: "changed nothing" and "no diff applies" differ
+ * (`contract/README.md`).
  */
 export function entryFromStopEvent(event: AgentStopEvent): TranscriptEntry {
   // Every string is defaulted rather than trusted. The producer is a shell script on somebody

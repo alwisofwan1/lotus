@@ -1,26 +1,9 @@
 import type { ConversationUpdate, Part } from "../../../types/conversation.js";
 
 /**
- * What every producer of conversation deltas must obey, checked rather than hoped for.
- *
- * Lotus has four of them — the Claude bridge, the ACP bridge, the codex app-server bridge, and
- * the hook lane that converts a TUI cell's transcript — and until this file each was trusted to
- * behave. The cost of that trust was measured on a phone on 2026-09-08: one exchange drawn
- * twice, because a part arrived under a second turn id and nothing anywhere said that was
- * impossible. A rule stated here fails a test; the same fact learned from a screenshot costs a
- * day.
- *
- * **Taken from `bb`'s `ThreadEventGrammar`**, whose rules are `item/opens-before-delta`,
- * `item/settles-once`, `turn/starts-once`, `turn/settles-once` and `turn/known`. The mapping is
- * not one-to-one because the vocabularies differ: bb's timeline is items keyed by `itemId` with
- * the turn as metadata, so "a part belongs to one turn" is true there by construction. Lotus
- * nests parts inside turns, so that one has to be a **rule** — and it is the rule that catches
- * the bug bb cannot have.
- *
- * Deliberately not a rule: *a settled turn gains no more parts*. Lotus's own hook lane closes a
- * turn and then sends the reply that closed it, in that order, because the diff emits headers
- * before parts. Harmless to a client that re-renders, and inventing a rule its own producers
- * break would only teach people to ignore the checker.
+ * Rules every delta producer must obey, so a violation fails a test instead of drawing an
+ * exchange twice. From `bb`'s `ThreadEventGrammar`, plus "a part belongs to one turn" (parts
+ * nest in turns here). Not a rule: *a settled turn gains no parts* — the hook lane does that.
  */
 export const CONVERSATION_GRAMMAR_RULES = {
   turnStartsOnce: "turn/starts-once",
@@ -29,10 +12,8 @@ export const CONVERSATION_GRAMMAR_RULES = {
   partSettlesOnce: "part/settles-once",
   partOneTurn: "part/one-turn",
   /**
-   * bb's `item/opens-before-delta`, which had nothing to bite on here until `ConversationUpdate`
-   * gained a `text` kind. It is the rule that keeps that kind cheap: a client may apply a delta
-   * blindly to the part it already holds, because a producer will never send one for a part it
-   * never opened.
+   * bb's `item/opens-before-delta`: lets a client apply a `text` delta blindly to the part it
+   * holds, since a producer never sends one for a part it never opened.
    */
   partOpensBeforeDelta: "part/opens-before-delta",
 } as const;
@@ -137,12 +118,8 @@ export class ConversationGrammar {
   }
 
   /**
-   * A `text` delta, which is held to everything a part update is and one rule more.
-   *
-   * It carries no `Part`, so there is nothing here to settle *with* — a delta can only ever
-   * be the wrong thing to send, never a legal way to finish a part. That asymmetry is the
-   * point: the settled set is written by `part` updates alone, and a delta is checked against
-   * it.
+   * A `text` delta carries no `Part`, so it can never legally finish one: the settled set is
+   * written by `part` updates alone, and a delta is checked against it.
    */
   private observeText(state: PaneState, turnId: string, partId: string): GrammarViolation | undefined {
     if (!state.openTurns.has(turnId) && !state.endedTurns.has(turnId)) {
@@ -190,8 +167,7 @@ export class ConversationGrammar {
 /**
  * Whether this part is finished changing.
  *
- * Only the kinds that stream have an unsettled state at all; everything else — a
- * `user_message`, an `error`, a `result` — arrives whole and is settled on arrival.
+ * Only streaming kinds have an unsettled state; `user_message`, `error`, `result` arrive whole.
  */
 function settled(part: Part): boolean {
   switch (part.type) {
@@ -230,11 +206,8 @@ function trimMap(ids: Map<string, string>): void {
 }
 
 /**
- * How a host says a rule was broken: one warning, with the rule as a field.
- *
- * Here rather than at the wiring site so the event name and the fields are decided once — a
- * violation is a thing you go looking for in a log weeks later, and it has to be greppable by
- * rule (`conversation.grammar`, `rule=part/one-turn`).
+ * One warning with the rule as a field; fixed here so logs stay greppable by rule
+ * (`conversation.grammar`, `rule=part/one-turn`).
  */
 export function reportGrammarViolation(
   warn: (event: string, fields: Record<string, string>) => void,

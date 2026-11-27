@@ -9,26 +9,9 @@ import type { TranscriptEntry } from "../../../types/transcript.js";
 import { kindNamesAFile, stableId, toolKindOf } from "./tool-kind.js";
 
 /**
- * Hook-vocabulary entries → turns of parts. Pure, so it is tested against the committed
- * transcript fixtures and nothing else.
- *
- * This is the phone's `ChatTranscript.of` rewritten to *produce structure* instead of
- * lines, with the same three rules it learned the hard way — and they are kept here, on
- * the host, so every client gets the same turns:
- *
- * 1. A **turn** opens on `prompt-submit`, or — for a host that never sent one — when
- *    `userPrompt` changes or a `stop` has gone by since the last bubble. Repeating the same
- *    sentence after a turn ended is a new turn, not a continuation (2026-08-08).
- * 2. **`body` means different things per `event`**: a reply on `stop`, a path on a tool
- *    event, the operator's words on `prompt-submit`. That switch lives here and nowhere
- *    downstream.
- * 3. A **tool call and its result are one part**. `tool-pre` opens a `tool_call` as
- *    `in_progress`; the next `tool-post` with the same tool name completes it (or fails it,
- *    on `tool-post-failed`) and carries the diffstat. A `tool-post` with nothing open — the
- *    ring having evicted its `tool-pre` — still becomes a completed call, so a step is never
- *    lost to a cap.
- *
- * Entries arrive oldest first and stay that way.
+ * Hook entries → turns of parts (pure; the phone's `ChatTranscript.of`, on the host). A turn
+ * opens on `prompt-submit`, else when `userPrompt` changes or a `stop` passed. A tool call and
+ * its result are one part; a `tool-post` with nothing open is still a completed call.
  */
 export function turnsFromEntries(entries: readonly TranscriptEntry[], provenance: Provenance): Turn[] {
   const turns: Turn[] = [];
@@ -36,11 +19,9 @@ export function turnsFromEntries(entries: readonly TranscriptEntry[], provenance
   let lastPrompt: string | undefined;
   let turnEnded = false;
   /**
-   * Whether the open turn was opened by a real `prompt-submit`. While it is, a differing
-   * `userPrompt` on a later entry is **not** a new turn: the two fields are clipped at
-   * different caps (8000 bytes vs the shorter `userPrompt` cap), so a long prompt would
-   * otherwise open a phantom turn on its very next step — found by the phone's
-   * `AgentOutcome` test on 2026-08-27, where a 6-minute turn came back as 5:59.
+   * Whether the open turn was opened by a real `prompt-submit`. Then a differing `userPrompt`
+   * is **not** a new turn: the two fields have different clip caps, so a long prompt would
+   * open a phantom turn on its next step.
    */
   let openedBySubmit = false;
   let seq = 0;
@@ -199,13 +180,9 @@ function toolCall(b: Omit<ToolCallPart, "type" | "toolCallId" | "toolName" | "ti
   return part;
 }
 
-/** The last `in_progress` call for this tool name — or, when the result names no tool, the last one open at all. */
 /**
- * The call this result answers — **by id when there is one**, by tool name otherwise.
- *
- * The name is a fallback, not the rule: a hook drop carries no id, and two concurrent `Bash`
- * calls are indistinguishable by name, so a result could settle the wrong one. An id cannot be
- * confused, and every result read from a runner's own file has one.
+ * The call this result answers: **by id**, else the last `in_progress` call for the tool name
+ * (fallback only: hook drops carry no id and concurrent `Bash` calls look alike).
  */
 function openCall(turn: Turn, toolName: string, toolCallId?: string): ToolCallPart | undefined {
   for (let i = turn.parts.length - 1; i >= 0; i--) {

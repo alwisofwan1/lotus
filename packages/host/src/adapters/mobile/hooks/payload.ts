@@ -1,14 +1,7 @@
 /**
- * v1 drop-file payload: parse, validate, defensively re-clamp.
- *
- * A port of `apps/desktop/src-tauri/src/agent_hooks/payload.rs`, against the frozen contract in
- * `plans/agent-hooks/drop-file-schema.md`. The producer — `scripts/agent-notify/` — is the source
- * of truth for field shapes; this side validates so a misbehaving script cannot break the watcher
- * loop or push oversized strings at a phone.
- *
- * Slice 1b.3. A standalone host has no Rust behind it, and this is the half of ADR-8's
- * "two independent signals" that the terminal cannot provide: the hook says a cell is waiting,
- * `permission/prompt.ts` says what it is waiting for, and only both together may draw a chip.
+ * v1 drop-file payload: parse, validate, re-clamp. Port of `agent_hooks/payload.rs` against
+ * `plans/agent-hooks/drop-file-schema.md` (slice 1b.3), so a bad script cannot break the
+ * watcher or push oversized strings. The hook half of ADR-8's two signals.
  */
 
 /** The schema version this consumer accepts. Bump in lockstep with the producer. */
@@ -55,11 +48,8 @@ export interface DropPayload {
   pid: number | null;
   agentPid: number | null;
   /**
-   * `LOTUS_PANE_ID`, seeded at spawn (slice 1b.1).
-   *
-   * **The only unambiguous key on this host.** The schema calls `cwd` the correlation key, and
-   * on a desktop that holds; here several cells routinely share one project directory, so cwd
-   * alone would hand one cell's approval to another.
+   * `LOTUS_PANE_ID`, seeded at spawn (slice 1b.1). **The only unambiguous key:** cells share a
+   * cwd, which would hand one cell's approval to another.
    */
   paneId: string | null;
   timestamp: number;
@@ -75,11 +65,8 @@ export type DropParseResult =
   | { ok: false; error: DropPayloadError };
 
 /**
- * Parses raw drop-file bytes into a validated payload.
- *
- * Returns a result rather than throwing: every caller is a watcher loop where one bad file must
- * cost that file and nothing else, and the variants map to different behaviour — corruption is
- * unlinked, an unknown version is unlinked and logged.
+ * Returns a result, not a throw: one bad file costs only that file. Corruption is unlinked;
+ * an unknown version is unlinked and logged.
  */
 export function parseDropPayload(raw: string): DropParseResult {
   let json: unknown;
@@ -147,11 +134,8 @@ function count(value: unknown): number | undefined {
 }
 
 /**
- * Clamps to `max` **UTF-16 code units**, never splitting a surrogate pair.
- *
- * The Rust side clamps bytes at a char boundary; the exact byte count differs but the property
- * that matters is the same one, and it is the only reason the second pass is safe: clamping an
- * already-clamped string is a no-op.
+ * Clamps to `max` **UTF-16 code units**, never splitting a surrogate pair. Re-clamping a
+ * clamped string is a no-op, which makes the second pass safe.
  */
 function clamp(text: string, max: number): { text: string; cut: boolean } {
   if (text.length <= max) return { text, cut: false };

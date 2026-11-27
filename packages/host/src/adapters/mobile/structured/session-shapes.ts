@@ -19,11 +19,8 @@ export interface StructuredSpawnRequest {
   /** Which authenticated account to run as. Absent: the runner's own default. */
   profileId?: string;
   /**
-   * What the operator reads for this cell, when it is not the bridge's own name.
-   *
-   * A `ccs initech` cell runs the Claude bridge — same binary, same protocol — under that
-   * account's config dir, so its family is `claude` and calling it *Claude Code* in the fleet
-   * would hide the one thing that distinguishes it.
+   * The operator-facing name when not the bridge's own: a `ccs <account>` cell is family
+   * `claude` under another config dir, so the account name distinguishes it.
    */
   runnerLabel?: string;
   model?: string;
@@ -34,11 +31,8 @@ export interface StructuredSessionsDeps {
   /** A `notification` frame for connected phones — the same channel the hook pipeline uses. */
   publishNotification: (event: AgentStopEvent) => void;
   /**
-   * The same step as a `Part`, for a phone that reads the conversation lane.
-   *
-   * Both are published for every step, on purpose (ADR-4): the entry keeps older phones
-   * working, and this carries what an entry cannot — a streaming text part being revised,
-   * a tool status moving, a turn closing with its stop reason.
+   * The same step as a `Part`. Both are published per step (ADR-4): the entry serves older
+   * phones; this carries what it cannot (revised text, tool status, stop reason).
    */
   publishConversation?: (paneId: string, agentType: string, update: ConversationUpdate) => void;
   /** The fleet changed shape (a session started or ended). */

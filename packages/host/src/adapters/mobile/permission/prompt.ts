@@ -3,24 +3,9 @@ import type { PermissionPrompt, PromptOption } from "../../../types/index.js";
 import { filledToEdge, indentOf, wrapSeparator } from "./wrapping.js";
 
 /**
- * Reads the options a Claude permission prompt is currently offering.
- *
- * A port of `apps/desktop/src-tauri/src/permission_prompt.rs`, rule for rule, because slice 1b
- * needs it on a host with no desktop behind it. Ported rather than reinvented on purpose: the
- * rules below were paid for by a spike against real output, and a second opinion here would only
- * be a second thing to keep in sync.
- *
- * **The hazard this exists to remove.** Answering a prompt means writing a digit to the PTY
- * (ADR-8). The digits differ per tool, so hard-coding "Deny is 3" is a guess whose failure mode is
- * the worst available: a wrong digit **approves the thing the operator meant to refuse.**
- *
- * So nothing here is invented. The options are read from the terminal, labels included, and the
- * caller renders them verbatim — the operator sees the exact words Claude offered, and the digit
- * sent is the digit printed beside them.
- *
- * And it **fails closed**: anything unexpected yields `undefined`, which the phone draws as no
- * chips at all, sending the operator to the raw terminal. A missing button costs one tap; a wrong
- * one costs a deleted file.
+ * Port of `permission_prompt.rs`. **Hazard:** a wrong digit **approves what the operator meant
+ * to refuse** (ADR-8), so options are read from the terminal and rendered verbatim, never
+ * invented. **Fails closed:** anything unexpected yields `undefined` (no chips).
  */
 
 /** Fewest options a real prompt offers. One numbered line is far more likely to be ordinary
@@ -51,11 +36,8 @@ const MAX_QUESTION_LINES = 3;
 const MAX_JOINED_LABEL = 200;
 
 /**
- * Parses the trailing permission prompt out of a PTY tail, or `undefined`.
- *
- * `undefined` is the safe answer and covers every uncertainty: no question line, a numbered run
- * that does not start at 1, gaps in the numbering, too few or too many options, or a prompt that
- * scrolled away.
+ * The trailing permission prompt of a PTY tail; `undefined` is the safe answer for every
+ * uncertainty (no question, bad numbering, wrong option count, scrolled away).
  */
 export function parsePermissionPrompt(tail: string, columns?: number): PermissionPrompt | undefined {
   const lines = stripAnsi(tail).split("\n");
@@ -98,13 +80,9 @@ interface RunEntry {
 }
 
 /**
- * Walks the option run upward from its last line, folding wrapped label rows into the option
- * they belong to. Returns the finished options and the index of the line above the run.
- *
- * The direction matters: a continuation row is read **before** the option that owns it, so it is
- * held back and only accepted once that option turns up directly above it, indented to exactly
- * its label column. A row that never finds its option is not a label — it is output, and the run
- * ends there.
+ * Walks the option run upward, folding wrapped label rows into their option; returns the options
+ * and the index above the run. A continuation row is held back until its option turns up
+ * directly above, indented to exactly its label column; else it is output and the run ends.
  */
 function readOptionRun(
   lines: string[],
@@ -173,11 +151,8 @@ function joinLabel(entry: RunEntry, columns: number | undefined): string | undef
 }
 
 /**
- * Reads the question above the run, folding its own wrapped rows in.
- *
- * A question row wraps mid-token when it carries a long filename, so the row above is only taken
- * when it was **filled to the edge** — the shape a hard break leaves. Without a known pane width
- * that signal is unavailable, and the question stays the single row it has always been.
+ * Reads the question above the run. It wraps mid-token on a long filename, so the row above is
+ * taken only when **filled to the edge**; with no known pane width it stays one row.
  */
 function readQuestion(lines: string[], start: number, columns: number | undefined): string | undefined {
   const first = lines[start];
@@ -226,14 +201,8 @@ function parseOptionLine(line: string): { option: PromptOption; labelColumn: num
 }
 
 /**
- * Builds a sentence an operator can act on without looking at the screen.
- *
- * **Nothing is paraphrased, for the same reason the buttons are not**: what you hear has to be
- * what you would be approving. The question and every option keep their own words; the digits
- * come along so the answer can be spoken or tapped.
- *
- * One transformation only: parenthesised keyboard hints like `(shift+tab)` are dropped. They are
- * noise read aloud and they do not change what the option means. Anything else stays.
+ * A sentence to act on without the screen. **Nothing is paraphrased** (what you hear is what
+ * you approve); only parenthesised hints like `(shift+tab)` are dropped as noise.
  */
 export function spokenReadback(prompt: PermissionPrompt): string {
   let out = prompt.question;

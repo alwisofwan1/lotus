@@ -14,16 +14,8 @@ import { approvalAnswerFor } from "./pending.js";
 import type { ClaudeMessage } from "./messages.js";
 
 /**
- * One Claude thread driven over `claude --print --output-format stream-json`, with no
- * terminal anywhere — and **no SDK**.
- *
- * Probed against the real binary on 2026-09-07: `--input-format stream-json` keeps one
- * process alive across turns, and a second prompt on the same stdin continues the same
- * `session_id`. That is the whole reason this is a spawn and a line reader rather than a
- * dependency: the protocol is already what the other two bridges speak.
- *
- * The cell TUI is **not** replaced by this. Claude's terminal is a product in its own right
- * and stays the default; this is the second mode, for a cell started with `tui: false`
+ * One Claude thread over `claude --print --output-format stream-json`, **no SDK**: one process
+ * lives across turns. The TUI stays default; this is the `tui: false` mode
  * (`plans/provider-bridge-adoption/PLAN.md` Fase 3).
  */
 export interface ClaudeSessionOptions {
@@ -36,11 +28,8 @@ export interface ClaudeSessionOptions {
   /** Resume an existing conversation instead of starting one. */
   resumeSessionId?: string;
   /**
-   * `CLAUDE_CONFIG_DIR` for this cell — which account it works as.
-   *
-   * Set per cell rather than inherited, which is what made a headless cell run as whatever
-   * profile the host process happened to have. Absent keeps that inheritance, deliberately:
-   * a host launched from an activated shell is already on the right account.
+   * `CLAUDE_CONFIG_DIR`: which account this cell works as. Absent inherits the host's
+   * (a host from an activated shell is already on the right one).
    */
   configDir?: string;
   /** Chat Attachment copies live here, outside `cwd`; Claude reads them without asking, as on the desktop. */
@@ -51,8 +40,7 @@ export interface ClaudeSessionOptions {
   /**
    * Off to skip the approval channel entirely — no MCP server, no socket.
    *
-   * For a test that only exercises the stream, and for a caller that would rather have the
-   * runner's own `--permission-mode` decide than route a question nobody will answer.
+   * For tests, and for callers that want the runner's own `--permission-mode` to decide.
    */
   approvals?: boolean;
 }
@@ -131,19 +119,9 @@ export class ClaudeStreamSession implements ProviderBridgeSession {
   }
 
   /**
-   * Moves this cell's posture **without restarting it**.
-   *
-   * `--permission-mode` is a spawn flag, so loosening a cell used to mean killing it and losing
-   * the conversation — and on a phone that is realised after the agent is already half done.
-   * Probed 2026-09-09: the CLI takes a `control_request` on the same stdin and answers a
-   * `control_response`, and the change is real — a cell spawned `manual` stopped gating `rm -f`
-   * once it landed.
-   *
-   * **The runner keeps deciding what that mode means.** The alternative considered was running
-   * every cell `manual` and having this host auto-answer to imitate the looser stops; the probe
-   * killed it, because `acceptEdits` lets a filesystem edit through while still gating network,
-   * so imitating it means reproducing the CLI's own classifier — and being wrong there is being
-   * wrong in the permissive direction.
+   * Moves the posture **without a restart**, via `control_request`. **The runner decides what
+   * the mode means**: imitating it here would reproduce the CLI's classifier, and errors fail
+   * permissive.
    */
   async setPermissionMode(mode: string, timeoutMs = 10_000): Promise<void> {
     if (!this.alive) throw new Error("this cell is no longer running");
@@ -190,12 +168,8 @@ export class ClaudeStreamSession implements ProviderBridgeSession {
   }
 
   /**
-   * The operator's answer to a pending approval, by printed digit.
-   *
-   * Answering releases the runner, which has been waiting on the MCP tool since it asked —
-   * indefinitely, as the probe on 2026-09-07 showed. Returns whether one was waiting, so a
-   * route can tell "answered" from "there was nothing to answer" (the failure that had a
-   * phone tapping a chip eight times, `structured-sessions.ts`).
+   * Answers a pending approval by digit, releasing the runner. Returns whether one was waiting,
+   * so a route can tell "answered" from "nothing to answer".
    */
   decide(key: string): boolean {
     const requestId = this.conversation.pendingRequestId();

@@ -1,17 +1,9 @@
 import type { BridgeProvider } from "../../../../../types/api.js";
 
 /**
- * Every ACP agent this host knows how to start, as `{command, args}` and nothing more.
- *
- * The point of the ACP bridge is that this table — not a new parser, a new format sniff, or
- * a new set of hooks — is what a runner costs. Only entries whose `agentType` is already in
- * `BridgeProvider` can be registered, so widening that union is the first step of adding one.
- *
- * Modes are the runner's permission scale. Cursor over ACP **never asks** (probed 2026-09-06:
- * it ran `rm -f` and a network call without a single `session/request_permission`), so the
- * only way to hold it back is to start it in a read-only mode. That is why `readOnlyModeId`
- * exists and why gating for these agents is always `skipped`: a cell that claimed it would
- * ask would be lying.
+ * ACP agents as `{command, args}`; only entries whose `agentType` is in `BridgeProvider`
+ * register. Cursor **never asks**, so only a read-only mode (`readOnlyModeId`) holds it back
+ * and gating is always `skipped`.
  */
 export interface AcpAgentDefinition {
   agentType: BridgeProvider;

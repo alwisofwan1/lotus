@@ -6,17 +6,9 @@ import type { PushMessage, WakeKind } from "./fcm-sender.js";
 const NEEDS_INPUT = "needs-input";
 
 /**
- * Remembers which panes were asked something **from a phone**.
- *
- * The rule from `issues/04`: an agent finishing is worth a wake-up only when the ask
- * came from the phone — an agent the operator started at the desk finishing is not
- * news to a phone in their pocket. So the two mobile routes that send an ask
- * (`/m/cells` with a prompt, `/m/cell/:id/dispatch`) record it here, and the finish
- * consumes it, so a later desk-side follow-up on the same pane stays quiet.
- *
- * `endsWith` rather than equality because the spawn route answers with the bare pane
- * uuid while the desktop's hook events carry the same id — matched loosely once so
- * neither side has to learn the other's prefixing.
+ * Panes asked something **from a phone**: only those finishes wake it (`issues/04`). The finish
+ * consumes the mark, so a desk-side follow-up stays quiet. `endsWith` because spawn answers
+ * with the bare pane uuid while hook events carry a prefixed id.
  */
 export class AskLedger {
   private readonly panes = new Set<string>();
@@ -38,16 +30,9 @@ export class AskLedger {
 }
 
 /**
- * Which events are worth waking a phone for.
- *
- * Two, and only two: an agent that **stopped and is waiting for a human**, and an
- * agent that **finished an ask the phone sent**. Not `agent_stop` in general — every
- * hook event arrives as that same variant, including `tool-pre` and `session-start`,
- * both `status: "running"`; waking on those would be a notification per tool call.
- *
- * `cell_stalled` stays out: a stalled cell may be an agent thinking hard, and silence
- * from a runner that reports no turn cannot be interpreted (`MVP.md` §2). Pushing
- * "possibly stuck" trains the operator to ignore the channel.
+ * Only an agent **waiting for a human** or one that **finished a phone ask**. Not `agent_stop`
+ * in general (every hook event is that variant: a ring per tool call); `cell_stalled` stays
+ * out, as silence cannot be interpreted (`MVP.md` §2).
  */
 export function wakeKindFor(event: NotificationEvent, asked: AskLedger): WakeKind | null {
   if (event.kind !== "agent_stop") return null;

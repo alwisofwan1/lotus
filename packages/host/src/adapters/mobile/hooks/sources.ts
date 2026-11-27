@@ -1,16 +1,9 @@
 import type { CliHookSource } from "./cli-payload.js";
 
 /**
- * Where each pane's CLI keeps its own transcript, as the CLI itself reported it.
- *
- * **Why this is not in `HookTurns`.** The two facts have different lifetimes. A turn ages out
- * after 30 minutes, because "is this cell waiting" goes stale and a `needs-input` from this
- * morning is not a question anybody still holds. A transcript path does not go stale — the file
- * is durable, the CLI wrote it, and it outlives the turn, the host process and any restart. On
- * the same TTL, a cell would lose a perfectly readable history for the crime of being quiet.
- *
- * Nothing ages these out, so `MAX_PANES` bounds them instead: a host months into its life has
- * spawned cells it will never hear from again (slice 3.1).
+ * Each pane's transcript path. Not in `HookTurns`: turns age out after 30 minutes but the path
+ * outlives turns and restarts, so a shared TTL would drop a quiet cell's history. `MAX_PANES`
+ * bounds these instead (slice 3.1).
  */
 const MAX_PANES = 512;
 

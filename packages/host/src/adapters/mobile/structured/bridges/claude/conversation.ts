@@ -33,16 +33,9 @@ import {
 } from "./pending.js";
 
 /**
- * A `claude --print --output-format stream-json` session as a live [`ConversationPage`].
- *
- * Turn boundaries come from the protocol, unlike ACP: a prompt opens one and `result`
- * closes it. In between is Claude's own account — real `tool_use` ids, the `tool_result`
- * answering each, thinking as its own part, streamed text under `--include-partial-messages`.
- *
- * **Approvals are real here.** `--permission-prompt-tool` names an MCP tool the runner calls
- * before a gated tool runs, and — probed 2026-09-07 — it then **waits indefinitely**. So a
- * `permission` part is a question the operator is holding, answered by digit like every other
- * bridge. A tool refused anyway is still named in `result.permission_denials`.
+ * A stream-json session as a live [`ConversationPage`]; a prompt opens a turn, `result` closes
+ * it. **Approvals are real:** the runner **waits indefinitely** on the `--permission-prompt-tool`
+ * MCP tool, so a `permission` part is a held question; refusals show in `permission_denials`.
  */
 export class ClaudeConversation {
   private readonly turns: Turn[] = [];
@@ -106,8 +99,7 @@ export class ClaudeConversation {
   /**
    * Answer by printed digit — a permission's option, or a question's.
    *
-   * One entry point for both because the caller has one: a digit arrives on `/input` and no
-   * route knows, or needs to know, which of the two this cell is holding.
+   * One entry point: `/input` does not know which of the two this cell is holding.
    */
   decide(requestId: string, key: string): PermissionOption | undefined {
     const question = this.pendingQuestion();
@@ -247,13 +239,8 @@ export class ClaudeConversation {
   }
 
   /**
-   * @internal for `blocks.ts`. Grows a streaming part by a chunk, putting **only the chunk**
-   * on the wire.
-   *
-   * `false` when there is nothing to grow — no such part, or one that does not carry text —
-   * and the caller then opens it with a `part` update, which is what a delta is only ever
-   * allowed to follow. The page held here still accumulates the whole text, because
-   * `/conversation` serves it to a client that was not listening.
+   * @internal for `blocks.ts`. Puts **only the chunk** on the wire; `false` when there is no
+   * such text part, so the caller opens it first. The page still keeps the whole text.
    */
   appendText(id: string, chunk: string): boolean {
     const turnId = this.turnId();

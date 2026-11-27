@@ -1,21 +1,9 @@
 import { stripAnsi } from "../../../core/ansi.js";
 
 /**
- * What the terminal drew, for a prompt whose options could not be named.
- *
- * `parsePermissionPrompt` fails closed, and it is right to: a digit read from a half-understood
- * screen approves the thing the operator meant to refuse (ADR-8). But failing closed was
- * answered on the phone with one sentence — *"This agent is waiting, but its options could not
- * be read."* — and a button to the raw terminal. The words the terminal had already printed
- * never crossed.
- *
- * That is the gap this closes, and only that gap. **Reading is safe; answering is not.** The
- * digits still come from a successful parse alone, so nothing here can make a wrong button
- * appear — the worst it can do is show the operator a few lines of their own terminal.
- *
- * Measured 2026-09-08: the parser needs the question on the line directly above the options, so
- * a blank line or a box border defeats it. That is every `AskUserQuestion` and most gated tools
- * on a modern CLI, which is how a card came to be permanently unreadable.
+ * The terminal's own words for a prompt whose options could not be named (the parser fails
+ * closed, ADR-8, and a blank line or box border defeats it). **Reading is safe; answering is
+ * not**: digits still come only from a successful parse, so no wrong button can appear.
  */
 
 /** Lines kept. Enough for a boxed question with per-option descriptions, and no more. */
@@ -25,12 +13,9 @@ const MAX_LINES = 40;
 const MAX_CHARS = 4_000;
 
 /**
- * The tail of `text` a client can render verbatim, or `undefined` when there is nothing to show.
- *
- * ANSI is stripped and trailing blanks dropped. Stripping is safe **here** because this is a
- * rendered screen rather than a stream: the emulator has already placed every character in its
- * column, so removing the colour leaves the layout standing. The same operation on a raw
- * `pipe-pane` log destroys it, which is the distinction `issues/17` was about.
+ * The tail a client can render verbatim. Stripping ANSI is safe **here** because this is a
+ * rendered screen (characters already in columns); on a raw `pipe-pane` log it destroys layout
+ * (`issues/17`).
  */
 export function promptTail(text: string): string | undefined {
   const lines = stripAnsi(text).split("\n").map((line) => line.replace(/\s+$/, ""));

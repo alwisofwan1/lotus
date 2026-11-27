@@ -11,12 +11,8 @@ import { AcpSession, type AcpSessionOptions } from "./session.js";
 export type CreateAcpSession = (opts: AcpSessionOptions) => ProviderBridgeSession;
 
 /**
- * One [`ProviderBridgeFactory`] per known ACP agent.
- *
- * `gating` is `skipped` for all of them, and that is a report rather than a policy: probed
- * 2026-09-06, `cursor-agent acp` ran `rm -f` and a network call without one
- * `session/request_permission`. The lever that does exist is the read-only mode, which
- * `AcpSession` sets from `permissionMode`.
+ * One [`ProviderBridgeFactory`] per ACP agent. `gating` is `skipped`: a report, not a policy,
+ * as these agents never send `session/request_permission`; only the read-only mode holds them.
  */
 export function acpBridges(createSession?: CreateAcpSession): ProviderBridgeFactory[] {
   return KNOWN_ACP_AGENTS.map((agent) => acpBridge(agent, createSession));

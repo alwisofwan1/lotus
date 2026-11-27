@@ -7,11 +7,8 @@ import { drainPending, processDropFile, realDropDirDeps, type ProcessDeps } from
 import type { DropPayload } from "./payload.js";
 
 /**
- * Watches the drop directory and feeds every hook event to a sink.
- *
- * Deliberately thin, like the Rust watcher it ports: everything that decides anything lives in
- * `drop-dir.ts` and `turns.ts`, where it is tested without a filesystem. What is left here is the
- * part only a real directory can exercise, and it is kept small for exactly that reason.
+ * Feeds drop-directory events to a sink. Thin on purpose, like the Rust watcher: decisions live
+ * in `drop-dir.ts` and `turns.ts`, tested without a filesystem.
  */
 
 /** `<state dir>/agent-hooks/global` — the path the hook script writes to. */
@@ -22,12 +19,8 @@ export function defaultDropDir(env: NodeJS.ProcessEnv = process.env, home = ""):
 }
 
 /**
- * How often the directory is swept regardless of what the watcher heard.
- *
- * `fs.watch` is not a guarantee. It misses events under load — observed as a 1-in-4 flake in this
- * package's own suite — and on some filesystems it does not fire at all. A missed event here is a
- * permission that never reaches the phone, which is the failure this whole slice exists to remove,
- * so the sweep is what makes the watcher self-healing rather than an optimisation.
+ * Sweep interval regardless of what the watcher heard: `fs.watch` misses events under load, and
+ * a missed one is a permission that never reaches the phone.
  */
 export const SWEEP_MS = 2000;
 
@@ -51,10 +44,8 @@ export class DropWatcher {
   }
 
   /**
-   * Drains what landed while this host was down, then watches for more.
-   *
-   * Draining first is not an optimisation: an agent that asked for permission while the host was
-   * restarting is still waiting, and the file is the only record that it asked.
+   * Drains first, then watches: an agent that asked while the host restarted is still waiting
+   * and the file is the only record.
    */
   start(): void {
     try {

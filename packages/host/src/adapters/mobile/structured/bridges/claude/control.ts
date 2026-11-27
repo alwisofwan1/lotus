@@ -1,24 +1,9 @@
 import type { ClaudeMessage } from "./messages.js";
 
 /**
- * The runner's control channel: asking `claude` to change something about **itself**, and
- * waiting for it to say it did.
- *
- * Split out of `session.ts` when that file crossed the 300-line rule, and the seam is a real
- * one: everything here is request/response correlation over a channel that happens to share a
- * pipe with the conversation, where what stays behind is the conversation itself — prompts,
- * turns, approvals.
- *
- * **It shares one stdout with the transcript, and that is the hazard it exists to contain.**
- * A `control_response` left to fall through to the timeline draws as an `unknown` part —
- * protocol chatter rendered to the operator as a step the agent took. So [`settle`] answers
- * *"was this mine?"* and the caller stops there when it was.
- *
- * Probed against the real CLI on 2026-09-09: `{type:"control_request", request_id, request:{…}}`
- * on the same stdin is answered with
- * `{type:"control_response", response:{subtype:"success", request_id, response:{…}}}`, and the
- * effect is real — a cell spawned `manual` stopped gating `rm -f` once a `set_permission_mode`
- * landed.
+ * Asks `claude` to change itself over a pipe shared with the conversation
+ * (`control_request` in, `control_response` out). A response that fell through to the timeline
+ * would draw as an `unknown` step, so [`settle`] answers *"was this mine?"*.
  */
 export class ControlChannel {
   private readonly pending = new Map<
@@ -32,8 +17,7 @@ export class ControlChannel {
   /**
    * Sends one request and resolves with the runner's own answer.
    *
-   * Bounded, because a runner too old to know a control answers **nothing at all** — and a cell
-   * frozen on a settings tap is worse than one that says it could not change.
+   * Bounded: a runner too old to know a control answers **nothing at all**.
    */
   async request(
     request: Record<string, unknown>,

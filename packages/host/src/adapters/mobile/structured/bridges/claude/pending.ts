@@ -15,17 +15,8 @@ import type { ApprovalAnswer } from "./approval-host.js";
 export const CLAUDE_USER_QUESTION_TOOL = "AskUserQuestion";
 
 /**
- * The answers a Claude cell's permission takes.
- *
- * The keys are **printed digits**, the same as every other bridge here, so the phone answers
- * an approval through `/input` with a keystroke and no route has to know which runner it is
- * talking to (ADR-8: never the option's position — the digit itself).
- *
- * **There were two of these until 2026-09-08, and the reason written here was wrong.** It said
- * an *always* would have to be enforced by this host rather than by the runner — a policy
- * engine, not a bridge. Probed against the real CLI: `--permission-prompt-tool` accepts
- * `updatedPermissions`, and the runner honours it. Two Bash calls behind one grant were asked
- * about **once**; the control without it was asked twice, and both commands ran in both.
+ * Keys are **printed digits**, as in every bridge, so `/input` needs no runner knowledge (ADR-8:
+ * never the option's position). "Always" is enforced by the runner via `updatedPermissions`.
  */
 export function claudePermissionOptions(toolName: string): PermissionOption[] {
   const deny: PermissionOption = { key: "1", label: "Deny", kind: "reject_once" };
@@ -44,13 +35,9 @@ export function claudePermissionOptions(toolName: string): PermissionOption[] {
 }
 
 /**
- * What the middle button promises, and it has to promise exactly what it gives.
- *
- * The channel carries no `suggestions`, so the only rule Lotus can compose is `{toolName}` —
- * granting `rm -f doomed.txt` grants **every** `Bash` in this cell. A button reading "Allow for
- * session" over that is wider than its words, and the words are all the operator reads. So it
- * names the tool and the lifetime and nothing narrower: never the command, which the rule
- * cannot be limited to.
+ * The middle button must promise exactly what it gives. The only rule Lotus can compose is
+ * `{toolName}`, so granting one `Bash` command grants **every** `Bash` in the cell: the label
+ * names the tool and lifetime, never the command.
  */
 export function sessionGrantLabel(toolName: string): string {
   return `Allow all ${toolName} until this cell closes`;
@@ -120,12 +107,8 @@ export function findPending(turns: readonly Turn[]): PermissionPart | undefined 
 }
 
 /**
- * What this wire actually gives, per dimension — data, so it reads as a table rather than as
- * an object literal buried in a method.
- *
- * Every `expected` here was seen in a real capture. `permission` is `expected` because the
- * runner asks and waits (`approval-host.ts`); it was `never` until that existed, and the
- * difference is the whole of Fase 3b.
+ * What this wire gives, per dimension. Every `expected` was seen in a real capture;
+ * `permission` is `expected` because the runner asks and waits (`approval-host.ts`).
  */
 export const CLAUDE_STREAM_CAPS: Partial<RunnerTranscriptCaps> = {
   turns: "expected",
@@ -141,12 +124,9 @@ export const CLAUDE_STREAM_CAPS: Partial<RunnerTranscriptCaps> = {
 };
 
 /**
- * The parts a turn's `result` produces: every tool the runner was refused, then the closing
- * account.
- *
- * A refused tool never produced a `tool_use` block, so this is the only place the operator
- * can learn it was wanted at all. Absent counts stay absent — a turn that reported no tokens
- * must not render as zero.
+ * The parts a turn's `result` produces: each refused tool, then the closing account.
+ * A refused tool has no `tool_use` block, so this is the only place it shows. Absent counts
+ * stay absent (no tokens must not render as zero).
  */
 export function closingParts(
   message: ClaudeMessage,
@@ -181,16 +161,9 @@ export function closingParts(
 }
 
 /**
- * The operator's choice, as the runner needs to receive it.
- *
- * Two different acts share this one channel. Granting a **permission** is a yes, and the tool
- * runs with the arguments it already had. Answering a **question** is not a yes at all: the
- * chosen label has to reach the tool, and the only way through `--permission-prompt-tool` is
- * to hand back the tool's own input with the answer written into it. Probed against the real
- * CLI on 2026-09-08 — without it `AskUserQuestion` runs and returns *"No answer received"*,
- * so the operator taps an option and the agent is told nobody replied.
- *
- * Pure and exported so the mapping can be read and tested without a socket or a process.
+ * The operator's choice as the runner receives it. A **question** answer must reach the tool by
+ * returning its input with the answer written in; otherwise `AskUserQuestion` returns "No answer
+ * received". Pure and exported for testing.
  */
 export function approvalAnswerFor(
   request: { toolName: string; input: Record<string, unknown> },

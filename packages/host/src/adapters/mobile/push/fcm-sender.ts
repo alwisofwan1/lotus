@@ -15,15 +15,9 @@ export type SendOutcome =
 export type WakeKind = "attention" | "finished";
 
 /**
- * Everything a wake-up may say, and the whole of what leaves the host.
- *
- * Deliberately a closed shape rather than the event itself: the notification events
- * behind a wake-up carry `tool_target: "rm src/legacy/shim.ts"`, `cwd` and the
- * operator's own prompt, and none of those have a field here to travel in. What
- * `issues/04` allowed through (2026-08-27) is the agent's **display name** and one
- * short fixed sentence — enough to know *who* rang without opening the app, and no
- * more. The pane id rides in `data` so a tap can open the right agent; it is an opaque
- * uuid this host minted, not a path.
+ * The whole of what leaves the host. Closed on purpose: events carry tool targets, `cwd` and
+ * prompts that must not leak; only the **display name** and one fixed sentence are allowed
+ * (`issues/04`). The pane id in `data` is an opaque uuid.
  */
 export interface PushMessage {
   kind: WakeKind;
@@ -45,19 +39,9 @@ export type SendFetcher = (
 ) => Promise<{ status: number; text: string }>;
 
 /**
- * One wake-up, delivered through FCM.
- *
- * The `notification` block is what makes it arrive when the app is not running:
- * Android draws it without waking Flutter at all (decided 2026-08-06 — a data-only
- * message shows nothing when the app has been closed for hours, the state this product
- * exists to cover). `data` rides along for the app that is already open, which draws
- * its own banner instead.
- *
- * **One notification per agent, newer replaces older** (`issues/04`): the Android
- * `tag` is derived from the pane id, so a `needs you` followed by a `finished` from the
- * same agent is one entry in the tray, saying the latest thing. `collapse_key` stays a
- * single constant on purpose — FCM allows only four distinct keys in flight per device,
- * so keying it per pane would silently drop the fifth agent's wake-up.
+ * The `notification` block is needed: a data-only message shows nothing for a closed app.
+ * Newer replaces older per agent via the Android `tag` (`issues/04`). `collapse_key` stays one
+ * constant: FCM allows four distinct keys in flight, so a per-pane key drops the fifth agent.
  */
 export class FcmSender implements PushSender {
   constructor(
@@ -99,11 +83,8 @@ export function notificationTag(paneId: string): string {
 }
 
 /**
- * Maps FCM's answer onto the four things the caller can actually do.
- *
- * The distinction that matters is `unregistered` versus everything else: a dead token
- * must be **dropped**, or the host keeps signing JWTs and posting to a phone that no
- * longer exists, forever.
+ * Maps FCM's answer onto what the caller can do; `unregistered` must stay distinct: a dead
+ * token has to be **dropped** or the host posts to it forever.
  */
 export function classify(status: number, body: string): SendOutcome {
   if (status >= 200 && status < 300) return "sent";

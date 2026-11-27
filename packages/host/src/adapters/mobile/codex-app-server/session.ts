@@ -7,17 +7,9 @@ import type { PromptAttachment } from "../../../types/provider-bridge.js";
 import { codexInput } from "../structured/bridges/prompt-blocks.js";
 
 /**
- * One Codex thread driven over `codex app-server`, with no terminal anywhere.
- *
- * The handshake is the one the real binary accepted on 2026-08-27 (0.150.1):
- * `initialize` → `initialized` (a notification, required — "Not initialized" otherwise) →
- * `thread/start {cwd, approvalPolicy, sandbox, ephemeral}` → `turn/start {threadId, input}`.
- * `sandbox` is a **string** (`read-only` | `workspace-write` | `danger-full-access`); the
- * object form in older docs is rejected with `unknown variant 'type'`.
- *
- * Approvals arrive as server requests and are answered through [`decide`] — from the phone,
- * by the printed digit. Until an answer comes the request stays open, which is exactly what
- * Codex expects: it waits.
+ * One Codex thread over `codex app-server`, no terminal. `initialized` is a required
+ * notification; `sandbox` is a **string** (the object form is rejected). Approvals are server
+ * requests answered through [`decide`]; Codex waits.
  */
 export interface CodexSessionOptions {
   paneId: string;

@@ -3,19 +3,9 @@ import { parsePermissionPrompt } from "../permission/prompt.js";
 import type { DropPayload } from "./payload.js";
 
 /**
- * What the hooks say about each cell, and the rule for believing it.
- *
- * **ADR-8: two independent signals must agree.** The hook says a cell is waiting; the terminal
- * says what it is waiting for. A chip is drawn only when both do — and the digits come from the
- * terminal, never from here, because a hook knows that a prompt happened and not what it offered.
- *
- * Why that is not belt-and-braces. The hook fires and the prompt is drawn at slightly different
- * moments, and each failure alone is quiet:
- *
- * - Hook without terminal: the prompt scrolled away, or the agent already moved on. Trusting it
- *   would draw chips over a cell that is busy, and answering sends a digit into running work.
- * - Terminal without hook: past output. A tail holds old prompts, and `parsePermissionPrompt`
- *   deliberately reads the LAST one — which may have been answered ten minutes ago.
+ * **ADR-8: two independent signals must agree.** The hook says a cell waits; the terminal says
+ * for what (digits come only from it). Hook alone: the prompt may be gone and a digit would hit
+ * running work. Terminal alone: the tail holds old, answered prompts.
  */
 
 /** How long a `needs-input` is believed without being renewed. */
@@ -29,12 +19,8 @@ export interface HookTurn {
 }
 
 /**
- * The latest hook status per pane.
- *
- * Correlation is by `paneId` and nothing else. The schema calls `cwd` the correlation key, and on
- * a desktop — one window, one pane per directory — that holds. Here several cells routinely share
- * one project, so falling back to cwd would hand one cell's approval to another. A drop with no
- * pane id is dropped rather than guessed at (slice 1b.1 is what puts it there).
+ * Latest hook status per pane, by `paneId` only: a cwd fallback would hand one cell's approval
+ * to another. A drop with no pane id is dropped (slice 1b.1).
  */
 export class HookTurns {
   private readonly turns = new Map<string, HookTurn>();
@@ -89,20 +75,9 @@ export interface AwaitingPermission {
 }
 
 /**
- * Whether a cell is waiting, and what it is offering — from the two signals, separately.
- *
- * The two are not one verdict, and `PermissionResponse` is explicit about it: **`awaiting: true`
- * with a null prompt means "waiting, but the options could not be read"**, which a client renders
- * as a pointer to the terminal rather than as nothing. Collapsing that into `awaiting: false`
- * would hide a cell that really is stuck.
- *
- * What fails closed is the **prompt**, not the fact of waiting. A digit is only ever offered when
- * the terminal was read successfully, because a wrong digit approves the thing the operator meant
- * to refuse (ADR-8) — while a missing chip costs one trip to the raw terminal.
- *
- * And a prompt with no hook behind it is history: the tail holds old prompts, and
- * `parsePermissionPrompt` deliberately reads the LAST one, which may have been answered ten
- * minutes ago.
+ * **`awaiting: true` with a null prompt means "waiting, options unreadable"**; folding it into
+ * `awaiting: false` would hide a stuck cell. The **prompt** fails closed (a wrong digit
+ * approves what was meant to be refused, ADR-8), and a prompt with no hook is history.
  */
 export function awaitingPermission(
   turn: HookTurn | undefined,

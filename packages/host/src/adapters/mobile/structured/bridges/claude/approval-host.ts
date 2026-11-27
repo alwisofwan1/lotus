@@ -6,16 +6,9 @@ import { join } from "node:path";
 import { approvalMcpConfig } from "./approval-script.js";
 
 /**
- * The host end of the approval channel: a unix socket the generated MCP server connects to,
- * one request per connection.
- *
- * Answering is **not** this class's business — it hands the request to [`onRequest`] and
- * waits for whatever that resolves to. The session above it is what knows there is a phone,
- * and the conversation is what knows how to describe the question.
- *
- * The socket and the script live in a directory created per session with `0700`, removed on
- * [`close`]. A socket rather than a localhost port: nothing to leak, nothing another machine
- * can reach, and the same behaviour on a VPS.
+ * Host end of the approval channel: a unix socket (one request per connection) in a per-session
+ * `0700` directory, removed on [`close`] — not a port, so nothing remote can reach it. It hands
+ * requests to [`onRequest`] and waits.
  */
 export interface ApprovalRequest {
   toolName: string;
@@ -24,13 +17,8 @@ export interface ApprovalRequest {
 }
 
 /**
- * A rule the runner should hold for the rest of this session.
- *
- * The shape `--permission-prompt-tool` was proved to honour on 2026-09-08: two Bash calls behind
- * one of these were asked about once, against twice in the control. `destination` is `session`
- * and only ever `session` — a rule written to the operator's settings would outlive the cell
- * that asked for it, and a permission granted once from a phone must not become one the machine
- * holds forever.
+ * A rule the runner holds for this session. `destination` is only ever `session`: a rule in
+ * the operator's settings would outlive the cell and become a permanent grant.
  */
 export interface SessionPermissionRule {
   type: "addRules";
@@ -40,11 +28,9 @@ export interface SessionPermissionRule {
 }
 
 /**
- * `updatedInput` rewrites the arguments the tool will run with. Absent means "as it asked",
- * which is every ordinary grant; present is how a question's answer reaches the tool that
- * asked it (`questions.ts`).
- *
- * `updatedPermissions` is the standing grant, and absent means this call only.
+ * `updatedInput` rewrites the tool's arguments (how a question's answer reaches its tool,
+ * `questions.ts`); absent means as asked. `updatedPermissions` is the standing grant; absent
+ * means this call only.
  */
 export type ApprovalAnswer =
   | {
@@ -65,14 +51,8 @@ export class ApprovalHost {
   private readonly server: Server;
   private readonly open = new Set<Socket>();
   /**
-   * Why the socket could not be opened, when it could not.
-   *
-   * `listen` on a unix socket fails as an **asynchronous** `error` event, so without a
-   * handler it is an uncaught exception that takes the whole host down — a cell refusing to
-   * approve is a bad afternoon, a host that exits is every cell at once. A sandbox or a
-   * read-only temp dir answers `EPERM` here, and the generated MCP server then cannot
-   * connect and denies on its own, which is the fallback this whole channel was designed
-   * around.
+   * Why the socket failed. `listen` errors **asynchronously**; unhandled, it kills the host.
+   * `EPERM` (sandbox) makes the MCP server deny on its own.
    */
   listenError: Error | undefined;
 

@@ -15,18 +15,9 @@ const ASSERTION_TTL_SEC = 3600;
 export const SERVICE_ACCOUNT_FILE = "fcm-service-account.json";
 
 /**
- * Where to look for the service account: the explicit path, else the state dir.
- *
- * The state-dir default is what makes push configurable **at all** on a desktop
- * install. The host runtime is spawned by Lotus with an explicit allow-list
- * environment (`host_runtime/supervisor.rs::build_env`), and Lotus itself launched from
- * Finder has no shell environment — so `export LOTUS_FCM_SERVICE_ACCOUNT` in a terminal
- * reaches nothing. `LOTUS_STATE_DIR` *is* passed, and `api-server.key` and
- * `mobile-devices.json` already live there, so the operator's whole action becomes
- * dropping one file next to them.
- *
- * The env var stays first, because a VPS running the host directly has a shell and may
- * want the key somewhere else entirely.
+ * The explicit path, else the state dir. The default is what makes push work on a desktop
+ * install: the host gets an allow-list env (`supervisor.rs::build_env`) with `LOTUS_STATE_DIR`
+ * but no shell exports. The env var stays first for a VPS.
  */
 export function resolveServiceAccountPath(
   envPath: string | undefined,
@@ -56,17 +47,9 @@ export type TokenFetcher = (
 ) => Promise<{ status: number; text: string }>;
 
 /**
- * Reads a Firebase service account file and exchanges it for FCM access tokens.
- *
- * **The private key never leaves this process, and never reaches the phone**
- * (ADR-11's rule, applied to a second kind of key: the phone gets a *registration*
- * token, which only names where to deliver, while the *signing* key that authorises
- * delivery stays here). A leaked registration token lets someone send noise to one
- * phone; a leaked service account key lets them send to every device in the project.
- *
- * Written by hand rather than pulling in `firebase-admin`: this needs one JWT and one
- * form POST, while that package is a few megabytes of Google Cloud surface that would
- * then be bundled into the Tauri binary.
+ * **The private key never leaves this process or reaches the phone** (ADR-11): a leaked
+ * service account key reaches every device. Hand-written instead of `firebase-admin` (one JWT,
+ * one form POST) to keep megabytes out of the Tauri binary.
  */
 export class FcmCredentials {
   private cached: AccessToken | null = null;
@@ -78,12 +61,8 @@ export class FcmCredentials {
   ) {}
 
   /**
-   * Loads the account from a JSON file, or returns null when push is not configured.
-   *
-   * Null rather than throwing, because "no push on this host" is an ordinary
-   * deployment (a Standalone Host on a VPS may have no Firebase project at all) and
-   * `hostCaps` exists to say so. A *malformed* file is different: that is a
-   * misconfiguration the operator meant to work, so it throws.
+   * Null when push is not configured (ordinary; `hostCaps` reports it). A *malformed* file
+   * is a misconfiguration, so it throws.
    */
   static load(
     filePath: string | undefined,
