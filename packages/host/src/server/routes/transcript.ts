@@ -2,18 +2,7 @@ import type { RouteHandler } from "../router.js";
 import { sendJson } from "./fleet.js";
 import { readTuiTranscript, type TuiTranscriptDeps } from "../../adapters/mobile/transcript/tui-source.js";
 
-/**
- * `GET /api/fleet/:paneId/transcript` — a TUI cell's Chat page, read from the runner's own file.
- *
- * **Why here and not in the mobile façade.** In standalone mode the façade's `ApiClient` points
- * at this host (`src/index.ts`), and `readCellTranscript` asks for this exact path. Until this
- * route existed it 404'd, and the façade turned that into `hostSupports: false` — which is why a
- * VPS host has never had a Chat page. Serving it here means the façade needs no change at all,
- * and `GET /m/cell/:paneId/conversation` follows for free: it is built on the same read.
- *
- * The desktop serves the same path from its own hook ring and file reader; this is the standalone
- * half of the same contract (slice 3.3).
- */
+/** Serve the desktop transcript contract so the mobile adapter can use the same reader on either host. */
 export interface CellTranscriptDeps extends Omit<TuiTranscriptDeps, "sourceOf"> {
   sources: { sourceOf: TuiTranscriptDeps["sourceOf"] };
 }

@@ -1,11 +1,4 @@
-/**
- * Matches ANSI/VT escape sequences including:
- * - CSI sequences:  ESC [ ... final
- * - OSC sequences:  ESC ] ... ST  (ST = ESC\ or BEL)
- * - Simple escapes: ESC followed by a single char in range @-Z, \, _
- */
-// Order matters: CSI and OSC must come before the catch-all two-char escape
-// because [@-Z\\-_] (0x40-0x5F) also covers ] (0x5D) and [ (0x5B).
+/** Match CSI and OSC before the short escape because its character range includes their prefixes. */
 const ANSI_RE =
   /\x1B(?:\[[0-?]*[ -/]*[@-~]|\][^\x1B\x07]*(?:\x1B\\|\x07)|[@-Z\\-_])/g;
 

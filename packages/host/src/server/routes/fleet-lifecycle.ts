@@ -13,16 +13,7 @@ import type { AgentRunnerRegistry } from "../agent/registry.js";
 import type { ProjectRegistry } from "../projects/registry.js";
 import type { WorkerPool } from "../fleet/worker-pool.js";
 
-/**
- * `POST /api/fleet/spawn` — the route `ApiClient.spawnCell` has always called, and which a
- * standalone host never registered (`issues/03`). Without it `POST /m/cells` from a phone
- * reached a 404 on this host, which reads to an operator as "that did not work" rather
- * than "this host cannot do that" — two different sentences, one of which is a lie.
- *
- * The `/v1/spawn-cell` twin exists for the MCP sidecar and speaks snake_case. This one
- * speaks the shape in `contract/` because the phone is on the other end of it, and it
- * carries `permissionMode`, which the IPC twin has no caller for.
- */
+/** Use the public contract shape for mobile callers, including permissionMode (issues/03). */
 export function spawnFleetHandler(
   ptyManager: PtyManager,
   agentRunners: AgentRunnerRegistry,
@@ -55,15 +46,7 @@ export function spawnFleetHandler(
       return;
     }
 
-    // A workspace this host does not know is refused, because the fallback it replaces —
-    // `registry.get(id)?.path ?? id` — made any absolute path a launch directory, and the
-    // chain to it was whole from a paired phone (`POST /m/cells`). The headless twin already
-    // answers 404 to exactly this (`structured/headless-spawn.ts`), so the two spawn paths now
-    // agree instead of differing on the one a phone takes by default.
-    //
-    // Only a workspace the caller **named** is checked: a request with no `workspaceId` at all
-    // is the older local path, and `process.cwd()` is this host's own directory, not an
-    // operator's choice — validating it would refuse the machine its own working directory.
+    // Resolve caller-supplied workspace IDs only through the registry so clients cannot choose arbitrary launch paths.
     const workspaceId = body.workspaceId ?? process.cwd();
     const project = projectRegistry.get(workspaceId);
     if (body.workspaceId !== undefined && project === undefined) {

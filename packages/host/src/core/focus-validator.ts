@@ -12,21 +12,7 @@ export type FocusRequirement = "workspace" | "pane";
 const STALE_HTTP_STATUSES = new Set([404, 410]);
 const OFFLINE_CAUSE_CODES = new Set(["ECONNREFUSED", "ETIMEDOUT", "ENOTFOUND"]);
 
-/**
- * Wraps a focus-bound operation with three protections:
- *
- * 1. **Pre-check** — returns `no_focus` immediately if the operator has not
- *    `/focus`-ed yet, or has only set a workspace when `require="pane"`.
- * 2. **Stale recovery** — on HTTP 404/410 from `fn`, clears the persisted
- *    focus so the next command starts fresh, and returns a `stale` result
- *    the caller can render as a friendly "workspace/cell is gone" message.
- * 3. **Offline pass-through** — on a TCP connection failure (Lotus desktop
- *    closed or unreachable), preserves focus and returns `offline` so the
- *    operator just reopens Lotus and retries without re-typing `/focus`.
- *
- * Anything else is rethrown so callers can fall through to their own error
- * handling without losing the original stack.
- */
+/** Clear stale focus, but preserve it when the host is temporarily offline. */
 export async function withFocus<T>(
   deviceId: string,
   store: SessionStore,

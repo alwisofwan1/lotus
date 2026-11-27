@@ -16,39 +16,13 @@ export interface AppConfig {
   /** Label the operator sees for this host in Pocket. */
   hostLabel: string;
 
-  /**
-   * Path to the Firebase **service account** JSON that authorises FCM sends
-   * (`LOTUS_FCM_SERVICE_ACCOUNT`). Undefined means this host cannot wake a
-   * backgrounded app, and `hostCaps` will not claim otherwise (ADR-4).
-   *
-   * A path read at the config boundary rather than inside the sender, because the
-   * inherited rule is that no class reads `process.env` itself — and because this is
-   * the one value here that points at private key material.
-   */
+  /** Read the private service account path at the config boundary and advertise push only when configured (ADR-4). */
   fcmServiceAccountPath: string | undefined;
 }
 
-/**
- * Loads runtime config from (in order):
- *  1. `~/.lotus/api-server.json` (canonical discovery file written by Lotus)
- *  2. `~/.lotus-dev/api-server.json` (dev-profile discovery)
- *  3. `~/.claude/api-server.json` (legacy fallback for pre-migration installs)
- *  4. `~/.lotus/api-server.key` → `~/.claude/api-server.key` (key fallback)
- *  5. Env vars: `LOTUS_API_URL`, `LOTUS_API_KEY`, `ADAPTER`
- *
- * Env vars always win over the discovery file, making it easy to override
- * in CI or when running the bot on a different machine.
- */
+/** Environment overrides take precedence over discovery files so deployments can choose their own connection settings. */
 export interface LoadConfigOptions {
-  /**
-   * Whether a missing key is fatal. True for client mode, where the key is the only
-   * way to reach the desktop's API and a host without one can do nothing.
-   *
-   * A standalone host mints its own key in `server/index.ts` and hands it straight to
-   * `ApiClient`, so nothing here is ever read for it. Left required, a clean VPS — no
-   * `~/.lotus/api-server.json`, no desktop that could have written one — crashes at boot
-   * with "Start the Lotus app", which is advice for a machine that by definition has none.
-   */
+  /** Require a discovery key in client mode because a standalone host generates its own key. */
   requireApiKey?: boolean;
 }
 

@@ -4,27 +4,13 @@ import type { BridgeProvider } from "./api.js";
 import type { ProviderUsage } from "./provider-bridge.js";
 import type { HostedProject } from "./projects.js";
 
-/**
- * Mirrors `FleetMember` in
- * `apps/desktop/src-tauri/src/api_server/handlers/fleet.rs`. Keep the two in step.
- *
- * Every field below `isAlive` is optional because the desktop may be older than
- * this package — the host must degrade gracefully rather than assume the newest
- * payload shape.
- */
+/** Keep fields after isAlive optional for older desktops and mirror the Rust fleet.rs contract. */
 export interface FleetMember {
   paneId: string;
   workspaceId: string;
   /** Provider currently driving the cell — the Rust side's `provider`. */
   agentType: BridgeProvider;
-  /**
-   * The runner's name as the desktop prints it (`acme`, `Codex`) — the Rust side's
-   * `runner_label`. Absent when that host cannot name it.
-   *
-   * Not a duplicate of {@link FleetMember.agentType}: that one is the family a client
-   * routes on and reports `claude` for every custom Claude-family runner, which is why
-   * a phone reading it alone disagreed with the desktop beside it.
-   */
+  /** Display the runner label separately because agentType groups custom runners by protocol family. */
   runnerLabel?: string;
   /** Persona name, not the pane id — the Rust side's `display_name`. */
   title: string;
@@ -48,50 +34,18 @@ export interface FleetMember {
   /** Agent CLI session id, once the pane has been correlated to one. */
   sessionId?: string;
 
-  /**
-   * Turn-accurate state from the agent's stop hook: `idle`, `needs-input`,
-   * `running`, `error`, `ended`. Absent when no hook has fired for this pane
-   * (non-Claude-family runner, hook not installed, or never correlated).
-   *
-   * `needs-input` is the one state that means a human is actually needed. It
-   * also arrives as an event on `/api/notifications/stream`, but only to
-   * clients connected at that moment; this field is what lets a client that
-   * starts cold discover it from a plain snapshot.
-   */
+  /** Include the hook state in snapshots so reconnecting clients can discover pending input. */
   turn?: string;
   /** Age of {@link FleetMember.turn} in ms — a stale signal reads differently. */
   turnAgeMs?: number;
 
-  /**
-   * Which authenticated account this cell works as, when one was chosen.
-   *
-   * Absent means the runner's own default. Worth showing beside the cell: with several
-   * accounts on a machine, "which one is this" is not answerable from anything else, and a
-   * running cell cannot be moved to another.
-   */
+  /** Report the account selected at launch because a running cell cannot switch accounts. */
   profileId?: string;
 
-  /**
-   * The plan window the runner behind this cell last reported.
-   *
-   * Per cell rather than per account, because a running cell's own stream is the only place
-   * this is learned. Absent means **this runner does not say** — never that the plan is fine.
-   */
+  /** Report quota per cell because it is only observed in that cell's stream. */
   usage?: ProviderUsage;
 
-  /**
-   * Whether this cell asks before acting (ADR-8).
-   *
-   * - `asks` — Claude-family cell launched with permissions on; it prompts per
-   *   action, and that prompt reaches the operator as `turn: "needs-input"`.
-   * - `skipped` — Claude-family cell launched with the gate off. Fixable by
-   *   respawning it in safe mode.
-   * - `runner_cannot` — the runner has no hook mechanism at all (`codex`,
-   *   `cursor`), so it can never prompt. Not fixable.
-   *
-   * Absent means **unknown**, never ungated: a custom runner's command is
-   * arbitrary, and understating risk is the one error worth avoiding here.
-   */
+  /** Treat missing gating as unknown because a custom command may bypass permissions (ADR-8). */
   gating?: "asks" | "skipped" | "runner_cannot";
 
   /**
@@ -148,16 +102,7 @@ export interface ScrollbackResponse {
   totalBytes: number;
 }
 
-/**
- * The two postures every caller before the phone's permission scale knew about.
- *
- * **Kept as a named pair rather than folded into {@link SpawnCellRequest.permissionMode},
- * because they are still the whole vocabulary of two other callers** — the MCP spawn tool
- * and the desktop's own bridge — and of every phone built before 2026-08-27. They are now
- * the *legacy* half of an open set: a spawn may also carry a mode id from the runner's own
- * scale (`manual`, `acceptEdits`, `read-only`, …), which is what `bootstrap.runners[]`
- * advertises through {@link TunedRunner.permissions}.
- */
+/** Keep the two legacy modes named because MCP and the desktop bridge still use that vocabulary. */
 export type PermissionMode = "safe" | "yolo";
 
 export interface SpawnCellRequest {
@@ -172,19 +117,7 @@ export interface SpawnCellRequest {
    * (`custom-acme`). Resolved against the registry on the machine that launches it.
    */
   runnerId?: string;
-  /**
-   * The one moment a cell's permission posture can be chosen.
-   *
-   * `--dangerously-skip-permissions` and its siblings are process arguments, so a cell
-   * already running cannot be turned back (ADR-8 in `plans/lotus-pocket`). Absent keeps
-   * the runner's own default, which is what every caller before the phone relied on.
-   *
-   * **A {@link PermissionMode} or a stop id from {@link TunedRunner.permissions}.** Typed
-   * open rather than as a union of every id, because the ids belong to the CLIs and this
-   * field is forwarded by three hosts that do not all know the same ones; the route that
-   * accepts it is where the check lives (`cell-routes.ts`), and the runner's own scale is
-   * what it checks against.
-   */
+  /** Select a runner-supported mode at launch because process flags cannot be changed afterward (ADR-8, plans/lotus-pocket). */
   permissionMode?: PermissionMode | string;
   /**
    * `spawn-tuning`: a model alias and an effort from the runner's own scale, both as
@@ -231,18 +164,7 @@ export interface ListWorkspacesResponse {
   items: WorkspaceSummary[];
 }
 
-/**
- * One project the host knows about — **running or not**.
- *
- * Deliberately not the same thing as {@link WorkspaceSummary}, which is a grouping
- * of the panes that happen to be alive right now and therefore cannot represent a
- * project whose agents have all ended. A mobile client that lists only workspaces
- * loses a project the moment its last agent exits, which is the failure ADR-14
- * (`plans/lotus-pocket`) exists to fix.
- *
- * `workspaceId` uses the same key a cell reports, so joining the two lists is a
- * string comparison rather than a guess.
- */
+/** List projects independently of live panes so they remain visible after the last agent exits (ADR-14, plans/lotus-pocket). */
 export interface ProjectSummary {
   workspaceId: string;
   /** Alias when the operator set one, otherwise the root directory's last segment. */
@@ -256,17 +178,7 @@ export interface ListProjectsResponse {
   items: ProjectSummary[];
 }
 
-/**
- * What `GET /api/projects` answers, which depends on who is answering.
- *
- * A Standalone Host returns a bare `HostedProject[]` from its `PROJECTS_ROOT`
- * scan; a Lotus desktop returns `{ items: ProjectSummary[] }` from its CodeCanvas
- * registry, carrying the `workspaceId` its cells report and a `lastOpenedAt` a
- * directory scan cannot know. Both are correct for what they are, so the union is
- * named here rather than flattened in the client — flattening would make the type
- * a lie on one of the two hosts. Callers normalise where they know which they want
- * (today: the mobile adapter's `/m/bootstrap`).
- */
+/** Preserve both response shapes so callers can normalize with knowledge of the host. */
 export type ProjectListing = HostedProject[] | ListProjectsResponse;
 
 export type { TranscriptEntry, TranscriptResponse } from "./transcript.js";

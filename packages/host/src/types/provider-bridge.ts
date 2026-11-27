@@ -1,12 +1,7 @@
 import type { BridgeProvider } from "./api.js";
 import type { ConversationPage, ConversationUpdate, PermissionPart, QuestionPart } from "./conversation.js";
 
-/**
- * The seam between "an agent runs somewhere" and "Lotus knows what it is doing": the bridge
- * knows its provider's dialect, the store above it knows the timeline. Naming it before there
- * is a second implementation is what makes the second one an added file rather than a copied
- * store — `plans/provider-bridge-adoption/PLAN.md` §4.
- */
+/** Keep provider-specific events behind the bridge so timelines can be shared (plans/provider-bridge-adoption/PLAN.md). */
 
 export interface BridgeConversation {
   onUpdate(listener: (u: ConversationUpdate) => void): void;
@@ -17,18 +12,7 @@ export interface BridgeConversation {
   pendingQuestion?(): QuestionPart | undefined;
 }
 
-/**
- * What a runner says about the plan behind it, when it says anything.
- *
- * Deliberately the runner's **own words** for `status` and `window` rather than an enum of
- * ours: the vocabularies differ per provider and a normalised one would be wrong for
- * whichever provider moved next. A client renders the pair and decides nothing.
- *
- * This exists because of a failure worth naming: run against an exhausted Cursor plan, a turn
- * completed normally and the agent's prose was "upgrade your plan to continue" — a quota wall
- * indistinguishable from an answer (`plans/provider-bridge-adoption/PLAN.md` G8). A runner
- * that reports this makes that state a fact rather than a sentence to be interpreted.
- */
+/** Preserve provider quota vocabulary so clients can distinguish exhaustion from agent output (plans/provider-bridge-adoption/PLAN.md). */
 export interface ProviderUsage {
   /** `allowed`, `allowed_warning`, `rejected` — verbatim. */
   status: string;
@@ -57,24 +41,10 @@ export interface ProviderBridgeSession {
   interrupt(): Promise<void>;
   /** Answer a pending permission by its printed key. `false` when nothing was waiting. */
   decide(key: string): boolean;
-  /**
-   * Moves this cell's posture **without restarting it**, in the runner's own vocabulary.
-   *
-   * Optional on the seam because it is a capability, not an assumption: `--permission-mode` is
-   * a spawn flag for every runner here, and only one has been shown to take it back. Claude
-   * does, over its control channel (probed 2026-09-09). A bridge that cannot must leave this
-   * out, so a route can refuse instead of reporting a change that never happened.
-   */
+  /** Expose live permission changes only when the runner can apply them without restarting. */
   setPermissionMode?(mode: string): Promise<void>;
   close(): void;
-  /**
-   * The plan window this runner last reported, if it reports one at all.
-   *
-   * Optional on the seam because most do not: Claude volunteers it on every turn, Codex
-   * reports token counts but no quota, and ACP carries no usage at all (`usage_update` is
-   * still an RFD). A bridge that cannot say must leave this out rather than answer a shape
-   * meaning "fine" — the whole point is telling silence from health.
-   */
+  /** Omit usage when the runner cannot report it so silence never implies healthy quota. */
   usage?(): ProviderUsage | undefined;
 }
 
@@ -85,15 +55,7 @@ export interface ProviderBridgeSpawn {
   permissionMode?: string;
   model?: string;
   effort?: string;
-  /**
-   * Which of the machine's authenticated accounts to run as.
-   *
-   * One cell, one account, chosen deliberately — its limits stay its own. Absent means the
-   * runner's own default, which is what every cell did before this existed. A bridge whose
-   * provider has no such notion ignores it; one that does must **refuse** an id it cannot
-   * resolve rather than fall back, because launching under the wrong account does not read as
-   * an error, it reads as an expired session.
-   */
+  /** Reject unresolved profile IDs when profiles are supported so the cell cannot launch under the wrong account. */
   profileId?: string;
   /** The runner's conversation id to continue instead of starting one. A bridge that cannot resume throws. */
   resume?: string;

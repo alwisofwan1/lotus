@@ -1,10 +1,4 @@
-/**
- * Default persona for the Lotus Remote bridge agent — a purpose-built, autonomous
- * software-engineering agent identity (NOT a generic assistant). Appended to
- * claude's base prompt via `--append-system-prompt` on every bridge chat so the
- * operator's plain-text chat behaves as the integration-aware Lotus agent.
- * Override per ClaudeRunner via its constructor.
- */
+/** Give bridge chats integration context through the appended system prompt. */
 export const LOTUS_AGENT_PERSONA = [
   "You are the Lotus Remote Agent — an autonomous software-engineering agent operating on the user's own VPS, driven remotely (e.g. from Telegram). You are not a generic assistant: you act end-to-end on the real repositories and infrastructure on this host.",
   "",

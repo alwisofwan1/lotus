@@ -1,24 +1,4 @@
-/**
- * The environment an agent this host spawns should see — with the launching session's own
- * markers taken out.
- *
- * **Found by running it (2026-09-07).** A Lotus host started from inside a Claude Code session
- * inherits that session's markers and hands them to every agent it spawns. The first symptom
- * was a terminal cell that reported nothing: the agent printed
- * *"Transcript saving is off — inherited CLAUDE_CODE_CHILD_SESSION marker"*, so no transcript
- * was written, so no hook fired, so Chat stayed empty and `turn` stayed absent. Read from a
- * phone that is indistinguishable from a broken install.
- *
- * The worse one is quieter: `CLAUDE_CODE_MESSAGING_SOCKET` and `_TOKEN` address the **launching
- * session's** channel. An agent that inherits them holds another session's credential. Nothing
- * was observed using it, and that is not a reason to pass it on.
- *
- * **A deny-list, not the `CLAUDE_CODE_` prefix**, and that is load-bearing:
- * `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS` is a flag Lotus *sets on purpose*
- * (`launch.rs:239`) — it is the feature this app is a front end for. Sweeping the prefix
- * would turn Lotus off. Every entry below is here because it names or reaches the parent
- * session, never because of how it is spelled.
- */
+/** Strip inherited session credentials and markers with an explicit denylist so child agents retain feature flags. */
 const PARENT_SESSION_MARKERS: readonly string[] = [
   /** Makes the child believe it is nested, which turns its transcript off. */
   "CLAUDE_CODE_CHILD_SESSION",
@@ -33,13 +13,7 @@ const PARENT_SESSION_MARKERS: readonly string[] = [
   "CLAUDE_CODE_MESSAGING_TOKEN",
 ];
 
-/**
- * `env` without the parent's session markers, plus whatever `extra` names.
- *
- * Remove the parent's profile by default. A desktop or headless cell that explicitly selects a
- * profile passes it through `extra`, after this cleanup; an ordinary Claude cell therefore uses
- * the standard login even when Lotus itself was launched from `ccs initech`.
- */
+/** Clear the inherited profile so child agents use the standard login unless the caller explicitly selects another profile. */
 export function agentSpawnEnv(
   env: NodeJS.ProcessEnv,
   extra: Record<string, string> = {},

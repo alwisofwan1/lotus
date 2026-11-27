@@ -108,13 +108,7 @@ export interface AppDeps {
   accounts?: AccountRoutesDeps;
 }
 
-/**
- * How much of a pane's tail the permission read parses.
- *
- * Enough to hold a prompt and the question above it, not so much that a long scrollback makes
- * `parsePermissionPrompt` walk pages of history — it searches from the end for the LAST option
- * run, so extra bytes buy nothing and cost time on every poll.
- */
+/** Bound the tail because only the most recent prompt matters and this scan runs on every poll. */
 const PERMISSION_TAIL_BYTES = 8 * 1024;
 
 export function createApp(deps: AppDeps): RequestListener {

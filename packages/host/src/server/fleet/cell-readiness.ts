@@ -1,9 +1,4 @@
-/**
- * Classifies a PTY cell's output tail into a readiness state, so the Director
- * can tell when a worker has returned to a prompt / is blocked / is still busy.
- * Ported from the desktop `mcp_ipc.rs` classifier so `/v1/wait-cell-idle`
- * behaves identically on either host (ADR-0019).
- */
+/** Keep classification aligned with desktop MCP so wait-cell-idle behaves consistently (ADR-0019). */
 
 export type CellReadiness =
   | "ready_shell" | "ready_tui" | "dialog" | "auth_required" | "unknown_tui" | "busy";

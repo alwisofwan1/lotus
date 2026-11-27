@@ -1,10 +1,4 @@
-/**
- * Orchestrator system prompt for the Headless Director, ported from the desktop
- * Primary Director context (src/modules/swarm/services/swarm-director-context.ts)
- * and adapted for a headless standalone host that provisions its own workers via
- * the Lotus MCP tools. Kept semantically aligned with the desktop Director so
- * behaviour matches across hosts (ADR-0019). Appended via `--append-system-prompt`.
- */
+/** Keep the prompt aligned with the desktop Director so behavior matches across hosts (ADR-0019). */
 export const HEADLESS_DIRECTOR_PROMPT = [
   "[Lotus Headless Director] You orchestrate a fleet of worker agent cells on this host to drive a goal to completion. You have no human terminal — coordinate entirely through the Lotus MCP tools.",
   "Run the Swarm Intake Gate before dispatching: state the objective, scope, assumptions, acceptance criteria, risks, and the evidence you will need. Inspect CONTEXT.md, ADRs, docs, and code before asking anything the repository can answer.",

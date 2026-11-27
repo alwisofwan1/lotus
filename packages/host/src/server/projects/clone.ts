@@ -72,14 +72,7 @@ export class ProjectCloner {
     await this.running.get(taskId);
   }
 
-  /**
-   * Clones into a dot-prefixed staging directory and moves it into place on success.
-   *
-   * Two things follow from that and neither is incidental: the registry scan skips dotfiles
-   * (`registry.ts`), so a clone in flight never appears as a half-built project; and a failure
-   * leaves the workspace root exactly as it was, which is what lets the phone say
-   * *nothing was written* truthfully.
-   */
+  /** Stage in a hidden sibling so the registry never sees a partial clone. */
   private async run(job: CloneJob, req: CloneProjectRequest): Promise<void> {
     const staging = `.lotus-clone-${job.taskId}`;
     job.step = "cloning";
@@ -107,12 +100,7 @@ export class ProjectCloner {
   }
 }
 
-/**
- * One path segment, and not one the registry would refuse to see.
- *
- * The leading dot is the case that would otherwise pass everything: `scanProjects` skips
- * dotfiles, so a clone named `.hidden` succeeds and produces a project that never appears.
- */
+/** Reject dot-prefixed names because the registry skips hidden directories. */
 function isUsableName(name: string): boolean {
   if (name.length === 0) return false;
   if (name.includes("/") || name.includes("\\")) return false;

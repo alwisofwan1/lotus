@@ -1,10 +1,3 @@
-// PTY session routes
-//   GET    /api/sessions            — list active sessions
-//   POST   /api/sessions            — create session
-//   POST   /api/sessions/:id/input  — write to session
-//   POST   /api/sessions/:id/resize — resize PTY
-//   DELETE /api/sessions/:id        — kill session
-//   GET    /api/sessions/:id/stream — SSE output stream (slice-3)
 import type { ServerResponse } from "node:http";
 import type { PtyManager } from "../pty/manager.js";
 import type { RouteHandler } from "../router.js";

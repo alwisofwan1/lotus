@@ -1,20 +1,6 @@
 import type { BridgeProvider } from "../types/api.js";
 
-/**
- * The family a runner belongs to, and the name it goes by.
- *
- * Two fields because a client needs both and they are not the same question
- * (`types/fleet.ts`): `agentType` is the family it **routes** on — which transcript format to
- * read, which permission story applies — and reports `claude` for every claude-family runner,
- * while `runnerLabel` is the runner's own name, the thing an operator recognises.
- *
- * **Why this exists.** Until 2026-09-08 the standalone host recorded a session's provider only
- * when it was literally `claude` or `codex`; `ccs:initech` — the claude binary under another
- * account's config dir — recorded nothing. So the transcript route could not place the pane, it
- * answered 404, and the phone printed *"this machine is not recording what its agents do —
- * check Lotus on that desktop"* over a cell whose transcript was sitting on disk, readable, in
- * claude's own format. A whole family of runners had no Chat at all for that one omission.
- */
+/** Route on the runner family for transcript and permission handling while retaining the display label. */
 export interface RunnerFamily {
   /** The family, when this host knows it. Absent for a command it cannot place. */
   provider?: BridgeProvider;

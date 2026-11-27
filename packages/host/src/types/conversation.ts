@@ -1,25 +1,4 @@
-/**
- * A cell's conversation as structured parts — `GET /m/cell/:paneId/conversation`.
- *
- * **Why a second shape beside `TranscriptResponse`.** A `TranscriptEntry` is one hook
- * event: flat, string-typed, with `body` meaning a path, a prompt or a reply depending
- * on `event`. Chat rebuilt turns from it by guessing (`userPrompt` changed, or a `stop`
- * went by), and a tool's call and result were two unrelated rows. That worked for the
- * Claude hook pipeline it was traced from and for nothing else — Codex, Cursor, OpenCode
- * all report typed items with ids, statuses and diffs that had no field to land in
- * (`plans/pocket-chat-conversation-model/RESEARCH.md` §3).
- *
- * The shape here follows the Agent Client Protocol `session/update` vocabulary (v1, with
- * `messageId`-style ids and a `status` part borrowed from v2): `user_message`,
- * `assistant_text`, `reasoning`, `tool_call{kind,status,diff,locations}`, `permission`,
- * `plan_update`, `status`, `result`, `error`. Five of the eight runners this repo cares
- * about already speak it natively; the other three have official adapters. Borrowing it
- * means a future native ingest (Fase 4) changes the *producer*, not the phone.
- *
- * **Additive.** `/transcript` is untouched and keeps serving phones already in pockets.
- * Fase 1 produces these parts by converting the existing entries — lossy but structured
- * — which is what `provenance` says out loud.
- */
+/** Follow Agent Client Protocol shapes so native and converted transcripts can feed the same client (plans/pocket-chat-conversation-model/RESEARCH.md). */
 
 import type { PermissionPart, QuestionPart } from "./interaction.js";
 
@@ -34,12 +13,7 @@ export type CapLevel =
   /** Not coming from this runner through this pipeline. Not late — never. */
   | "never";
 
-/**
- * Per **runner** capabilities, one level per part kind, so the phone can say "Codex does
- * not report reasoning here" instead of the one-bit "no transcript" that `transcriptOutlook`
- * is limited to. Describes what *this host's pipeline* delivers today, not what the CLI
- * could do in some other mode — the table lives in `adapters/mobile/conversation/runner-caps.ts`.
- */
+/** Report what each host pipeline delivers so clients can distinguish missing part types from unavailable transcripts. */
 export interface RunnerTranscriptCaps {
   turns: CapLevel;
   text: CapLevel;
@@ -224,28 +198,7 @@ export interface ConversationPage {
   transcriptOutlook?: "never" | "unknown";
 }
 
-/**
- * One thing that changed in a live conversation.
- *
- * Lives here rather than beside a runner because every provider bridge emits it: a turn
- * opening or closing, a part arriving or being revised in place, and — for the one kind of
- * revision that happens hundreds of times per turn — the characters that were added.
- * `native-conversation.ts` re-exports it for the callers that predate the seam.
- *
- * **Why `text` exists, in one measurement.** A streaming part was revised by re-sending the
- * whole part, so a reply of *n* characters arriving in *k* chunks put roughly `n·k/2`
- * characters on the wire: the ACP capture is 46 chunks for two sentences, and a long Claude
- * answer is hundreds. Every byte of that crosses a tailnet to a phone. `bb` never had the
- * problem because its wire carries `item.textDelta` with the chunk alone
- * (`delta-translation.ts` → `translateStreamEvent`), and this is the same shape in Lotus's
- * vocabulary.
- *
- * **It is an optimisation, never the record.** A `text` delta may only grow a part a `part`
- * update already opened, and the whole part is re-sent when it settles — so a client that
- * ignores this kind entirely still ends the turn holding the complete text, one frame later.
- * That is what lets it ship additively against a phone built before it (ADR-4), and it is
- * why the grammar can afford to be strict about it (`conversation/grammar.ts`).
- */
+/** Resend the settled part so clients may ignore incremental text deltas without losing content (ADR-4). */
 export type ConversationUpdate =
   | { kind: "turn"; turn: Omit<Turn, "parts"> }
   | { kind: "part"; turnId: string; part: Part }

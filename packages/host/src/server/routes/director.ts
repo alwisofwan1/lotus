@@ -3,13 +3,7 @@ import type { RouteHandler } from "../router.js";
 import type { DirectorSupervisor } from "../director/supervisor.js";
 import { readJson } from "./utils.js";
 
-/**
- * `/api/director/goal` — submits a goal to the Headless Director. A Director
- * turn can run for minutes, so this accepts the goal and returns **202
- * immediately** (fire-and-forget); the Director's reply is delivered
- * asynchronously via the notification stream, which the remote adapter relays
- * to the chat. Blocking here would trip HTTP/undici header timeouts (ADR-0019).
- */
+/** Return 202 before the Director turn finishes so long turns cannot hit HTTP timeouts (ADR-0019). */
 interface GoalBody { text?: string }
 
 function send(res: ServerResponse, status: number, body: unknown): void {

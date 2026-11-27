@@ -1,10 +1,4 @@
-/**
- * Caps the number of concurrently-alive worker cells and queues spawns beyond
- * the cap (first cut of the Standalone Orchestrator — ADR-0019). Slots free on
- * explicit {@link release} (close-cell) and, self-healingly, when a previously
- * occupied worker is no longer in `liveIds` (it exited on its own) — checked on
- * each pump so no PTY exit hook is required.
- */
+/** Reclaim slots for workers that exit on their own so the queue advances without a PTY exit hook (ADR-0019). */
 export class WorkerPool {
   private readonly queue: Array<QueuedJob<{ id: string }>> = [];
   private readonly occupied = new Set<string>();

@@ -1,13 +1,6 @@
 import { execFile } from "node:child_process";
 
-/**
- * Runs `git` in a working tree. Injected so tests never touch a real repository, and so
- * a non-zero exit is data rather than an exception: `git diff` exits 1 when there *is*
- * a difference, which is the answer, not a failure.
- *
- * Lives in `core/` because both `adapters/` and `server/` need it and the layering runs
- * one way — `adapters` → `core`, `server` → `core`, never `server` → `adapters`.
- */
+/** Return the exit status as data because commands such as git diff can signal differences with a nonzero status. */
 export type Git = (
   cwd: string,
   args: string[],

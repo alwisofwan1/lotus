@@ -1,12 +1,3 @@
-/**
- * AgentProviderId — identifies which agent runtime handles a request.
- *
- * - "claude"        → claude CLI (claude --print --output-format stream-json)
- * - "codex"         → codex CLI (codex --quiet)
- * - "ccs:<account>" → ccs account (ccs initech -p "..." / ccs initech:continue)
- *
- * CCS accounts are auto-discovered from ~/.ccs/config.yaml at startup.
- */
 export type AgentProviderId = "claude" | "codex" | `ccs:${string}`;
 
 export interface AgentChatRequest {
@@ -39,28 +30,9 @@ export interface AgentSpawnRequest {
   prompt?: string;
   /** Remote Session Scope — expose Remote-Scoped Skills to this run (ADR-0018). */
   remoteScoped?: boolean;
-  /**
-   * The posture the operator chose, in the vocabulary the host advertises
-   * (`permissionModeIds()` — claude's own `--permission-mode` values, plus `safe`/`yolo`).
-   *
-   * Absent means the runner's own default. It exists because the phone has been offered
-   * this scale since `spawn-tuning`, and until 2026-09-05 there was no field to carry the
-   * answer: `claude.ts` wrote `--dangerously-skip-permissions` whatever was picked.
-   * ADR-8 makes that unfixable once the cell is running, so it has to be right at spawn.
-   */
+  /** Set the selected permission mode at launch because it cannot be corrected afterward (ADR-8). */
   permissionMode?: string;
-  /**
-   * `spawn-tuning`: a model alias and an effort level, in the runner's **own** vocabulary and
-   * exactly as `bootstrap.runners[]` advertised them. Absent keeps the CLI's own default.
-   *
-   * **Forwarded, never translated.** `cell-routes.ts` takes both as free text on purpose —
-   * *"the CLI is the only thing that can finally judge an alias"* — so nothing between the
-   * phone and the process re-checks them against a list. A stale catalog then narrows what
-   * the phone **offers** without blocking what it can send.
-   *
-   * Absent rather than `undefined` at the call site, for a reason a command line makes
-   * concrete: a runner that spreads its request would write `--model undefined`.
-   */
+  /** Forward tuning values so only the runner decides which aliases it supports. */
   model?: string;
   effort?: string;
   /** Claude only: `CLAUDE_CONFIG_DIR` for this cell; null unsets it (`default`), absent leaves the env alone. */

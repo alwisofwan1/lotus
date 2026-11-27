@@ -1,12 +1,6 @@
 import { readFileSync } from "node:fs";
 
-/**
- * Account-supported Codex models, discovered from `~/.codex/models_cache.json`
- * (the cache codex-cli refreshes per ChatGPT account). Offering only models the
- * account can actually use eliminates the "model is not supported when using
- * Codex with a ChatGPT account" failure class — the chosen model never includes
- * one the account lacks.
- */
+/** Offer only models listed in the current account's CLI cache to avoid unsupported launches. */
 export interface ModelOption {
   slug: string;
   displayName: string;

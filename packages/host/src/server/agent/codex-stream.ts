@@ -1,9 +1,3 @@
-/**
- * Parses `codex exec --json` JSONL output. Codex emits one JSON object per line:
- * `thread.started` carries the `thread_id` (the resume handle / session id),
- * `item.completed` with `item.type === "agent_message"` carries reply text, and
- * an `error` event signals failure. Stray non-JSON lines are ignored.
- */
 export interface CodexParsed {
   sessionId: string | null;
   text: string;

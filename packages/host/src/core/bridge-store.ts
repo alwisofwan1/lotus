@@ -24,16 +24,7 @@ interface StoreData {
   chats: Record<string, ChatEntry>;
 }
 
-/**
- * Persists per-Telegram-chat → bridge state (provider + Claude session id).
- *
- * - For `claude`: `sessionId` is the Claude conversation id used as `--resume`.
- * - For `codex`: `sessionId` is a placeholder (Codex is single-turn) but kept
- *   for symmetry so the same store handles both providers.
- *
- * Separate from `SessionStore` (PTY UUIDs), because a bridge chat is a
- * provider-CLI conversation, not a Tauri PTY.
- */
+/** Keep provider conversation IDs separate from PTY session IDs. */
 export class BridgeStore {
   private data: StoreData = { chats: {} };
 

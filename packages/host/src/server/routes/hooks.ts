@@ -6,19 +6,7 @@ import { promptTail } from "../../adapters/mobile/permission/tail.js";
 import { parseCliHookPayload, type CliHookSource } from "../../adapters/mobile/hooks/cli-payload.js";
 import { spokenReadback } from "../../adapters/mobile/permission/prompt.js";
 
-/**
- * `POST /v1/hook/turn` — what a hook script says about a pane, in one call.
- *
- * The second producer into the turn map, and the one that needs nothing installed: the desktop
- * has used exactly this shape since `plans/honest-agent-status/` — a shell hook that `curl`s the
- * host, guarded on `$LOTUS_PANE_ID`. The drop-file watcher (`adapters/mobile/hooks/`) is the other
- * producer, and it carries the rich payload Fase 3 needs. Both land in one place so neither caller
- * has to remember the other exists.
- *
- * Why a shell `curl` and not the node hook script here: ADR-F ships this host as a single binary
- * with no node on the target, and a hook that needs node would make TUI permission depend on a
- * runtime the artifact deliberately dropped. This path needs `sh` and `curl`, which a VPS has.
- */
+/** Use a shell-compatible hook so the standalone binary does not require Node (ADR-F, plans/honest-agent-status). */
 export interface HookTurnSink {
   /** Records what a pane's hooks last said. */
   recordTurn(paneId: string, status: string, atMs: number): void;
@@ -32,31 +20,12 @@ export interface HookTurnSource {
   statusOf(paneId: string): HookTurn | undefined;
 }
 
-/**
- * Enough of `PtyManager` to read a pane's **screen** — what the terminal drew, not what the
- * process wrote.
- *
- * The two are not the same thing and the difference is not cosmetic. A TUI moves the cursor
- * instead of printing newlines and jumps columns instead of printing spaces, so the raw stream
- * with its escapes stripped delivered a whole permission prompt as one line reading
- * `Doyouwanttocreategate17.txt?` on `devbox-vps` (`issues/17`). `undefined` means no live
- * session; an empty `text` means the session is there and nothing could be read off it.
- *
- * `columns` comes along because a wrapped label cannot be put back together without knowing
- * where the rows ended.
- */
+/** Read the rendered screen and its width so cursor movement and wrapping do not corrupt permission labels (issues/17). */
 export interface PaneScreen {
   screenOf(paneId: string): Promise<{ text: string; columns: number } | undefined>;
 }
 
-/**
- * `GET /api/fleet/:paneId/permission` — what a cell is asking, and which answers it offers.
- *
- * The two signals meet here (ADR-8). `awaiting` comes from the hook: it is the only thing that
- * knows a prompt was raised rather than merely printed. `prompt` comes from the terminal, because
- * the hook knows a prompt happened and not what it offered — and the digits differ per tool, so a
- * guessed one approves the thing the operator meant to refuse.
- */
+/** Use hooks to detect waiting and the screen to identify choices because guessing digits can approve the wrong action (ADR-8). */
 export function cellPermissionHandler(turns: HookTurnSource, panes: PaneScreen): RouteHandler {
   return async (_req, res, params): Promise<void> => {
     const paneId = params["paneId"] ?? "";
@@ -90,25 +59,8 @@ export interface CliSourceSink {
   record(paneId: string, source: CliHookSource): void;
 }
 
-/**
- * `POST /v1/hook/turn` — what a cell's hooks say about it.
- *
- * The body is the **CLI's own payload, forwarded byte for byte**, with Lotus's two facts in
- * headers beside it. That split is deliberate. The path to a runner's transcript exists only
- * inside the CLI's payload, and re-encoding that payload inside a `sh` script is where this
- * project has already lost two escaping bugs — so the script stops building JSON and pipes what
- * it was given.
- *
- * The older body-only shape is still accepted, because the scripts already written to disk keep
- * firing until the installer next runs over them.
- */
-/**
- * A header value, or nothing.
- *
- * Control characters are refused rather than stripped. These two values are written by Lotus's
- * own script from `LOTUS_PANE_ID`, so anything shaped otherwise did not come from where it
- * claims, and a pane id is a map key — a mangled one silently addresses the wrong cell.
- */
+/** Pass the original JSON through so shell hooks do not have to re-escape transcript paths. */
+/** Reject control characters in routing headers to avoid addressing the wrong cell. */
 function header(req: { headers: Record<string, unknown> }, name: string): string | undefined {
   const value = req.headers[name];
   if (typeof value !== "string") return undefined;

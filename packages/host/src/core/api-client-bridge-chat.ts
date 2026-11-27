@@ -2,15 +2,7 @@ import type { BridgeChatRequest, BridgeChatResponse } from "../types/index.js";
 import { parseErrorMessage } from "./api-client-util.js";
 import { ApiError } from "./api-error.js";
 
-/**
- * The one call that cannot go through `ApiClient.request`, extracted when the client
- * hit the 300-line limit again.
- *
- * `/api/bridge/chat` streams its reply — whitespace heartbeats keep long agentic
- * turns from tripping the 5-minute header timeout — so the whole body is read and
- * parsed as one value rather than handed to `resp.json()`. Heartbeats are JSON
- * whitespace; the final value is the payload, or an error frame.
- */
+/** Heartbeats keep long replies alive; read the complete stream before parsing JSON. */
 export async function postBridgeChat(
   baseUrl: string,
   headers: Record<string, string>,

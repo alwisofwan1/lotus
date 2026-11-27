@@ -9,21 +9,7 @@ export class OutsideRootsError extends Error {}
 /** The path is not a directory this host can read. */
 export class NotBrowsableError extends Error {}
 
-/**
- * The only directories a phone may look at, and the rule that keeps it to them.
- *
- * ADR-A in `plans/pocket-vps-project-checkout`: the jail is the design. Three properties hold
- * here rather than in the UI above, because a UI is not a boundary:
- *
- *  - **Containment is checked on the resolved path, never on the string given.** A symlink
- *    inside a root that points at `/` would otherwise make the whole thing decorative —
- *    `..` is the obvious attack and the one every naive check catches; a symlink is the one
- *    it misses.
- *  - **Directories only.** File names are not sent, and file contents have no route at all.
- *    What a phone can learn about a machine is which folders exist, and nothing else.
- *  - **A root has no parent.** There is nothing above it to draw, so a client cannot render
- *    a dead control that teaches the operator something is up there.
- */
+/** Check containment on resolved paths to prevent symlink escapes and expose directories only (ADR-A, plans/pocket-vps-project-checkout). */
 export interface BrowseFacts {
   /** The paths this host already holds as projects. Read fresh on every listing. */
   held?: () => string[];

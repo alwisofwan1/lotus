@@ -15,33 +15,15 @@ export interface ProjectRegistrarDeps {
   registry: ProjectRegistry;
   /** The same jail browsing uses — a path that cannot be listed cannot be taken either. */
   browse: BrowseRoots;
-  /**
-   * `PROJECTS_ROOT`, when this host scans one. Taking it is refused: the scan already makes
-   * every directory inside it a project, so the container would be listed beside its own
-   * contents, one directory covered twice under two ids.
-   *
-   * Named separately from the browse roots because they are not the same thing — `~/kerja` is
-   * a browse root that nothing scans, and taking *that* is exactly what this feature is for.
-   */
+  /** Reject the scan root itself so its child projects are not covered by a second registration. */
   scanRoot?: string;
 }
 
-/**
- * Taking a directory that is already on the machine, and letting it go again.
- *
- * Nothing is copied and nothing is created. What changes is this host's **claim** on a folder
- * that was already there — which is why [remove] never touches the disk, and why the screen
- * above it says *nothing is copied* out loud.
- */
+/** Unregistering a project only removes the registry entry so the original folder stays intact. */
 export class ProjectRegistrar {
   constructor(private readonly deps: ProjectRegistrarDeps) {}
 
-  /**
-   * Registers [path], answering with the project it became.
-   *
-   * Resolution happens through {@link BrowseRoots}, so the containment rule lives in exactly
-   * one place: a path this host would refuse to *list* is one it refuses to take.
-   */
+  /** Reuse BrowseRoots containment so registration cannot accept paths the host would refuse to list. */
   async add(path: string): Promise<HostedProject> {
     // `list` on the parent would be the wrong question; this asks the jail about the directory
     // itself and gets back its resolved path, which is what must be stored.
@@ -75,13 +57,7 @@ export class ProjectRegistrar {
   }
 }
 
-/**
- * `pocket`, then `pocket-2`, then `pocket-3`.
- *
- * Two directories on one machine can share a name, and `workspaceId` is what a cell is
- * addressed by — so a collision has to become a different id rather than a second entry under
- * the same one.
- */
+/** Disambiguate matching directory names because cells use workspace IDs for addressing. */
 function freeId(name: string, taken: string[]): string {
   if (!taken.includes(name)) return name;
   for (let n = 2; ; n++) {

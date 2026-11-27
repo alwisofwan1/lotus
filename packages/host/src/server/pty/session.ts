@@ -1,13 +1,7 @@
 import type { PtySessionMetadata, PtySessionState } from "./types.js";
 import { agentSpawnEnv } from "../../core/agent-env.js";
 
-/// Bytes of output retained per session.
-///
-/// 256KB, matching the desktop's ring (`pty/output_tail.rs`) so a phone sees the same
-/// history whichever host it is attached to. The number is measured rather than chosen:
-/// a watching client polls every `POLL_MS`, so anything faster than `ring ÷ poll` is gone
-/// before it can be read, and a rate ladder put the old 64KB cliff at 176KB/s with a
-/// quarter of all output never arriving (`plans/session-history-hardening/issues/01`).
+// Match desktop retention so reconnecting clients see comparable history (plans/session-history-hardening/issues/01).
 const BUFFER_SIZE = 256 * 1024;
 
 /// Narrower than node-pty's `IPty` so a second implementation is expressible — `sessiond-backend.ts`
@@ -64,12 +58,7 @@ export class PtySession {
   private _rows: number;
   private _status: "running" | "exited" = "running";
   private _lastOutputAt: number | undefined;
-  /// Retained output, as **bytes**.
-  ///
-  /// Was a string trimmed by `.length`, which counts UTF-16 units while every offset on
-  /// the wire counts UTF-8 bytes — a box-drawing character is one unit and three bytes, so
-  /// the two drifted apart on exactly the TUI output this carries. Bytes are the unit the
-  /// contract speaks, so this speaks it too.
+  // Retain UTF-8 bytes because wire offsets must agree even for multibyte terminal output.
   private _buffer: Buffer = Buffer.alloc(0);
 
   /// Every byte this session has ever produced, so a client can ask for an absolute
@@ -188,13 +177,7 @@ export class PtySession {
     return this.pty.scrollback?.bytesSeen() ?? this._bytesSeen;
   }
 
-  /**
-   * Output from an absolute byte offset — the only form that can resume.
-   *
-   * Mirrors the desktop's `pty::read_scrollback`: when the ring has moved past what was
-   * asked for, the returned `offset` is ahead of the request, which is how a gap becomes
-   * visible instead of a later position being served as if it were continuous.
-   */
+  /** Return the actual start offset so callers can detect gaps when retained output has advanced. */
   readScrollback(fromByte: number, maxBytes = BUFFER_SIZE): { text: string; offset: number } {
     const durable = this.pty.scrollback;
     // Nothing scrolls away in a durable source, so `offset` always equals the request and

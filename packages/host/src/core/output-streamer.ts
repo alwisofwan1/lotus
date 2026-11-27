@@ -23,16 +23,7 @@ export interface StreamOptions {
   onError?: (err: Error) => void;
 }
 
-/**
- * Manages a single SSE subscription to a PTY session and delivers debounced,
- * size-bounded chunks to the caller's `onData` callback.
- *
- * - Debouncing prevents flooding transport adapters when the PTY emits many
- *   small writes in rapid succession (e.g. shell prompts, progress bars).
- * - Chunks are split at the last newline before `maxChunkSize` so ANSI escape
- *   sequences are never sliced mid-sequence.
- * - Automatic reconnect with exponential backoff on connection failures.
- */
+/** Batch rapid PTY writes and split at newline boundaries to avoid flooding adapters or cutting escape sequences. */
 export class OutputStreamer {
   private conn: ReturnType<ApiClient["streamSession"]> | null = null;
   private buffer = "";

@@ -16,14 +16,7 @@ import { dispatchWritePlan } from "../fleet/dispatch-plan.js";
 
 const ENSURE_FLEET_MAX_COUNT = 16;
 
-/**
- * `/v1/*` fleet surface for the Standalone Orchestrator. Mirrors the desktop
- * `mcp_ipc.rs` response shapes so the shared MCP sidecar drives either host,
- * but sources the fleet directly from {@link PtyManager} (there is no frontend
- * snapshot to push, so `snapshot_age_ms` is always 0 — the fleet is live).
- * `surface` / `team_id` filters are accepted but inert: standalone cells carry
- * no such metadata. See ADR-0019.
- */
+/** Match the desktop IPC shape so one MCP sidecar works with both hosts (ADR-0019). */
 
 const PREVIEW_BYTES = 256;
 const DEFAULT_TAIL = 4096;
@@ -71,14 +64,7 @@ function compactMember(ptyManager: PtyManager, s: PtySessionState): Record<strin
   return member;
 }
 
-/**
- * One headless cell, in the same spelling the PTY ones use.
- *
- * `tui` is the field a caller acts on: a cell with a terminal has a byte stream to read and
- * write, and one without has no terminal to attach to at all —
- * its output is a structured protocol, not bytes. Telling them apart by guessing at the
- * `ss-` pane-id prefix would work today and break the first time that prefix moved.
- */
+/** Use tui to choose the output protocol because pane IDs do not guarantee a terminal exists. */
 function compactStructured(member: FleetMember, verbose: boolean): Record<string, unknown> {
   const compact: Record<string, unknown> = {
     pane_id: member.paneId,
@@ -228,12 +214,7 @@ export function closeCellIpcHandler(ptyManager: PtyManager, workerPool: WorkerPo
   };
 }
 
-/**
- * `/v1/ensure-fleet` — reconciles the alive count of `provider` in a workspace
- * to `count`: spawns the shortfall (through the {@link WorkerPool} cap) or
- * closes the excess oldest-first. `wait_ready` is NOT yet honoured here — the
- * Director should `wait-cell-idle` on the returned `spawned` panes.
- */
+/** Wait for readiness separately with wait-cell-idle because ensure-fleet returns after spawning. */
 export function ensureFleetIpcHandler(
   ptyManager: PtyManager,
   agentRunners: AgentRunnerRegistry,

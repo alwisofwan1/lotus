@@ -65,12 +65,7 @@ export interface BrowsePage {
   /** Null at a root. There is nothing above it a client may draw a way up to. */
   parent: string | null;
   entries: BrowseEntry[];
-  /**
-   * Whether *this* directory may be taken as a project.
-   *
-   * Answered by the host because only it knows: the phone cannot see which root is scanned,
-   * and a client that guessed would draw a live button over a request the host refuses.
-   */
+  /** Ask the host because only it knows whether the directory is covered by an existing scan. */
   takeable: boolean;
   whyNot: NotTakeable | null;
 }

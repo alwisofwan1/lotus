@@ -1,15 +1,6 @@
 import type { FleetMember } from "../../types/fleet.js";
 
-/**
- * What a cell will do about permissions, decided from what it is being launched with.
- *
- * Pure, and separate from the runners, because two places need the same answer and they
- * run at different times: the spawn builds the command line, and `toFleetMember` reports
- * the posture to a phone that may ask minutes later. ADR-8 fixes a cell's posture for its
- * life, so those two answers must be the same one.
- *
- * `undefined` means **unknown**, never ungated — see `FleetMember.gating`.
- */
+/** Derive launch and fleet permission posture consistently; unknown never implies ungated (ADR-8). */
 export function gatingFor(
   provider: string,
   permissionMode: string | undefined,

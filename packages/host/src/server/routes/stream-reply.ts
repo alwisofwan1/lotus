@@ -17,14 +17,7 @@ function canWrite(res: ServerResponse): boolean {
   return !res.writableEnded && !res.destroyed;
 }
 
-/**
- * Streams a long-running JSON reply without tripping HTTP/undici header & body
- * timeouts: sends `200` + headers immediately, emits whitespace heartbeats while
- * `work` runs (each resets the client's body timeout), then writes the single
- * final JSON value. Heartbeats are JSON whitespace, so the client parses the
- * whole body with a plain `JSON.parse`. A turn exceeding `timeoutMs` — or a
- * client that disconnects — aborts the signal so `work` can kill its child.
- */
+/** Send JSON whitespace heartbeats to prevent idle timeouts and abort work on disconnect or deadline. */
 export async function streamJsonReply(
   req: IncomingMessage,
   res: ServerResponse,

@@ -132,22 +132,7 @@ export class ClaudeRunner implements AgentRunner {
   }
 }
 
-/**
- * `spawn-tuning`, as argv.
- *
- * Both flags probed against the installed CLI on 2026-09-10 rather than taken from a doc:
- * `claude --help` lists `--model <model>` and `--effort <level> (low, medium, high, xhigh,
- * max)`. The effort scale matches {@link CLAUDE_EFFORTS} exactly, so what the phone is
- * offered is what the binary takes.
- *
- * **Values are quoted, and this line is where that matters.** The command is *typed into a
- * PTY*, so a shell splits it — an alias carrying a space would arrive as a second argv entry
- * and claude would read it as a path. Nothing upstream can prevent that: `cell-routes.ts`
- * takes both as free text on purpose, because only the CLI can judge an alias.
- *
- * Absent stays absent. No flag is claude's own default, which is the whole reason
- * `permissionFlags` is allowed to return nothing.
- */
+/** Quote tuning values because the launch command is parsed by the PTY's shell. */
 export function tuningFlags(model: string | undefined, effort: string | undefined): string[] {
   const out: string[] = [];
   if (model) out.push("--model", shellArg(model));
@@ -166,23 +151,7 @@ export function shellArg(value: string): string {
   return /^[A-Za-z0-9._\/-]+$/.test(value) ? value : `'${value.replace(/'/g, "'\\''")}'`;
 }
 
-/**
- * The command-line half of the posture. `gatingFor` is the reporting half, and the two
- * must not drift: what is launched is what the fleet claims (ADR-8).
- *
- * - `bypassPermissions` / `yolo` — the gate off. `yolo` is the phone's word for it.
- * - `safe` — the phone's word for `manual`, passed explicitly like any other.
- * - anything else — handed to `--permission-mode` as given, because the scale is advertised from
- *   `CLAUDE_PERMISSIONS` rather than hardcoded on either side, and the CLI is the only thing that
- *   can finally judge a value.
- * - nothing chosen — no flag, and `gatingFor` then reports **unknown** rather than `asks`.
- *
- * **`manual` is passed, never assumed.** It was left implicit until 2026-09-06, on the reasoning
- * that it is what claude does with no flag. Measured on devbox-vps that day: a cell spawned with
- * `permissionMode: "manual"` came up `⏵⏵ auto mode on`, because the effective mode can come from
- * state this host cannot see. The flag is one argument; a fleet that says `asks` about a cell that
- * does not is the failure ADR-8 calls unrecoverable once the cell is running.
- */
+/** Pass the selected mode explicitly because CLI defaults can differ from the reported fleet posture (ADR-8). */
 export function permissionFlags(mode: string | undefined): string[] {
   if (mode === undefined) return [];
   if (mode === "bypassPermissions" || mode === "yolo") return ["--dangerously-skip-permissions"];

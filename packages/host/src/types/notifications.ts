@@ -15,15 +15,7 @@ export interface AgentStopEvent {
   body: string;
   /** True when `body` was cut by the 8000-byte cap. Absent means it was not. */
   body_truncated?: boolean;
-  /**
-   * The prompt the agent is working on. Absent on most events.
-   *
-   * Here so that one forwarded event carries everything one Chat line needs — a
-   * client rebuilding the transcript live would otherwise lose the "you asked"
-   * bubble until it refetched over HTTP. Cheap because the hook scripts only
-   * populate it from `UserPromptSubmit`: it rides once per turn, not once per
-   * tool call.
-   */
+  /** Carry the prompt on submission events so a live transcript can render it without refetching. */
   user_prompt?: string;
   /** Lines added / removed. Absent when the step changed no lines. */
   lines_added?: number;

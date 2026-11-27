@@ -1,25 +1,5 @@
-/**
- * Types a cell's opening prompt into a TUI that is ready to receive it.
- *
- * **Both halves were measured on 2026-09-07**, after an operator reported that a cell spawned
- * with an initial prompt came up with the prompt sitting in the input field, unsent.
- *
- * 1. **Timing.** The prompt was written into the pty immediately after the `claude …` command
- *    line, while the shell had not yet handed the terminal over. Those bytes are consumed by a
- *    terminal about to be reconfigured, and the prompt is gone. So readiness is waited for, and
- *    the signal is the handover the TUI performs itself — alt screen (`?1049h`) and bracketed
- *    paste (`?2004h`) — not prose on the screen, which changes with every release.
- * 2. **Enter is its own write, and it is sent more than once.** With the text and its newline
- *    in one write the reply never came: the CLI takes a burst carrying a newline as pasted
- *    text and leaves it in the input box. Typed as text, then `\r` on its own, the same prompt
- *    submits — confirmed against claude v2.1.263, which answered within a second.
- *
- *    The repeat is for the runners that take longer to settle. Measured on 2026-09-08: a
- *    `ccs <account>` cell had its prompt sitting in the box, typed and unsent, because the
- *    first `\r` arrived while the TUI was still reconfiguring after the wrapper handed over.
- *    An extra Enter on an **empty** box is a no-op — verified against a real turn: three
- *    Enters, one turn — so retrying costs nothing and rescues the slow case.
- */
+/** Wait for terminal mode changes before typing so input reaches the TUI after shell handoff. */
+// Send Enter separately so it is treated as a keypress rather than pasted text.
 export interface TuiPane {
   /** The pane's most recent raw bytes, escapes intact. May throw when there is no session. */
   tail(bytes: number): string;

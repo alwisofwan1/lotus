@@ -1,9 +1,4 @@
-/**
- * Dictation types — the phone records, the host transcribes.
- *
- * ADR-11: Pocket never holds an API key, so audio crosses to the host and the host
- * calls the provider. Nothing here carries a key, in either direction.
- */
+/** ADR-11: The host transcribes audio so Pocket never holds an API key. */
 
 export interface TranscribeRequest {
   /** Base64 audio. Bounded by the route, not by this type. */

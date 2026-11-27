@@ -48,13 +48,7 @@ export interface StandaloneHostHandle {
   apiKey: string;
   /** Gracefully close the server and all PTY sessions. */
   stop(): Promise<void>;
-  /**
-   * Where the adapter installs its headless cells, once it exists.
-   *
-   * Handed back rather than taken in because of the boot order — see [[StructuredFleetRef]].
-   * Leaving it unbound is a valid state: a host whose adapter runs no structured sessions
-   * simply has none to report.
-   */
+  /** Use a late-bound reference because the adapter starts after the server (see StructuredFleetRef). */
   structuredFleet: StructuredFleetRef;
 }
 
@@ -200,12 +194,7 @@ export async function createStandaloneHost(): Promise<StandaloneHostHandle> {
   };
 }
 
-/**
- * Wires the Headless Director (claude runtime) against the vendored MCP sidecar,
- * or returns undefined when `DIRECTOR_PROVIDER=off` / an unsupported provider.
- * The session id persists in `~/.lotus/director-session.json` so the Director
- * resumes its conversation across host restarts.
- */
+/** Persist the session ID so the Director can resume after a host restart. */
 function buildDirector(
   discoveryPath: string,
   cwd: string,

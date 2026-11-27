@@ -1,9 +1,4 @@
-/**
- * SwarmTask — the standalone host's durable task model. Field names and enum
- * values mirror the desktop `BridgeTask` (src-tauri/src/bridge_tasks.rs) exactly
- * so the `/v1/tasks/*` MCP-IPC Contract stays provider- and host-neutral
- * (ADR-0019). Keep this in sync with that source; a contract test guards it.
- */
+/** Mirror desktop BridgeTask so the MCP IPC contract works on both hosts (ADR-0019). */
 
 export type TaskStatus = "todo" | "in-progress" | "blocked" | "in-review" | "complete" | "cancelled";
 export type TaskPriority = "none" | "low" | "medium" | "high";

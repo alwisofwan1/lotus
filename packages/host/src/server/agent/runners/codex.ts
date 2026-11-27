@@ -54,12 +54,7 @@ function runProcess(
   });
 }
 
-/**
- * codex 0.139 always emits `thread.started` first, so stdout is never empty
- * even on failure — a non-zero exit with no agent_message would otherwise
- * yield an empty reply ("(empty response)"). When the turn failed and parsing
- * produced no text, surface stderr (or the exit code) so the cause is visible.
- */
+/** Surface stderr on failure because a thread-start event can leave stdout nonempty without a reply. */
 export function finalizeCodexText(
   parsedText: string,
   stderr: string,
@@ -98,17 +93,7 @@ export class CodexRunner implements AgentRunner {
   }
 
   async spawnPty(req: AgentSpawnRequest, ptySessionId: string): Promise<void> {
-    // `spawn-tuning`, in codex's own two shapes. Probed against codex-cli 0.154.0 on
-    // 2026-09-10: `--help` lists `-m, --model <MODEL>` and `-c, --config <key=value>`, and
-    // there is **no** `--effort` — so effort travels as a config override. The key
-    // `model_reasoning_effort` appears 26 times in that binary, which is what makes it a
-    // fact rather than the comment in `spawn-tuning.ts` taken on trust.
-    //
-    // Values are not checked here and the scale is not asserted anywhere: `cell-routes.ts`
-    // takes both as free text because only the CLI can judge them, and codex carries
-    // `supported_reasoning_levels` **per model** — so a global list could only ever be an
-    // approximation. Quoted through the same helper claude uses, for the same reason: this
-    // command is typed into a PTY and a shell will split it.
+    // Use the config override for model-specific effort and quote values for the PTY shell.
     const flags: string[] = [];
     if (req.model) flags.push("-m", shellArg(req.model));
     if (req.effort) flags.push("-c", `model_reasoning_effort=${shellArg(req.effort)}`);

@@ -20,12 +20,7 @@ export interface SwarmTaskStoreDeps {
   mutex?: KeyedMutex;
 }
 
-/**
- * Durable, file-backed Swarm Task store for the Standalone Orchestrator. One
- * JSON file per task, written atomically; reads are always fresh from disk and
- * every mutate is serialized per task id, so it is crash- and race-safe with no
- * in-memory cache to fall out of sync (ADR-0019).
- */
+/** Serialize mutations per task and write atomically so readers see complete task records (ADR-0019). */
 export class SwarmTaskStore {
   private readonly baseDir: string;
   private readonly now: () => number;

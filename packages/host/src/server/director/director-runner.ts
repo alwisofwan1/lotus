@@ -6,13 +6,7 @@ import { parseCodexJsonl } from "../agent/codex-stream.js";
 import { finalizeCodexText } from "../agent/runners/codex.js";
 import type { LotusMcpConfigInput } from "./mcp-config.js";
 
-/**
- * Drives the Headless Director's agent CLI: one event per invocation, resuming
- * a persistent session, with the Lotus MCP tools loaded so the agent can
- * orchestrate the fleet. Provider-portable by design (ADR-0020) — claude is
- * implemented here; codex slots in behind {@link DirectorRunner} (Slice 7,
- * pending the live MCP-injection spike).
- */
+/** Use a provider-neutral runner boundary so the Director can resume sessions across CLI implementations (ADR-0020). */
 export type DirectorProvider = "claude" | "codex";
 
 export interface DirectorInvokeRequest {
@@ -39,13 +33,7 @@ export interface DirectorRunner {
 
 export type SpawnFn = (file: string, args: string[], options: SpawnOptions) => ChildProcess;
 
-/**
- * Generous safety-net ceiling for one Director turn. A turn legitimately blocks
- * for many minutes inside `lotus_wait_cell_idle` while workers run, so this is
- * NOT a tight bound — it only kills a genuinely-hung process (network deadlock,
- * stdin wait) that would otherwise block the serialized turn queue forever. A
- * hung process is stuck on I/O and not spending tokens, so the kill is cheap.
- */
+/** Allow long worker waits while bounding hangs that would otherwise stall the turn queue. */
 export const DEFAULT_DIRECTOR_TURN_TIMEOUT_MS = 30 * 60_000;
 
 interface ProcResult { stdout: string; stderr: string; exitCode: number }
@@ -129,13 +117,7 @@ export class ClaudeDirectorRunner implements DirectorRunner {
   }
 }
 
-/**
- * Codex Director runtime (ADR-0020). Differs from claude: MCP is injected via
- * `-c mcp_servers.lotus.*` TOML overrides (no `--mcp-config` flag), there is no
- * forced session id (codex mints its own `thread_id`, which we parse and the
- * supervisor persists for `resume`), and the system prompt is prepended to the
- * first turn since codex has no `--append-system-prompt`.
- */
+/** Persist the thread ID for resume because Codex assigns it itself (ADR-0020). */
 export class CodexDirectorRunner implements DirectorRunner {
   readonly provider = "codex" as const;
 

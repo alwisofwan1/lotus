@@ -3,13 +3,7 @@ import { join } from "node:path";
 import type { HostedProject } from "../../types/index.js";
 import { ExtraProjects } from "./extra-store.js";
 
-/**
- * Hosted-project registry. With an explicit project list (or `PROJECTS_JSON`)
- * it is a fixed snapshot; with a `PROJECTS_ROOT` it re-scans the directory
- * **live** on every read, so a repo cloned into the workspace root after the
- * host started shows up as a first-class workspace with no restart (ADR-0019,
- * Slice 6).
- */
+/** Rescan the configured root on reads so newly cloned workspaces appear without a restart (ADR-0019). */
 export class ProjectRegistry {
   constructor(
     private readonly projects: HostedProject[],
@@ -18,14 +12,7 @@ export class ProjectRegistry {
     private readonly extra?: ExtraProjects,
   ) {}
 
-  /**
-   * Every project this host holds: the scan, plus whatever the writable list adds.
-   *
-   * **The scan wins a collision**, and the collision is real rather than theoretical: an
-   * operator can add a folder from the phone and later move it under `PROJECTS_ROOT`. Two
-   * entries for one directory would make `workspaceId` ambiguous, and a cell would be
-   * addressed by whichever id the client happened to hold.
-   */
+  /** Prefer scanned entries on collision so one directory has one workspace ID. */
   list(): HostedProject[] {
     const scanned = this.scanRoot !== undefined ? scanProjects(this.scanRoot) : this.projects;
     if (this.extra === undefined) return scanned;

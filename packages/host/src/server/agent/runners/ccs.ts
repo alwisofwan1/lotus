@@ -77,20 +77,7 @@ export class CcsRunner implements AgentRunner {
       configDir: join(homedir(), ".ccs", "instances", this.account),
       cwd: req.cwd,
     });
-    // `ccs --help` (v8.7.0): `ccs <profile> [claude-args...]` — the wrapper forwards claude's
-    // own flags, so tuning is the same two flags a native claude cell takes. Imported from
-    // `claude.ts` rather than rebuilt: the quoting rule is the load-bearing part, and a second
-    // copy is how one of them comes to lack it.
-    // Posture first, then tuning — the same order a native claude cell writes them.
-    //
-    // The posture was dropped here entirely until 2026-09-11, while `fleet.ts:199` reported
-    // one anyway: `runnerFamily("ccs:x")` answers `provider: "claude"`, so `gatingFor` derived
-    // `asks`/`skipped` from the mode stored at spawn. A cell picked as `yolo` was shown with
-    // its gate off and still asked, and then waited at a prompt the phone believed could not
-    // happen. What is launched has to be what the fleet claims (ADR-8).
-    //
-    // Imported rather than rebuilt, like `tuningFlags`: `permissionFlags` and `gatingFor` are
-    // two halves of one rule, and a second copy is how one half comes to drift.
+    // Share Claude's flags and quoting so CCS launch posture matches fleet reporting (ADR-8).
     const flags = [...permissionFlags(req.permissionMode), ...tuningFlags(req.model, req.effort)];
     this.ptyManager.write(
       ptySessionId,

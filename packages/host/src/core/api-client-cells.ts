@@ -10,13 +10,6 @@ import type {
 /** `ApiClient.request`, handed in so these stay functions rather than a second client. */
 export type CellRequest = <T>(method: string, path: string, body?: unknown) => Promise<T>;
 
-/**
- * A cell's lifecycle: told, started, ended.
- *
- * Extracted when `api-client.ts` hit the 300-line limit again, and the seam is the one
- * the limit was pointing at: everything here changes **whether a cell exists or what it
- * is doing**, while what is left behind reads sessions, workspaces, tasks and health.
- */
 
 /**
  * Writes `command` to the cell's PTY input. The server answers 404 for an unknown
@@ -30,14 +23,7 @@ export function dispatchToCell(
   return request<DispatchResponse>("POST", "/api/fleet/dispatch", req);
 }
 
-/**
- * Starts a cell. Answers when the pane is **registered**, not when the agent inside is
- * ready — the same contract the MCP tool documents.
- *
- * `permissionMode` is passed through rather than defaulted. It is the only moment a
- * cell's posture can be chosen (ADR-8 in `plans/lotus-pocket`), and this client has no
- * business deciding whether someone else's agent asks before it acts.
- */
+/** Pass through the caller's launch permission choice and return once the pane is registered (ADR-8, plans/lotus-pocket). */
 export function spawnCell(
   request: CellRequest,
   req: SpawnCellRequest,
@@ -45,23 +31,12 @@ export function spawnCell(
   return request<SpawnCellResponse>("POST", "/api/fleet/spawn", req);
 }
 
-/**
- * Ends a cell: the process stops and the pane leaves its workspace.
- *
- * A 503 means the desktop's window is not sitting on a workspace to do it, which is a
- * state the operator can change — not a fault.
- */
+/** A 503 means the operator needs to select a workspace in the desktop window. */
 export function closeCell(request: CellRequest, paneId: string): Promise<void> {
   return request<void>("POST", "/api/fleet/close", { paneId });
 }
 
-/**
- * What can be started here: detected CLIs plus the runners the operator defined.
- *
- * A desktop older than this route answers 404, and the caller treats that as "cannot
- * say" rather than "none" — a phone that showed an empty list would be telling the
- * operator their machine has no agents on it.
- */
+/** Treat 404 as unavailable runner discovery so older desktops aren't mistaken for hosts with no runners. */
 export function listRunners(request: CellRequest): Promise<ListRunnersResponse> {
   return request<ListRunnersResponse>("GET", "/api/runners");
 }

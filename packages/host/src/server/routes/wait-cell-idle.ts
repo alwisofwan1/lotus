@@ -13,12 +13,7 @@ import {
 } from "../fleet/cell-readiness.js";
 import { readJson } from "./utils.js";
 
-/**
- * `/v1/wait-cell-idle` — polls a cell's output until it settles at a prompt /
- * dialog or the deadline expires, mirroring the desktop `mcp_ipc.rs` response
- * (`{ ok, idle, state, readiness, matched, suggestedInput, tail, waitedMs }`).
- * This is how the Headless Director knows a worker turn has finished.
- */
+/** Match desktop wait-cell-idle semantics so the Director can detect completed worker turns. */
 
 const TAIL_BYTES = 8192;
 const EXCERPT_CHARS = 512;

@@ -20,13 +20,7 @@ export class PtyManager {
     private readonly attachFn?: (sessionId: string) => PtyBackend,
   ) {}
 
-  /**
-   * Takes over a session that is still running from before this process started.
-   *
-   * The backend is built by `attachFn` and handed to `PtySession` through the seam it
-   * already has — a spawn fn that returns it — so nothing about the session class needs a
-   * second construction path.
-   */
+  /** Reuse the normal session constructor with the attached backend so resumed sessions share the same lifecycle. */
   adopt(id: string, opts: { cwd: string; cols: number; rows: number } & PtySessionMetadata): PtySessionState {
     if (this.attachFn === undefined) throw new SessionNotAdoptableError(id);
     const { cwd, cols, rows, ...metadata } = opts;

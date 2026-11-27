@@ -27,24 +27,10 @@ export function sendJson(res: ServerResponse, status: number, body: unknown): vo
   res.end(JSON.stringify(body));
 }
 
-/**
- * What a cell is *for*, in one line, or nothing.
- *
- * Injected rather than read here: the answer lives in the runner's own transcript, which this
- * host already reads on every hook fire — asking again per fleet poll would re-read the same
- * megabytes every three seconds (`app.ts` caches it from that read).
- */
+/** Inject cached headlines so fleet polling does not reread runner transcripts. */
 export type HeadlineOf = (paneId: string) => string | undefined;
 
-/**
- * What a cell's own hooks last said about it, and when.
- *
- * Injected for the same reason as {@link HeadlineOf}: this host **has** the answer — the hook
- * route records every turn (`hooks/turns.ts`) — and until 2026-09-08 the fleet row simply never
- * asked, so a phone drew *state unknown* over a cell whose hooks were arriving fine. The
- * contract had noted that a standalone host reports no `turn`; that was true of a host with no
- * hook pipeline, and stopped being true when this one started installing its own.
- */
+/** Use recorded hooks so fleet state reflects the agent's last reported turn. */
 export type TurnOf = (paneId: string) => { status: string; at: number } | undefined;
 
 export function listFleetHandler(
@@ -76,15 +62,7 @@ export function listFleetHandler(
   };
 }
 
-/**
- * `POST /api/fleet/scrollback` — output from an absolute offset.
- *
- * **The route this host never had.** `/api/fleet/read` answers "the last N bytes", which
- * cannot resume: after a phone reconnects it needs *what it missed*, and only an offset
- * expresses that. Without this the mobile poller asked and got a 404 every 250ms, and
- * `output-tail.ts` swallowed each one — so Terminal mode on a Standalone Host was blank
- * forever, with a warning line as the only trace (`issues/05`).
- */
+/** Return absolute offsets so reconnecting clients can resume (issues/05). */
 export function readScrollbackHandler(ptyManager: PtyManager): RouteHandler {
   return async (req, res): Promise<void> => {
     let body: ScrollbackRequest;
@@ -211,13 +189,7 @@ function toFleetMember(
     // pane wraps one. Remote clients address output and interrupts by session, so
     // omitting this made every `stop` from a phone 404 against a VPS.
     sessionId: state.id,
-    // What this cell will do about permissions, derived from what it was actually
-    // launched with rather than assumed — `gatingFor` explains why absent is not "off".
-    //
-    // That sentence was false for a `ccs` cell until 2026-09-11: `runnerFamily` answers
-    // `provider: "claude"` for one, so this reported a posture from the stored mode while
-    // `runners/ccs.ts` never put it on the command line (issue 25). Both halves are closed
-    // now, and they stay closed by sharing `permissionFlags`.
+    // Derive reported posture from the flags used at launch (issue 25).
     ...(gating === undefined ? {} : { gating }),
     // The line the operator reads under the cell's name. A terminal cell had none until
     // 2026-09-08 — beside a Codex cell that did — while the title it wanted sat in the

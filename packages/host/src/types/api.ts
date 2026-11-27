@@ -68,12 +68,7 @@ export interface LaunchPtyResult {
   shellCmd: string;
 }
 
-/**
- * Every runner a cell can be, as `FleetMember.agentType`.
- *
- * Closed on purpose: a provider bridge cannot be registered until its name is here, so adding
- * one starts with this line and the compiler names every place that must follow.
- */
+/** Keep the provider union closed so new bridges force consumers to handle their type. */
 export type BridgeProvider = "claude" | "codex" | "cursor" | "qwen";
 
 export type BridgeIntent = "read" | "plan" | "write";

@@ -4,12 +4,7 @@ import type { SwarmTaskStore } from "../tasks/store.js";
 import type { SwarmTask, TaskFeedbackEvent, TaskStatus, UpdateTaskPatch } from "../tasks/types.js";
 import { readJson } from "./utils.js";
 
-/**
- * `/v1/tasks/*` MCP-IPC surface, backed by {@link SwarmTaskStore}. Request
- * bodies use snake_case keys (`workspace_id`, `task_id`) and responses use the
- * `{ ok, task | tasks }` envelope, matching the desktop `mcp_ipc.rs` contract
- * byte-for-byte so the shared MCP sidecar drives either host (ADR-0019).
- */
+/** Match desktop task IPC so one MCP sidecar can drive either host (ADR-0019). */
 
 interface CreateBody {
   workspace_id?: string;

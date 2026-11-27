@@ -9,13 +9,7 @@ interface Entry<T extends Stoppable> {
   lastActivity: number;
 }
 
-/**
- * Registry for active OutputStreamer instances keyed by Telegram chat ID.
- *
- * Replaces the bare module-level Map in commands.ts with TTL-based eviction:
- * - Streams inactive beyond `ttlMs` are stopped and removed automatically.
- * - The sweep timer only runs while the registry is non-empty.
- */
+/** Expire inactive streams so abandoned subscriptions stop consuming resources. */
 export class StreamRegistry<T extends Stoppable = Stoppable> {
   private readonly entries = new Map<string, Entry<T>>();
   private sweepTimer: ReturnType<typeof setInterval> | null = null;

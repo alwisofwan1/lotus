@@ -19,14 +19,7 @@ export function listProjectsHandler(registry: ProjectRegistry) {
   };
 }
 
-/**
- * `POST /api/projects/clone` — starts a clone and answers immediately with its id.
- *
- * A request, not a job, is the thing that would otherwise have to wait: a repo over a VPS
- * link takes as long as it takes, and the phone is allowed to leave the screen while it runs
- * (`issues/02`). `cloner` is absent on a host with no workspace root to clone into, and that
- * is a fork rather than a fault — it answers 503, the same way a host without a provider does.
- */
+/** Return a job ID so clients can leave while a clone runs (issues/02). */
 export function cloneProjectHandler(cloner: ProjectCloner | undefined): RouteHandler {
   return async (req, res): Promise<void> => {
     if (cloner === undefined) {
@@ -57,13 +50,7 @@ export function cloneProjectHandler(cloner: ProjectCloner | undefined): RouteHan
   };
 }
 
-/**
- * `GET /api/fs?path=` — one level of a directory this host opens, or the roots themselves.
- *
- * Directories only, never file names and never contents (ADR-A). `roots` rides along on every
- * answer so a client can draw the top level without a second call — and so "my folder is not
- * here" reads as configuration rather than as a broken app.
- */
+/** Expose directories only so browsing cannot reveal file names or contents (ADR-A). */
 export function browseHandler(browse: BrowseRoots | undefined): RouteHandler {
   return async (req, res): Promise<void> => {
     if (browse === undefined) {
@@ -99,12 +86,7 @@ export function cloneStatusHandler(cloner: ProjectCloner | undefined): RouteHand
   };
 }
 
-/**
- * `POST /api/projects` — takes a directory that is already on the machine (ADR-D).
- *
- * **Nothing is copied.** What changes is this host's claim on a folder that was already there,
- * which is why the answer is the project rather than a job: there is nothing to wait for.
- */
+/** Register the existing folder in place so callers need no copy job (ADR-D). */
 export function addProjectHandler(registrar: ProjectRegistrar | undefined): RouteHandler {
   return async (req, res): Promise<void> => {
     if (registrar === undefined) {
@@ -135,12 +117,7 @@ export function addProjectHandler(registrar: ProjectRegistrar | undefined): Rout
   };
 }
 
-/**
- * `DELETE /api/projects/:id` — forgets one.
- *
- * The directory is never touched. Idempotent for the same reason closing a cell is: an id this
- * host no longer holds is the state the caller asked for.
- */
+/** Unregistering is idempotent and must leave the directory intact. */
 export function forgetProjectHandler(registrar: ProjectRegistrar | undefined): RouteHandler {
   return async (_req, res, params): Promise<void> => {
     if (registrar === undefined) {

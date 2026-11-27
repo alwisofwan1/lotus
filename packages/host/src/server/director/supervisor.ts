@@ -22,12 +22,7 @@ export interface DirectorSupervisorDeps {
 const WORKER_IDLE_EVENT =
   "A worker cell has gone idle. Check the fleet with lotus_list_fleet, read finished workers' output, and continue the task.";
 
-/**
- * Runs the Headless Director as an event-driven, single-session agent: each
- * event (goal, worker-idle) is a `--resume` turn on one persistent session.
- * Turns are serialized — the Director session is single-threaded, so concurrent
- * events queue rather than interleave `--resume` calls (ADR-0019).
- */
+/** Serialize events so concurrent turns cannot interleave writes to one Director session (ADR-0019). */
 export class DirectorSupervisor {
   private sessionId: string | null;
   private tail: Promise<unknown> = Promise.resolve();

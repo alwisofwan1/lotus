@@ -3,12 +3,7 @@ import type { PtyManager } from "../pty/manager.js";
 import type { PtySessionState } from "../pty/types.js";
 import type { AgentRunner, AgentSpawnRequest } from "./types.js";
 
-/**
- * Creates a PTY session and spawns the agent into it. If the runner fails, the
- * orphaned session is killed before the error propagates. Shared by the
- * `/api/agent/spawn-pty` route and the `/v1/spawn-cell` MCP-IPC endpoint so the
- * create→spawn→cleanup sequence lives in exactly one place.
- */
+/** Clean up the PTY if the runner fails to start so callers cannot leave orphan sessions. */
 export async function spawnCell(
   ptyManager: PtyManager,
   runner: AgentRunner,

@@ -5,15 +5,7 @@ export interface RateLimiterOptions {
   refillPerSec: number;
   /** Injectable clock in ms (defaults to Date.now). */
   now?: () => number;
-  /**
-   * Most keys tracked at once; the least recently seen is dropped past it.
-   *
-   * Needed wherever the key comes from the caller. `/m/pair` keys on a forwarded-for
-   * header (`adapters/mobile/client-key.ts`), so without a cap one request per forged
-   * source grows this Map until the host dies — a cheaper attack than the guessing the
-   * limiter is here to stop. Unset means unbounded, which is right for a key space the
-   * host controls, like a device id.
-   */
+  /** Cap caller-controlled keys so forged sources cannot grow the limiter without bound. */
   maxKeys?: number;
 }
 

@@ -1,12 +1,3 @@
-/**
- * lotus-remote — entry point
- *
- * Usage:
- *   bun run dev          # auto-loads .env from cwd
- *
- * LOTUS_MODE=client (default): delegates all API calls to a running Lotus desktop app.
- * LOTUS_MODE=standalone: starts an embedded Standalone Host before connecting the adapter.
- */
 import { loadEnv } from "./core/load-env.js";
 loadEnv(); // must run before any module reads process.env
 
@@ -27,13 +18,7 @@ import type { StructuredFleetRef } from "./server/structured-fleet-ref.js";
 const logger = createLogger();
 
 async function main(): Promise<void> {
-  // **Before anything that reads configuration.** `claude` spawns this same executable as the
-  // approval MCP server (`--mcp-config`), and that child has no API key, no host and no
-  // business starting one — it speaks JSON-RPC on stdio and dials a unix socket. Placed first
-  // because the old shape died exactly here: the compiled binary ignored the script it was
-  // handed, fell through to `loadConfig()`, and exited with "Lotus API key not found" — so the
-  // tool never registered and every approval was refused rather than asked (issue 26 of
-  // `plans/pocket-without-laptop`).
+  // Start approval MCP before config loading because its stdio subprocess has no host API key (issue 26, plans/pocket-without-laptop).
   if (process.argv.includes(APPROVAL_SERVER_FLAG)) {
     const { runApprovalServer } = await import(
       "./adapters/mobile/structured/bridges/claude/approval-server.js"
@@ -121,28 +106,13 @@ async function startClient(): Promise<void> {
   await adapter.start();
 }
 
-/**
- * Resolves an adapter by name.
- *
- * The Telegram adapter was removed on 2026-08-02 (ADR-2), and the mobile façade
- * that replaces it lands next (ADR-10). Until then there is deliberately **no**
- * adapter rather than a stub that pretends to be one — the failure is loud and
- * says exactly what is missing.
- *
- * `LOTUS_MODE=standalone` still starts the Standalone Host, so the PTY/agent
- * runtime remains usable and testable without any adapter attached.
- */
+/** Standalone runtime can start without an adapter (ADR-2, ADR-10). */
 async function resolveAdapter(
   name: string,
   client: ApiClient,
   config: AppConfig,
   capabilities: { hooks?: boolean; projectsCreate?: boolean; projectsBrowse?: boolean } = {},
-  /**
-   * Where the standalone server reads this adapter's headless cells from.
-   *
-   * Bound here rather than at the call site because that one holds a `RemoteAdapter`, and
-   * only this function still sees the concrete `MobileAdapter` that owns them.
-   */
+  /** Bind here while the concrete adapter that owns the cells is still available. */
   structuredFleet?: StructuredFleetRef,
 ): Promise<RemoteAdapter> {
   if (name !== "mobile") {
@@ -186,15 +156,7 @@ async function resolveAdapter(
   return adapter;
 }
 
-/**
- * Fase 0 measurement only (plans/session-history-hardening) — counts polls, bytes,
- * truncation and read failures per pane so retention limits get set from real numbers
- * instead of another guess (ADR-3).
- *
- * `LOTUS_DIAGNOSTICS=0` is the same switch the desktop layer reads. One measurement
- * spans three processes, so one name turns all of it off — an operator should not have
- * to learn a second variable to silence the same run.
- */
+/** Share LOTUS_DIAGNOSTICS with the desktop so one switch controls all probes (ADR-3, plans/session-history-hardening). */
 async function buildSessionHistoryDiagnostics() {
   if (process.env["LOTUS_DIAGNOSTICS"] === "0") return undefined;
   const { SessionHistoryDiagnostics } = await import(
@@ -205,21 +167,7 @@ async function buildSessionHistoryDiagnostics() {
   });
 }
 
-/**
- * The thing that can ring a phone, if this host is configured to (ADR-4).
- *
- * A *sender*, not a whole service: the device store lives inside `MobileAdapter`, so
- * the adapter is the only place that can pair the two without one of them being handed
- * in half-built. This function owns exactly what belongs at the process boundary —
- * reading a key path from config, and turning `fetch` into the two narrow seams the
- * push modules take.
- *
- * Undefined is a normal outcome, not a failure: a host with no Firebase service
- * account cannot push, and `hostCaps` reports that instead of leaving the app to
- * register a token nothing will ever use. A *malformed* account file is different and
- * throws from `FcmCredentials.load` — that is a misconfiguration the operator intended
- * to work, and failing quietly there is how a silent channel is born.
- */
+/** Only advertise push when credentials are configured, and surface malformed credentials as a configuration error (ADR-4). */
 async function buildPushSender(config: AppConfig) {
   const { FcmCredentials, resolveServiceAccountPath } = await import(
     "./adapters/mobile/push/fcm-credentials.js"
@@ -257,13 +205,7 @@ function stateDir(): string {
   return resolveStateDir(process.env, homedir());
 }
 
-/**
- * Admin channel config, or undefined when this host was not spawned by Lotus.
- *
- * Undefined is the correct answer for a hand-run host: no secret means no way to
- * authenticate the channel, and an unauthenticated one would be reachable by
- * every local process.
- */
+/** Require a secret so other local processes cannot use an unauthenticated admin channel. */
 function adminConfig(): { secret: string; advertPath: string } | undefined {
   const secret = process.env["LOTUS_MOBILE_ADMIN_SECRET"]?.trim();
   if (secret === undefined || secret.length === 0) return undefined;

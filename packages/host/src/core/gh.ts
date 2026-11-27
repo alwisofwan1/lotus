@@ -1,11 +1,6 @@
 import { execFile } from "node:child_process";
 
-/**
- * One line about whether `gh` on this machine is authenticated.
- *
- * Read only when a clone has already failed: a phone cannot tell a typo from a private repo
- * from an unauthenticated CLI, and this is the one fact the host can add without guessing.
- */
+/** Check authentication after a clone fails so the error can distinguish missing login from repository access problems. */
 export function ghAuthStatus(): Promise<string> {
   return new Promise((resolve) => {
     execFile("gh", ["auth", "status"], { encoding: "utf8" }, (err, stdout, stderr) => {

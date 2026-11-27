@@ -193,13 +193,7 @@ export class ApiClient {
     );
   }
 
-  /**
-   * Output from an absolute byte offset — the only form that can resume.
-   *
-   * `readCellOutput` answers "the last N bytes", which cannot express "what I missed
-   * while the phone was away". The response says where the text actually starts, so a
-   * ring buffer that moved on is visible rather than silently skipped.
-   */
+  /** Absolute byte offsets allow a client to resume and detect when retained output has advanced. */
   readScrollback(req: ScrollbackRequest): Promise<ScrollbackResponse> {
     return this.request<ScrollbackResponse>("POST", "/api/fleet/scrollback", req);
   }

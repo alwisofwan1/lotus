@@ -12,25 +12,11 @@ interface ExtraFile {
 
 const log = createLogger();
 
-/**
- * Projects that live outside `PROJECTS_ROOT`, kept in a small file this host may write.
- *
- * The third registry mode (ADR-D in `plans/pocket-vps-project-checkout`). `PROJECTS_JSON` is
- * **not** reused for it: that one is a snapshot the operator owns through env, and writing to
- * it from a phone would overwrite a hand-managed file. The alternative considered and rejected
- * was a symlink into the workspace root — zero registry code, because `scanProjects` follows
- * symlinks, but removing a project would then look like removing the repository, and an agent's
- * `cwd` would be the link rather than the real path.
- */
+/** Keep writable projects separate from operator-managed PROJECTS_JSON (ADR-D, plans/pocket-vps-project-checkout). */
 export class ExtraProjects {
   constructor(private readonly file: string) {}
 
-  /**
-   * The entries whose directory is there right now.
-   *
-   * A path that has gone is skipped rather than removed: a mounted disk can come back, and a
-   * host that forgot a project because a volume was late is a host that loses work quietly.
-   */
+  /** Skip missing directories without forgetting them because mounts can return. */
   list(): HostedProject[] {
     return this.read().filter((project) => isDirectory(project.path));
   }

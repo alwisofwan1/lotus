@@ -23,12 +23,7 @@ export interface NotificationStream {
   close(): void;
 }
 
-/**
- * Decodes a single SSE line. The server JSON-encodes every payload (because
- * axum's `Event::data()` panics on raw `\r`/`\n`), so we `JSON.parse` to
- * recover the original string with newlines intact. Returns `null` for
- * non-data lines (`event:`, `id:`, comments, blank separators).
- */
+/** Parse JSON-encoded SSE data to recover newlines, which axum rejects in raw event data. */
 export function decodeSseLine(line: string): string | null {
   if (!line.startsWith("data: ")) return null;
   const raw = line.slice(6);
