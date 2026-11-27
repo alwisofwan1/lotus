@@ -6,14 +6,7 @@ import '../models/host_id.dart';
 import '../models/pairing.dart';
 import 'push_repository.dart';
 
-/// Everything the diagnostics screen shows, assembled where the policy already lives.
-///
-/// It exists as a `data/` type rather than as four collaborators handed to a widget
-/// because the screen's whole job is to **join** things that are deliberately kept
-/// apart: the registry knows reachability, `Credentials` knows the two clocks on a
-/// token, and `PushRepository` knows whether this phone can be rung. A widget reaching
-/// for all three would be the first place in the app where a screen decided what a
-/// credential means (ADR-13 no. 1).
+/// Join registry, credential, and push policy in the data layer (ADR-13 no. 1).
 class Diagnostics {
   const Diagnostics({required this.hosts, required this.unreadableEntries});
 
@@ -93,21 +86,10 @@ class HostDiagnosis {
 
   final bool connected;
 
-  /// `connected`, or [HostFailure.code] — the stable slug, deliberately.
-  ///
-  /// That field documents itself as "for logs and diagnostics, not user-facing copy",
-  /// and this is the diagnostics surface: the slug is the thing an operator can put in
-  /// a search or a bug report. The operator-facing *prose* for these four states is
-  /// owned by `issues/06` and belongs on Home, where someone who is not debugging will
-  /// meet it.
+  /// Keep stable diagnostic slugs separate from operator-facing copy (`issues/06`).
   final String reach;
 
-  /// What the host advertised in its most recent `hello`, verbatim and unsorted.
-  ///
-  /// Unfiltered on purpose. The app's rule is to hide what a host does not advertise,
-  /// which makes an absent feature invisible everywhere else by design — so this is
-  /// the one screen where "there is no Chat because this host never offered
-  /// `transcript`" can actually be read instead of guessed at.
+  /// Show unfiltered capabilities so absent features can be diagnosed.
   final List<String> features;
 
   /// Null when a host is registered with no credential behind it — a state that should
@@ -187,13 +169,7 @@ class CredentialRunway {
       );
 }
 
-/// Whether a wake-up can reach this phone from this host, and which half is missing.
-///
-/// Three states rather than a bool, because the two failures need opposite actions:
-/// one is fixed on the machine (drop a service account into the state dir), the other
-/// on the phone (grant notifications). ADR-4's worst failure mode is push being off
-/// *silently* — a quiet fleet and a broken doorbell look identical — so naming which
-/// half is missing is the point of the field.
+/// Distinguish host and phone push failures because their remedies differ (ADR-4).
 enum PushState {
   /// The host does not advertise `push`: no Firebase service account there, so it
   /// could not ring this phone even holding a token.
@@ -203,11 +179,6 @@ enum PushState {
   /// messaging plugin, or notifications declined.
   phoneHasNoToken,
 
-  /// Both halves are in place: this phone has a token and this host was told it.
-  ///
-  /// Named for what was *sent*, not for what was confirmed. `PushRepository` swallows a
-  /// failed registration on purpose (push is the second channel and must never break
-  /// the first), so it does not record per-host acknowledgement — and claiming
-  /// "registered" here would assert something nothing measured.
+  /// Report what was sent, not unverified registration success.
   tokenSent,
 }

@@ -8,13 +8,7 @@ import 'transport.dart';
 /// Suspends for [d]. Injected so backoff can be asserted instead of waited out.
 typedef Sleeper = Future<void> Function(Duration d);
 
-/// One WebSocket to one host — the only place in the app that owns socket
-/// lifecycle (ADR-13 no. 5).
-///
-/// Reconnecting is our job: a `WebSocket` does not do it by itself, unlike
-/// `EventSource`. And because the only replay source is the 64 KB PTY ring buffer,
-/// recovery means asking `resume { paneId, fromByte }` for the pane being watched —
-/// not replaying everything, and not silently accepting a hole.
+/// The socket owns reconnection and resumes the watched PTY from its byte offset (ADR-13 no. 5).
 class HostSocket {
   HostSocket({
     required this.host,
@@ -55,13 +49,7 @@ class HostSocket {
   /// person expects — an uncapped doubling would drift into hours.
   static const Duration maxBackoff = Duration(seconds: 15);
 
-  /// How many times a REFUSED upgrade is retried before the loop gives up.
-  ///
-  /// Not one, and not unlimited. Dart drops the status code from a failed handshake, so a
-  /// dead credential and a host restarting behind a 502 look identical here — three attempts
-  /// ride out the restart, and stopping after them keeps a rejected token from spinning
-  /// behind a progress indicator for ever. The comment on [_tokenReader] named this hazard
-  /// long before anything handled it.
+  /// Bound retries because rejected credentials and temporary upgrade failures are indistinguishable.
   static const int maxRejectedAttempts = 3;
 
   final StreamController<ServerEvent> _events = StreamController<ServerEvent>.broadcast();
@@ -169,16 +157,7 @@ class HostSocket {
         queryParameters: {'token': _tokenReader()},
       );
 
-  /// The socket scheme for the address this host was paired at.
-  ///
-  /// **Not a formality.** A paired host's `baseUri` is the address the operator typed
-  /// into onboarding, so it is `http` or `https` — and `WebSocketChannel.connect`
-  /// refuses those outright: *"only ws: and wss: schemes are supported"*. Handing the
-  /// base URI straight to the transport meant the socket could never open in
-  /// production, while every test and `tool/smoke.dart` passed because each of them
-  /// constructed a `ws://` base by hand. Measured against a live host on 2026-08-06:
-  /// HTTP paired, `mobile-devices.json` gained the device, and no TCP connection to
-  /// the stream port ever existed.
+  /// Translate the paired HTTP scheme to WebSocket because the transport requires ws or wss.
   String get _socketScheme => switch (baseUri.scheme) {
         'https' || 'wss' => 'wss',
         _ => 'ws',

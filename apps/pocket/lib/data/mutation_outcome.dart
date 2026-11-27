@@ -1,13 +1,6 @@
 import '../hosts/host_failure.dart';
 
-/// What a mutation did — the whole vocabulary a screen needs, and the reason a widget
-/// never has to know a status code.
-///
-/// This type is the boundary between business logic and presentation. Every value here
-/// is a **different next move for the operator**, which is the test for whether a case
-/// deserves to exist: "it failed" is not one of them. `sealed`, so adding a case makes
-/// every screen that renders outcomes refuse to compile until it says what it shows —
-/// the same guarantee `HostFailure` and `ServerEvent` buy.
+/// Distinct outcomes represent different operator actions and require exhaustive handling.
 sealed class MutationOutcome {
   const MutationOutcome();
 
@@ -84,18 +77,7 @@ class MutationUnreachable extends MutationOutcome {
   String get code => 'unreachable';
 }
 
-/// The cell named a host this app is not paired with.
-///
-/// Kept separate rather than dressed as one of the above: it means app state, not the
-/// network, is inconsistent, and an unclassified failure must look unclassified.
-/// The host answered 503: Lotus is up, but cannot do this *right now*.
-///
-/// Measured 2026-08-27 on a real phone: a spawn while the desktop window was still on
-/// its start page came back `503 no active Lotus workspace UI`, and this app printed
-/// it as *"The host refused it: HTTP 503: …"* — a sentence that reads as a fault when
-/// the machine was simply not ready, and that names nothing the operator can do. The
-/// desktop's spawn handler (`api_server/handlers/fleet.rs`) can only start an agent
-/// while a board is open, so the fix is on that screen, and the notice must say so.
+/// Keep unpaired-host state distinct from network failure; 503 can indicate a workspace is not ready.
 class MutationHostNotReady extends MutationOutcome {
   const MutationHostNotReady(this.reason);
 

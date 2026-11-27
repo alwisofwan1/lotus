@@ -2,19 +2,7 @@ import '../models/conversation.dart';
 import '../models/transcript.dart';
 import 'conversation_builder.dart';
 
-/// What the last turn left behind, read off the transcript the phone already holds.
-///
-/// Job story #3 (`PLAN.md` §2.2): *when the agent finishes I want to read what it did
-/// and which files it touched, so I can decide to continue or redo*. Until now Pocket
-/// could say an agent had **stopped** and nothing about the result — the operator had to
-/// scroll the steps and add the diff stats up by eye.
-///
-/// **Everything here is derived, nothing is fetched.** The hook pipeline already sends
-/// one `tool-post` per edit with `linesAdded`/`linesRemoved` and the target path, and a
-/// `stop` with the agent's closing words. Summing the one and quoting the other is a
-/// pure function of entries that are on the phone anyway. What it cannot give is the
-/// full closing text (`stop.body` is cut to one line by the host, `bodyTruncated`) or a
-/// diff — both need a route, and both are stated as such on screen rather than faked.
+/// Derive the last turn from held entries without claiming truncated text or a diff (PLAN.md §2.2).
 class AgentOutcome {
   const AgentOutcome({
     required this.closing,
@@ -47,16 +35,7 @@ class AgentOutcome {
       ? '+$added −$removed · ${files.length} ${files.length == 1 ? 'file' : 'files'}'
       : null;
 
-  /// The outcome of the **last** turn, or null while the agent is mid-turn.
-  ///
-  /// Only the final entry decides: a `stop` that is not last means the agent has since
-  /// been given more to do, and summarising the older turn under a running one would
-  /// describe work that is being changed as it is read.
-  /// The last turn's account, or null while that turn is still open.
-  ///
-  /// Read from turns (Fase 3): the boundary this used to walk back to by hand —
-  /// `prompt-submit` or the previous `stop` — is the turn's own start, and the edits are
-  /// the `tool_call` parts that carried a diff. Absent counts stay absent.
+  /// Only a completed last turn is a stable outcome; preserve absent counts.
   static AgentOutcome? of(List<TranscriptEntry> entries) =>
       ofTurns(turnsFromEntries(entries, Provenance.hook));
 

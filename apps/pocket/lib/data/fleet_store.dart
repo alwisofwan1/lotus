@@ -63,22 +63,7 @@ class FleetStore extends ChangeNotifier {
     return null;
   }
 
-  /// When this host last said anything, or null if it never has.
-  ///
-  /// **Added 2026-08-09 to turn a bool into a fact.** [isStale] can say *this machine
-  /// stopped answering*; until now nothing could say *when*, so Home's unreachable
-  /// notice had to be written without an age — and inventing one on the single line
-  /// whose job is to say **do not trust what is below me** would have been the exact
-  /// lie it exists to prevent.
-  ///
-  /// Stamped in [adopt], which is the honest place: that is the one method both live
-  /// paths funnel through — `fleet.changed` over the socket and `GET /m/bootstrap` on
-  /// a cold start or a manual refresh — so this is *heard from*, not *dialled* or
-  /// *believed reachable*.
-  ///
-  /// Deliberately **not** cleared by [markUnreachable]. A host going quiet is the
-  /// moment this becomes interesting; wiping it then would answer "when did we last
-  /// hear from it" with silence exactly when it is asked.
+  /// Keep the last-heard timestamp when unreachable so stale data has an age.
   DateTime? lastHeardFrom(HostId host) => _heard[host];
 
   /// How long this host has been silent, or null when it has never spoken.
@@ -98,41 +83,18 @@ class FleetStore extends ChangeNotifier {
   List<Cell> inProject(ProjectRef project) =>
       _ordered.where((c) => c.project == project).toList(growable: false);
 
-  /// Waiting agents that the current project's list cannot show.
-  ///
-  /// This is what the `elsewhere` row renders, and it exists because the earlier
-  /// per-host design let a waiting agent hide behind a switcher — the one thing the
-  /// design says must never happen.
-  ///
-  /// Compared by [ProjectRef] for that same reason, and it is not a nicety: while
-  /// viewing `CNVS · vps`, comparing on the name alone would exclude a waiting cell in
-  /// `CNVS · mac` from this list *and* from the on-screen one, which is the exact
-  /// disappearance this row exists to prevent.
+  /// Compare full project identities so same-named projects on different hosts do not hide waiting cells.
   List<Cell> waitingOutside(ProjectRef project) => _ordered
       .where((c) => c.project != project && c.needsInput)
       .toList(growable: false);
 
-  /// Every project that currently has a cell, in list order.
-  ///
-  /// The switcher's per-project counts are **not** a second accessor here: it draws
-  /// a row per project through [inProject], and that one list already carries the
-  /// waiting count, the total, and the project's label. A dedicated counter would
-  /// have answered a third of the question and been read alongside this one anyway.
+  /// Reuse per-project lists for counts and labels.
   List<ProjectRef> get runningProjects {
     final seen = <ProjectRef>{};
     return _ordered.map((c) => c.project).where(seen.add).toList(growable: false);
   }
 
-  /// Every project the phone can select — **running first, then dormant** (ADR-14).
-  ///
-  /// Running projects keep fleet order, so the first entry still holds the most
-  /// urgent cell in the whole fleet and Home's fallback still lands where the
-  /// operator is needed. Dormant ones follow, most recently opened first, because
-  /// the only ordering fact a closed project has is when it was last touched.
-  ///
-  /// This used to be derived from cells alone, and that is precisely the bug: a
-  /// project vanished from the phone the moment its last agent ended, leaving the
-  /// desktop as the only way back to it.
+  /// Keep running projects first and dormant projects selectable (ADR-14).
   List<ProjectRef> get projects {
     final running = runningProjects;
     final seen = running.toSet();
@@ -183,18 +145,7 @@ class FleetStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// A host is no longer paired — drop everything it ever said.
-  ///
-  /// The opposite of [markUnreachable], and the distinction is the whole reason
-  /// both exist. A machine that is asleep keeps its cells: they are still true,
-  /// and a fleet that empties itself reads as "all my work is gone" (R-9). A
-  /// machine that has been unpaired has no such claim — the phone cannot reach
-  /// it, cannot refresh it, and cannot open anything on it, so every row it left
-  /// behind is a row that goes nowhere.
-  ///
-  /// Without this the entries simply stayed: `_byHost` and `_projectsByHost` had
-  /// no removal path at all, so an unpaired machine's projects sat in the
-  /// switcher until the process was killed.
+  /// Remove unpaired hosts while retaining unreachable hosts as stale (R-9).
   void forget(HostId host) {
     final hadCells = _byHost.remove(host) != null;
     final hadProjects = _projectsByHost.remove(host) != null;
@@ -215,14 +166,7 @@ class FleetStore extends ChangeNotifier {
     if (_stale.add(host)) notifyListeners();
   }
 
-  /// Takes one host's full cell list, from wherever it came.
-  ///
-  /// Both paths lead here on purpose: `fleet.changed` over the socket, and the cold
-  /// start's `GET /m/bootstrap` (ADR-12 no. 3). They carry the same thing — this
-  /// host's cells, entire — so merging and ordering must not be written twice. The
-  /// list is a **replacement**, never a merge into the previous one: a cell that
-  /// disappeared from the host's list is gone, and an append would keep a ghost on
-  /// screen that the operator can still tap.
+  /// Replace each host snapshot so removed cells do not remain as ghosts (ADR-12 no. 3).
   void adopt(HostId host, List<Cell> cells) {
     _byHost[host] = cells;
     _stale.remove(host); // It just spoke, so it is reachable by definition.
@@ -239,26 +183,12 @@ class FleetStore extends ChangeNotifier {
     adopt(host, event.cells);
   }
 
-  /// Waiting first, then error, then everything quiet — the only two states allowed
-  /// to shout (MVP.md).
-  ///
-  /// Within a group the order is by host then pane id, which is **stable by
-  /// construction**. That is the requirement, not a preference: a list that reorders
-  /// itself between three-second snapshots moves the pager's targets while the
-  /// operator's thumb is already moving.
+  /// Keep ordering stable within priority groups so targets do not move between updates (MVP.md).
   List<Cell> _merge() {
     final seen = <CellRef>{};
     final all = _byHost.entries
         .expand((entry) => entry.value)
-        // One pane, one row. A host builds its list from several surfaces — the boards on
-        // screen, the panes still running behind boards that are not, the swarm — and
-        // nothing downstream of that join guarantees a pane appears in exactly one of
-        // them. A duplicate is not cosmetic here: two rows for one agent make the pager
-        // count wrong and give the operator two targets that are the same process.
-        //
-        // **First wins, and that is a decision.** The host emits its live surfaces before
-        // its remembered ones, so the earlier entry is the one carrying this second's
-        // status rather than whatever was true when a board was last on screen.
+        // Keep the first pane occurrence because live surfaces precede remembered ones.
         .where((cell) => seen.add(cell.ref))
         .toList(growable: false)
       ..sort((a, b) {

@@ -5,17 +5,7 @@ import '../core/secure_store.dart';
 import '../models/cell.dart';
 import '../models/host_id.dart';
 
-/// Which agents the operator has opened since they last finished — so Home can mark
-/// the ones that came back with something while nobody was looking.
-///
-/// **What "finished" means here is the fleet's word, not ours.** `turn == idle` with a
-/// `turnAgeMs` says the agent stopped, and when; an agent is *unread* when that moment
-/// is later than the last time this phone opened it. A runner that never reports a turn
-/// (Codex, a Claude whose hooks do not reach it) can never be unread — the phone does
-/// not know it finished, and guessing would light rows up at random.
-///
-/// Persisted in the same store as everything else this app remembers, keyed per cell,
-/// so a mark survives a relaunch: the whole point is the operator who put the phone down.
+/// Only mark reported completed turns unread; persist marks per cell across launches.
 class SeenMarks extends ChangeNotifier {
   SeenMarks(this.store, {this.now = systemClock});
 

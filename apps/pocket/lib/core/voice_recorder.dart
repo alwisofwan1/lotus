@@ -13,18 +13,7 @@ class RecordedClip {
   final String mime;
 }
 
-/// The microphone, narrowed to what dictation asks of it.
-///
-/// A seam like [Biometrics], [SecureStore] and [QrScanner], for the same reason
-/// (ADR-13 no. 4) — and the same rule applies: `features/` may not import `core/`, so
-/// what reaches a screen is the `data/` controller built on top of this, never this.
-///
-/// **Levels are normalised here, not at the call site.** The platform reports dBFS,
-/// which is a logarithmic scale running to negative infinity in silence; a bar drawn
-/// straight from it would sit pinned at one end and move in the wrong places. Doing the
-/// mapping behind the seam also means a recorder that cannot measure amplitude at all
-/// can answer honestly — an empty [level] stream — instead of every screen inventing a
-/// fallback of its own.
+/// Normalize dBFS here for consistent levels and honest unavailable readings (ADR-13 no. 4).
 abstract class VoiceRecorder {
   /// Whether recording could start right now: the hardware exists and the operator has
   /// granted the permission. Asking is allowed to prompt.
@@ -42,12 +31,7 @@ abstract class VoiceRecorder {
   /// and a temp file outliving that decision is a small betrayal of it.
   Future<void> cancel();
 
-  /// Loudness while recording, `0.0`–`1.0`.
-  ///
-  /// Empty when this recorder cannot measure it. That is a real answer, and the UI is
-  /// expected to render motion that depends on nothing rather than a waveform that
-  /// animates on a timer — a bar moving to a clock rather than to a voice tells the
-  /// operator their microphone is working at exactly the moment it might not be.
+  /// An empty stream means no measurement; simulated movement would mislead the operator.
   Stream<double> get level;
 
   /// Releases the platform recorder. Called when the app shuts down.

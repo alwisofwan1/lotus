@@ -8,12 +8,7 @@ import 'transport.dart';
 /// Split out of `host_api.dart` so that file stays about the routes. Everything here is
 /// about one question — what did the host actually say — and none of it needs a client.
 
-/// `POST /m/pair` refusals, which are the only ones with no bearer behind them.
-///
-/// 429 is a case of its own because the operator's move differs: the code in their hand
-/// may be fine, and the host is either throttling this source or locked out after five
-/// failures (`packages/host/src/adapters/mobile/pair-route.ts`). The host's own sentence
-/// is carried through — it is the only side that knows which of the two it is.
+/// Keep rate limits distinct from invalid codes and retain the host message (`packages/host/src/adapters/mobile/pair-route.ts`).
 ApiFailure? pairingFailure(HttpReply reply) => switch (reply.status) {
       401 => const PairingRejected(),
       429 => TooManyPairingAttempts(reasonIn(reply)),

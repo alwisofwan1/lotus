@@ -15,19 +15,7 @@ import 'pairing_address.dart';
 import 'pairing_outcome.dart';
 import 'readdress_outcome.dart';
 
-/// Redeeming an 8-digit code for a device token, and everything that must follow it
-/// (ADR-5).
-///
-/// Policy lives here rather than on the screen for the same reason
-/// [AgentRepository]'s gate does: there is exactly one way into the app, and a widget
-/// must not be able to store a credential without also registering the host, or
-/// register a host without storing the credential. Half of either leaves an app that
-/// believes it is paired and cannot connect.
-///
-/// **No biometric gate, deliberately.** ADR-8 gates *mutations*, which presuppose a
-/// credential; there is none yet here. What stands in its place is the host's own
-/// pairing code: single-use, five minutes, and five failed attempts drop every
-/// pending code (`packages/host/src/adapters/mobile/pairing.ts`).
+/// Pairing stores and registers together; the single-use code protects this pre-credential action (ADR-5, ADR-8).
 class PairingRepository {
   const PairingRepository({
     required this.credentials,
@@ -59,12 +47,7 @@ class PairingRepository {
   /// Where a pairing's hardware-bound refresh key is made and dropped (`refresh_keys.dart`).
   final RefreshKeys keys;
 
-  /// Redeems [code] against [address] and, on success, joins the host to the running
-  /// app: credential stored, host registered, socket dialling.
-  ///
-  /// The order is not arbitrary. Storage happens **before** the registry, because a
-  /// host that is registered but whose token was never written would work until the
-  /// next cold start and then be silently gone.
+  /// Store the credential before registering the host so pairing survives restart.
   Future<PairingOutcome> pair({
     required String address,
     required String code,
@@ -131,12 +114,7 @@ class PairingRepository {
     return List.generate(8, (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0')).join();
   }
 
-  /// What this phone calls a machine, or null to fall back to its hostname.
-  ///
-  /// Routed through here rather than letting a screen hold [Credentials] directly, for
-  /// the reason this class exists at all: `features/` reads `data/`, and the store is
-  /// not something a widget gets to reach into (ADR-13 no. 1). Nothing is sent to the
-  /// machine — the name is the phone's own word for it (`issues/11`).
+  /// Nicknames stay local and are exposed through the data layer (ADR-13 no. 1, `issues/11`).
   Future<void> rename(HostId host, String? nickname) =>
       credentials.rename(host, nickname);
 
@@ -144,25 +122,7 @@ class PairingRepository {
   /// machine's name is drawn at all (`hostQualifier`).
   int get pairedCount => credentials.devices.length;
 
-  /// Points an existing pairing at a new address, keeping its token.
-  ///
-  /// The address is the one field on a credential that goes stale on its own. The host
-  /// binds a literal IP — `host_runtime::interfaces` refuses a hostname outright — and
-  /// `PairedHost.withHello` deliberately keeps [PairedHost.baseUri] across every
-  /// reconnection, so until this existed a DHCP lease moving meant unpairing, walking
-  /// to the machine, minting a code, and typing an address again. Nothing had been
-  /// revoked; the phone simply no longer knew where to look.
-  ///
-  /// **Gated, unlike [unpair], and the asymmetry is deliberate.** ADR-8 gates what
-  /// reaches a machine, and this reaches one: it decides where the bearer gets sent
-  /// next, so somebody holding an unlocked phone could otherwise point a live token at
-  /// a server of their own and collect it. Refusing costs nothing — the old address
-  /// stands and every host keeps working — whereas gating [unpair] could strand a
-  /// phone holding a dead credential it is not allowed to drop.
-  ///
-  /// The order mirrors [pair] for the same reason: stored before registered, because a
-  /// host dialling an address that was never written would work until the next cold
-  /// start and then quietly revert.
+  /// Gate address changes because they redirect the bearer; persist before reconnecting (ADR-8).
   Future<ReaddressOutcome> readdress({
     required HostId host,
     required String address,
@@ -199,25 +159,7 @@ class PairingRepository {
     return const ReaddressDone();
   }
 
-  /// Hands a credential back and forgets it — [pair] run backwards, and the only way
-  /// out of a pairing from the phone.
-  ///
-  /// Three deliberate properties, in the order they bite:
-  ///
-  /// - **The host is told first, and best-effort.** `DELETE /m/devices/:deviceId` kills
-  ///   the token there and then; without it the host keeps a live credential and a push
-  ///   destination for a phone that has walked away, until the 72-hour TTL runs out.
-  /// - **An unreachable host does not block it.** The commonest reason to unpair is a
-  ///   machine that is gone, and an unpair that only works while the host answers would
-  ///   be no way out at all. What is lost is the early revoke, not the unpairing.
-  /// - **The registry goes before the credential.** The reverse of [pair], because the
-  ///   failure it avoids is the reverse too: a socket left holding a token that no
-  ///   longer exists would reconnect into 401s.
-  ///
-  /// Local, not a mutation against the fleet, so **no biometric gate** (ADR-8 gates
-  /// what reaches a machine). Gating it would also be backwards in practice: the state
-  /// that most needs clearing is a dead credential, and putting it behind a prompt that
-  /// can fail is how a phone gets stuck listing a host it cannot use or remove.
+  /// Revoke best-effort, then remove the socket before the credential; unpairing must remain possible without a gate (ADR-8).
   Future<void> unpair(HostId host) async {
     final device = credentials.deviceFor(host);
     final api = registry.apiFor(host);
@@ -236,13 +178,7 @@ class PairingRepository {
     await credentials.forget(host);
     final alias = device?.refreshKeyAlias;
     if (alias != null) await keys.delete(alias);
-    // Everything the machine left behind goes with it. Its cells and projects are
-    // not merely stale now — they are unreachable, and an index row that cannot be
-    // opened is worse than one that is missing.
-    //
-    // `LastProject` used to be cleared here too. It was retired on 2026-08-11 with the
-    // screen that read it: the app opens on the project index, so which project was open
-    // last is no longer a fact the app keeps — and a store nothing reads cannot go stale.
+    // Remove unreachable host data when unpairing.
     fleet.forget(host);
     await snippets.forgetHost(host);
   }

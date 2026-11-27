@@ -5,21 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../core/secure_store.dart';
 import '../models/host_id.dart';
 
-/// What the operator had started saying to each agent, kept until they send it.
-///
-/// **Drafts became expensive the day the return key started writing lines.** Before that
-/// the composer held at most a wrapped sentence; now it holds a paragraph somebody stood
-/// somewhere and typed, and the two ways to lose one are both ordinary: backing out to
-/// pick a different agent, and Android killing a backgrounded app. This closes both,
-/// which is why it is stored rather than only remembered.
-///
-/// Keyed per cell, modelled on `SeenMarks` down to the prefix and the hydrate-once shape.
-/// A draft belongs to the agent it was aimed at — restoring one into the wrong composer
-/// would be worse than losing it, because it would be *sent*.
-///
-/// **The held paste is deliberately not kept.** That block is whatever was on the
-/// operator's clipboard, and a log they pasted once is not something this app should copy
-/// into the Keystore and hold across relaunches on their behalf.
+/// Persist drafts per cell to avoid misdelivery; never persist pasted clipboard contents.
 class DraftKeeper extends ChangeNotifier {
   DraftKeeper(
     this.store, {
@@ -32,12 +18,7 @@ class DraftKeeper extends ChangeNotifier {
   /// Injected, kept visible (ADR-13 no. 4).
   final SecureStore store;
 
-  /// How long the field has to be still before what it says reaches storage.
-  ///
-  /// **Memory is updated on the keystroke; storage is not.** Every change would otherwise
-  /// be a Keystore write per character typed — a platform call per letter, on the one
-  /// control this whole app exists to offer. Four hundred milliseconds is past the gap
-  /// between two keystrokes and far short of the gap between a thought and the next one.
+  /// Debounce storage writes while updating memory immediately.
   final Duration settle;
 
   /// Injected so a test can hold the moment between the keystroke and the write.
@@ -69,12 +50,7 @@ class DraftKeeper extends ChangeNotifier {
   /// What was left unsent for this agent, or null if nothing was.
   String? draftFor(CellRef ref) => _drafts[ref];
 
-  /// Remembers what is in the composer for this agent.
-  ///
-  /// Blank is a [clear], not a stored empty string. The composer reports every change,
-  /// so emptying the field arrives here as `''` — writing that would leave one key behind
-  /// per agent the operator has ever typed into, and a restore would then put an empty
-  /// draft over whatever else is there.
+  /// Clear blank drafts rather than retaining empty keys.
   Future<void> keep(CellRef ref, String text) async {
     if (text.trim().isEmpty) return clear(ref);
     if (_drafts[ref] == text) return;

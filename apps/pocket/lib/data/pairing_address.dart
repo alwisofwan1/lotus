@@ -1,10 +1,4 @@
-/// Turning what the operator typed into an address the app can dial.
-///
-/// A separate, pure step because it is the one part of pairing that fails **before**
-/// anything leaves the phone, and a typo must read as a typo rather than as a host
-/// that would not answer. `MobileTab.tsx` prints the address as bare `host:port`
-/// (`Listening on 100.64.0.3:8787`), so that is the form the operator copies — and
-/// the form this must accept without ceremony.
+/// Validate typed addresses locally so typos are distinct from unreachable hosts.
 sealed class AddressReading {
   const AddressReading();
 }
@@ -30,12 +24,7 @@ class AddressUnreadable extends AddressReading {
 /// Used when the operator types a host with no port, which is the likeliest omission.
 const int defaultMobilePort = 8787;
 
-/// Reads a typed address.
-///
-/// Deliberately permissive about the shape and strict about the result: `mac:8787`,
-/// `http://mac:8787`, `100.64.0.3` and `mac.tail1234.ts.net` all land somewhere
-/// dialable, while anything without a host is refused here rather than becoming a
-/// request that cannot succeed.
+/// Accept common address forms but reject inputs without a host.
 AddressReading readAddress(String typed) {
   final trimmed = typed.trim();
   if (trimmed.isEmpty) return const AddressUnreadable('Enter the address Lotus shows.');
@@ -63,16 +52,7 @@ AddressReading readAddress(String typed) {
   return AddressReadable(Uri(
     scheme: parsed.scheme,
     host: parsed.host,
-    // Which default applies depends on what the operator said, because the two forms mean
-    // different things:
-    //
-    // - A bare `mac` or `100.64.0.3` is the desktop's own `host:port` line with the port
-    //   left off, so 8787 — the façade's `parseBind` default — is the right guess. 80 here
-    //   would dial a web server that is not there.
-    // - An explicit `https://lotus.example.com` is a URL, and a URL with no port means
-    //   443. A host reached through a tunnel has no port in it at all, so guessing 8787
-    //   would dial a port the tunnel does not serve — and the operator would be looking at
-    //   "could not connect" for an address that is completely correct.
+    // Bare hosts use the service port; explicit URLs use their scheme default.
     port: parsed.hasPort
         ? parsed.port
         : _hasScheme(trimmed)

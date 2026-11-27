@@ -3,13 +3,7 @@ import 'dart:async';
 import '../models/cell.dart';
 import 'fleet_store.dart';
 
-/// Turns the pane id a wake-up names into the [Cell] to open — and waits for it.
-///
-/// Needed because a tap on a notification can *be* the launch: the fleet is still on
-/// its way over the tailnet when the tap arrives, and asking the store once would
-/// answer null for exactly the case the tap exists for. So this listens until the
-/// pane shows up, bounded by [patience] so a pane that was closed meanwhile does not
-/// leave a listener behind forever.
+/// Wait for fleet hydration on cold-start notification taps, with a bounded timeout.
 class WakeResolver {
   WakeResolver(this.fleet, {this.patience = const Duration(seconds: 15)});
 

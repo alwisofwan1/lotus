@@ -19,12 +19,7 @@ export 'agent_view.dart';
 
 part 'agent_repository_reads.dart';
 
-/// Everything the Agent page reads and does, for one cell at a time.
-///
-/// This is where **policy** lives, and the reason it is not in `features/`: every
-/// mutation passes the biometric gate (ADR-8) and a credential freshness check
-/// (ADR-12 no. 2) *inside* this class. A screen cannot forget to ask, because a screen
-/// has no other way to dispatch.
+/// Centralize mutation policy so screens cannot skip proof or credential freshness (ADR-8, ADR-12 no. 2).
 class AgentRepository {
   const AgentRepository({
     required this.registry,
@@ -41,25 +36,13 @@ class AgentRepository {
   /// Where PTY bytes accumulate for the pane Terminal mode is showing.
   final OutputBuffer output;
 
-  /// Points Terminal mode at a pane.
-  ///
-  /// Two steps that must not be separable by a caller: the buffer is told what to keep,
-  /// **and** the socket is told to tail it. Leaving the second to a widget was the
-  /// original shape and it produced a terminal that stayed empty forever — a connection
-  /// with no subscription is told nothing about panes (ADR-10).
+  /// Update buffer ownership and socket subscription together (ADR-10).
   void tail(CellRef ref) {
     output.watch(ref);
     registry.subscribe(ref.host, ref.paneId);
   }
 
-  /// Stops tailing [ref] — leaving Terminal mode, or the page. Detaching matters on a
-  /// phone: otherwise the stream keeps running, and `MVP.md` counts ~13 KB for one
-  /// trivial prompt.
-  ///
-  /// **Takes a `CellRef`, not a `HostId`** (`issues/12`). Naming only the machine was
-  /// enough while one page was ever alive; the pager keeps neighbours mounted, so "stop
-  /// the tail on `mac`" from a page going away would cancel a different page's terminal.
-  /// The cancel is conditional on the buffer agreeing this caller holds it.
+  /// Only detach the matching cell so an adjacent page cannot cancel its terminal (`issues/12`).
   void stopTailing(CellRef ref) {
     if (output.release(ref)) registry.subscribe(ref.host, null);
   }
@@ -137,12 +120,7 @@ class AgentRepository {
   /// Whether this host takes keystrokes — what decides if the terminal offers `⌨`.
   bool canTypeOn(HostId host) => registry.statusOf(host)?.host.canTakeKeys ?? false;
 
-  /// Holds [ref]'s PTY at [cols]×[rows] while Terminal is open (v4 tiket 11). **Not
-  /// gated** — no byte reaches the agent (`host_api_size.dart`).
-  ///
-  /// Null when the host could not be asked: it does not advertise `pty-size`, it is
-  /// offline, or it refused. The caller tries again on its next renewal, which is cheap
-  /// here — a host without the flag is never sent a request at all.
+  /// Size leases do not send agent input and need no gate.
   Future<SizeHold?> holdSize(CellRef ref, {required int cols, required int rows, int? token}) async {
     final api = registry.apiFor(ref.host);
     if (api == null || !(registry.statusOf(ref.host)?.host.canHoldSize ?? false)) return null;

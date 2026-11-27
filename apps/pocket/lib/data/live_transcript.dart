@@ -8,41 +8,7 @@ import '../models/server_event.dart';
 import '../models/transcript.dart';
 import 'measurement_log.dart';
 
-/// Chat's transcript for the cells the Agent pager can reach, kept current.
-///
-/// **This closes a producer-with-no-consumer gap.** The host already broadcasts every
-/// hook event to every connected device as `{type: "notification", …}`
-/// (`stream-hub.ts`), and that frame *is* one transcript entry. Nothing in the app
-/// read it: the only `case NotificationEvent()` in `data/` was `OutputBuffer`
-/// explicitly ignoring it. So Chat was a single REST fetch — it filled on open and
-/// then never moved, which is why leaving the page and coming back was what made new
-/// output appear. The exact mirror image of the `cell.output` bug (`dab5261e`), where
-/// a consumer had no producer.
-///
-/// **Keyed per cell, and that is a correction** (`issues/12`, 2026-08-09). It used to
-/// hold one cell behind a single `watch(ref)` pointer, and `AgentPage` drove that
-/// pointer from its own `initState`/`dispose`. A `PageView` never has just one live
-/// page: during a swipe the incoming page is already built while the outgoing one has
-/// not been disposed yet, so two pages each believed they owned this store and the
-/// winner was whichever lifecycle callback happened to run last — always the outgoing
-/// `dispose`, which pointed the store at nothing. The next agent's transcript was then
-/// dropped on arrival, and because a store pointed at nothing also drops every incoming
-/// frame, nothing ever repaired it short of leaving the screen.
-///
-/// So ownership moved up to [follow], which the **pager** calls — one writer, and the
-/// ordering question stops existing rather than getting a better answer.
-///
-/// The map key doing this work is a [CellRef], which is host **and** pane. That is a
-/// stronger guarantee than the clearing it replaced, not a weaker one: the rule was
-/// *"entries carry no host, so one pane's steps under another agent's name would be
-/// indistinguishable"*, and entries filed under their own cell cannot be rendered under
-/// another's. R-10 is now held by the type instead of by call order.
-///
-/// **Costs nothing extra on the wire.** Unlike PTY output — which only flows after an
-/// explicit `subscribe` — notification frames are broadcast unconditionally. This
-/// class does not ask the host for anything; it stops throwing away what was already
-/// arriving. Keeping a neighbour's frames is therefore free, and it is what makes a
-/// swipe back land on a page that is already current.
+/// Pager-owned per-cell state prevents neighboring pages from canceling each other (`issues/12`, R-10).
 class LiveTranscript extends ChangeNotifier {
   LiveTranscript(
     Stream<HostEvent> events, {
@@ -57,26 +23,10 @@ class LiveTranscript extends ChangeNotifier {
   /// default, so nothing that constructs a `LiveTranscript` today has to change.
   final MeasurementLog measurements;
 
-  /// Per cell.
-  ///
-  /// **Was 60, mirroring the host's hook ring, and that reasoning expired** (Fase 3 of
-  /// `plans/session-history-hardening`). The rule was "never hold more than the host can
-  /// replay", which was right while the host could only replay its 60-entry ring. It now
-  /// serves the runner's own conversation file, which has no such bound — so mirroring 60
-  /// stopped protecting an invariant and started being the thing that truncates history.
-  ///
-  /// 500 matches the host's own per-page ceiling, so one page can always be held whole.
-  /// Still a cap rather than none: this is a phone, and every entry held is rendered.
+  /// Match the host page ceiling while bounding memory (`plans/session-history-hardening`).
   final int maxEntries;
 
-  /// How many cells may be held at once. Five, which is `AgentScreen._reach` of 2 on
-  /// each side of the page in view — the set the pager's viewport can have **laid out**
-  /// at one moment, not the set the operator can swipe to. That distinction was measured,
-  /// and it is recorded where the window is computed.
-  ///
-  /// A ceiling rather than a policy: [follow] is given the window by the pager, and
-  /// this only refuses to be handed more than the design says exists. Its cost is
-  /// bounded by construction — 5 × [maxEntries].
+  /// Bound held cells to the pager viewport.
   final int maxCells;
 
   late final StreamSubscription<HostEvent> _subscription;
@@ -108,16 +58,7 @@ class LiveTranscript extends ChangeNotifier {
   List<TranscriptEntry> entriesFor(CellRef ref) =>
       List.unmodifiable(_entries[ref] ?? const <TranscriptEntry>[]);
 
-  /// Points this at the cells the pager can currently reach.
-  ///
-  /// Called by `AgentScreen` when it opens and on every page change — **never** by a
-  /// page. That is the whole ownership rule: one writer, called from places that are
-  /// not inside a lazy child's build, so it also cannot mark a listener dirty mid-build
-  /// the way the old per-page `watch` did.
-  ///
-  /// A cell that falls out of the window is dropped **entirely**, its seen-keys with
-  /// it. Keeping the keys would leak a set that never shrinks, and re-entering the cell
-  /// later would then silently discard its first replayed entries as duplicates.
+  /// The pager owns the window; drop seen keys with removed cells so replay is not discarded.
   void follow(List<CellRef> window) {
     final wanted = window.length > maxCells
         ? window.sublist(window.length - maxCells)
@@ -139,15 +80,7 @@ class LiveTranscript extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Adds a page of **older** entries in front of what is already held.
-  ///
-  /// Separate from [seed] because the two answer different questions: a seed replaces
-  /// this cell's history with the newest page, while this extends it backwards as the
-  /// operator scrolls. Merging them would mean a scroll-up could silently discard the
-  /// live frames that arrived while the request was in flight.
-  ///
-  /// Refused for a cell outside the window, and de-duplicated against what is held —
-  /// a page boundary that overlaps by one entry must not draw that entry twice.
+  /// Merge older pages without losing concurrent live frames; deduplicate overlaps.
   void prepend(CellRef ref, List<TranscriptEntry> older) {
     final held = _entries[ref];
     if (held == null || older.isEmpty) return;
@@ -167,16 +100,7 @@ class LiveTranscript extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Takes the host's snapshot as this cell's starting point.
-  ///
-  /// Called after the REST read lands. Frames that arrived **while** that request was
-  /// in flight are already here, and they are kept rather than discarded: the seed is
-  /// merged under them by timestamp, so nothing is lost in the gap between the pager
-  /// following this cell and the snapshot returning. That gap is real — a turn can
-  /// produce a dozen events in the time one HTTP round trip takes over a tailnet.
-  ///
-  /// Refused for a cell outside the window: that read belongs to a page the pager has
-  /// already moved past.
+  /// Merge the snapshot with frames received during the request and ignore cells outside the window.
   void seed(CellRef ref, List<TranscriptEntry> snapshot) {
     final held = _entries[ref];
     if (held == null) return;
@@ -259,12 +183,7 @@ class LiveTranscript extends ChangeNotifier {
     }
   }
 
-  /// A composite key rather than "newer than the last snapshot entry".
-  ///
-  /// Timestamps come from `Date.now()` in the hook script, so a burst of tool events
-  /// can share a millisecond. A `>` comparison would then drop a real step and a `>=`
-  /// would duplicate one; this tells them apart by what they actually are. Entries
-  /// carry no id — if the drop payload ever grows one, it replaces this.
+  /// Use a composite key because distinct events can share a timestamp.
   static String _keyOf(TranscriptEntry e) =>
       '${e.timestamp}|${e.event}|${e.title}|${e.toolTarget}|${e.body.length}';
 

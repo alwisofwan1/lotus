@@ -24,12 +24,7 @@ class KeyGone extends KeySignature {
   const KeyGone();
 }
 
-/// The hardware-bound refresh key (PLAN.md §Kredensial, addendum 2026-08-05) — the seam
-/// (ADR-13 no. 4) between the credential policy and Android Keystore.
-///
-/// The private half never leaves the Keystore, and the Keystore will not sign until the
-/// operator proves presence — so a valid signature is a biometric check the **host** can
-/// verify, which the bearer alone never was.
+/// Private keys stay in the Keystore and require presence to sign (PLAN.md §Kredensial, ADR-13 no. 4).
 abstract interface class RefreshKeys {
   /// Makes a key under [alias] and returns its public half as base64 SPKI — or null on a
   /// phone that cannot hold one (no secure lock, no Keystore, not Android). Null is an

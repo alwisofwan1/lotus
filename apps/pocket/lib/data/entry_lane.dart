@@ -3,22 +3,7 @@ import '../models/host_id.dart';
 import '../models/transcript.dart';
 import 'conversation_builder.dart';
 
-/// The conversation as re-derived from hook entries, for hosts that predate the delta lane.
-///
-/// Split out of `LiveConversation` when that file crossed this app's 300-line rule, and the
-/// seam is a real one rather than a convenient one: everything here holds **entries** and
-/// converts them, where what stays behind holds **turns** and applies deltas to them. Two
-/// inputs, and only one of them needs a list of its own.
-///
-/// It cannot be deleted while the app supports hosts that predate `conversation-stream`, and
-/// the app deliberately has **no minimum host version** (`contract/README.md`). So it is not
-/// legacy in the sense of *on its way out*; it is the lane every older machine still uses,
-/// and it gets the same care as the other one.
-///
-/// **Every operation takes the cap rather than owning it.** The bound belongs to
-/// `HistoryWindow`, which is also what paging raises — and this list having its own private
-/// `maxParts` is exactly how a single hook entry came to throw away the page the operator had
-/// just scrolled in.
+/// Support entry-based hosts without a minimum host version; share the history bound (`contract/README.md`).
 class EntryLane {
   final Map<CellRef, List<TranscriptEntry>> _entries = {};
 

@@ -46,31 +46,10 @@ class FleetRepository {
 
   late final StreamSubscription<HostEvent> _hellos;
 
-  /// Hosts with a reconnect-driven refresh already in flight.
-  ///
-  /// A socket that flaps says `hello` on every attach, and without this each one
-  /// would start its own `GET /m/bootstrap` on a host that is evidently having a
-  /// bad time. Deliberately **not** applied to [hydrate]: that one builds a
-  /// report naming which hosts answered, and a silent skip would make it lie.
+  /// Coalesce reconnect refreshes without skipping explicit hydration reports.
   final Set<HostId> _refreshing = {};
 
-  /// Re-reads a host the moment its socket comes back.
-  ///
-  /// **`projects[]` arrives only in `GET /m/bootstrap`.** The live socket carries
-  /// `fleet.changed`, which is cells and nothing else — so a project opened or
-  /// closed on the machine after the phone's cold start stayed invisible until
-  /// the app was killed and reopened. That is what made the switcher's dormant
-  /// group read as frozen: it was, since boot (ADR-14, `issues/09`).
-  ///
-  /// `hello` is the right trigger because it is what a *reconnection* looks like
-  /// from here, and a reconnection is exactly the moment the phone's picture of a
-  /// machine may have gone stale — the socket was down, so no `fleet.changed`
-  /// reached it either.
-  ///
-  /// One consequence, stated rather than hidden: at cold start `connectAll` and
-  /// [hydrate] both run, so the first `hello` lands while the boot fetch may still
-  /// be in flight and that host is read twice. Two parallel GETs once per launch
-  /// is cheaper than the state it would take to tell the two apart.
+  /// Refresh on reconnect because project changes are absent from socket updates (ADR-14, `issues/09`).
   void _onEvent(HostEvent hostEvent) {
     final (host, event) = hostEvent;
     if (event is! HelloEvent) return;
@@ -85,24 +64,7 @@ class FleetRepository {
   /// its visible work by marking the host stale.
   Future<void> refresh(HostId host) => _hydrateOne(host, [], {});
 
-  /// What a pull-to-refresh actually does.
-  ///
-  /// **Both halves, and the order matters.** [HostRegistry.connectAll] re-dials any
-  /// socket that is down — which is the whole reason the operator pulled, since a live
-  /// socket would already be delivering `fleet.changed` and there would be nothing to
-  /// refresh. [hydrate] then fetches over HTTP without waiting for those dials to
-  /// finish, because a socket that is going to come back may take a backoff cycle to do
-  /// it and the operator is holding the screen open right now.
-  ///
-  /// `connectAll` returns immediately by design (R-11), so this is not a race being
-  /// ignored: the two paths converge on the same store, and whichever answers first
-  /// wins. A reconnect that lands later re-reads the host on its own `hello`, through
-  /// the listener above.
-  ///
-  /// **Awaiting the HTTP half is what makes the gesture honest.** A refresh indicator
-  /// that hides before anything arrived teaches the operator that pulling does nothing,
-  /// and on a phone that is away from the machine, *did it work* is the entire question.
-  /// So this resolves when the fetches do, and the report says which hosts answered.
+  /// Reconnect and hydrate independently; await HTTP so refresh reports actual responses (R-11).
   Future<HydrationReport> refreshAll() async {
     registry.connectAll();
     return hydrate();
@@ -112,16 +74,7 @@ class FleetRepository {
     _hellos.cancel();
   }
 
-  /// Fills the store from every paired host.
-  ///
-  /// Each host lands in the store the moment it answers, so a fast VPS draws while a
-  /// sleeping MacBook is still timing out — R-11 is about exactly this, and awaiting a
-  /// set would hold the whole screen hostage on the slowest machine.
-  ///
-  /// **No `workspaceId` filter, deliberately.** The route narrows its cells when given
-  /// one, and Home needs the *whole* fleet: the `elsewhere` row exists to keep a waiting
-  /// agent in another project visible, and it cannot be built from a list that was
-  /// filtered to the current project (ADR-3, second revision).
+  /// Load hosts independently and without project filtering so the full fleet remains visible (R-11, ADR-3).
   Future<HydrationReport> hydrate() async {
     final answered = <HostId>[];
     final failed = <HostId, HostFailure>{};
@@ -165,12 +118,7 @@ class FleetRepository {
     }
   }
 
-  /// Marks a host as stale rather than dropping its cells.
-  ///
-  /// Whatever it last told us stays on screen: a fleet that suddenly empties reads as
-  /// "all my work is gone", which is worse than showing something old and labelled
-  /// (R-9). On a genuinely first cold start there is nothing to keep, and the mark is
-  /// then what the empty state is built from.
+  /// Retain and label stale cells so a quiet host does not appear to lose work (R-9).
   void _lose(HostId host, HostFailure failure, Map<HostId, HostFailure> failed) {
     failed[host] = failure;
     store.markUnreachable(host);

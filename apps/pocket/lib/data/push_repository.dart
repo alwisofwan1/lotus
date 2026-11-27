@@ -6,13 +6,7 @@ import '../core/transport.dart';
 import '../hosts/host_registry.dart';
 import '../models/host_id.dart';
 
-/// Keeping every host that can wake this phone told where to reach it (ADR-4).
-///
-/// The policy lives here rather than on a screen because it is a **set** problem, not
-/// a screen problem: one token has to reach every paired host that advertises `push`,
-/// and it has to reach them again whenever FCM rotates it. A widget doing that would
-/// leave a host un-registered the first time the operator happened not to open a
-/// particular screen.
+/// Register rotated tokens with every eligible paired host (ADR-4).
 class PushRepository {
   PushRepository({required this.tokens, required this.registry});
 
@@ -32,17 +26,7 @@ class PushRepository {
   /// Safe to call on every cold start: FCM returns the same token until it rotates,
   /// and the host skips a write when the value has not changed.
   Future<void> start() async {
-    // **Nothing paired means nothing asked.** Requesting the notification permission
-    // on a phone with no host is asking for something that cannot be used yet — and on
-    // Android 13+ that is not merely impolite: a refusal is permanent, and the OS will
-    // not ask again. So a "no" collected before the operator has seen what the app does
-    // would silently disable push forever, including after they pair.
-    //
-    // Seen for real on 2026-08-07: a fresh install put the system permission dialog on
-    // top of the onboarding screen, before a single machine was known.
-    //
-    // Deferred rather than dropped: `PocketApp` calls this again from `onPaired`, so
-    // the prompt lands the moment a machine exists that can actually ring this phone.
+    // Defer notification permission until a host is paired; an early refusal may be permanent.
     if (registry.hosts.isEmpty) return;
 
     if (!await tokens.available) return;
@@ -69,12 +53,7 @@ class PushRepository {
     await _registerWith(host, token);
   }
 
-  /// Withdraws this device from every host that knows it.
-  ///
-  /// Best-effort by design: a host that is asleep cannot be told, and the operator
-  /// asking for quiet must not be blocked on a machine they walked away from. The
-  /// token dies with the pairing on that host anyway, and FCM stops delivering once
-  /// the app's registration is gone.
+  /// Withdraw best-effort so an unreachable host cannot block unpairing.
   Future<void> stop() async {
     await _rotations?.cancel();
     _rotations = null;

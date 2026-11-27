@@ -7,16 +7,7 @@ import '../models/host_id.dart';
 import '../models/server_event.dart';
 import 'measurement_log.dart';
 
-/// PTY output for the one cell Terminal mode is showing.
-///
-/// One pane at a time, because that is what the socket allows: `subscribe` replaces the
-/// previous tail rather than adding to it (ADR-10). So this holds a single cell's bytes
-/// and is reset when the operator swipes to another agent — the host replays that pane's
-/// ring buffer on the new subscription, which is a better source than anything kept here.
-///
-/// Deliberately **not** an ANSI interpreter and not a formatter: `xterm.dart` is the
-/// emulator (`issues/03`), and the only thing this layer owes it is bytes in order plus
-/// an honest account of what is missing.
+/// Keep one pane because subscriptions replace each other; preserve ordered bytes and gaps (ADR-10, `issues/03`).
 class OutputBuffer extends ChangeNotifier {
   OutputBuffer(
     Stream<HostEvent> events, {
@@ -26,14 +17,7 @@ class OutputBuffer extends ChangeNotifier {
     _subscription = events.listen(_onEvent);
   }
 
-  /// Matches the host's own ring buffer (`OUTPUT_TAIL_BYTES`). Holding more than the
-  /// host can ever replay would only mean this and a reconnect disagree about history.
-  ///
-  /// Raised 64KB → 256KB with the ring itself in Fase 2 of
-  /// `plans/session-history-hardening`, so the invariant above still holds. It has a second
-  /// effect here worth naming: this is also what a rebuilt emulator is replayed from
-  /// (`TerminalFeed._build`), so a mode switch now restores four times as much of the
-  /// screen as it did. Only one cell is ever held, so the cost is 256KB, not per-cell.
+  /// Match the host ring so local replay and reconnection agree (`plans/session-history-hardening`).
   final int maxBytes;
 
   /// Fase 0 counting (`issues/01`) — every existing caller gets its own instance by
@@ -73,24 +57,10 @@ class OutputBuffer extends ChangeNotifier {
   /// Chunks as they arrive, for `Terminal.write`.
   Stream<String> get writes => _writes.stream;
 
-  /// Bytes the operator will never see: the host's ring buffer could not reach back far
-  /// enough, so they were gone before this app could ask for them.
-  ///
-  /// R-4 requires this be shown rather than silently swallowed. It is a count, not an
-  /// inline marker, because where to draw it is a decision for `features/` — and a
-  /// marker spliced into the byte stream would be text `xterm` then tries to interpret.
-  ///
-  /// **Only host-reported gaps.** Local eviction is [evictedBytes] and is a different
-  /// claim — see there.
+  /// Report host gaps separately from local eviction (R-4).
   int get missingBytes => _missingBytes;
 
-  /// Bytes dropped from [replay] to stay inside [maxBytes], having already been written
-  /// to the terminal.
-  ///
-  /// Deliberately *not* [missingBytes]. These arrived and were drawn; only the snapshot
-  /// a freshly-mounted emulator would replay let them go. Counting the two together made
-  /// a screen-painting CLI — Codex redraws inline and emits tens of megabytes a session —
-  /// report "34823344 bytes never arrived" over output the operator was looking at.
+  /// Local replay eviction is not missing output: the terminal already received it.
   int get evictedBytes => _evictedBytes;
 
   /// Whether a real hole exists in the history. Eviction is not a hole.
@@ -123,16 +93,7 @@ class OutputBuffer extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Stops tailing [ref], and **only** [ref].
-  ///
-  /// The distinction from `watch(null)` is the whole point (`issues/12`). Since the
-  /// pager keeps neighbouring pages mounted, a page being disposed is no longer proof
-  /// that it is the one holding the tail: page `i-1` falling out of the cache while
-  /// page `i` has Terminal open would otherwise clear that terminal's bytes and cancel
-  /// its subscription, from a page the operator cannot even see.
-  ///
-  /// Returns whether it was actually watching this cell, which is what tells the caller
-  /// whether the socket subscription is also theirs to cancel.
+  /// Only stop the matching pane so a disposed neighbor cannot cancel its subscription (`issues/12`).
   bool release(CellRef ref) {
     if (_watching != ref) return false;
     watch(null);
@@ -178,13 +139,7 @@ class OutputBuffer extends ChangeNotifier {
     if (!_writes.isClosed) _writes.add(chunk);
   }
 
-  /// Drops whole chunks from the front until inside budget.
-  ///
-  /// Whole chunks, never a substring: cutting inside an escape sequence would leave
-  /// `xterm` a half-command to interpret, and a corrupted screen is worse than a
-  /// shorter one. What is dropped is counted as *evicted*, never as missing: the
-  /// terminal already has these bytes, so telling the operator they never arrived would
-  /// be a warning about output they can still see.
+  /// Evict whole chunks to avoid splitting escape sequences; count eviction separately from missing bytes.
   void _trim() {
     while (_bytes > maxBytes && _chunks.length > 1) {
       final dropped = _chunks.removeAt(0);

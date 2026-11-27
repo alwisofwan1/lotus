@@ -2,29 +2,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'push_tokens.dart';
 
-/// [PushTokens] over FlutterFire — the one file that names FCM.
-///
-/// Same shape as `DeviceBiometrics` and `KeychainStore`: everything above this is
-/// testable without a platform channel, and nothing but `app/composition_root.dart`
-/// imports it. That is what let the whole push path land and be tested before a
-/// Firebase project existed (`UnavailablePushTokens` is still the default).
-///
-/// **No message handling here.** The host sends a `notification` block, so Android
-/// draws the wake-up itself and this class never has to build one — the reason no
-/// local-notification package is in `pubspec.yaml`. What arrives on tap is handled by
-/// the app coming to the foreground, which already hydrates.
+/// Isolate FlutterFire from other layers; the OS handles notification display and taps.
 class FirebasePushTokens implements PushTokens {
   const FirebasePushTokens();
 
-  /// True by construction: this class is only ever constructed after
-  /// `Firebase.initializeApp()` succeeded (see `main.dart`), and a build without a
-  /// usable `google-services.json` never gets that far.
-  ///
-  /// It deliberately does **not** ask FCM anything. The obvious test — call
-  /// `getToken()` and see if it throws — is what this used to do, and it registers the
-  /// device with Google as a side effect: exactly the contact that auto-init was
-  /// switched off to prevent. Whether the device can really receive is answered by
-  /// [requestToken] returning null, at the one moment there is a reason to ask.
+  /// Do not probe with getToken: it registers the device before a token is needed.
   @override
   Future<bool> get available async => true;
 
