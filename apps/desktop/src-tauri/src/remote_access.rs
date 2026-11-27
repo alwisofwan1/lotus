@@ -173,35 +173,32 @@ pub fn access_login(hostname: &str) -> Result<Login, AppError> {
         .no_window()
         .args(["access", "login", "--quiet", &key])
         .stdout(Stdio::piped())
-        .stderr(Stdio::null())
+        .stderr(Stdio::piped())
         .spawn()
         .map_err(AppError::Io)?;
 
     let Some(stdout) = child.stdout.take() else {
         return Ok(Login::Started(None));
     };
+    let stderr = child.stderr.take();
 
     let login = Arc::new(PendingLogin { url: Mutex::new(None), started: Instant::now(), pid: child.id() });
     pending.insert(key.clone(), Arc::clone(&login));
     drop(pending);
 
     let (tx, rx) = mpsc::channel::<String>();
+    // cloudflared prints the URL on stderr ("A browser window should have opened at …"); stdout
+    // carries only the token at the end. Reading stdout alone kept the URL from every login, so
+    // once the person closed the tab cloudflared opened, "Sign in" had nothing to open again
+    // (2026-11-27). Both streams are read; the first URL on either wins.
+    let url_sender = Arc::new(Mutex::new(Some(tx)));
+    if let Some(stderr) = stderr {
+        let (mine, sender) = (Arc::clone(&login), Arc::clone(&url_sender));
+        std::thread::spawn(move || note_login_url(stderr, &mine, &sender));
+    }
     let mine = Arc::clone(&login);
     std::thread::spawn(move || {
-        let mut url_sender = Some(tx);
-        for line in BufReader::new(stdout).lines().map_while(Result::ok) {
-            if let Some(url) = line
-                .split_whitespace()
-                .find(|word| word.starts_with("https://"))
-            {
-                if let Some(sender) = url_sender.take() {
-                    *mine.url.lock().unwrap_or_else(|e| e.into_inner()) = Some(url.to_string());
-                    let _ = sender.send(url.to_string());
-                }
-            }
-            // Keep draining, including the final token output. Closing the pipe after the URL
-            // can give cloudflared a broken pipe while it is completing the browser callback.
-        }
+        note_login_url(stdout, &mine, &url_sender);
         let _ = child.wait();
         let mut pending = PENDING.lock().unwrap_or_else(|e| e.into_inner());
         if pending.get(&key).is_some_and(|entry| Arc::ptr_eq(entry, &mine)) {
@@ -210,6 +207,24 @@ pub fn access_login(hostname: &str) -> Result<Login, AppError> {
     });
 
     Ok(Login::Started(rx.recv_timeout(URL_WAIT).ok()))
+}
+
+/// Reads one of cloudflared's streams to its end, keeping the first sign-in URL. It keeps draining
+/// after that, including the final token output: closing the pipe after the URL can give
+/// cloudflared a broken pipe while it is completing the browser callback.
+fn note_login_url(stream: impl std::io::Read, login: &PendingLogin, sender: &Mutex<Option<mpsc::Sender<String>>>) {
+    for line in BufReader::new(stream).lines().map_while(Result::ok) {
+        let Some(url) = line.split_whitespace().find(|word| word.starts_with("https://")) else {
+            continue;
+        };
+        let mut found = login.url.lock().unwrap_or_else(|e| e.into_inner());
+        if found.is_none() {
+            *found = Some(url.to_string());
+            if let Some(tx) = sender.lock().unwrap_or_else(|e| e.into_inner()).take() {
+                let _ = tx.send(url.to_string());
+            }
+        }
+    }
 }
 
 /// What a sign-in request did. Either way the URL is the one cloudflared printed, when it did.
@@ -324,7 +339,7 @@ mod tests {
         let bin = dir.path().join("cloudflared");
         let completed = dir.path().join("completed");
         std::fs::write(&bin, format!(
-            "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\nprintf 'https://example.com/login\\n'\n/bin/sleep 0.2\nprintf 'private-token-output\\n' || exit 1\n/usr/bin/touch '{}'\n", completed.display()
+            "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\nprintf 'https://example.com/login\\n' >&2\n/bin/sleep 0.2\nprintf 'private-token-output\\n' || exit 1\n/usr/bin/touch '{}'\n", completed.display()
         )).unwrap();
         std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o700)).unwrap();
         let original = std::env::var_os("PATH");
@@ -359,7 +374,7 @@ mod tests {
         // written just before the dir is dropped can be missed, and the loop then outlived every
         // run as an orphan (45 of them from 40 parallel runs).
         std::fs::write(&bin, format!(
-            "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n[ \"$2\" = login ] || exit 1\necho x >> '{}'\nprintf 'https://reuse.example/login\\n'\nwhile [ ! -e '{}' ]; do [ -d '{}' ] || exit 1; /bin/sleep 0.05; done\n",
+            "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n[ \"$2\" = login ] || exit 1\necho x >> '{}'\nprintf 'https://reuse.example/login\\n' >&2\nwhile [ ! -e '{}' ]; do [ -d '{}' ] || exit 1; /bin/sleep 0.05; done\n",
             spawns.display(), release.display(), dir.path().display()
         )).unwrap();
         std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o700)).unwrap();
@@ -407,7 +422,7 @@ mod tests {
         let _lock = crate::paths::TEST_ENV_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let bin = dir.path().join("cloudflared");
-        std::fs::write(&bin, "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n[ \"$2\" = login ] || exit 1\nprintf 'https://stale.example/new\\n'\n").unwrap();
+        std::fs::write(&bin, "#!/bin/sh\n[ \"$1\" = --version ] && exit 0\n[ \"$2\" = login ] || exit 1\nprintf 'https://stale.example/new\\n' >&2\n").unwrap();
         std::fs::set_permissions(&bin, std::fs::Permissions::from_mode(0o700)).unwrap();
         // The stuck login: a live process that would wait forever.
         let mut stuck = Command::new("/bin/sleep").arg("60").spawn().unwrap();
