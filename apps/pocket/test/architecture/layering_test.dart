@@ -72,22 +72,31 @@ String? layerOf(String path) {
   return parts[i + 1];
 }
 
+/// Every import/export/part target in [source]: either quote, split across lines.
+Iterable<String> directiveTargets(String source) => RegExp(
+      r'''^\s*(?:import|export|part)\s+r?(['"])(.*?)\1''',
+      multiLine: true,
+      dotAll: true,
+    ).allMatches(source).map((m) => m.group(2)!);
+
 /// What a `lib/` file imports, as paths under `lib/` — relative imports resolved.
-Iterable<String> importsOf(File file) sync* {
-  final dir = File(file.path).parent.uri;
-  for (final line in file.readAsLinesSync()) {
-    final m = RegExp(r"^(?:import|export) '([^']+)'").firstMatch(line);
-    if (m == null) continue;
-    final target = m.group(1)!;
+Iterable<String> importsOf(String path, String source) sync* {
+  final dir = File(path).absolute.parent.uri;
+  for (final target in directiveTargets(source)) {
     if (target.startsWith('package:lotus_pocket/')) {
       yield target.substring('package:lotus_pocket/'.length);
     } else if (!target.contains(':')) {
-      final path = dir.resolve(target).path;
-      final i = path.indexOf('lib/');
-      if (i != -1) yield path.substring(i + 4);
+      final resolved = dir.resolve(target).path;
+      final i = resolved.lastIndexOf('/lib/');
+      if (i != -1) yield resolved.substring(i + 5);
     }
   }
 }
+
+/// Offsets of colour literals in [source], whitespace and line breaks included.
+Iterable<int> colourLiterals(String source) => RegExp(
+      r'\bColor\s*\(\s*0x|\bColor\.fromA?RGB[OA]?\s*\(|\bColors\s*\.\s*(?!transparent\b)',
+    ).allMatches(source).map((m) => m.start);
 
 void main() {
   final files = dartFiles('lib').toList();
@@ -108,7 +117,7 @@ void main() {
       final allowed = mayImport[from];
       if (allowed == null) continue;
 
-      for (final target in importsOf(file)) {
+      for (final target in importsOf(file.path, file.readAsStringSync())) {
         final to = target.split('/').first;
         if (to == from || allowed.contains(to)) continue;
         if (mayImportFile[from]?.contains(target) ?? false) continue;
@@ -119,19 +128,40 @@ void main() {
     expect(violations, isEmpty);
   });
 
-  test('relative imports are resolved, so they cannot slip past the rule', () {
-    final probe = File('lib/features/agent/widgets/view_switch.dart');
-    expect(importsOf(probe), contains('app/theme/theme.dart'));
+  test('relative imports are resolved, in every spelling Dart accepts', () {
+    const path = 'lib/features/agent/x.dart';
+    const source = '''
+import "../../core/a.dart";
+import
+    '../../core/b.dart'
+    show B;
+export '../../data/c.dart';
+import 'package:lotus_pocket/hosts/d.dart';
+import 'sibling.dart';
+// import '../../core/commented.dart';
+''';
+    expect(importsOf(path, source), [
+      'core/a.dart',
+      'core/b.dart',
+      'data/c.dart',
+      'hosts/d.dart',
+      'features/agent/sibling.dart',
+    ]);
+  });
+
+  test('colour literals are found however they are spelled', () {
+    const source = 'a = Color(0xFF000000); b = Color(\n  0x12345678); c = Colors\n.black;'
+        ' d = Color.fromRGBO(0, 0, 0, 1); e = Colors.transparent;';
+    expect(colourLiterals(source), hasLength(4));
   });
 
   test('features colour only through theme tokens', () {
-    final pattern = RegExp(r'Color\(0x|Colors\.(?!transparent\b)');
     final violations = <String>[];
     for (final file in files.where((f) => layerOf(f.path) == 'features')) {
       if (hardCodedColourAllowlist.contains(file.path)) continue;
-      final lines = file.readAsLinesSync();
-      for (var i = 0; i < lines.length; i++) {
-        if (pattern.hasMatch(lines[i])) violations.add('${file.path}:${i + 1}');
+      final source = file.readAsStringSync();
+      for (final at in colourLiterals(source)) {
+        violations.add('${file.path}:${'\n'.allMatches(source.substring(0, at)).length + 1}');
       }
     }
     expect(violations, isEmpty, reason: 'add a role to app/theme instead of a literal');
@@ -141,9 +171,9 @@ void main() {
     final violations = <String>[];
 
     for (final file in files.where((f) => layerOf(f.path) == 'features')) {
-      for (final line in file.readAsLinesSync()) {
+      for (final target in directiveTargets(file.readAsStringSync())) {
         for (final package in transportPackages) {
-          if (line.contains("import 'package:$package/")) {
+          if (target.startsWith('package:$package/')) {
             violations.add('${file.path}: imports $package');
           }
         }
