@@ -60,16 +60,7 @@ class PairedHost {
   /// cloning does, which is why it is a second flag rather than the same one.
   bool get canBrowseProjects => caps.supports('projects-browse');
 
-  /// Whether this host will end a cell on request.
-  ///
-  /// Asked rather than assumed, and the answer decides whether the control is drawn at
-  /// all — the same rule the microphone follows. A host that cannot do it is not a
-  /// broken host, so the phone shows no disabled remnant of a button; it shows nothing.
-  ///
-  /// On a desktop the work is not done by its API but by the Lotus window, which can be
-  /// closed or sitting on no workspace. That is a *readiness* question rather than a
-  /// capability one, it can change minute to minute, and it cannot be answered by a
-  /// capability list — it arrives as the refusal of an attempt.
+  /// Hide the control when unsupported; runtime readiness can still change.
   bool get canEndCells => caps.supports('close');
 
   /// Whether this host will start a cell on request. Same rule as [canEndCells]: the
@@ -101,23 +92,10 @@ class PairedHost {
   /// the same part instead of two copies of it.
   bool get hasConversation => caps.supports('conversation');
 
-  /// Whether this host can wake a backgrounded app, so a push token is only ever
-  /// registered where it will be used.
-  ///
-  /// Asked rather than assumed for a reason worth stating: a host with no Firebase
-  /// service account cannot send, and registering anyway produces an app that waits
-  /// for wake-ups which can never arrive — indistinguishable, from the operator's
-  /// side, from a fleet where nothing is happening.
+  /// Register push tokens only where the host can send notifications.
   bool get canPush => caps.supports('push');
 
-  /// The same host as its `hello` frame currently describes it.
-  ///
-  /// [caps] and [mode] arrive twice — once in the pairing reply, then on every
-  /// connection — and the second is the one that is true *now*. Without this the app
-  /// keeps deciding whether to draw Chat from what was advertised the day it paired,
-  /// so a desktop that has since gained the hook pipeline stays hidden behind stale
-  /// capabilities. The contract's rule is to hide what the host does not advertise,
-  /// which only works if "advertise" means the latest frame.
+  /// Use the latest hello capabilities rather than stale pairing-time values.
   PairedHost withHello({required String label, required String mode, required HostCaps caps}) =>
       PairedHost(id: id, label: label, baseUri: baseUri, mode: mode, caps: caps);
 }

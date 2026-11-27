@@ -15,20 +15,7 @@ import 'history_window.dart';
 import 'measurement_log.dart';
 import 'question_settle.dart';
 
-/// Chat's conversation for the cells the Agent pager can reach, kept current — in [Turn]s,
-/// which is what Chat renders (`ChatTranscript.ofTurns`).
-///
-/// **One store, two inputs, one output.** A host that advertises `conversation-stream` sends
-/// `Part` deltas the host itself derived, and they are applied here as they arrive. A host
-/// that does not sends hook entries, which are held and re-converted with
-/// [turnsFromEntries] — the same thing the app has always done, moved inside the store so
-/// the rest of the app stops caring which host it is talking to.
-///
-/// The legacy input is the only remaining caller of `conversation_builder.dart`, and cannot
-/// be deleted while the app supports hosts that predate the lane — it deliberately has **no
-/// minimum host version** (`contract/README.md`). Ownership and windowing follow
-/// `LiveTranscript`: [follow] is called by the pager and by nothing else, and a cell outside
-/// the window is dropped whole. The bound on what one cell keeps is [HistoryWindow]'s.
+/// Support host deltas and older hook-entry hosts without a minimum host version (`contract/README.md`).
 class LiveConversation extends ChangeNotifier {
   LiveConversation(
     Stream<HostEvent> events, {
@@ -158,13 +145,7 @@ class LiveConversation extends ChangeNotifier {
   /// through, and that line's whole job is to say when to stop scrolling.
   bool atHistoryEdge(CellRef ref) => partsHeld(ref) >= _window.capFor(ref);
 
-  /// Every prompt this cell is carrying, for settling a [PendingDispatch].
-  ///
-  /// The union of two sources on purpose. A `user_message` part is the prompt as the hook
-  /// recorded its **body**, which is capped longer and is what the operator actually typed.
-  /// The legacy entries' `userPrompt` is the shorter copy, and it is the only signal for a
-  /// turn that opened without a `prompt-submit` — a case `turnsFromEntries` produces no part
-  /// for at all. Dropping either would leave a pending line on screen forever.
+  /// Combine both prompt sources so dispatches without a prompt-submit can settle.
   Set<String> promptsFor(CellRef ref) => {
         for (final turn in _turns[ref] ?? const <Turn>[])
           for (final part in turn.parts)
@@ -215,13 +196,7 @@ class LiveConversation extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Whether this cell's history came from the conversation lane rather than from entries.
-  ///
-  /// Read from what is *held* rather than from a flag, because that is the fact that
-  /// matters: entries held means the legacy converter owns these turns and re-deriving is
-  /// correct; turns held with no entries behind them means the host sent them as parts and
-  /// only it can revise them. A cell holding neither is neither — the first scroll-up on a
-  /// page whose cell has produced no step, which the entries lane handles.
+  /// Inspect held entries to determine which lane owns revisions.
   bool _isDeltaLane(CellRef ref) =>
       !_lane.holds(ref) && (_turns[ref]?.isNotEmpty ?? false);
 

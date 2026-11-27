@@ -8,13 +8,7 @@ import '../hosts/host_registry.dart';
 import '../models/host_id.dart';
 import 'mutation_outcome.dart';
 
-/// The gate every mutation passes, for any host — freshness first, then proof.
-///
-/// Lifted out of `AgentRepository` when a second repository needed exactly the same
-/// policy (`plans/pocket-vps-project-checkout/issues/04`). It is deliberately **one**
-/// object rather than a mixin or a copied method: ADR-8 and ADR-12 no. 2 are the two
-/// rules a screen must not be able to skip, and two copies of them is one copy that
-/// will eventually differ.
+/// Share freshness and presence policy across mutation repositories (ADR-8, ADR-12 no. 2, `plans/pocket-vps-project-checkout/issues/04`).
 class HostGate {
   const HostGate({
     required this.registry,
@@ -26,12 +20,7 @@ class HostGate {
   final Credentials credentials;
   final BiometricGate gate;
 
-  /// Runs [action] against [host], once the operator has proved they are there.
-  ///
-  /// Starting an agent has no pane to address yet, and that is the only difference —
-  /// the freshness check, the biometric prompt, and every failure this can answer with
-  /// are the same, so they stay in one method rather than being copied for the one
-  /// mutation that arrives before its cell exists.
+  /// Use the same gate for actions before a cell exists.
   Future<MutationOutcome> run(
     HostId host,
     String reason,

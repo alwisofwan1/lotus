@@ -9,12 +9,7 @@ import '../core/voice_recorder.dart';
 import '../models/host_id.dart';
 import 'agent_repository.dart';
 
-/// What dictation is doing right now.
-///
-/// Three states, because the composer draws three different rows — and no fourth for
-/// failure: a dictation that failed is a dictation that is over, so it lands back on
-/// [DictationIdle] carrying a [Dictation.notice] rather than parking the bar in an
-/// error state the operator then has to dismiss.
+/// Failures return to idle with a notice rather than requiring dismissal.
 sealed class DictationState {
   const DictationState();
 }
@@ -38,18 +33,7 @@ class DictationTranscribing extends DictationState {
   const DictationTranscribing();
 }
 
-/// Tap to start, tap to stop — and the text lands in the composer, unsent.
-///
-/// Lives in `data/` rather than in the widget because it joins two things that are
-/// deliberately kept apart: the microphone (a `core/` seam) and the host that turns
-/// audio into words (`AgentRepository`). A composer holding both would be the first
-/// place in the app where a widget owned a hardware resource (ADR-13 no. 1) — and it
-/// would own it twice, since Home and the agent page each build one.
-///
-/// **It never sends anything.** `stop` returns text and stops; the dispatch that follows
-/// is the operator's, and it is the one that meets the gate (ADR-8). Speech recognition
-/// mishears, and a phone that dispatched what it thought it heard would be putting words
-/// no human read in front of an agent with a shell.
+/// Never dispatch recognized text automatically; the operator must review it and pass the gate (ADR-8, ADR-13 no. 1).
 class Dictation extends ChangeNotifier {
   Dictation({
     required this.recorder,
@@ -213,17 +197,7 @@ class Dictation extends ChangeNotifier {
     return null;
   }
 
-  /// Drops the two subscriptions without waiting for them.
-  ///
-  /// **Not awaited, deliberately.** Cancelling a stream subscription returns a future
-  /// that a platform stream is free to take its time over, and both callers here are on
-  /// the path the operator just tapped — `cancel` in particular is the one action that
-  /// must always work. Awaiting it hung a widget test outright, which is a cheap version
-  /// of the same thing happening on a phone.
-  ///
-  /// Nothing depends on the teardown having finished: both handlers check the state
-  /// before publishing, so a sample arriving late lands on [DictationIdle] and is
-  /// dropped.
+  /// Do not await teardown on the user action path; late events are ignored.
   void _quiet() {
     unawaited(_levels?.cancel() ?? Future<void>.value());
     unawaited(_ticks?.cancel() ?? Future<void>.value());

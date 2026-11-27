@@ -1,9 +1,4 @@
-/// What `POST /m/stt` answers.
-///
-/// Two shapes, one type, because the second is a fork rather than a failure: a
-/// host set to transcribe on the device answers `text: null, hostSupports: false`,
-/// and the phone records again with its own recogniser (ADR-11, PLAN §7 no. 9).
-/// A real provider failure arrives as 5xx and never reaches here.
+/// A null text with unsupported host requests device transcription (ADR-11, PLAN §7 no. 9).
 class Transcription {
   const Transcription({required this.hostSupports, this.text, this.provider});
 

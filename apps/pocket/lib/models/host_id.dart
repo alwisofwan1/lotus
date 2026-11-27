@@ -1,17 +1,7 @@
-/// Which paired host something came from.
-///
-/// A named type rather than a bare `String` because the two identifiers in this
-/// app — host and pane — are both opaque strings, and swapping them at a call site
-/// would compile and then address the wrong machine.
-/// Erased to `String` at runtime, so interpolation and map keys behave exactly as
-/// the bare id would — the type only exists to stop a mix-up at compile time.
+/// Prevents confusing opaque host and pane identifiers at compile time.
 extension type const HostId(String value) {}
 
-/// The only safe way to name a cell: **host and pane together**.
-///
-/// Two hosts may run the same project (R-10), so `paneId` alone is ambiguous —
-/// and a dispatch sent to an ambiguous address reaches whichever host answers,
-/// which means an agent editing the wrong repository.
+/// Identifies a cell by host and pane because pane IDs can be ambiguous (R-10).
 class CellRef {
   const CellRef(this.host, this.paneId);
 
@@ -30,13 +20,7 @@ class CellRef {
   String toString() => '$host/$paneId';
 }
 
-/// One project on one host — what Home shows, and what the switcher lists.
-///
-/// Host is part of the identity for the same reason it is in [CellRef]: two machines
-/// can each run a project called `CNVS` (R-10), and `MVP.md` requires the switcher to
-/// offer them as **two entries** (`CNVS · vps`, `CNVS · mac`). Selecting by name alone
-/// would merge two repositories into one list under a title that could only name one
-/// of them.
+/// Includes the host to distinguish projects with the same name (R-10, MVP.md).
 class ProjectRef {
   const ProjectRef(this.host, this.workspaceId);
 

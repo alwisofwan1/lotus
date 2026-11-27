@@ -14,7 +14,7 @@ const int maxCommentBlock = 5;
 
 /// Ratchet: how many over-long comment blocks lib/ still has. Lower it when you
 /// trim comments; it must never go up.
-const int longCommentBlockCeiling = 551;
+const int longCommentBlockCeiling = 351;
 
 bool isGenerated(String path) =>
     path.endsWith('.g.dart') || path.endsWith('.freezed.dart');

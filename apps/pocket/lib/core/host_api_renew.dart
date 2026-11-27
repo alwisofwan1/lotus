@@ -1,11 +1,6 @@
 part of 'host_api.dart';
 
-/// `/m/devices/renew*` — back in after the bearer lapsed, on a signature from the
-/// hardware-bound key registered at pairing instead of a new pairing code.
-///
-/// A `part` for the reason [HostApiReads] is one: `host_api.dart` sits at the 300-line
-/// mark, and these share `_send` and its status classification. **No bearer** on either
-/// call, by construction — the bearer is what lapsed.
+/// Renewal uses hardware-bound proof without the expired bearer.
 extension HostApiRenewal on HostApi {
   /// A nonce for this device to sign, valid for a couple of minutes.
   Future<String> renewalChallenge(String deviceId) async {

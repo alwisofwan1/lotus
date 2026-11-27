@@ -47,12 +47,7 @@ class PermissionPrompt {
       );
 }
 
-/// `GET /m/cell/:paneId/permission` — what the cell is asking, and what it accepts.
-///
-/// Two independent signals must agree before a button may be drawn: the hook says
-/// the cell is waiting, and the terminal says which options exist. Either alone is
-/// unsafe — the hook does not know the digits, and a parse alone could place buttons
-/// on a prompt that was already answered.
+/// Both the waiting hook and parsed terminal options must agree before offering buttons.
 class PermissionSnapshot {
   const PermissionSnapshot({
     required this.paneId,
@@ -87,12 +82,7 @@ class PermissionSnapshot {
   /// Spoken with the device's TTS — no API key involved (ADR-11).
   final String? readback;
 
-  /// What the terminal drew, when [awaiting] is true and the options could **not** be named.
-  ///
-  /// For **reading**, never for answering. The digits still come from a successful parse alone
-  /// (ADR-8), so this can put the question on screen but never a button — which is exactly the
-  /// trade: a card that names no options is safe, and one that says nothing at all is useless.
-  /// Absent from a host too old to send it, and the card then says what it always said.
+  /// For reading only: answer buttons require parsed digits (ADR-8).
   final String? tail;
 
   /// The only condition under which native answer buttons may appear.

@@ -1,11 +1,6 @@
 import 'transcript.dart';
 
-/// A hook event forwarded from the desktop.
-///
-/// **snake_case, unlike every other payload here** — and that is not an oversight
-/// to normalise away. It is written by the agent hook pipeline in Rust and passed
-/// through verbatim; a fixture once documented it in camelCase and a model written
-/// from that fixture would have failed on the first real frame.
+/// Hook payloads retain their original snake_case wire format.
 class HookNotification {
   const HookNotification({
     required this.kind,
@@ -44,12 +39,7 @@ class HookNotification {
   final String? status;
   final String? cwd;
 
-  /// The prompt this turn is working on. Absent on most events.
-  ///
-  /// Present so that **one frame is a whole Chat line**: without it a transcript
-  /// rebuilt from the socket loses the "you asked" bubble until an HTTP refetch.
-  /// The host only fills it from `UserPromptSubmit`, so it rides once per turn
-  /// rather than once per tool call.
+  /// Carries the prompt so the live transcript can show the user turn without refetching.
   final String? userPrompt;
 
   /// Lines the step added / removed. Null means no diff applies — a `Read` must
@@ -81,15 +71,7 @@ class HookNotification {
         bodyTruncated: json['body_truncated'] as bool? ?? false,
       );
 
-  /// This event as the transcript models it.
-  ///
-  /// The two shapes exist for different reasons and stay separate: this one is the
-  /// wire frame from the hook pipeline, [TranscriptEntry] is what `GET
-  /// /m/cell/:paneId/transcript` returns. Chat reads the second, so the live path
-  /// converts rather than teaching Chat about both.
-  ///
-  /// The nulls collapse to empty strings deliberately — `TranscriptEntry` treats
-  /// empty as "not reported", and every consumer already reads it that way.
+  /// Converts the wire shape to [TranscriptEntry], where empty strings mean not reported.
   TranscriptEntry toTranscriptEntry() => TranscriptEntry(
         event: event ?? kind,
         status: status ?? '',

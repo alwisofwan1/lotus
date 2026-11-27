@@ -25,16 +25,7 @@ enum RefreshOutcome {
   mustRepair,
 }
 
-/// Every device token, per host — the only thing Pocket persists (ADR-12 no. 3).
-///
-/// Owns two rules that are easy to state and easy to get wrong:
-///
-/// - **Refresh before the 401, not after it** (ADR-12 no. 2). The 12-hour TTL does not
-///   care that a socket is open, so waiting for the rejection means the operator meets
-///   it mid-action.
-/// - **A refresh needs proof of presence, and the 30-day ceiling never moves**
-///   (`PLAN.md` §Kredensial). A TTL without both is decoration: a thief holding an
-///   unlocked phone would renew forever.
+/// Refresh before expiry and require presence; the 30-day ceiling never moves (ADR-12 no. 2, no. 3; `PLAN.md` §Kredensial).
 class Credentials extends ChangeNotifier {
   Credentials({required this.store, required this.now, required this.gate});
 
@@ -49,14 +40,7 @@ class Credentials extends ChangeNotifier {
   /// Namespaces the entries, so storage this app does not own is never touched.
   static const String keyPrefix = 'host:';
 
-  /// How early a renewal starts.
-  ///
-  /// Was one hour against a 12-hour host TTL, which meant refresh only fired if the
-  /// app happened to be opened in the token's last hour — everything before that was
-  /// luck. The host TTL moved to 72 hours for the same reason (see
-  /// `DEVICE_TOKEN_TTL_MS`), and this lead moved with it: at 24 hours, opening the app
-  /// roughly once every two days keeps the token from ever lapsing, while an absence
-  /// genuinely past 72 hours still forces the re-pair the host enforces regardless.
+  /// Renew early enough for ordinary app usage to avoid an expired token.
   static const Duration refreshLead = Duration(hours: 24);
 
   final Map<HostId, PairedDevice> _devices = {};
@@ -133,15 +117,7 @@ class Credentials extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Renames a machine to whatever its owner calls it, or back to its hostname.
-  ///
-  /// Kept on the credential rather than in a store of its own, so it dies with the
-  /// pairing: a nickname outliving its host would be an orphan nobody would ever think
-  /// to clear, and it would come back to greet the next machine that happened to
-  /// reuse the id.
-  ///
-  /// **No gate.** ADR-8 gates what reaches a machine; this changes a word on this
-  /// phone and reaches nothing.
+  /// Keep nicknames with their pairing to avoid orphaned names; no gate is needed for local changes (ADR-8).
   Future<void> rename(HostId host, String? nickname) async {
     final device = _devices[host];
     if (device == null) return;
@@ -155,13 +131,7 @@ class Credentials extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Renews the token if it is close enough to expiry to be worth a prompt.
-  ///
-  /// [refresh] is injected rather than a `HostApi` held here, so this class stays
-  /// testable without a transport and `hosts/` keeps owning what it already owns.
-  /// Anything other than a [RefreshRefused] — an asleep host, a revoked token — is
-  /// **rethrown**: those are reachability questions, and answering them here would
-  /// flatten a sleeping machine into a dead credential.
+  /// Inject [refresh] for testability; rethrow other failures so reachability is not mistaken for revocation.
   Future<RefreshOutcome> refreshIfDue(
     HostId host,
     Future<RefreshedToken> Function() refresh,

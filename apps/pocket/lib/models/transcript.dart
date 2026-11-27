@@ -63,16 +63,7 @@ class TranscriptEntry {
   final int? linesAdded;
   final int? linesRemoved;
 
-  /// Whether [body] stops short of what the agent actually said.
-  ///
-  /// The host caps a hook body at 8000 bytes and cuts it hard — no ellipsis, because
-  /// the cap is applied twice and truncation has to stay idempotent. So this flag is
-  /// the only way to tell a clipped reply from a finished one, and Chat has to say
-  /// so: at the previous 1000-byte cap, 15.8% of real replies were reaching the phone
-  /// stopping mid-word with nothing to mark it (measured 2026-08-07).
-  ///
-  /// Defaults false, which is also what an older host that never sends the field
-  /// means.
+  /// Distinguishes a truncated body from a complete reply; absent defaults to false.
   final bool bodyTruncated;
 
   bool get hasDiffStat => linesAdded != null || linesRemoved != null;
@@ -103,13 +94,7 @@ class TranscriptEntry {
       );
 }
 
-/// Whether a transcript is coming, and the third answer the booleans could not carry.
-///
-/// [unknown] exists because the desktop's pane→runner map is pushed by its UI (ADR-1):
-/// it is empty after every restart and until a Canvas board is on screen, and during
-/// that window the host genuinely cannot say. The old wire spelled that the same way it
-/// spelled "steps are coming" — an absent flag — so Chat waited on panes nobody was
-/// going to fill.
+/// The host can be unable to determine the runner after restart (ADR-1).
 enum TranscriptOutlook {
   /// A transcript is expected. Nothing to say; wait, or pull to refresh.
   expected,
@@ -166,12 +151,7 @@ class TranscriptSnapshot {
   /// host that knows the answer is negative says so out loud.
   final bool runnerReports;
 
-  /// The three-way answer, preferred over [runnerReports] where they overlap.
-  ///
-  /// Both are sent: [runnerReports] is kept for phones built before this field, and a
-  /// `false` there always means [TranscriptOutlook.never]. The reverse does not hold —
-  /// an absent [runnerReports] carries no claim at all, which is the whole reason this
-  /// exists.
+  /// An absent [runnerReports] makes no claim, unlike false.
   final TranscriptOutlook outlook;
 
   /// Where these entries came from.
@@ -187,12 +167,7 @@ class TranscriptSnapshot {
   /// Whether older entries exist beyond this page.
   final bool hasMore;
 
-  /// How many entries the source holds in total.
-  ///
-  /// Null from a host that predates the field, and from the ring — which cannot answer
-  /// it, having only ever counted what it returned. Deliberately separate from [total]:
-  /// that one has always meant "entries in this response" and clients in the field read
-  /// it that way.
+  /// Separate from [total], which counts entries in this response.
   final int? totalEver;
 
   bool get isEmptyButKnowable =>

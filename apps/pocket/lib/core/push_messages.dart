@@ -1,12 +1,6 @@
 import '../models/push_wake.dart';
 
-/// Wake-ups as they reach this phone: while the app is open, and when one is tapped.
-///
-/// Two streams because the OS treats the two moments differently. A message that
-/// lands while the app is in the foreground is handed to the app and drawn by nobody
-/// else — so [foreground] exists, or a wake-up during use would vanish. A tap on a
-/// tray entry brings the app up with the message attached; [opened] carries that,
-/// including the cold-start case where the tap *is* the launch.
+/// Foreground delivery and opened notifications need separate streams, including cold starts.
 abstract interface class PushMessages {
   Stream<PushWake> get foreground;
 

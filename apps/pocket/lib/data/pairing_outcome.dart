@@ -1,17 +1,7 @@
 import '../hosts/host_failure.dart';
 import '../models/pairing.dart';
 
-/// What one attempt at pairing did.
-///
-/// Same rule as [MutationOutcome]: a case exists only when the operator's next move
-/// differs. That is a sharper filter here than anywhere else in the app, because
-/// onboarding is the screen where a wrong diagnosis costs the most — it is the only
-/// screen, there is nothing else to look at, and every failure looks identical from
-/// the outside ("it did not pair").
-///
-/// The wording each case is rendered with is **provisional**: `issues/06` owns the
-/// final copy for the reachability states and is still blocked on `issues/02`. The
-/// distinctions are not provisional, which is why they are types.
+/// Model distinct operator actions for pairing failures (`issues/06`, `issues/02`).
 sealed class PairingOutcome {
   const PairingOutcome();
 
@@ -51,13 +41,7 @@ class PairingCodeRefused extends PairingOutcome {
   String get code => 'code_refused';
 }
 
-/// 429 from `POST /m/pair`: the host is throttling this source, or redeeming is locked
-/// out after five failed codes (`issues/09`).
-///
-/// Neither a refused code nor a broken host, and that is the whole reason it exists:
-/// the code in the operator's hand may be perfectly good, and waiting is a move no
-/// other case here asks for. [reason] is the host's own sentence — it is the only side
-/// that knows whether this is ten seconds or a fresh code.
+/// Rate limiting requires waiting, not a replacement code (`issues/09`).
 class PairingThrottled extends PairingOutcome {
   const PairingThrottled(this.reason);
 

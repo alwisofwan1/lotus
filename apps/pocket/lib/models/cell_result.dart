@@ -1,9 +1,4 @@
-/// `GET /m/cell/:paneId/result` — what the agent left behind, from the disk.
-///
-/// Git's answer, not the agent's: the transcript says which files an agent *reported*
-/// editing, this says what differs from `HEAD` in the pane's directory, untracked files
-/// included — the only source of truth for a runner whose hook ring stays empty
-/// (Codex). `contract/README.md`, *`result` is git's answer*.
+/// Git reports actual changes, including untracked files (`contract/README.md`).
 class CellResult {
   const CellResult({
     required this.paneId,

@@ -43,13 +43,7 @@ extension AgentRepositoryReads on AgentRepository {
 
     return AgentView(
       ref: ref,
-      // The host's own verdict, not an inference from an empty list — three silences told
-      // apart. A desktop whose hooks never reach its agents answers `hostSupports: false`
-      // and is empty for every pane forever; that host-wide fault outranks the rest,
-      // because fixing it is what makes every other pane work. `outlook` decides the other
-      // two: `runnerReports` could not tell "steps are coming" from "cannot say", spelling
-      // both as absent, so a pane the desktop could not place drew as an ordinary empty
-      // Chat that never filled.
+      // Prefer the host capability verdict over guessing from an empty transcript.
       blocked: switch (transcript.value) {
         final t? when !t.hostSupports => ChatBlocked.notRecording,
         final t? when t.outlook == TranscriptOutlook.never => ChatBlocked.runnerSilent,

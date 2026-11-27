@@ -1,24 +1,7 @@
 import '../models/conversation.dart';
 import '../models/transcript.dart';
 
-/// Hook-vocabulary entries → turns of parts, on the phone.
-///
-/// **A port of the host's `parts-from-entries.ts`, kept identical on purpose.** The host
-/// serves this shape over `GET /m/cell/:paneId/conversation`, but the live stream still
-/// delivers one hook entry per frame (`{type: "notification"}`), and a host older than the
-/// route serves entries only. Converting here means Chat has **one** render path — parts —
-/// whichever host it is talking to, and `LiveTranscript` keeps the seed/prepend/trim rules
-/// it earned (`issues/12`) without learning a second shape.
-///
-/// The price is two implementations of one rule, and it is paid with a test rather than
-/// with trust: `test/data/conversation_builder_test.dart` converts the committed
-/// `rest-transcript.json` and demands the result equal the committed `rest-conversation.json`
-/// the host produced from the same entries. A drift between the two goes red on the phone.
-///
-/// The three rules are the ones `ChatTranscript.of` learned the hard way — a turn opens on
-/// `prompt-submit` or on `userPrompt` changing (or repeating after a `stop`); `body` means a
-/// reply on `stop`, a path on a tool event, the operator's words on `prompt-submit`; and a
-/// tool's call and result are **one** part, paired by tool name.
+/// Match the host entry-to-parts conversion for older hosts; fixture tests guard drift (`issues/12`).
 List<Turn> turnsFromEntries(List<TranscriptEntry> entries, Provenance provenance) {
   final builder = _Builder(provenance);
   for (final entry in entries) {

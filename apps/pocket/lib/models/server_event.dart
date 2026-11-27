@@ -11,14 +11,7 @@ import 'notification_event.dart';
 sealed class ServerEvent {
   const ServerEvent();
 
-  /// Parses one frame. `host` is required because `fleet.changed` carries no host
-  /// identity of its own — the socket it arrived on is what knows (ADR-13).
-  ///
-  /// Returns null for a frame this app does not know.
-  ///
-  /// Required by ADR-10, not defensive: the host is allowed to be newer than the
-  /// app, and an unknown frame must be skipped rather than crash a screen the
-  /// operator opened to answer an agent.
+  /// The socket supplies host identity (ADR-13); unknown frames must be skipped (ADR-10).
   static ServerEvent? fromJson(Map<String, Object?> json, {required HostId host}) {
     switch (json['type']) {
       case 'hello':

@@ -2,26 +2,7 @@ import '../models/conversation.dart';
 import '../models/host_id.dart';
 import 'measurement_log.dart';
 
-/// How much of a cell's conversation is held, and what may reclaim it.
-///
-/// Split out of `LiveConversation` when that file crossed this app's 300-line rule, and the
-/// cut is where it is because everything here answers one question — *how much history does
-/// this cell get to keep* — while what stays behind answers a different one: what the history
-/// **is**. The store owns the turns; this owns the bound on them.
-///
-/// **Two bounds, and which one applies is decided by the operator.**
-/// [maxParts] is what a cell earns by being live: the host pages at 500 and one page fits
-/// whole. Trimming drops from the **front**, because the newest step is the one the operator
-/// is waiting on — and the front is also exactly where scrolling up puts history. So a live
-/// update would reclaim the page they had just asked for: measured 2026-09-08, one streaming
-/// chunk took 200 parts and two whole turns off the top of the screen mid-read.
-///
-/// So the moment a cell is paged into, its bound becomes [maxHeld] — the hard ceiling — and
-/// stays there until that history is dropped or replaced. **Not `maxParts + whatever arrived`,
-/// which is the version this file shipped first and which grants no headroom at all:** a busy
-/// cell is already at `maxParts`, so a cap of `maxParts + paged` equals what is held the
-/// instant the page lands, and the very next step trims the page away again. One bound or the
-/// other, never an arithmetic blend of the two.
+/// Keep paged history under a larger bound so live updates do not immediately evict it.
 class HistoryWindow {
   HistoryWindow({
     required this.maxParts,
@@ -59,12 +40,7 @@ class HistoryWindow {
   /// Whether a page carrying this entry has already been taken for this cell.
   bool alreadyTaken(CellRef ref, String key) => _taken[ref]?.contains(key) ?? false;
 
-  /// Remembers the entries a page brought in, so an overlapping page is not taken twice.
-  ///
-  /// Two `/transcript` reads can overlap — the host's ring against its file, or a repeated
-  /// `oldestCursor` after a failed read — and the turn ids derived from them differ, so
-  /// nothing downstream would catch it. That is the "one exchange drawn twice" failure, and
-  /// on the delta lane this set is the only thing standing in front of it.
+  /// Deduplicate overlapping pages whose derived turn IDs may differ.
   void noteTaken(CellRef ref, Iterable<String> keys) {
     final held = _taken.putIfAbsent(ref, () => {})..addAll(keys);
     if (held.length <= maxHeld) return;

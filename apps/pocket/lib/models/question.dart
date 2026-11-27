@@ -1,11 +1,6 @@
 part of 'conversation.dart';
 
-// A question the agent is putting to the operator, and the shapes it is made of.
-//
-// A `part` rather than its own library because [Part] is `sealed`: Dart requires every subtype
-// in one library, and [QuestionPart] is one. The split is still the right one — these are the
-// only shapes here that are *waiting on a person*, where everything left in `conversation.dart`
-// records what already happened.
+// Dart requires sealed [Part] subtypes in one library.
 
 /// One answer an agent is offering, in its own words.
 class UserQuestionOption {
@@ -57,12 +52,7 @@ class UserQuestion {
       );
 }
 
-/// A question the agent is putting to the operator — **not** a permission.
-///
-/// A permission asks leave to act and takes a yes or a no. This asks the operator to *choose*,
-/// and every option carries words of its own. Drawing it as a permission is how a five-option
-/// design question came to sit under an amber `PERMISSION` banner above **Allow once** and
-/// **Deny** — with the question itself nowhere on screen.
+/// A question requires a choice, not a permission response.
 class QuestionPart extends Part {
   const QuestionPart({
     required super.id, required super.ts, required super.seq, required super.provenance,

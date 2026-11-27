@@ -1,11 +1,6 @@
 part of 'host_api.dart';
 
-/// `/m/cell/:paneId/size*` — the phone holding a pane's PTY size while Terminal is open
-/// (v4 tiket 11, ADR-6 addendum 2026-10-05).
-///
-/// A `part` for the reason [HostApiReads] is one: `host_api.dart` sits at the 300-line
-/// mark. **Not gated.** A size is not a mutation of the work — no byte reaches the agent —
-/// and asking for a fingerprint to open a screen would be a gate nobody reads.
+/// Size changes do not reach the agent and need no biometric gate (ADR-6 addendum).
 extension HostApiSize on HostApi {
   /// Starts a hold with no [token], renews one with it. A renewal that lost — someone at
   /// the desk typed, or the lease ran out — answers `held: false`, not an error.

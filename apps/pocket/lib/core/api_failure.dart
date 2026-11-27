@@ -1,16 +1,4 @@
-/// Why an HTTP call to a host did not give an answer the caller can use.
-///
-/// Separate from `HostFailure` on purpose, and the split is the whole design: this
-/// says what the **host replied**, `HostFailure` says what the **operator should do**.
-/// Only `hosts/` can bridge them, because deciding expired-vs-revoked needs the clock
-/// and the stored expiry, which `core/` does not have (ADR-13 no. 3).
-///
-/// Sealed so a new status cannot be handled by accident: a `switch` over these
-/// refuses to compile until the new case is named.
-///
-/// [TransportUnavailable] is deliberately *not* one of these. A request that never
-/// arrived is not a reply, and flattening the two would lose the refused/asleep
-/// distinction the failure taxonomy rests on.
+/// Host replies and operator diagnoses belong to separate layers; transport failures are not replies (ADR-13 no. 3).
 sealed class ApiFailure implements Exception {
   const ApiFailure();
 
@@ -29,12 +17,7 @@ class PairingRejected extends ApiFailure {
   String get code => 'pairing_rejected';
 }
 
-/// 429 from `POST /m/pair` — the host is throttling this source, or redeeming is
-/// locked out after too many failed codes (`packages/host/.../pair-route.ts`).
-///
-/// Distinct from [PairingRejected] because the operator's move differs: nothing is
-/// wrong with the code they hold, and typing it again in ten seconds may well work.
-/// Carries the host's own sentence, since only the host knows which of the two it is.
+/// Keep throttling distinct from an invalid code because the operator can retry (`packages/host/.../pair-route.ts`).
 class TooManyPairingAttempts extends ApiFailure {
   const TooManyPairingAttempts(this.reason);
 
@@ -53,12 +36,7 @@ class HostUnauthorized extends ApiFailure {
   String get code => 'unauthorized';
 }
 
-/// 401 from `POST /m/devices/refresh` — this credential can never be renewed again.
-///
-/// A distinct type because the host refuses to refresh a token that is *already* past
-/// its 12-hour TTL, exactly as it refuses one past the 30-day ceiling
-/// (`packages/host/.../device-store.ts`). So there is no "ask for biometrics and
-/// retry" here: the only way back in is a fresh pairing code.
+/// Expired credentials require re-pairing; biometric retry cannot renew them (`packages/host/.../device-store.ts`).
 class RefreshRefused extends ApiFailure {
   const RefreshRefused();
 

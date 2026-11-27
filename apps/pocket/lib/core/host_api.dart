@@ -73,12 +73,7 @@ class HostApi {
     );
     final boot = parseShape(() => Bootstrap.fromJson(json));
 
-    // Identity comes from two places on the two transports, and they must agree.
-    // `HostSocket` stamps frames with the id we paired with; `Bootstrap.fromJson`
-    // reads it out of the payload. If a tailnet name has come to point at a different
-    // machine, trusting the payload would file that machine's cells under a host the
-    // operator never paired — a phantom entry `HostRegistry` has no socket for, and
-    // R-10's wrong-repo dispatch one step later.
+    // Reject mismatched host identities to prevent dispatch to an unpaired machine (R-10).
     if (boot.hostId != host) {
       throw HostFaulted(
         status: 200,
@@ -93,14 +88,7 @@ class HostApi {
   Future<void> dispatch(String paneId, String text) =>
       _authed('POST', _uri(['m', 'cell', paneId, 'dispatch']), body: {'text': text});
 
-  /// Writes bytes to the pane's PTY **exactly as given** — no submit key appended.
-  ///
-  /// The twin of [dispatch], and the difference is the whole reason it exists: dispatch
-  /// is a sentence for the agent and the host appends CR to it, this is a key press.
-  /// `Ctrl-C` has no line to submit and `↑` is three bytes that are one key.
-  ///
-  /// The bytes come from the emulator on this phone, which knows the pane's cursor-key
-  /// mode because it is drawing the same stream. Nothing on either side re-encodes them.
+  /// Send raw emulator bytes without appending a submit key.
   Future<void> sendInput(String paneId, String data) => _authed(
         'POST',
         _uri(['m', 'cell', paneId, 'input']),
@@ -115,14 +103,7 @@ class HostApi {
         special: (reply) => reply.status == 404 ? NoLiveSession(paneId) : null,
       );
 
-  /// Starts a cell, and answers with the pane the host registered for it.
-  ///
-  /// `POST /m/cells` — the collection, because this creates a member of it, while every
-  /// other cell route names one pane.
-  ///
-  /// [permissionMode], [model], [effort] and [profileId] are sent only when the caller chose one:
-  /// absent means *keep the runner's default*, and sending `null` would be this app
-  /// saying something it did not mean (`spawn-tuning` in `contract/README.md`).
+  /// Omit unselected tuning fields so runner defaults apply (`contract/README.md`, spawn-tuning).
   Future<SpawnedCell> spawnCell({
     required String provider,
     String? runnerId, String? workspaceId, String? initialPrompt,
@@ -143,15 +124,7 @@ class HostApi {
         'tui': ?tui,
       }));
 
-  /// Ends the cell: the process is stopped and the pane leaves its workspace.
-  ///
-  /// `DELETE`, not a `POST /close`, because the route is about the pane's existence
-  /// rather than about something happening inside it — the same reason `stop` is a
-  /// POST on a sub-path and this is not.
-  ///
-  /// A 404 is [NoLiveSession] here for the same reason it is on [stop]: the cell is
-  /// already gone, which is the outcome asked for, and telling the operator that the
-  /// list is stale is a different sentence from telling them something broke.
+  /// Treat a missing session as already closed.
   Future<void> closeCell(String paneId) => _authed(
         'DELETE',
         _uri(['m', 'cell', paneId]),
@@ -226,12 +199,7 @@ class HostApi {
     return RefreshedToken.fromJson(json);
   }
 
-  /// `POST /m/projects/clone` — brings a repository onto the machine.
-  ///
-  /// Answers with the **job**, not the result: a repo over a VPS link takes as long as
-  /// it takes, and the phone is allowed to leave the screen (`issues/02`). Empty
-  /// `branch` and `name` are dropped rather than sent blank — the same reading the host
-  /// applies, and the same one `spawnCell` already uses for `model` and `effort`.
+  /// Return the asynchronous job; omit blank branch and name (`issues/02`).
   Future<CloneJob> cloneProject({
     required String url,
     String? branch,

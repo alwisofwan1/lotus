@@ -1,15 +1,6 @@
 import 'conversation.dart';
 
-/// One thing that changed in a cell's conversation, as the host says it.
-///
-/// The live counterpart of [ConversationPage], carried by the `conversation` frame. Three
-/// shapes, because a turn's header, its parts, and the characters inside a part that is
-/// still being written all move independently: a turn opens before anything is in it and
-/// closes after everything is, a part inside it is revised in place — a tool call when its
-/// result lands — and prose grows a chunk at a time while the agent is speaking.
-///
-/// **Absent is unchanged, never cleared.** A turn header arrives whole each time, so a
-/// second one for the same `turnId` replaces the header and leaves the parts alone.
+/// Absent fields remain unchanged; turn headers replace headers without clearing parts.
 sealed class ConversationUpdate {
   const ConversationUpdate();
 
@@ -81,18 +72,7 @@ class PartUpdate extends ConversationUpdate {
   final Part part;
 }
 
-/// Characters appended to a part that is still being written — **only the new ones**.
-///
-/// The shape streaming prose actually arrives in. A growing part used to be re-sent whole on
-/// every chunk, so a reply crossed the network once per chunk: the host's own ACP capture is
-/// 46 chunks for two sentences, which is 46 copies of a growing prefix over a tailnet to a
-/// phone. The host sends the chunk now, and this is the frame that carries it.
-///
-/// **Safe to apply blindly, and safe to ignore entirely.** The host will never send one for
-/// a part it has not already opened with a [PartUpdate], nor after that part has settled
-/// (`part/opens-before-delta`, `part/settles-once` in `contract/README.md`) — so a delta for
-/// an unknown part means this client is behind, not that the host misspoke, and dropping it
-/// costs nothing: the whole part is re-sent when it settles.
+/// Ignore deltas for unknown parts: settled parts are resent (`contract/README.md`, `part/opens-before-delta`, `part/settles-once`).
 class TextDelta extends ConversationUpdate {
   const TextDelta({
     required this.turnId,

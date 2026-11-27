@@ -1,12 +1,7 @@
 import '../core/biometrics.dart';
 import '../core/clock.dart';
 
-/// Whether a gated action may proceed, and on what grounds.
-///
-/// Three values rather than a `bool` because "the operator proved it" and "there was
-/// nobody to ask" are different facts about the same allowed action, and the second is
-/// worth surfacing — in the UI, and in the audit attribution ADR-8 puts on the cell
-/// timeline.
+/// Distinguishes verified presence from an allowed action with no available prompt (ADR-8).
 enum GateVerdict {
   granted,
 
@@ -19,38 +14,8 @@ enum GateVerdict {
   bool get allowed => this != refused;
 }
 
-/// The gate in front of every mutation (ADR-8), fail-closed (ADR-12 no. 4).
-///
-/// Reads operate freely; only mutations come through here. That asymmetry is the whole
-/// point: a prompt on every read would train the operator to tap through prompts, which
-/// is how a gate stops being one.
-///
-/// **Proof lasts a few minutes, rather than exactly one action.** That is a relaxation,
-/// and it is made on the ADR's own terms rather than against them:
-///
-/// - ADR-8 states plainly that the host *never verifies* this proof — "ia hanya melihat
-///   bearer, tidak lebih". So this gate is a **local** control, and the thing it defends
-///   against is precisely one: somebody acting through Pocket on a phone that is in
-///   their hand and unlocked. What actually carries the credential's security is the
-///   TTL the host enforces and the tailnet the host sits behind, which the ADR says in
-///   those words.
-/// - Against that one threat, a window bounds the exposure to its length instead of
-///   removing it — the phone is either in the wrong hands or it is not, and a thief who
-///   can produce one prompt can produce ten.
-/// - What it buys back is the gate's meaning. Answering an agent is a conversation:
-///   a permission prompt, a follow-up, a correction, all within a minute. Demanding
-///   proof for each one trains exactly the tap-through this class's own comment names
-///   as the way a gate stops being one.
-///
-/// The same instinct is already in `AgentRepository._mutate`, one call wide: when a
-/// credential refresh has just prompted, the dispatch behind it does not prompt again,
-/// "because prompting twice in one tap would train them to tap through". This is that
-/// rule given a clock.
-///
-/// **One gate for every host, deliberately.** The threat is the phone being in the wrong
-/// hands, which is not a per-host fact — and a window that reset per host would prompt
-/// again on a swipe between two agents that happen to live on different machines, which
-/// is the friction this exists to remove.
+/// Mutations fail closed; proof is local, time-limited, and shared across hosts (ADR-8, ADR-12 no. 4).
+/// The host verifies the bearer credential, not biometric proof.
 class BiometricGate {
   BiometricGate(
     this.biometrics, {
@@ -65,14 +30,7 @@ class BiometricGate {
   /// the same seam `Credentials` takes for the TTL.
   final Clock now;
 
-  /// How long a proof stands.
-  ///
-  /// Long enough to cover a back-and-forth with an agent — answer a permission prompt,
-  /// read what it did, send a correction — and short enough that it is measured in the
-  /// minutes a phone spends out of your hand, not the hours. It is also not the only
-  /// bound: [forget] drops it the moment the app leaves the foreground, which is the
-  /// event that actually matters. The clock is the backstop for a phone left unlocked
-  /// on a desk with Pocket still open.
+  /// The time limit bounds exposure while [forget] clears proof on backgrounding.
   static const Duration defaultGraceWindow = Duration(minutes: 3);
 
   final Duration graceWindow;
@@ -111,11 +69,6 @@ class BiometricGate {
     }
   }
 
-  /// Drops any standing proof, so the next mutation asks again.
-  ///
-  /// Called when the app leaves the foreground (`app/pocket_app.dart`). That is the
-  /// event the window is really bounded by: a phone handed over, pocketed, or taken is
-  /// a phone whose Pocket is no longer in front of its operator. The clock is the
-  /// weaker of the two bounds and exists for the case where the app stays open.
+  /// Clear proof when the app leaves the foreground (`app/pocket_app.dart`).
   void forget() => _provenAt = null;
 }

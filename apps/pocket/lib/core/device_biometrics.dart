@@ -2,12 +2,7 @@ import 'package:local_auth/local_auth.dart';
 
 import 'biometrics.dart';
 
-/// The real gate, behind the seam — `local_auth`, which ships from
-/// `flutter/packages` and so is the same paved road ADR-1 and ADR-10 chose for.
-///
-/// Nothing is caught here on purpose. `BiometricGate` is the single place that decides
-/// what a failure means, and a second policy in this file would let a plugin error read
-/// as "this device has no lock" — which is the one answer that *opens* the gate.
+/// Let the gate handle plugin errors so failures cannot bypass proof (ADR-1, ADR-10).
 class DeviceBiometrics implements Biometrics {
   DeviceBiometrics({LocalAuthentication? auth}) : auth = auth ?? LocalAuthentication();
 

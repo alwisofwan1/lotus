@@ -1,9 +1,4 @@
-/// A clone the host is running, or has finished running.
-///
-/// `state` and `step` stay **strings**, the same choice `Cell.status` and `Cell.turn`
-/// already make. A host newer than this app can name a step this app has never heard of,
-/// and an enum would have to either throw or silently call it something else — both of
-/// which are worse than printing a word the operator can read.
+/// Keeps state and step as strings so newer host values remain readable.
 class CloneJob {
   const CloneJob({
     required this.taskId,

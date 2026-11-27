@@ -1,14 +1,5 @@
-/// `GET /m/cell/:paneId/conversation` — the transcript as turns of typed parts.
-///
-/// The runner-agnostic shape `plans/pocket-chat-conversation-model/RESEARCH.md` §5.1
-/// proposes, following the Agent Client Protocol vocabulary. Fase 1 lands the model and
-/// its fixture only; Chat still renders `TranscriptSnapshot`. When Chat moves here
-/// (Fase 3) `ChatTranscript.of` stops guessing turn boundaries and pairing tool rows —
-/// the host has already done both, once, for every client.
-///
-/// Every arm keeps the app's standing rules: **absent ≠ zero** (`additions`/`deletions`
-/// nullable), truncation explicit, and an unknown `type` is a [UnknownPart] the UI draws
-/// as a step rather than a line it drops (`contract/README.md`, host-newer-than-app).
+/// Preserves unknown parts, nullable counts, and explicit truncation for newer hosts.
+/// See `plans/pocket-chat-conversation-model/RESEARCH.md` and `contract/README.md`.
 library;
 
 part 'question.dart';

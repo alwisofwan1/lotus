@@ -2,16 +2,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../models/app_build.dart';
 
-/// Reads which build is running.
-///
-/// Two sources, in order. `scripts/release.sh` bakes the build's identity in with
-/// `--dart-define` (see `scripts/version.sh`), and that wins: it carries the commit and
-/// the build time, and its build number is the bare one — the platform's own versionCode
-/// has the `--split-per-abi` offset added, so it reads 2000 higher on an arm64 phone.
-///
-/// Anything else — `flutter run`, or a store pipeline that never ran the script — falls
-/// back to what the platform reports, so a build is never shown as unknown just because
-/// it was made another way.
+/// Prefer baked build identity because platform build numbers may include ABI offsets.
 Future<AppBuild> readAppBuild() async {
   const version = String.fromEnvironment('POCKET_VERSION');
   const buildNumber = int.fromEnvironment('POCKET_BUILD_NUMBER');

@@ -9,14 +9,7 @@ extension HostApiReads on HostApi {
   Future<PermissionSnapshot> permission(String paneId) async =>
       PermissionSnapshot.fromJson(await _authed('GET', _uri(['m', 'cell', paneId, 'permission'])));
 
-  /// The cell's conversation **as the host derived it** — turns of typed parts.
-  ///
-  /// Never called until 2026-09-08, which is the whole of the duplicate-prompt bug:
-  /// Chat seeded from `/transcript` instead, whose entries this app then converted into
-  /// parts of its own (`conversation_builder.dart`). For a cell whose runner streams
-  /// native parts that is **two derivations of one conversation** — codex's own ids on
-  /// the live lane, hashed ids from the seed — so every prompt drew twice, once per
-  /// derivation. One list, one derivation: ask the host that owns the answer.
+  /// Use the host-derived conversation so seed and live part IDs agree.
   Future<ConversationPage> conversation(String paneId, {int? before, int? limit}) async =>
       ConversationPage.fromJson(await _authed(
         'GET',

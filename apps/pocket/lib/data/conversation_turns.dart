@@ -1,21 +1,7 @@
 import '../models/conversation.dart';
 import '../models/conversation_update.dart';
 
-/// Applies one delta to a cell's turns, in place.
-///
-/// Pure apart from the list it is handed, so the rule can be read and tested without a socket,
-/// a store, or a cell — which is what [LiveConversation] wanted from it.
-///
-/// **A part is the step; a turn only groups steps for reading.** So the part id is the identity
-/// and the turn is where it happens to be filed. `bb` keeps its timeline this way up — items
-/// keyed by `itemId`, with the turn as metadata on them — and that is what makes a turn moving
-/// harmless there. Lotus nests parts inside turns, so the same guarantee has to be stated here:
-/// a part already held is updated **where it lives**, even when this frame files it under a
-/// different turn id.
-///
-/// Without that rule, a host that derived a turn id differently from the one a REST seed
-/// implies puts the same steps on screen twice. Measured on a phone on 2026-09-08: one
-/// exchange drawn twice, its user bubble and its reply repeated.
+/// Update parts by identity where held, even if a delta names a different turn, to avoid duplicates.
 void applyUpdate(List<Turn> held, ConversationUpdate update) {
   switch (update) {
     case TurnUpdate():

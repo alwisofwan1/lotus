@@ -24,13 +24,7 @@ class Bootstrap {
 
   final List<Cell> cells;
 
-  /// Every project this host knows, **running or not** (ADR-14).
-  ///
-  /// Not a duplicate of [workspaces]: that list is grouped from the cells that
-  /// happen to be alive, so it cannot contain a project whose agents have all
-  /// ended — and returning to such a project is the whole reason the switcher
-  /// exists. Empty from a host older than the route, which is a host that can only
-  /// describe what is running, not a broken one.
+  /// Includes inactive projects absent from live workspaces (ADR-14).
   final List<HostProject> projects;
 
   final List<Workspace> workspaces;
@@ -77,16 +71,7 @@ class Bootstrap {
   }
 }
 
-/// One project a host holds, whether or not anything is running in it.
-///
-/// The counterpart to [Workspace], and the difference is the point: a [Workspace]
-/// is a grouping of live cells, so it disappears when the last agent ends. This is
-/// the host's own registry — a desktop's CodeCanvas projects, a Standalone Host's
-/// `PROJECTS_ROOT` scan — and it keeps its row through an empty fleet.
-///
-/// Carries [project] rather than a bare id for the same reason a [Cell] does: two
-/// hosts can each hold a project called `pocket`, and only the pair identifies one
-/// (R-10).
+/// Includes host identity to distinguish projects with the same name (R-10).
 class HostProject {
   const HostProject({
     required this.project,
