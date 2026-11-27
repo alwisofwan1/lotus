@@ -55,8 +55,10 @@ mixin _AgentViews on State<AgentPage> {
   /// The phone's hold on the pane's PTY size (v4 tiket 11). Always built: whether the host
   /// takes it is asked per request, so a host that reconnects with the flag starts working.
   late final _size = PtySizeLease(
-    hold: (cols, rows, token) =>
-        widget.repository.holdSize(widget.cell.ref, cols: cols, rows: rows, token: token),
+    hold: (cols, rows, token) async {
+      final h = await widget.repository.holdSize(widget.cell.ref, cols: cols, rows: rows, token: token);
+      return h == null ? null : (held: h.held, token: h.token);
+    },
     release: (token) => widget.repository.releaseSize(widget.cell.ref, token),
   );
 

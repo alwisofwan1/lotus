@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lotus_pocket/core/host_api.dart' show SizeHold;
 import 'package:lotus_pocket/features/agent/pty_size_lease.dart';
 
 /// v4 tiket 11 — the phone holds the pane's size while Terminal is open, and stops for
@@ -7,13 +6,13 @@ import 'package:lotus_pocket/features/agent/pty_size_lease.dart';
 void main() {
   late List<(int, int, int?)> holds;
   late List<int> releases;
-  late SizeHold Function() answer;
+  late SizeAnswer Function() answer;
   late PtySizeLease lease;
 
   setUp(() {
     holds = [];
     releases = [];
-    answer = () => const SizeHold(held: true, token: 7);
+    answer = () => (held: true, token: 7);
     lease = PtySizeLease(
       hold: (cols, rows, token) async {
         holds.add((cols, rows, token));
@@ -55,7 +54,7 @@ void main() {
       ..want(true)
       ..grid(54, 30);
     await tester.pump(PtySizeLease.settle);
-    answer = () => const SizeHold(held: false);
+    answer = () => (held: false, token: null);
     await tester.pump(PtySizeLease.renewEvery);
     expect(holds, hasLength(2));
 
@@ -64,7 +63,7 @@ void main() {
     expect(holds, hasLength(2));
     expect(releases, isEmpty, reason: 'nothing is held, so nothing is released');
 
-    answer = () => const SizeHold(held: true, token: 8);
+    answer = () => (held: true, token: 8);
     lease
       ..want(false)
       ..want(true);
@@ -76,7 +75,7 @@ void main() {
   testWidgets('a host that could not be asked is tried again on the next renewal', (tester) async {
     var calls = 0;
     lease = PtySizeLease(
-      hold: (cols, rows, token) async => ++calls == 1 ? null : const SizeHold(held: true, token: 3),
+      hold: (cols, rows, token) async => ++calls == 1 ? null : (held: true, token: 3),
       release: (token) async => releases.add(token),
     )
       ..want(true)

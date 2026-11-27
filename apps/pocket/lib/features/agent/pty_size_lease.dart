@@ -1,9 +1,10 @@
 import 'dart:async';
 
-import '../../core/host_api.dart' show SizeHold;
-
 /// Asks the host to hold the pane at `cols × rows`, renewing with [token] once it has one.
-typedef HoldSize = Future<SizeHold?> Function(int cols, int rows, int? token);
+typedef HoldSize = Future<SizeAnswer?> Function(int cols, int rows, int? token);
+
+/// The host's answer, as a record so features need no core type.
+typedef SizeAnswer = ({bool held, int? token});
 
 /// Hands the pane's size back to the desktop.
 typedef ReleaseSize = Future<void> Function(int token);

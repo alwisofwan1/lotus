@@ -51,6 +51,14 @@ const Set<String> transportPackages = {
   'record',
 };
 
+/// The single file of a disallowed layer a layer may still reach: the theme barrel.
+const Map<String, Set<String>> mayImportFile = {
+  'features': {'app/theme/theme.dart'},
+};
+
+/// Camera surfaces stay black whatever the theme, like the viewfinder in core/.
+const Set<String> hardCodedColourAllowlist = {'lib/features/onboarding/widgets/scan_screen.dart'};
+
 Iterable<File> dartFiles(String dir) => Directory(dir)
     .listSync(recursive: true)
     .whereType<File>()
@@ -64,6 +72,23 @@ String? layerOf(String path) {
   return parts[i + 1];
 }
 
+/// What a `lib/` file imports, as paths under `lib/` — relative imports resolved.
+Iterable<String> importsOf(File file) sync* {
+  final dir = File(file.path).parent.uri;
+  for (final line in file.readAsLinesSync()) {
+    final m = RegExp(r"^(?:import|export) '([^']+)'").firstMatch(line);
+    if (m == null) continue;
+    final target = m.group(1)!;
+    if (target.startsWith('package:lotus_pocket/')) {
+      yield target.substring('package:lotus_pocket/'.length);
+    } else if (!target.contains(':')) {
+      final path = dir.resolve(target).path;
+      final i = path.indexOf('lib/');
+      if (i != -1) yield path.substring(i + 4);
+    }
+  }
+}
+
 void main() {
   final files = dartFiles('lib').toList();
 
@@ -74,7 +99,7 @@ void main() {
         reason: 'a new top-level directory under lib/ needs a rule in ADR-13 first');
   });
 
-  test('every import obeys the dependency direction', () {
+  test('every import obeys the dependency direction, relative ones included', () {
     final violations = <String>[];
 
     for (final file in files) {
@@ -83,18 +108,33 @@ void main() {
       final allowed = mayImport[from];
       if (allowed == null) continue;
 
-      for (final line in file.readAsLinesSync()) {
-        final match = RegExp("import 'package:lotus_pocket/([a-z_]+)/").firstMatch(line);
-        // A relative import stays inside its own layer by construction, so only
-        // package-qualified ones can cross a boundary.
-        if (match == null) continue;
-        final to = match.group(1)!;
+      for (final target in importsOf(file)) {
+        final to = target.split('/').first;
         if (to == from || allowed.contains(to)) continue;
-        violations.add('${file.path}: $from → $to');
+        if (mayImportFile[from]?.contains(target) ?? false) continue;
+        violations.add('${file.path}: $from → $target');
       }
     }
 
     expect(violations, isEmpty);
+  });
+
+  test('relative imports are resolved, so they cannot slip past the rule', () {
+    final probe = File('lib/features/agent/widgets/view_switch.dart');
+    expect(importsOf(probe), contains('app/theme/theme.dart'));
+  });
+
+  test('features colour only through theme tokens', () {
+    final pattern = RegExp(r'Color\(0x|Colors\.(?!transparent\b)');
+    final violations = <String>[];
+    for (final file in files.where((f) => layerOf(f.path) == 'features')) {
+      if (hardCodedColourAllowlist.contains(file.path)) continue;
+      final lines = file.readAsLinesSync();
+      for (var i = 0; i < lines.length; i++) {
+        if (pattern.hasMatch(lines[i])) violations.add('${file.path}:${i + 1}');
+      }
+    }
+    expect(violations, isEmpty, reason: 'add a role to app/theme instead of a literal');
   });
 
   test('features never reach transport directly', () {
