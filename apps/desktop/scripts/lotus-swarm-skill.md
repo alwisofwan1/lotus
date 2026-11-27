@@ -43,7 +43,9 @@ Start **every** worker before you wait on any. Use one `lotus_chat_delegate` cal
 - `provider` / `model` / `effort`: what the user named. Otherwise, pick what the piece needs.
   Spreading workers across `claude` and `codex` is fine; the verifier is always the other provider.
 - `worktree: true` for any worker that changes files.
-- `verify: true` for code changes. Leave it off only for read-only or research pieces.
+- `verify: true` for code that changes behaviour. Leave it off for read-only, research and mechanical
+  pieces (comments, renames, formatting): each round runs a second agent at high effort.
+- `effort`: never `low` for a piece that spans many files; a low-effort worker tends to give up early.
 - `title`: short, shown in the rail.
 - `prompt`: the whole brief, self-contained. Use this shape:
 
@@ -77,7 +79,10 @@ Call `lotus_chat_wait` with **all** worker chatIds and `timeoutSec: 1800`. Repea
 
 For each worker, look at `verify.status`:
 
-- `passed`: a verifier on the other provider re-ran the tests and agreed. Ready to merge.
+- `passed`: a verifier on the other provider re-ran the tests and agreed. Ready to merge. Its
+  non-blocking `Notes:` are in the verifier's chat; mention them only if they matter.
+- `blocked`: the worker said it could not finish; `reasons` says why. No verifier ran. Fix the brief
+  (smaller piece, missing context) and `lotus_chat_tell` it, or report it.
 - `unverified`: the rounds ran out, or the verifier could not finish. Read `reasons`.
   - If a reason is clear and inside the worker's scope, send one more `lotus_chat_tell` with it,
     then wait again.

@@ -5,7 +5,7 @@
 // Session handling adapted from bb (plugins/provider-claude-code/src/bridge/sdk-session.ts),
 // Copyright (c) 2026 Michael Yong, MIT License — see ./LICENSE-bb.
 
-import { LOTUS_DELEGATION_NOTE, lotusNote } from "./delegation-note";
+import { LOTUS_DELEGATION_NOTE, lotusNote, subAgentNote } from "./delegation-note";
 import {
   query,
   type CanUseTool,
@@ -236,6 +236,8 @@ export interface ClaudeSessionOptions {
   resumeSessionId?: string;
   forkAt?: string;
   conciseReplies?: boolean;
+  /** A chat Lotus delegated; it gets the sub-agent note instead of the delegation note. */
+  subAgent?: "worker" | "verifier";
   /** Load no user/project/local settings: every action the CLI would ask about reaches `requestPermission`. */
   strictPermissions?: boolean;
   /** A resumed chat's earlier messages that may name outside paths (`outsideReadRules`). */
@@ -291,7 +293,7 @@ export class ClaudeSession {
         cwd: this.options.cwd,
         env: this.options.env,
         pathToClaudeCodeExecutable: this.options.claudePath,
-        systemPrompt: { type: "preset", preset: "claude_code", append: lotusNote(this.options.conciseReplies, DELEGATION_NOTE) },
+        systemPrompt: { type: "preset", preset: "claude_code", append: lotusNote(this.options.conciseReplies, subAgentNote(this.options.subAgent) ?? DELEGATION_NOTE) },
         ...otherLotusHidden(this.options.env.LOTUS_PROFILE_KEY),
         ...settingsFor(this.options.strictPermissions === true, this.options.env),
         includePartialMessages: true,

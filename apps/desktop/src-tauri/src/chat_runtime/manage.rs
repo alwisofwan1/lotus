@@ -173,6 +173,8 @@ mod tests {
             parent_id: None,
             machine: None,
             agent_name: None,
+            role: None,
+            verify: None,
         }
     }
 

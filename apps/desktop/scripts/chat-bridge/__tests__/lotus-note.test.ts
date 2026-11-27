@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CONCISE_REPLIES_NOTE, LOTUS_DELEGATION_NOTE, agentNameNote, lotusNote } from "../delegation-note";
+import { CONCISE_REPLIES_NOTE, LOTUS_DELEGATION_NOTE, SUB_AGENT_NOTE, VERIFIER_NOTE, agentNameNote, lotusNote, subAgentNote } from "../delegation-note";
 import { threadStartParams } from "../protocol";
 
 describe("lotusNote", () => {
@@ -12,6 +12,21 @@ describe("lotusNote", () => {
 
   it("starts a thread with it off when the host does not say", () => {
     expect(threadStartParams.parse({ threadId: "t", cwd: "/repo" }).conciseReplies).toBe(false);
+  });
+});
+
+describe("subAgentNote", () => {
+  it("tells a delegated chat to do its task itself instead of how to delegate", () => {
+    expect(lotusNote(false, subAgentNote("worker"))).toBe(SUB_AGENT_NOTE);
+    expect(lotusNote(true, subAgentNote("verifier"))).toBe(`${VERIFIER_NOTE}\n\n${CONCISE_REPLIES_NOTE}`);
+    expect(lotusNote(false, subAgentNote(undefined))).toBe(LOTUS_DELEGATION_NOTE);
+    expect(SUB_AGENT_NOTE).toContain("Do not hand it on");
+  });
+
+  it("accepts only the two roles the host sends", () => {
+    expect(threadStartParams.parse({ threadId: "t", cwd: "/r", subAgent: "verifier" }).subAgent).toBe("verifier");
+    expect(threadStartParams.parse({ threadId: "t", cwd: "/r" }).subAgent).toBeUndefined();
+    expect(() => threadStartParams.parse({ threadId: "t", cwd: "/r", subAgent: "lead" })).toThrow();
   });
 });
 

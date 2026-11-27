@@ -72,9 +72,31 @@ export function railTreeState(thread: ChatThread, children: Map<string, ChatThre
   return states[0];
 }
 
-/** "3 agents · 1 working"; null when it delegated nothing. */
+/** A Delegate Verify checker. Before the `role` column, one was known only by its title. */
+export function isVerifier(thread: Pick<ChatThread, "role" | "title">): boolean {
+  return thread.role === "verifier" || /^verify · .* · r\d+$/.test(thread.title ?? "");
+}
+
+/** A worker's verify loop for its row's second line: "verifying 1/2", "verified", …; null = none. */
+export function verifyLabel(thread: Pick<ChatThread, "verify">): string | null {
+  const v = thread.verify;
+  if (!v) return null;
+  if (v.status === "verifying") return v.round ? `verifying ${v.round}/${v.rounds}` : "verify queued";
+  if (v.status === "passed") return "verified ✓";
+  if (v.status === "unverified") return `unverified ${v.round}/${v.rounds}`;
+  if (v.status === "blocked") return "blocked";
+  return null;
+}
+
+/** The rows drawn under a delegated chat: a verifier is folded into its worker's row (the
+ *  second line says how verify goes) and shows only while it works, waits on you, or is open. */
+export function visibleChildren(list: readonly ChatThread[], activeId: string | null): ChatThread[] {
+  return list.filter((t) => !isVerifier(t) || t.id === activeId || ["running", "waiting"].includes(railState(t)));
+}
+
+/** "3 agents · 1 working"; null when it delegated nothing. Verifiers are Lotus's, not agents it delegated. */
 export function agentsLine(thread: ChatThread, children: Map<string, ChatThread[]>): string | null {
-  const all = railDescendants(thread.id, children).map((d) => railState(d.thread));
+  const all = railDescendants(thread.id, children).filter((d) => !isVerifier(d.thread)).map((d) => railState(d.thread));
   if (all.length === 0) return null;
   const waiting = all.filter((s) => s === "waiting").length;
   const working = all.filter((s) => s === "running").length;

@@ -58,6 +58,16 @@ export interface ChatThread {
   link?: "reconnecting" | "down" | null;
   /** Its agent's Agent Handle (ADR-0068); null until the chat is first opened. */
   agentName?: string | null;
+  /** "verifier" for a Delegate Verify checker Lotus made; null/absent = an ordinary chat. */
+  role?: string | null;
+  /** A delegated worker's verify loop in this Lotus run; null/absent = none, or lost on restart. */
+  verify?: VerifyBadge | null;
+}
+
+export interface VerifyBadge {
+  status: "verifying" | "passed" | "unverified" | "blocked" | "interrupted";
+  round: number;
+  rounds: number;
 }
 
 /** One project a machine's Lotus Host holds; `id` is what a remote chat runs in. */

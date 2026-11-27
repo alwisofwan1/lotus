@@ -1,6 +1,11 @@
 //! Delegate Verify (ADR-0066, plans/delegate-verify/SPEC.md): a child delegated with `verify` is
 //! checked by a verifier on the other provider when it finishes; a `fail` goes back to the child as
 //! a follow-up, up to `rounds` times. The loop is code, not an agent (ADR-0051/0056).
+//!
+//! One verifier session serves every round, so a later round re-checks its own earlier reasons
+//! instead of a fresh verifier raising new ones (seen 2026-11-28: three rounds, three different
+//! sets of findings, all suites green). A worker that reports `STATUS: blocked`, or committed
+//! nothing, never reaches a verifier: that check is free.
 
 use std::time::{Duration, Instant};
 
@@ -54,6 +59,8 @@ pub(super) struct Plan {
     pub title: String,
     pub task: String,
     pub branch: Option<String>,
+    /// The commit the worktree started from; None without a worktree.
+    pub base: Option<String>,
     pub cwd: String,
     pub permission_mode: String,
     pub provider: String,
@@ -67,7 +74,45 @@ pub(super) fn other_provider(provider: &str) -> &'static str {
 }
 
 pub(super) fn clamp_rounds(asked: Option<u32>) -> u32 {
-    asked.unwrap_or(3).clamp(1, 5)
+    asked.unwrap_or(2).clamp(1, 5)
+}
+
+/// Added to a verified worker's brief: its last line says whether it finished.
+pub(super) const WORKER_STATUS_NOTE: &str = " Your report's last line is exactly `STATUS: done`, or `STATUS: blocked` \
+     when you could not finish (say why above it): a blocked report goes back to the delegating agent, not to a verifier.";
+
+/// The worker's report ends with `STATUS: blocked`: Some(what it wrote above that line).
+pub(super) fn worker_blocked(report: &str) -> Option<String> {
+    let lines: Vec<&str> = report.lines().collect();
+    let i = lines.iter().rposition(|l| !l.trim().is_empty())?;
+    let bare = lines[i].trim().trim_matches(|c| c == '*' || c == '`').trim().to_lowercase();
+    let word = bare.strip_prefix("status:")?.trim().trim_matches(|c| c == '*' || c == '`');
+    (word == "blocked").then(|| {
+        let above = lines[..i].join("\n").trim().to_string();
+        if above.is_empty() { "(the worker gave no reason)".into() } else { above }
+    })
+}
+
+/// HEAD of the git checkout at `cwd`.
+pub(super) fn head_commit(cwd: &str) -> Option<String> {
+    let out = std::process::Command::new("git").args(["-C", cwd, "rev-parse", "HEAD"]).output().ok()?;
+    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().to_string()).filter(|s| !s.is_empty())
+}
+
+/// Commits on HEAD at `cwd` that `base` does not have; None when git cannot tell.
+fn commits_since(cwd: &str, base: &str) -> Option<u32> {
+    let range = format!("{base}..HEAD");
+    let out = std::process::Command::new("git").args(["-C", cwd, "rev-list", "--count", &range]).output().ok()?;
+    out.status.success().then(|| String::from_utf8_lossy(&out.stdout).trim().parse().ok()).flatten()
+}
+
+/// How a verify loop ended.
+#[derive(Debug, PartialEq)]
+enum Outcome {
+    Passed,
+    Unverified(String),
+    /// The worker said it could not finish; its reason goes to the lead.
+    Blocked(String),
 }
 
 #[derive(Debug, PartialEq)]
@@ -93,28 +138,55 @@ pub(super) fn parse_verdict(text: &str) -> Verdict {
     Verdict::Missing
 }
 
+/// What decides a verdict, for every round: a bar a finished task can clear.
+const VERDICT_BAR: &str = "- Fail ONLY for a blocking defect: a requirement of the task not met, a test or build the diff \
+     breaks, a regression the diff introduces, or a security hole it opens. Anything else (a gap that was there \
+     before, a hardening idea, a case the task did not ask about) goes under a `Notes:` heading and does NOT fail \
+     the work.\n\
+     - End with your reasons (file:line, the input that still breaks), then a last line that is exactly \
+     `VERDICT: pass` or `VERDICT: fail`.";
+
 fn verifier_prompt(plan: &Plan, report: &str, round: u32) -> String {
     let branch = match &plan.branch {
         Some(b) => format!("The work is committed on branch {b}, checked out in this folder (a git worktree)."),
         None => "The work is uncommitted changes in this folder.".into(),
     };
+    let diff = match &plan.base {
+        Some(base) => format!(" The diff is `git diff {base}..HEAD`."),
+        None => String::new(),
+    };
     format!(
         "<lotus-delegation from=\"{worker}\">You are a verifier (round {round} of {rounds}). Another agent did the task below; \
-         check its work. Your last line goes back to Lotus, which acts on it.</lotus-delegation>\n\n\
-         {branch}\n\n\
+         check its work. Your last line goes back to Lotus, which acts on it. Do the check yourself: do not delegate.</lotus-delegation>\n\n\
+         {branch}{diff}\n\n\
          Rules:\n\
          - Read-only: do not edit tracked files and do not commit. Write any probe in $TMPDIR.\n\
-         - Read the whole diff. Judge whether each change removes the ROOT cause, not only whether a test is green. \
-         Look for the same bug elsewhere and for regressions the diff introduces.\n\
+         - Read the whole diff. Judge whether each change removes the ROOT cause, not only whether a test is green.\n\
          - Run the FULL test suite of every package the diff touches, not only the tests the agent ran. \
          A test that fails the same way without this diff is not a reason to fail it; say so.\n\
          - Deleting dead code needs no failing test first; a green build is the evidence.\n\
-         - End with reasons (file:line, the input that still breaks), then a last line that is exactly \
-         `VERDICT: pass` or `VERDICT: fail`.\n\n\
+         {bar}\n\n\
          ## The task\n\n{task}\n\n## The agent's report\n\n{report}",
         worker = plan.worker_id,
         rounds = plan.rounds,
         task = plan.task,
+        bar = VERDICT_BAR,
+    )
+}
+
+/// A later round, sent to the same verifier: it re-checks what it already said, not everything again.
+fn recheck_prompt(plan: &Plan, report: &str, round: u32) -> String {
+    format!(
+        "<lotus-delegation from=\"{worker}\">Round {round} of {rounds}. The agent answered your reasons and committed \
+         again; its new report is below.</lotus-delegation>\n\n\
+         Re-check ONLY:\n\
+         - that each blocking reason you gave is fixed, and\n\
+         - that the new commits break nothing (re-run the same suites).\n\
+         Do not raise new findings about code the earlier rounds already passed over; put them under `Notes:`.\n\
+         {bar}\n\n## The agent's report\n\n{report}",
+        worker = plan.worker_id,
+        rounds = plan.rounds,
+        bar = VERDICT_BAR,
     )
 }
 
@@ -198,9 +270,13 @@ impl ChatRuntime {
                     return; // stopped meanwhile: keep "interrupted"
                 }
                 match outcome {
-                    Ok(None) => s.status = "passed",
-                    Ok(Some(reasons)) => {
+                    Ok(Outcome::Passed) => s.status = "passed",
+                    Ok(Outcome::Unverified(reasons)) => {
                         s.status = "unverified";
+                        s.reasons = Some(reasons);
+                    }
+                    Ok(Outcome::Blocked(reasons)) => {
+                        s.status = "blocked";
                         s.reasons = Some(reasons);
                     }
                     Err(error) => {
@@ -218,59 +294,90 @@ impl ChatRuntime {
         });
     }
 
-    /// Ok(None) = passed; Ok(Some(reasons)) = unverified; Err = the loop was stopped or lost a chat.
-    async fn verify_loop(&self, plan: &Plan) -> Result<Option<String>, String> {
+    /// Ok(outcome), or Err once the loop was stopped or lost a chat.
+    async fn verify_loop(&self, plan: &Plan) -> Result<Outcome, String> {
         let deadline = Instant::now() + CAP;
-        let gave_up = || Ok(Some(format!("gave up after {} h", CAP.as_secs() / 3600)));
+        let gave_up = || Ok(Outcome::Unverified(format!("gave up after {} h", CAP.as_secs() / 3600)));
         let worker = plan.worker_id.as_str();
         let mut since = 0;
+        let mut verifier: Option<String> = None;
         for round in 1..=plan.rounds {
             if !self.turn_ended(worker, worker, since, deadline).await? {
                 return gave_up();
             }
             self.still_verifying(worker)?;
             let report = self.last_answer(worker).unwrap_or_default();
-            let title = format!("verify · {} · r{round}", plan.title);
-            let verifier = self
-                .start_child(
-                    worker,
-                    &plan.cwd,
-                    &plan.permission_mode,
-                    &plan.provider,
-                    plan.model.clone(),
-                    plan.effort.clone(),
-                    &title,
-                    &verifier_prompt(plan, &report, round),
-                )
-                .await?;
-            self.set_verify(worker, |s| {
-                s.round = round;
-                s.verifier_id = Some(verifier.clone());
-            });
-            if !self.turn_ended(worker, &verifier, 0, deadline).await? {
-                return gave_up();
+            if let Some(reason) = worker_blocked(&report) {
+                return Ok(Outcome::Blocked(reason));
             }
-            let reasons = match parse_verdict(&self.last_answer(&verifier).unwrap_or_default()) {
-                Verdict::Pass => return Ok(None),
-                Verdict::Missing => {
-                    // Seen live: Codex failed a turn with "failed to load workspace requirements".
-                    return Ok(Some(match self.last_turn_error(&verifier) {
-                        Some(error) => format!("the verifier's turn failed before a verdict: {error}"),
-                        None => "the verifier gave no VERDICT line".into(),
-                    }));
+            self.set_verify(worker, |s| s.round = round);
+            // No commit on its branch: nothing to verify, and saying so costs no verifier.
+            let committed = match plan.base.clone() {
+                Some(base) => {
+                    let cwd = plan.cwd.clone();
+                    tokio::task::spawn_blocking(move || commits_since(&cwd, &base)).await.map_err(|e| e.to_string())?
                 }
-                Verdict::Fail(reasons) => reasons,
+                None => None,
+            };
+            let reasons = if committed == Some(0) {
+                "Lotus found no commit on your branch: there is nothing to verify yet. Do the task, commit it, \
+                 and end with your report. If you cannot finish, end with `STATUS: blocked` and say why."
+                    .to_string()
+            } else {
+                let at = now_ms();
+                let id = match &verifier {
+                    None => {
+                        let title = format!("Verifier · {}", plan.title);
+                        let id = self
+                            .start_child(
+                                worker,
+                                &plan.cwd,
+                                &plan.permission_mode,
+                                &plan.provider,
+                                plan.model.clone(),
+                                plan.effort.clone(),
+                                &title,
+                                &verifier_prompt(plan, &report, round),
+                                Some("verifier"),
+                            )
+                            .await?;
+                        verifier = Some(id.clone());
+                        id
+                    }
+                    Some(id) => {
+                        let short = uuid::Uuid::new_v4().simple().to_string()[..6].to_string();
+                        self.send(id, &recheck_prompt(plan, &report, round), &format!("recheck-{short}"), Vec::new()).await?;
+                        id.clone()
+                    }
+                };
+                self.set_verify(worker, |s| s.verifier_id = Some(id.clone()));
+                let since_v = if round == 1 { 0 } else { at };
+                if !self.turn_ended(worker, &id, since_v, deadline).await? {
+                    return gave_up();
+                }
+                match parse_verdict(&self.last_answer(&id).unwrap_or_default()) {
+                    Verdict::Pass => return Ok(Outcome::Passed),
+                    Verdict::Missing => {
+                        // Seen live: Codex failed a turn with "failed to load workspace requirements".
+                        return Ok(Outcome::Unverified(match self.last_turn_error(&id) {
+                            Some(error) => format!("the verifier's turn failed before a verdict: {error}"),
+                            None => "the verifier gave no VERDICT line".into(),
+                        }));
+                    }
+                    Verdict::Fail(reasons) => reasons,
+                }
             };
             self.set_verify(worker, |s| s.reasons = Some(reasons.clone()));
             if round == plan.rounds {
-                return Ok(Some(reasons));
+                return Ok(Outcome::Unverified(reasons));
             }
             self.still_verifying(worker)?;
             since = now_ms();
+            let from = verifier.as_deref().unwrap_or("lotus");
             let text = format!(
-                "<lotus-delegation from=\"{verifier}\">A verifier on {} failed your work (round {round} of {}). Fix the \
-                 causes it names, commit, and end with a short, complete report again.</lotus-delegation>\n\n{reasons}",
-                plan.provider, plan.rounds
+                "<lotus-delegation from=\"{from}\">Your work did not pass verification (round {round} of {}). Fix the \
+                 blocking causes below, commit, and end with a short, complete report again.</lotus-delegation>\n\n{reasons}",
+                plan.rounds
             );
             let short = uuid::Uuid::new_v4().simple().to_string()[..6].to_string();
             self.send(worker, &text, &format!("verify-{short}"), Vec::new()).await?;
@@ -344,10 +451,67 @@ mod tests {
     }
 
     #[test]
+    fn a_worker_that_says_blocked_skips_the_verifier() {
+        assert_eq!(worker_blocked("did half\nran out of scope\n\nSTATUS: blocked\n"), Some("did half\nran out of scope".into()));
+        assert_eq!(worker_blocked("**STATUS: Blocked**"), Some("(the worker gave no reason)".into()));
+        assert_eq!(worker_blocked("all done\nSTATUS: done"), None);
+        // Only the last line counts: a quoted status above it does not.
+        assert_eq!(worker_blocked("STATUS: blocked was round 1\nfixed now\nSTATUS: done"), None);
+        assert_eq!(worker_blocked("no status line"), None);
+    }
+
+    #[test]
+    fn commits_are_counted_from_the_worktree_base() {
+        let dir = std::env::temp_dir().join(format!("lotus-verify-{}", uuid::Uuid::new_v4().simple()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let cwd = dir.to_string_lossy().into_owned();
+        let git = |args: &[&str]| {
+            let ok = std::process::Command::new("git")
+                .args(["-C", &cwd, "-c", "user.name=t", "-c", "user.email=t@example.com"])
+                .args(args)
+                .output()
+                .unwrap()
+                .status
+                .success();
+            assert!(ok, "git {args:?}");
+        };
+        git(&["init", "-q"]);
+        git(&["commit", "-q", "--allow-empty", "-m", "base"]);
+        let base = head_commit(&cwd).unwrap();
+        assert_eq!(commits_since(&cwd, &base), Some(0));
+        git(&["commit", "-q", "--allow-empty", "-m", "work"]);
+        assert_eq!(commits_since(&cwd, &base), Some(1));
+        assert_eq!(commits_since(&cwd, "not-a-commit"), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn the_verifier_is_told_what_may_fail_the_work() {
+        let plan = Plan {
+            worker_id: "w".into(),
+            title: "t".into(),
+            task: "do it".into(),
+            branch: Some("lotus/d-x".into()),
+            base: Some("abc123".into()),
+            cwd: "/w".into(),
+            permission_mode: "default".into(),
+            provider: "codex".into(),
+            model: None,
+            effort: None,
+            rounds: 2,
+        };
+        let first = verifier_prompt(&plan, "report", 1);
+        assert!(first.contains("git diff abc123..HEAD"), "{first}");
+        assert!(first.contains("Fail ONLY for a blocking defect"), "{first}");
+        let later = recheck_prompt(&plan, "report 2", 2);
+        assert!(later.contains("Round 2 of 2") && later.contains("Re-check ONLY"), "{later}");
+    }
+
+    #[test]
     fn the_verifier_runs_on_the_other_provider_for_one_to_five_rounds() {
         assert_eq!(other_provider("claude"), "codex");
         assert_eq!(other_provider("codex"), "claude");
-        assert_eq!(clamp_rounds(None), 3);
+        assert_eq!(clamp_rounds(None), 2);
         assert_eq!(clamp_rounds(Some(0)), 1);
         assert_eq!(clamp_rounds(Some(9)), 5);
     }

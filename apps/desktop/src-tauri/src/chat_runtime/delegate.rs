@@ -198,19 +198,30 @@ impl ChatRuntime {
         } else {
             (parent.cwd.clone(), None)
         };
+        // The commit the worktree starts from: the verify loop skips its verifier while the worker
+        // has committed nothing on top of it.
+        let base = match &branch {
+            Some(_) => {
+                let at = cwd.clone();
+                tokio::task::spawn_blocking(move || super::verify::head_commit(&at)).await.map_err(|e| e.to_string())?
+            }
+            None => None,
+        };
 
         let where_note = match &branch {
             Some(branch) => format!(" You work in your own git worktree on branch {branch}, made from the last commit: commit your work there."),
             None => String::new(),
         };
+        // A verified worker says whether it finished, so a worker that gives up is not sent to a verifier.
+        let status_note = if verifier.is_some() { super::verify::WORKER_STATUS_NOTE } else { "" };
         let text = format!(
             "<lotus-delegation from=\"{}\">You are a sub-agent. Your last message goes back to the agent that \
-             delegated this task, so end with a short, complete report of what you did and found.{where_note}</lotus-delegation>\n\n{}",
+             delegated this task, so end with a short, complete report of what you did and found.{where_note}{status_note}</lotus-delegation>\n\n{}",
             parent.id, req.prompt
         );
         // The child runs in the lead's permission mode: never more than the user allowed the lead.
         let child_id = self
-            .start_child(&parent.id, &cwd, &parent.permission_mode, &req.provider, model.clone(), effort.clone(), &req.title, &text)
+            .start_child(&parent.id, &cwd, &parent.permission_mode, &req.provider, model.clone(), effort.clone(), &req.title, &text, None)
             .await?;
         let verify = verifier.map(|(provider, model, effort, rounds)| {
             self.start_verify(super::verify::Plan {
@@ -218,6 +229,7 @@ impl ChatRuntime {
                 title: req.title.clone(),
                 task: req.prompt.clone(),
                 branch: branch.clone(),
+                base: base.clone(),
                 cwd: cwd.clone(),
                 permission_mode: parent.permission_mode.clone(),
                 provider: provider.to_string(),
@@ -253,6 +265,7 @@ impl ChatRuntime {
         effort: Option<String>,
         title: &str,
         text: &str,
+        role: Option<&str>,
     ) -> Result<String, String> {
         let record = self.create_thread(cwd, model, Some(permission_mode.to_string()), Some(provider.to_string()), effort, None, None)?;
         {
@@ -260,6 +273,9 @@ impl ChatRuntime {
             let store = core.store()?;
             store.set_parent(&record.id, parent_id)?;
             store.rename(&record.id, title)?;
+            if let Some(role) = role {
+                store.set_role(&record.id, role)?;
+            }
         }
         let short = uuid::Uuid::new_v4().simple().to_string()[..6].to_string();
         self.send(&record.id, text, &format!("delegate-{short}"), Vec::new()).await?;

@@ -263,6 +263,8 @@ impl ChatRuntime {
             parent_id: None,
             machine,
             agent_name: None,
+            role: None,
+            verify: None,
         };
         let mut core = self.inner.core.lock();
         let store = core.store()?;
@@ -460,6 +462,7 @@ impl ChatRuntime {
         let mut threads = core.store()?.list_threads()?;
         for thread in &mut threads {
             thread.link = trouble.get(&thread.id).copied();
+            thread.verify = core.verifies.get(&thread.id).map(|v| v.to_json());
             let run = core.runs.get(&thread.id);
             thread.turn_started_at = run.and_then(|run| run.active_turn.as_ref().map(|(.., at)| *at));
             thread.status = run.and_then(|run| {
@@ -802,6 +805,8 @@ impl ChatRuntime {
             machine: None,
             // A fork is another agent: it draws its own name when opened.
             agent_name: None,
+            role: None,
+            verify: None,
             ..source.clone()
         };
         store.create_thread(&record)?;
@@ -1350,6 +1355,13 @@ impl ChatRuntime {
             }
             if self.inner.core.lock().store()?.strict_permissions(thread_id)? {
                 params["strictPermissions"] = json!(true);
+            }
+            // A delegated chat gets the sub-agent note instead of the lead's delegation note: it does
+            // its task itself (seen 2026-11-28: every worker and verifier was told to delegate).
+            if record.role.as_deref() == Some("verifier") {
+                params["subAgent"] = json!("verifier");
+            } else if record.parent_id.is_some() {
+                params["subAgent"] = json!("worker");
             }
             // Read at each session start, so a chat picks up the toggle when it next wakes.
             if record.runner != "api" && concise_replies(&crate::settings::get_settings()) {

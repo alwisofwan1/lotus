@@ -1233,10 +1233,13 @@ const TOOLS = [
       "while others do too: it gets its own git worktree and branch from the last commit (uncommitted " +
       "changes are not in it), and you merge its branch afterwards. The prompt must stand on its own: the " +
       "child does not see this conversation. Only works inside a Lotus Chat thread. " +
-      "Set verify for work that must be right (fixes, refactors): when the child finishes, Lotus has a verifier " +
-      "on the OTHER provider re-run the tests and check the diff; a fail goes back to the child automatically, " +
-      "up to rounds times. lotus_chat_wait then reports verify.status: passed, unverified (with reasons) or " +
-      "interrupted. Merging stays the user's decision.",
+      "Set verify for a fix or refactor that changes behaviour and must be right; leave it off for small, " +
+      "mechanical or read-only tasks (comments, renames, research), since each round runs a second agent at high effort. " +
+      "When the child finishes, Lotus has one verifier on the OTHER provider re-run the tests and check the diff; " +
+      "only a blocking defect fails it, and a fail goes back to the child automatically, up to rounds times, the " +
+      "same verifier re-checking its own reasons. A child that commits nothing, or ends with STATUS: blocked, is " +
+      "not sent to a verifier. lotus_chat_wait then reports verify.status: passed, unverified (with reasons), " +
+      "blocked (the child's reason) or interrupted. Merging stays the user's decision.",
     inputSchema: {
       type: "object",
       required: ["provider", "title", "prompt"],
@@ -1251,7 +1254,7 @@ const TOOLS = [
         prompt: { type: "string", description: "The whole task, self-contained." },
         worktree: { type: "boolean", description: "Give the child its own git worktree and branch (default false)." },
         verify: {
-          description: "true, or { model, effort, rounds } for the verifier (other provider; effort defaults to high, else medium; rounds 1-5, default 3).",
+          description: "true, or { model, effort, rounds } for the verifier (other provider; effort defaults to high, else medium; rounds 1-5, default 2).",
           anyOf: [
             { type: "boolean" },
             {

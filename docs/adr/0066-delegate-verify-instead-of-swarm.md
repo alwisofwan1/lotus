@@ -47,3 +47,12 @@ Hasilnya:
   `~/.agents/skills` setiap kali app start, supaya user baru tahu polanya. Isinya hanya instruksi
   untuk lead: memecah tugas, menjalankan delegate dengan `worktree` + `verify`, `wait`, lalu
   melapor. Board, @mention dan peran baru tetap tidak ada. Keputusan 1 tidak berubah.
+- **Tambahan 2026-11-28 (efisiensi):** data nyata menunjukkan dua pemborosan. (a) Worker yang menyerah
+  ("task incomplete", tanpa commit) tetap dikirim ke verifier tiga kali. (b) Setiap ronde memakai
+  verifier baru tanpa ingatan, sehingga tiap ronde menemukan masalah *lain* walau semua test hijau.
+  Perubahan: worker yang memakai verify mengakhiri laporan dengan `STATUS: done|blocked`, dan
+  `blocked` langsung kembali ke lead (status `blocked`). Branch tanpa commit baru tidak dikirim ke
+  verifier. Satu sesi verifier dipakai untuk semua ronde, dan ronde berikutnya hanya memeriksa
+  ulang alasannya sendiri. Fail hanya untuk cacat yang memblokir; temuan lain masuk `Notes:`.
+  Default turun ke 2 ronde. Chat yang didelegasikan tidak lagi diberi catatan cara mendelegasikan.
+  Di rail, verifier dilipat ke baris worker ("verifying 1/2", "verified ✓").

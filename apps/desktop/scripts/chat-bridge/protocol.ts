@@ -37,6 +37,9 @@ export const threadStartParams = z.object({
   forkAt: z.string().min(1).optional(),
   // Settings › Chat › Reading › Concise replies, read by the host at each session start.
   conciseReplies: z.boolean().default(false),
+  // A chat Lotus delegated: "worker" (lotus_chat_delegate) or "verifier" (Delegate Verify). It is
+  // told to do the task itself instead of how to delegate.
+  subAgent: z.enum(["worker", "verifier"]).optional(),
   // The Live Voice assistant brain (mockups/live-voice-assistant.html): no user or project
   // settings, so no `allow` rule there can skip the app's approval. Set by the host per thread, never cleared.
   strictPermissions: z.boolean().default(false),

@@ -7,7 +7,7 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 
-import { lotusNote } from "./delegation-note";
+import { lotusNote, subAgentNote } from "./delegation-note";
 import { codexPolicy, type CodexPermission } from "../../src/modules/chat/providers/codex/translate";
 import { IMAGE_MIME_TYPES, type AttachmentParams, type InteractionDecision, type ToolPermissionRequest } from "./protocol";
 
@@ -216,6 +216,8 @@ export interface CodexSessionOptions {
   resumeSessionId?: string;
   forkAt?: string;
   conciseReplies?: boolean;
+  /** A chat Lotus delegated; it gets the sub-agent note instead of the delegation note. */
+  subAgent?: "worker" | "verifier";
   describe: (method: string, params: Record<string, unknown>) => CodexPermission | null;
   requestPermission: (request: ToolPermissionRequest) => Promise<InteractionDecision>;
   onMessage: (message: unknown) => void;
@@ -339,7 +341,7 @@ export class CodexSession {
       ...codexPolicy(options.permissionMode),
       ...(this.model ? { model: this.model } : {}),
       config: lotusMcpConfig(options.env, user.mcpServers),
-      developerInstructions: withUserInstructions(user.developerInstructions, lotusNote(options.conciseReplies)),
+      developerInstructions: withUserInstructions(user.developerInstructions, lotusNote(options.conciseReplies, subAgentNote(options.subAgent))),
     };
     type Opened = { thread: { id: string }; model: string };
     // A fork forks once: a `/clear` later in the session starts fresh, as anywhere else.

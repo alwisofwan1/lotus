@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { ChatThread } from "../../runtime/chat-runtime-client";
-import { agentsLine, chatTabMark, displayTitle, placeName, railChildren, railDescendants, railGroups, railSections, shortSince, sinceLabel, statsLine } from "../rail";
+import { agentsLine, chatTabMark, displayTitle, isVerifier, placeName, railChildren, railDescendants, railGroups, railSections, shortSince, sinceLabel, statsLine, verifyLabel, visibleChildren } from "../rail";
 
 const thread = (id: string, cwd: string): ChatThread => ({
   id,
@@ -163,5 +163,30 @@ describe("placeName (mockups/chat-remote-machine.html, decision 4)", () => {
     expect(placeName({ cwd: "/Users/me/app", machine: null })).toBe("app");
     expect(placeName({ cwd: "/srv/app", machine, link: "reconnecting" })).toBe("app · devbox-vps");
     expect(placeName({ cwd: "/srv/app", machine, link: "down" })).toBe("app · devbox-vps · offline");
+  });
+
+  it("folds a verifier into its worker: a label on the worker, the row only while it works or is open", () => {
+    const worker = { ...thread("w", "/w"), parentId: "lead" };
+    const verifier = { ...thread("v", "/w"), parentId: "w", role: "verifier", lastTurnEndedAt: 5, lastReadAt: 9 };
+    const legacy = { ...thread("old", "/w"), parentId: "w", title: "verify · Trim comments · r2" };
+    expect(isVerifier(verifier)).toBe(true);
+    expect(isVerifier(legacy)).toBe(true);
+    expect(isVerifier(worker)).toBe(false);
+    expect(visibleChildren([verifier, legacy], null)).toEqual([]);
+    expect(visibleChildren([verifier], "v")).toEqual([verifier]);
+    expect(visibleChildren([{ ...verifier, status: "waiting" }], null)).toHaveLength(1);
+    const children = railChildren([{ ...thread("lead", "/w") }, worker, verifier]);
+    expect(agentsLine(thread("lead", "/w"), children)).toBe("1 agent · done");
+  });
+
+  it("says how a worker's verify goes", () => {
+    const at = (status: "verifying" | "passed" | "unverified" | "blocked" | "interrupted", round = 1) => ({ verify: { status, round, rounds: 2 } });
+    expect(verifyLabel({ verify: null })).toBeNull();
+    expect(verifyLabel(at("verifying", 0))).toBe("verify queued");
+    expect(verifyLabel(at("verifying"))).toBe("verifying 1/2");
+    expect(verifyLabel(at("passed"))).toBe("verified ✓");
+    expect(verifyLabel(at("unverified", 2))).toBe("unverified 2/2");
+    expect(verifyLabel(at("blocked"))).toBe("blocked");
+    expect(verifyLabel(at("interrupted"))).toBeNull();
   });
 });

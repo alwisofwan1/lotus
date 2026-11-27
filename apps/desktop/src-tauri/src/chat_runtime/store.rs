@@ -61,6 +61,11 @@ pub struct ThreadRecord {
     /// The agent's Agent Handle in this thread (ADR-0068), picked by the frontend from the Name Pool
     /// when the thread is first opened; None until then.
     pub agent_name: Option<String>,
+    /// What Lotus made this thread for: "verifier" for a Delegate Verify checker; None = an
+    /// ordinary chat. The rail folds a verifier into its worker's row.
+    pub role: Option<String>,
+    /// Not stored: a delegated worker's verify loop in this Lotus run (`{status, round, rounds}`).
+    pub verify: Option<Value>,
 }
 
 /// Where a remote thread runs, and how far its stream has been read.
@@ -377,6 +382,13 @@ impl Store {
             conn.execute_batch("ALTER TABLE chat_threads ADD COLUMN strict_permissions INTEGER NOT NULL DEFAULT 0;")
                 .map_err(|e| e.to_string())?;
         }
+        // Delegate Verify: marks a verifier thread, so the rail can fold it into its worker.
+        let has_role: bool = conn
+            .query_row("SELECT COUNT(*) > 0 FROM pragma_table_info('chat_threads') WHERE name = 'role'", [], |row| row.get(0))
+            .map_err(|e| e.to_string())?;
+        if !has_role {
+            conn.execute_batch("ALTER TABLE chat_threads ADD COLUMN role TEXT;").map_err(|e| e.to_string())?;
+        }
         Ok(Self { conn })
     }
 
@@ -410,7 +422,7 @@ impl Store {
     pub fn thread(&self, id: &str) -> Result<Option<ThreadRecord>, String> {
         self.conn
             .query_row(
-                "SELECT id, cwd, model, permission_mode, provider_session_id, created_at, updated_at, runner, effort, title, provider, imported_from, archived, last_turn_ended_at, last_read_at, account, pinned_at, parent_id, machine, agent_name
+                "SELECT id, cwd, model, permission_mode, provider_session_id, created_at, updated_at, runner, effort, title, provider, imported_from, archived, last_turn_ended_at, last_read_at, account, pinned_at, parent_id, machine, agent_name, role
                  FROM chat_threads WHERE id = ?1",
                 [id],
                 row_to_thread,
@@ -423,7 +435,7 @@ impl Store {
         let mut stmt = self
             .conn
             .prepare(
-                "SELECT id, cwd, model, permission_mode, provider_session_id, created_at, updated_at, runner, effort, title, provider, imported_from, archived, last_turn_ended_at, last_read_at, account, pinned_at, parent_id, machine, agent_name
+                "SELECT id, cwd, model, permission_mode, provider_session_id, created_at, updated_at, runner, effort, title, provider, imported_from, archived, last_turn_ended_at, last_read_at, account, pinned_at, parent_id, machine, agent_name, role
                  FROM chat_threads ORDER BY updated_at DESC",
             )
             .map_err(|e| e.to_string())?;
@@ -661,6 +673,14 @@ impl Store {
             .map_err(|e| e.to_string())
     }
 
+    /// Sets what Lotus made `thread_id` for (see `ThreadRecord::role`).
+    pub fn set_role(&self, thread_id: &str, role: &str) -> Result<(), String> {
+        self.conn
+            .execute("UPDATE chat_threads SET role = ?2 WHERE id = ?1", params![thread_id, role])
+            .map_err(|e| e.to_string())
+            .and_then(|n| if n == 1 { Ok(()) } else { Err(format!("unknown thread {thread_id}")) })
+    }
+
     /// Marks `thread_id` as delegated by `parent_id` (set once, when the child is made).
     pub fn set_parent(&self, thread_id: &str, parent_id: &str) -> Result<(), String> {
         self.conn
@@ -876,6 +896,8 @@ fn row_to_thread(row: &rusqlite::Row<'_>) -> rusqlite::Result<ThreadRecord> {
             .get::<_, Option<String>>(18)?
             .and_then(|json| serde_json::from_str(&json).ok()),
         agent_name: row.get(19)?,
+        role: row.get(20)?,
+        verify: None,
     })
 }
 
@@ -909,6 +931,8 @@ mod tests {
             parent_id: None,
             machine: None,
             agent_name: None,
+            role: None,
+            verify: None,
         }
     }
 

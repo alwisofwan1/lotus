@@ -119,6 +119,8 @@ pub fn session(
             parent_id: None,
             machine: None,
             agent_name: None,
+            role: None,
+            verify: None,
         },
         events,
     }

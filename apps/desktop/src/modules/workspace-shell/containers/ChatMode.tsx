@@ -3,7 +3,7 @@
 import "@/styles/chat.css";
 
 import { useEffect, useState } from "react";
-import { agentsLine, displayTitle, placeName, railChildren, railDescendants, railSections, railState, shortSince, sinceLabel } from "@/modules/chat/domain/rail";
+import { agentsLine, displayTitle, placeName, railChildren, railDescendants, railSections, railState, shortSince, sinceLabel, verifyLabel, visibleChildren } from "@/modules/chat/domain/rail";
 import type { ChatThread } from "@/modules/chat/runtime/chat-runtime-client";
 import type { ThreadRow } from "@/modules/workspace-shell/components/ThreadRail";
 import { markChatThreadRead } from "@/modules/chat/runtime/chat-runtime-client";
@@ -170,12 +170,12 @@ export function ChatMode({
       id: thread.id,
       title: thread.title ? displayTitle(thread.title) : "Untitled chat",
       fullTitle: thread.title ?? undefined,
-      folder: [thread.model ?? thread.runner, thread.effort].filter(Boolean).join(" · "),
+      folder: [thread.model ?? thread.runner, thread.effort, verifyLabel(thread)].filter(Boolean).join(" · "),
       state,
       time: shortSince(thread.lastTurnEndedAt ?? thread.updatedAt, now),
       runningSince: thread.turnStartedAt ?? undefined,
       draft: draftOf(thread.id),
-      children: [...nativeRows(thread.id), ...(children.get(thread.id) ?? []).map(childRow)],
+      children: [...nativeRows(thread.id), ...visibleChildren(children.get(thread.id) ?? [], activeId).map(childRow)],
     };
   };
   const groups = [
@@ -197,7 +197,7 @@ export function ChatMode({
           time: shortSince(state === "ready" ? (thread.lastTurnEndedAt ?? thread.updatedAt) : thread.updatedAt, now),
           runningSince: thread.turnStartedAt ?? undefined,
           draft: draftOf(thread.id),
-          children: unfolded ? [...nativeRows(thread.id), ...(children.get(thread.id) ?? []).map(childRow)] : undefined,
+          children: unfolded ? [...nativeRows(thread.id), ...visibleChildren(children.get(thread.id) ?? [], activeId).map(childRow)] : undefined,
         };
       }),
     })),
