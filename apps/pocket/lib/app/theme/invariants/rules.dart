@@ -75,11 +75,12 @@ List<Violation> checkTheme(ThemeVariant v, {bool applyWaivers = true}) {
   }
 
   final term = v.terminal;
-  final termBg = term[TermRole.background];
-  need('terminal foreground', 'contrast', contrast(term[TermRole.foreground], termBg), 4.5);
-  need('terminal cursor', 'contrast', contrast(term[TermRole.cursor], termBg), 3.0);
+  // The terminal draws transparent (backgroundOpacity 0) over termGround, so that is the ground.
+  final termBg = c[ColorRole.termGround];
+  need('terminal foreground on termGround', 'contrast', contrast(term[TermRole.foreground], termBg), 4.5);
+  need('terminal cursor on termGround', 'contrast', contrast(term[TermRole.cursor], termBg), 3.0);
   for (final r in ansiRoles) {
-    need('ansi ${r.name}', 'contrast', contrast(term[r], termBg), 3.0);
+    need('ansi ${r.name} on termGround', 'contrast', contrast(term[r], termBg), 3.0);
   }
   // Black is also a ground (inverse video), so white must read on it.
   need('ansi white on black', 'contrast', contrast(term[TermRole.white], term[TermRole.black]), 4.5);

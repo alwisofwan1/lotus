@@ -47,8 +47,10 @@ No widget, builder or test changes. `ThemeController.select('<id>')` shows it.
 - **Amber is the only meaningful hue** (OKLCH): `waiting` hue 50–95°, chroma ≥ 0.10;
   every neutral role chroma ≤ 0.03 and ≥ 0.10 ΔE_ok from `waiting`; `live` and `error` at
   least 60° of hue away from it.
-- **Terminal**: foreground ≥ 4.5 and cursor ≥ 3.0 on the terminal background; every ANSI
-  colour ≥ 3.0 on it (black too: SGR 30 is text); `white` ≥ 4.5 on `black` (inverse video).
+- **Terminal**: foreground ≥ 4.5 and cursor ≥ 3.0 on `termGround`; every ANSI colour ≥ 3.0
+  on it (black too: SGR 30 is text); `white` ≥ 4.5 on `black` (inverse video). The xterm
+  view draws with `backgroundOpacity: 0` over a `termGround` box, so `TermRole.background`
+  is never painted and is not the ground measured.
 - **Camera**: the scanner keeps its own dark ground in every theme (`camera`), and its text
   roles `onCamera`, `onCamera2`, `onCamera3` must clear 4.5 on it.
 - **Brand marks** ≥ 3.0 on `ground` and `raised`, using the table for the variant's
@@ -57,7 +59,8 @@ No widget, builder or test changes. `ThemeController.select('<id>')` shows it.
 
 **Waivers.** A variant may list subjects it knowingly fails in `ThemeVariant.waivers`, each
 with a reason. A test fails if a waiver no longer matches a real violation. Classic waives
-three, to keep its look: `ansi black` (1.05:1, black is a ground by convention),
+four, to keep its look: `ansi black on termGround` (black is a ground by convention),
+`ansi brightBlack on termGround` (2.96:1, ornament ink),
 `text3 on raised` (4.42:1 on sheets) and `onCamera3 on camera` (4.43:1, the scan hint).
 
 The matrix states what the app guarantees today. A palette that sits text3 on a raised

@@ -89,8 +89,9 @@ final ThemeVariant _dark = ThemeVariant(
   }),
   elevation: AppElevation({ElevationRole.floating: 4, ElevationRole.menu: 8}),
   waivers: {
-    'ansi black': 'black is a ground in dark terminals; SGR 30 text is near-invisible by convention',
-    'text3 on raised': '4.42:1 on sheets; lifting text3 changes every quiet label (Graphite fixes it)',
+    'ansi black on termGround': 'black is a ground in dark terminals; SGR 30 text is near-invisible by convention',
+    'ansi brightBlack on termGround': '2.96:1; it is ornament ink, used for dim terminal chrome',
+    'text3 on raised': '4.42:1 on sheets; lifting text3 changes every quiet label',
     'onCamera3 on camera': '4.43:1 for the scan hint; kept to match the quiet text it was',
   },
 );

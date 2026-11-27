@@ -88,11 +88,16 @@ void main() {
       expect(rulesOf(with_({ColorRole.ornament: const Color(0xA8F7F2EA)})), contains('order'));
     });
 
-    test('terminal text the colour of its own background', () {
+    test('terminal text measured on termGround, the ground actually painted', () {
+      final paper = with_({ColorRole.termGround: const Color(0xFFF7F2EA)});
+      expect(checkTheme(paper).map((x) => x.subject), contains('terminal foreground on termGround'));
+    });
+
+    test('terminal text the colour of the ground behind it', () {
       ThemeVariant term(TermRole r) => ThemeVariant(
             brightness: v.brightness,
             tokens: v.tokens,
-            terminal: v.terminal.copyWith({r: v.terminal[TermRole.background]}),
+            terminal: v.terminal.copyWith({r: v.tokens.termBg}),
             shape: v.shape,
             elevation: v.elevation,
           );
@@ -133,7 +138,7 @@ void main() {
 
     test('ANSI black as text and quiet text on raised are checked', () {
       final raw = checkTheme(v, applyWaivers: false).map((x) => x.subject);
-      expect(raw, containsAll(['ansi black', 'text3 on raised']));
+      expect(raw, containsAll(['ansi black on termGround', 'text3 on raised']));
     });
 
     test('a status colour too close to amber', () {
