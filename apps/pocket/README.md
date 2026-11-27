@@ -231,19 +231,14 @@ pairing. Hot-restart replays the intro.
 
 ### Theme
 
-Colours and type live in `AppTokens`, a `ThemeExtension`, read as `context.tokens`. Values are
-the `:root` block of the locked mockup verbatim — which are themselves copied from
-`apps/desktop/src/styles/canvas/theme.css`, so `--d-bg` and `--canvas-bg` are the same
-`#07070d`. Change a colour in the mockup first; this follows it.
-
-`buildAppTheme({tokens, brightness})` is the only place `ThemeData` is built. A second theme —
-light, high-contrast, a per-test palette — is a second `AppTokens` constant handed to it, not a
-second builder.
-
-One rule the theme enforces on purpose: **`waiting` (amber) is not mapped to any `ColorScheme`
-role.** `MVP.md` gives amber exactly one meaning — an agent needs you — so a default-styled
-Material widget must not be able to pick it up as an accent. Reaching it is always a deliberate
-`context.tokens.waiting`.
+Tokens live in `lib/app/theme/`: role enums stored by index (so `==`/`lerp` cannot miss a
+role), one palette file per theme, a registry, and invariants (WCAG pairings, amber as the
+only meaningful hue) tested over every registered theme. Widgets read `context.tokens`;
+`features/` imports only `app/theme/theme.dart`. `buildAppTheme(variant)` is the only
+`ThemeData` builder, and `ThemeController` feeds `theme`/`darkTheme`/`themeMode`.
+**`waiting` (amber) is mapped to no `ColorScheme` role**, so a stock Material widget cannot
+pick it up. Design, the classic palette's rationale and how to add a theme:
+[`docs/theme.md`](docs/theme.md).
 
 ### Chat
 
