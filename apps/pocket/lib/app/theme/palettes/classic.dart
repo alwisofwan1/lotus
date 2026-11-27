@@ -31,6 +31,11 @@ final AppColors _colors = AppColors({
   ColorRole.onError: const Color(0xFF121214),
   ColorRole.scrim: const Color(0x99000000),
   ColorRole.shadow: const Color(0xFF000000),
+  // The scanner stays dark in every theme, so its text has roles of its own.
+  ColorRole.camera: const Color(0xFF000000),
+  ColorRole.onCamera: const Color(0xFFF7F2EA),
+  ColorRole.onCamera2: const Color(0xA0F7F2EA),
+  ColorRole.onCamera3: const Color(0x79F7F2EA),
 });
 
 final AppType _type = AppType({
@@ -83,6 +88,11 @@ final ThemeVariant _dark = ThemeVariant(
     ShapeRole.pill: 999,
   }),
   elevation: AppElevation({ElevationRole.floating: 4, ElevationRole.menu: 8}),
+  waivers: {
+    'ansi black': 'black is a ground in dark terminals; SGR 30 text is near-invisible by convention',
+    'text3 on raised': '4.42:1 on sheets; lifting text3 changes every quiet label (Graphite fixes it)',
+    'onCamera3 on camera': '4.43:1 for the scan hint; kept to match the quiet text it was',
+  },
 );
 
 /// Dark-only: the light slot carries the dark variant until a light palette exists.

@@ -56,9 +56,6 @@ const Map<String, Set<String>> mayImportFile = {
   'features': {'app/theme/theme.dart'},
 };
 
-/// Camera surfaces stay black whatever the theme, like the viewfinder in core/.
-const Set<String> hardCodedColourAllowlist = {'lib/features/onboarding/widgets/scan_screen.dart'};
-
 Iterable<File> dartFiles(String dir) => Directory(dir)
     .listSync(recursive: true)
     .whereType<File>()
@@ -72,12 +69,68 @@ String? layerOf(String path) {
   return parts[i + 1];
 }
 
-/// Every import/export/part target in [source]: either quote, split across lines.
-Iterable<String> directiveTargets(String source) => RegExp(
-      r'''^\s*(?:import|export|part)\s+r?(['"])(.*?)\1''',
-      multiLine: true,
-      dotAll: true,
-    ).allMatches(source).map((m) => m.group(2)!);
+/// [source] with comments (and, if [strings], string contents) blanked to spaces.
+/// Newlines are kept, so offsets and line numbers still match the file.
+String blank(String source, {bool strings = false}) {
+  final out = StringBuffer();
+  var i = 0;
+  String keep(String c) => c == '\n' ? '\n' : ' ';
+  while (i < source.length) {
+    final c = source[i];
+    final next = i + 1 < source.length ? source[i + 1] : '';
+    if (c == '/' && next == '/') {
+      while (i < source.length && source[i] != '\n') {
+        out.write(' ');
+        i++;
+      }
+    } else if (c == '/' && next == '*') {
+      var depth = 0;
+      do {
+        if (source.startsWith('/*', i)) {
+          depth++;
+          out.write('  ');
+          i += 2;
+        } else if (source.startsWith('*/', i)) {
+          depth--;
+          out.write('  ');
+          i += 2;
+        } else {
+          out.write(keep(source[i]));
+          i++;
+        }
+      } while (depth > 0 && i < source.length);
+    } else if (c == "'" || c == '"') {
+      final raw = i > 0 && source[i - 1] == 'r';
+      final quote = source.startsWith(c * 3, i) ? c * 3 : c;
+      out.write(quote);
+      i += quote.length;
+      while (i < source.length && !source.startsWith(quote, i)) {
+        final step = !raw && source[i] == r'\' ? 2 : 1;
+        for (var k = 0; k < step && i < source.length; k++, i++) {
+          out.write(strings ? keep(source[i]) : source[i]);
+        }
+      }
+      out.write(quote);
+      i += quote.length;
+    } else {
+      out.write(c);
+      i++;
+    }
+  }
+  return out.toString();
+}
+
+/// Every import/export/part target in [source], conditional ones included.
+Iterable<String> directiveTargets(String source) sync* {
+  final code = blank(source);
+  for (final m in RegExp(r'^\s*(?:import|export|part)\b([^;]*);', multiLine: true).allMatches(code)) {
+    // Drop `if (dart.library.x == 'y')` conditions, keep every URI around them.
+    final uris = m.group(1)!.replaceAll(RegExp(r'\([^()]*\)'), '');
+    for (final q in RegExp(r'''r?(['"])(.*?)\1''', dotAll: true).allMatches(uris)) {
+      yield q.group(2)!;
+    }
+  }
+}
 
 /// What a `lib/` file imports, as paths under `lib/` — relative imports resolved.
 Iterable<String> importsOf(String path, String source) sync* {
@@ -96,7 +149,7 @@ Iterable<String> importsOf(String path, String source) sync* {
 /// Offsets of colour literals in [source], whitespace and line breaks included.
 Iterable<int> colourLiterals(String source) => RegExp(
       r'\bColor\s*\(\s*0x|\bColor\.fromA?RGB[OA]?\s*\(|\bColors\s*\.\s*(?!transparent\b)',
-    ).allMatches(source).map((m) => m.start);
+    ).allMatches(blank(source, strings: true)).map((m) => m.start);
 
 void main() {
   final files = dartFiles('lib').toList();
@@ -139,6 +192,9 @@ export '../../data/c.dart';
 import 'package:lotus_pocket/hosts/d.dart';
 import 'sibling.dart';
 // import '../../core/commented.dart';
+/* import '../../core/blocked.dart'; */
+import /* why */ '../../core/e.dart';
+import '../../models/f.dart' if (dart.library.io == 'true') '../../core/g.dart';
 ''';
     expect(importsOf(path, source), [
       'core/a.dart',
@@ -146,19 +202,22 @@ import 'sibling.dart';
       'data/c.dart',
       'hosts/d.dart',
       'features/agent/sibling.dart',
+      'core/e.dart',
+      'models/f.dart',
+      'core/g.dart',
     ]);
   });
 
   test('colour literals are found however they are spelled', () {
     const source = 'a = Color(0xFF000000); b = Color(\n  0x12345678); c = Colors\n.black;'
-        ' d = Color.fromRGBO(0, 0, 0, 1); e = Colors.transparent;';
-    expect(colourLiterals(source), hasLength(4));
+        ' d = Color.fromRGBO(0, 0, 0, 1); e = Colors.transparent; f = Color(/* x */ 0xFF123456);'
+        ' // Color(0xFF000000) in a comment\n g = "Colors.black in a string";';
+    expect(colourLiterals(source), hasLength(5));
   });
 
   test('features colour only through theme tokens', () {
     final violations = <String>[];
     for (final file in files.where((f) => layerOf(f.path) == 'features')) {
-      if (hardCodedColourAllowlist.contains(file.path)) continue;
       final source = file.readAsStringSync();
       for (final at in colourLiterals(source)) {
         violations.add('${file.path}:${'\n'.allMatches(source.substring(0, at)).length + 1}');

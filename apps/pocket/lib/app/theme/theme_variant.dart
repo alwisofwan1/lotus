@@ -14,6 +14,7 @@ class ThemeVariant {
     required this.terminal,
     required this.shape,
     required this.elevation,
+    this.waivers = const {},
   });
 
   final Brightness brightness;
@@ -21,6 +22,9 @@ class ThemeVariant {
   final TerminalPalette terminal;
   final AppShape shape;
   final AppElevation elevation;
+
+  /// Invariant subjects this variant knowingly fails, each with its reason; tested for staleness.
+  final Map<String, String> waivers;
 
   List<ThemeExtension<dynamic>> get extensions => [tokens, terminal, shape, elevation];
 }

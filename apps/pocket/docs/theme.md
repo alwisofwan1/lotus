@@ -41,19 +41,24 @@ No widget, builder or test changes. `ThemeController.select('<id>')` shows it.
 
 - **Pairing matrix** (WCAG 2.1, translucent roles composited over `ground` the way
   `Color.alphaBlend` does): `text`, `text2`, `waiting` ≥ 4.5 on every surface; `text3` ≥ 4.5
-  on `ground`; `ornament` ≥ 3.0 (non-text only); `error` ≥ 4.5 on ground/raised/track;
+  on `ground` and `raised` (sheets); `ornament` ≥ 3.0 (non-text only); `error` ≥ 4.5 on ground/raised/track;
   `live` ≥ 3.0 (a dot); `onWaiting` on `waiting` and `onError` on `error` ≥ 4.5.
 - **Order**: text > text2 > text3 > ornament by contrast.
 - **Amber is the only meaningful hue** (OKLCH): `waiting` hue 50–95°, chroma ≥ 0.10;
   every neutral role chroma ≤ 0.03 and ≥ 0.10 ΔE_ok from `waiting`; `live` and `error` at
   least 60° of hue away from it.
 - **Terminal**: foreground ≥ 4.5 and cursor ≥ 3.0 on the terminal background; every ANSI
-  colour but `black` ≥ 3.0 on it. `black` is a ground in dark terminals (classic's sits
-  1.05:1 from the background by convention), so it is checked as one: `white` ≥ 4.5 on it,
-  and it may not equal the background.
+  colour ≥ 3.0 on it (black too: SGR 30 is text); `white` ≥ 4.5 on `black` (inverse video).
+- **Camera**: the scanner keeps its own dark ground in every theme (`camera`), and its text
+  roles `onCamera`, `onCamera2`, `onCamera3` must clear 4.5 on it.
 - **Brand marks** ≥ 3.0 on `ground` and `raised`, using the table for the variant's
   brightness (`tokens/brand_marks.dart`; on light, Cursor and Grok go dark and the rest deepen).
 - Built theme: no `ColorScheme` role equals `waiting`; text buttons keep the 44 px target.
+
+**Waivers.** A variant may list subjects it knowingly fails in `ThemeVariant.waivers`, each
+with a reason. A test fails if a waiver no longer matches a real violation. Classic waives
+three, to keep its look: `ansi black` (1.05:1, black is a ground by convention),
+`text3 on raised` (4.42:1 on sheets) and `onCamera3 on camera` (4.43:1, the scan hint).
 
 The matrix states what the app guarantees today. A palette that sits text3 on a raised
 surface tightens it there.

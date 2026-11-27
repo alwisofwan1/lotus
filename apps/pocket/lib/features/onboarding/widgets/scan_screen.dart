@@ -26,16 +26,16 @@ class ScanScreen extends StatelessWidget {
     final t = context.tokens;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: t.camera,
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: t.camera,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         title: Text(
           'Scan the QR',
-          style: t.ui.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: t.text),
+          style: t.ui.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: t.onCamera),
         ),
-        iconTheme: IconThemeData(color: t.dim),
+        iconTheme: IconThemeData(color: t.onCamera2),
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -54,7 +54,7 @@ class ScanScreen extends StatelessWidget {
                 // one of them.
                 'Lotus shows it under Settings → Mobile access → Pair a phone.',
                 textAlign: TextAlign.center,
-                style: t.ui.copyWith(fontSize: 12.5, height: 1.5, color: t.muted),
+                style: t.ui.copyWith(fontSize: 12.5, height: 1.5, color: t.onCamera3),
               ),
             ),
           ),

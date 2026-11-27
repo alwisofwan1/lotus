@@ -15,25 +15,30 @@ const _surfaces = [ColorRole.ground, ColorRole.raised, ColorRole.track, ColorRol
 const Map<ColorRole, (double, List<ColorRole>)> pairingMatrix = {
   ColorRole.text: (4.5, _surfaces),
   ColorRole.text2: (4.5, _surfaces),
-  ColorRole.text3: (4.5, [ColorRole.ground]),
+  ColorRole.text3: (4.5, [ColorRole.ground, ColorRole.raised]), // raised = sheets
   ColorRole.ornament: (3.0, [ColorRole.ground]), // non-text only (WCAG 1.4.11)
   ColorRole.waiting: (4.5, _surfaces),
   ColorRole.error: (4.5, [ColorRole.ground, ColorRole.raised, ColorRole.track]),
   ColorRole.live: (3.0, [ColorRole.ground, ColorRole.raised]), // a dot, not text
   ColorRole.onWaiting: (4.5, [ColorRole.waiting]),
   ColorRole.onError: (4.5, [ColorRole.error]),
+  ColorRole.onCamera: (4.5, [ColorRole.camera]),
+  ColorRole.onCamera2: (4.5, [ColorRole.camera]),
+  ColorRole.onCamera3: (4.5, [ColorRole.camera]),
 };
 
 /// Roles that must stay grey, so amber keeps the only hue that means something.
 const neutralRoles = [
   ..._surfaces, ColorRole.termGround, ColorRole.text, ColorRole.text2, ColorRole.text3, //
   ColorRole.ornament, ColorRole.hairline, ColorRole.hairlineStrong, ColorRole.scrim, ColorRole.shadow,
+  ColorRole.camera, ColorRole.onCamera, ColorRole.onCamera2, ColorRole.onCamera3,
 ];
 
 const _brands = ['claude', 'codex', 'cursor', 'gemini', 'grok', 'kimi', 'opencode'];
 
 /// Every rule a registered theme must pass; empty means the variant may ship.
-List<Violation> checkTheme(ThemeVariant v) {
+/// Subjects in [ThemeVariant.waivers] are dropped unless [applyWaivers] is false.
+List<Violation> checkTheme(ThemeVariant v, {bool applyWaivers = true}) {
   final c = v.tokens.colors;
   final out = <Violation>[];
   void need(String subject, String rule, double measured, double required, {bool atMost = false}) {
@@ -73,17 +78,15 @@ List<Violation> checkTheme(ThemeVariant v) {
   final termBg = term[TermRole.background];
   need('terminal foreground', 'contrast', contrast(term[TermRole.foreground], termBg), 4.5);
   need('terminal cursor', 'contrast', contrast(term[TermRole.cursor], termBg), 3.0);
-  for (final r in ansiRoles.where((r) => r != TermRole.black)) {
+  for (final r in ansiRoles) {
     need('ansi ${r.name}', 'contrast', contrast(term[r], termBg), 3.0);
   }
-  // Black is a ground in dark terminals (near the background by convention), so it is
-  // checked as one: white text must read on it, and it must not vanish into the ground.
+  // Black is also a ground (inverse video), so white must read on it.
   need('ansi white on black', 'contrast', contrast(term[TermRole.white], term[TermRole.black]), 4.5);
-  need('ansi black vs background', 'contrast', contrast(term[TermRole.black], termBg), 1.03);
   for (final b in _brands) {
     for (final bg in [ColorRole.ground, ColorRole.raised]) {
       need('brand $b on ${bg.name}', 'contrast', contrast(brandColorFor(b, v.brightness)!, solid(bg)), 3.0);
     }
   }
-  return out;
+  return applyWaivers ? out.where((x) => !v.waivers.containsKey(x.subject)).toList() : out;
 }

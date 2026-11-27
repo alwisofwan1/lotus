@@ -24,6 +24,10 @@ enum ColorRole {
   onError,
   scrim,
   shadow,
+  camera,
+  onCamera,
+  onCamera2,
+  onCamera3,
 }
 
 /// Roles a palette may not tune by eye: they carry the app's only meanings.

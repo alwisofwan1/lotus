@@ -24,6 +24,14 @@ void main() {
           expect(violations, isEmpty, reason: violations.join('\n'));
         });
 
+        test('every waiver excuses a rule that really fails', () {
+          final raw = checkTheme(v, applyWaivers: false).map((x) => x.subject).toSet();
+          expect(v.waivers.keys.toSet().difference(raw), isEmpty, reason: 'stale waiver');
+          for (final reason in v.waivers.values) {
+            expect(reason.trim(), isNotEmpty);
+          }
+        });
+
         test('builds a theme carrying all four extensions', () {
           final theme = buildAppTheme(v);
           expect(theme.brightness, v.brightness);
@@ -60,6 +68,7 @@ void main() {
           terminal: v.terminal,
           shape: v.shape,
           elevation: v.elevation,
+          waivers: v.waivers,
         );
     Set<String> rulesOf(ThemeVariant x) => checkTheme(x).map((e) => e.rule).toSet();
 
@@ -107,6 +116,24 @@ void main() {
       );
       final brand = checkTheme(light).where((x) => x.subject.startsWith('brand'));
       expect(brand, isEmpty, reason: brand.join('\n'));
+    });
+
+    test('camera text the colour of the camera ground', () {
+      for (final r in [ColorRole.onCamera, ColorRole.onCamera2, ColorRole.onCamera3]) {
+        final raw = checkTheme(with_({r: const Color(0xFF000000)}), applyWaivers: false);
+        expect(raw.map((x) => x.subject), contains('${r.name} on camera'));
+      }
+    });
+
+    test('a light ground leaves the camera screen readable', () {
+      final light = with_({ColorRole.ground: const Color(0xFFFFFFFF), ColorRole.text: const Color(0xFF111111)});
+      final camera = checkTheme(light).where((x) => x.subject.contains('camera'));
+      expect(camera, isEmpty, reason: camera.join('\n'));
+    });
+
+    test('ANSI black as text and quiet text on raised are checked', () {
+      final raw = checkTheme(v, applyWaivers: false).map((x) => x.subject);
+      expect(raw, containsAll(['ansi black', 'text3 on raised']));
     });
 
     test('a status colour too close to amber', () {

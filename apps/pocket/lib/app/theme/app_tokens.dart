@@ -41,6 +41,10 @@ class AppTokens extends ThemeExtension<AppTokens> {
   Color get onError => colors[ColorRole.onError];
   Color get scrim => colors[ColorRole.scrim];
   Color get shadow => colors[ColorRole.shadow];
+  Color get camera => colors[ColorRole.camera];
+  Color get onCamera => colors[ColorRole.onCamera];
+  Color get onCamera2 => colors[ColorRole.onCamera2];
+  Color get onCamera3 => colors[ColorRole.onCamera3];
 
   TextStyle get mono => fonts[TypeRole.mono];
   TextStyle get ui => fonts[TypeRole.ui];
