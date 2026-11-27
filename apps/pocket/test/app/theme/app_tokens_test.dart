@@ -243,6 +243,13 @@ void main() {
     expect(a.hashCode, b.hashCode);
     expect(a, isNot(c));
   });
+
+  test('live takes part in equality and hashCode', () {
+    final c = AppTokens.dark.copyWith(live: const Color(0xFF123456));
+
+    expect(c, isNot(AppTokens.dark));
+    expect(c.hashCode, isNot(AppTokens.dark.hashCode));
+  });
 }
 
 /// WCAG 2.1 contrast ratio between a foreground and an opaque background.

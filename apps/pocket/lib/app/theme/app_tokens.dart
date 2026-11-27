@@ -259,6 +259,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
           other.lineStrong == lineStrong &&
           other.waiting == waiting &&
           other.error == error &&
+          other.live == live &&
           other.mono == mono &&
           other.ui == ui &&
           other.serif == serif;
@@ -275,6 +276,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
         lineStrong,
         waiting,
         error,
+        live,
         mono,
         ui,
         serif,
