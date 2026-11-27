@@ -1,23 +1,7 @@
-/// What a machine says it will honour when a spawn is tuned — the two value types
-/// `bootstrap.runners[]` carries beside a runner's name.
-///
-/// **Their own file because `bootstrap.dart` reached the 300-line limit when the permission
-/// scale arrived**, and this is the seam that was already there: everything here answers
-/// *what may this runner be set to*, while what is left behind answers *what is on this
-/// machine*. `bootstrap.dart` re-exports both, so no importer had to learn a second path.
-///
-/// Neither list is ever invented by this app. A host that sends none of a given kind is
-/// saying **do not offer that control**, and an empty picker is a lie about the machine
-/// (ADR-14).
+/// Host-advertised tuning choices prevent offering unsupported controls (ADR-14).
 library;
 
-/// One choice on a runner's model picker.
-///
-/// [id] is what the spawn sends and [label] what the operator reads; they differ for
-/// Codex (`gpt-5.4-codex` → `5.4-codex`), where the host strips the prefix every row
-/// would share. The default is the one the CLI picks unasked — the phone shows it as
-/// the resting choice and sends no `model` for it, so a host default that moves
-/// later is still honoured.
+/// The default sends no model so the host CLI can choose its current default.
 class RunnerModel {
   const RunnerModel({required this.id, required this.label, this.isDefault = false});
 
@@ -39,12 +23,7 @@ class RunnerModel {
           .toList(growable: false);
 }
 
-/// One stop on a runner's permission scale, as the host advertised it.
-///
-/// The same shape as [RunnerModel] on purpose: both are *what this machine will honour*, and
-/// neither is a list this app is allowed to invent. An unknown [id] is still renderable —
-/// [label] is what the operator reads — so a host newer than this app widens the control
-/// instead of breaking it.
+/// Host-advertised labels keep unknown permission choices renderable.
 class RunnerPermission {
   const RunnerPermission({
     required this.id,
@@ -62,12 +41,7 @@ class RunnerPermission {
   /// Where the knob rests when the sheet opens.
   final bool isDefault;
 
-  /// Where it rests instead when the same runner is spawned with no terminal.
-  ///
-  /// Only Codex sets this, and only because its two paths genuinely disagree: a Codex in a
-  /// terminal is launched bypassing everything, while a headless one is started asking — and
-  /// that one can put its approval in front of this phone, so resting it on *never asks*
-  /// would throw away the only reason it can ask at all.
+  /// Headless and terminal defaults can differ; headless approval must remain available.
   final bool isDefaultHeadless;
 
   factory RunnerPermission.fromJson(Map<String, Object?> json) => RunnerPermission(

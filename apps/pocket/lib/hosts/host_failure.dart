@@ -1,13 +1,6 @@
 import '../core/transport.dart';
 
-/// Why a host cannot be reached — as a type, because "failed to connect" is not
-/// an answer an operator can act on.
-///
-/// `issues/06` requires four states to be told apart, since each has a different
-/// next move: the tailnet is down, the host is asleep, Lotus is not running, or the
-/// credential is gone. The **wording** waits for that ticket; the type exists now
-/// so a fifth state cannot slip in without a decision — a `switch` over a sealed
-/// class refuses to compile until it is handled.
+/// Distinct failure states guide different operator actions (`issues/06`).
 sealed class HostFailure {
   const HostFailure();
 
@@ -46,16 +39,7 @@ sealed class HostFailure {
       };
 }
 
-/// Something answered the handshake and turned it down.
-///
-/// Deliberately NOT `CredentialExpired`: Dart discards the HTTP status from a failed
-/// WebSocket upgrade, so a rejected token and a host restarting behind a 502 arrive
-/// identically. Calling it a credential problem would be a guess wearing the clothes of a
-/// fact — and the operator would be sent to re-pair a host that was merely rebooting.
-///
-/// Not [LotusNotRunning] either: that state means nothing is listening, and here something
-/// is. Not retryable, because the socket has already ridden out a restart's worth of
-/// attempts by the time this surfaces ([HostSocket.maxRejectedAttempts]).
+/// A rejected WebSocket upgrade does not identify a credential failure; retries are bounded by [HostSocket.maxRejectedAttempts].
 class HostRefused extends HostFailure {
   const HostRefused();
 
@@ -102,17 +86,7 @@ class LotusNotRunning extends HostFailure {
   bool get retryable => false;
 }
 
-/// 401 with a token that has simply aged out of its TTL, and cannot be refreshed
-/// because the host applies the exact same TTL check to a refresh (`device-store.ts`).
-///
-/// **Distinct from [CredentialRevoked] for what it tells the operator, not for what
-/// it lets them do next.** Both end at the same pairing screen — the host has no way
-/// to renew a token past its own TTL, refreshed or not — but they are different facts:
-/// this one means "you were away too long", that one means "the desktop revoked you".
-/// Conflating them would have the operator wondering if they did something wrong when
-/// the answer is just the clock. `Credentials.refreshLead` exists to keep this state
-/// rare — 24 hours of lead against a 72-hour TTL means only an absence genuinely past
-/// three days reaches here at all.
+/// Expired and revoked credentials require re-pairing but convey different causes (`device-store.ts`).
 class CredentialExpired extends HostFailure {
   const CredentialExpired();
 

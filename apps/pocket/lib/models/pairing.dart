@@ -17,14 +17,7 @@ class PairedDevice {
     this.refreshKeyAlias,
   });
 
-  /// Where this host answers.
-  ///
-  /// **Not in the payload** — the same deliberate impurity as `Cell.host` (ADR-13
-  /// no. 2), and for the same reason: without it a credential restored on a cold start
-  /// names a host it has no way to reach. The phone already knows the address, having
-  /// just dialled it to pair, so the client attaches what it used rather than the host
-  /// describing itself over a connection that only exists because the address was
-  /// already right.
+  /// The client supplies the dialled address because the payload cannot identify its route (ADR-13 no. 2).
   final Uri baseUri;
 
   /// Never logged, never in a URL path — it rides the `?token=` query on the WS
@@ -44,17 +37,7 @@ class PairedDevice {
   /// What the machine calls itself — its hostname, as it announced it.
   final String hostLabel;
 
-  /// What the **operator** calls it, when they have said so.
-  ///
-  /// The second field on this record the wire never carries, and for the same reason
-  /// as [baseUri]: it is the phone's own knowledge about this machine, and storage is
-  /// the only place it can live. A machine does not know it is "the vps" — that is a
-  /// name relative to the person holding the phone, and two phones may disagree
-  /// without either being wrong (`issues/11`).
-  ///
-  /// Null means never named, which is different from named with an empty string:
-  /// clearing the field is how an operator goes back to the hostname, so both cases
-  /// collapse to null here rather than being kept apart for no one's benefit.
+  /// A nickname is phone-local; null restores the hostname (`issues/11`).
   final String? nickname;
 
   final String mode;
@@ -160,14 +143,7 @@ class PairedDevice {
     );
   }
 
-  /// The same credential, reachable somewhere else.
-  ///
-  /// [baseUri] is the one field on this record that describes the *route* rather than
-  /// the pairing, and it is the only one that can go stale without anything being
-  /// revoked: the host binds a literal IP — `host_runtime::interfaces` refuses a
-  /// hostname outright — so a DHCP lease moving is enough to leave this pointing at
-  /// nothing. Everything else is copied unchanged, because a machine that changed
-  /// address is still the machine that issued this token.
+  /// Changes the route without changing the pairing credential.
   PairedDevice at(Uri baseUri) => PairedDevice(
         deviceToken: deviceToken,
         deviceId: deviceId,

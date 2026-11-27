@@ -19,12 +19,7 @@ typedef TokenReader = String Function(HostId host);
 /// Whether a host's stored credential is still inside its TTL — `Credentials.isUsable`.
 typedef CredentialClock = bool Function(HostId host);
 
-/// Every paired host, and the sockets to them — the one place that opens and closes
-/// connections (ADR-13 no. 5).
-///
-/// Fan-out is client-side by ADR-3: each host serves an identical `/m/*` surface,
-/// so joining them is this app's job. The merged stream it exposes is what
-/// `FleetStore` listens to.
+/// Client-side fan-out joins hosts and owns their connections (ADR-3, ADR-13 no. 5).
 class HostRegistry extends ChangeNotifier {
   HostRegistry({
     required this.transport,
@@ -71,15 +66,7 @@ class HostRegistry extends ChangeNotifier {
 
   Iterable<PairedHost> get hosts => _statuses.values.map((s) => s.host);
 
-  /// Registers a host without connecting. Pairing and connecting stay separate so
-  /// onboarding can show a host as known-but-unreachable rather than failing quietly.
-  ///
-  /// **Safe to call again for a host already here, and that is not a nicety.**
-  /// Re-pairing is the ordinary way back in once a token passes the 72-hour TTL or the
-  /// 30-day ceiling — `Credentials` keeps the entry precisely so onboarding can name
-  /// which host needs a new code. Replacing the maps without retiring what was there
-  /// would leave the previous socket reconnecting with the dead token *and* a second
-  /// live subscription delivering every frame twice into `FleetStore`.
+  /// Re-pairing must retire the old socket and subscription to avoid stale tokens and duplicate frames.
   void add(PairedHost host) {
     _retire(host.id);
     _statuses[host.id] = HostStatus(host: host);
@@ -109,12 +96,7 @@ class HostRegistry extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Drops a host entirely — the operator unpaired it.
-  ///
-  /// Distinct from the re-pairing path above, which *replaces* these entries: here
-  /// they go away, so the app stops listing a machine it no longer has a key to.
-  /// The socket is torn down first, because a connection left dialling with a
-  /// credential that is about to be deleted would spend its backoff earning 401s.
+  /// Tear down the socket before deleting credentials to stop retries with a revoked token.
   void remove(HostId host) {
     _retire(host);
     _apis.remove(host);
@@ -128,12 +110,7 @@ class HostRegistry extends ChangeNotifier {
     _sockets.remove(host)?.dispose();
   }
 
-  /// Tails one pane's PTY output, or detaches with null.
-  ///
-  /// One tail per connection: the host replaces the previous subscription rather than
-  /// adding to it (ADR-10), which is why this takes a pane and not a list. Terminal mode
-  /// is the only caller — without it `cell.output` never arrives at all, because a
-  /// connection with no subscription is told nothing about panes.
+  /// The host replaces the previous pane subscription (ADR-10).
   void subscribe(HostId host, String? paneId) => _sockets[host]?.subscribe(paneId);
 
   /// The HTTP surface for one host, or null when it was never paired.
@@ -181,15 +158,7 @@ class HostRegistry extends ChangeNotifier {
     _fail(host, tokenStillValid ? const CredentialRevoked() : const CredentialExpired());
   }
 
-  /// Asks over HTTP what the refused upgrade could not say: is it the credential?
-  ///
-  /// Without this a lapsed or revoked token surfaced as [HostRefused] — "something turned
-  /// the connection down" — and the operator was never told the one thing that fixes it,
-  /// a new pairing code. Only a 401 changes the verdict; a host that answers, or does not
-  /// answer at all, leaves [HostRefused] standing, because then it was not the token.
-  ///
-  /// A dead credential also stops the socket: every further upgrade would be refused the
-  /// same way, and the failure it would report is the vaguer one this just replaced.
+  /// Only a 401 identifies a dead credential; stop its socket to prevent repeated failures.
   Future<void> _diagnoseRefusal(HostId host) async {
     final clock = tokenStillValid;
     final api = _apis[host];

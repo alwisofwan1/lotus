@@ -1,9 +1,4 @@
-/// The scheme every Lotus pairing QR carries.
-///
-/// Namespaced rather than a bare `host:port code` payload, so a camera pointed at a
-/// parcel label, a Wi-Fi QR or somebody's boarding pass is **refused here** instead of
-/// being half-understood and dialled. A scanner sees whatever is in front of it; this
-/// is the line where "a barcode" becomes "an invitation from Lotus".
+/// The namespace prevents unrelated QR codes from being dialled.
 const String pairingInviteScheme = 'lotus-pair';
 
 /// The payload version this build reads.
@@ -31,26 +26,12 @@ class InviteReadable extends InviteReading {
 class InviteUnreadable extends InviteReading {
   const InviteUnreadable({required this.title, required this.detail});
 
-  /// What happened, and what to do — the two halves `PairingDiagnosis` already renders
-  /// side by side, so a refused scan reads exactly like a refused pairing rather than
-  /// like a different kind of failure.
-  ///
-  /// Said in the operator's terms. Every one of these is read while they are holding a
-  /// phone up to a monitor, so none of them names a scheme, a query parameter or a
-  /// version number they cannot act on. And every [detail] names the typed fields,
-  /// because those are still right there and still work.
+  /// Uses actionable operator-facing wording and names the typed fields.
   final String title;
   final String detail;
 }
 
-/// An address and a code, which is exactly what the typed form asks for.
-///
-/// **It carries no host label, and that is a deviation from ADR-5 with a reason.**
-/// ADR-5's sketch put `hostLabel` in the payload so the phone could name the machine
-/// before redeeming. There is no such moment here: a scan redeems immediately, and the
-/// reply carries the host's real label a fraction of a second later. Putting a label in
-/// the QR would mean shipping a second source of truth for a name, to be shown for less
-/// time than it takes to read — so nothing produces one and nothing parses one.
+/// Omits a host label to avoid a second source of truth (ADR-5).
 class PairingInvite {
   const PairingInvite({required this.address, required this.code});
 
@@ -114,12 +95,7 @@ InviteReading readInvite(String scanned) {
   return InviteReadable(PairingInvite(address: address, code: code));
 }
 
-/// The one message for every "this is not a Lotus pairing code" case.
-///
-/// Bad syntax, a foreign scheme and a missing version are one fact from where the
-/// operator stands — they pointed the camera at the wrong thing — and three different
-/// sentences would only invite them to debug a payload they cannot see. The version
-/// mismatch above is the exception, because that one has a different action.
+/// Groups invalid codes under one actionable message.
 const InviteUnreadable _notOurs = InviteUnreadable(
   title: 'That is not a Lotus pairing code.',
   detail: 'Show the QR from Settings → Mobile access → Pair a phone on the machine '

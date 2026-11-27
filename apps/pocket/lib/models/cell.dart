@@ -1,11 +1,6 @@
 import 'host_id.dart';
 
-/// One agent, as the host reports it.
-///
-/// `status`, `turn` and `gating` stay **raw strings**, not enums. The host keeps
-/// them open on purpose so a desktop newer than this app can add values, and a
-/// closed enum would throw on the first one it had never heard of. The meaning
-/// lives in the predicates below instead.
+/// Raw status, turn, and gating strings allow newer hosts to add values.
 class Cell {
   const Cell({
     required this.host,
@@ -40,24 +35,10 @@ class Cell {
   final String paneId;
   final String workspaceId;
 
-  /// Runner driving the cell: `claude`, `codex`, … Rendered as small text, never
-  /// a logo — a logo is unreadable at 12px (MVP.md).
-  ///
-  /// The *family*, not the name: every custom Claude-family runner reports `claude`
-  /// here on purpose, because that is what a client routes on. [runnerLabel] is what
-  /// the operator reads.
+  /// The runner family supports routing; [runnerLabel] is for display (MVP.md).
   final String agentType;
 
-  /// What the desktop calls this runner — `acme`, `HSS`, `Claude Code`.
-  ///
-  /// **Added 2026-08-10 because the two screens disagreed.** The desktop's node header
-  /// read `Atlas · acme` while this phone read `Atlas claude`, describing one cell
-  /// two ways with nothing on the wire to reconcile them — [agentType] cannot carry it,
-  /// since collapsing custom Claude-family runners to `claude` is what makes it useful
-  /// for routing.
-  ///
-  /// Null when the host is older than the field or genuinely cannot name the runner;
-  /// [runner] falls back to [agentType], which is exactly what this app showed before.
+  /// Preserves the display name separately from the routing family; falls back to [agentType].
   final String? runnerLabel;
 
   /// The runner as a human reads it — the host's own name for it when there is one.
@@ -98,12 +79,7 @@ class Cell {
   /// nothing else answers "which one is this", and a running cell cannot be moved.
   final String? profileId;
 
-  /// What the runner behind this cell last said about its plan.
-  ///
-  /// **Null means the runner does not say** — never that the plan is fine. Only Claude
-  /// volunteers it today; Codex reports tokens but no quota, and ACP carries no usage at all.
-  /// Reading silence as health is the failure this exists to prevent: an exhausted plan once
-  /// arrived as an ordinary-looking reply (`contract/README.md`).
+  /// Null means the runner did not report a plan, not that it is healthy (`contract/README.md`).
   final PlanWindow? usage;
 
   /// The model this session last answered with, as the agent CLI wrote it
@@ -138,18 +114,7 @@ class Cell {
   /// Which project on which host this belongs to — what Home selects by.
   ProjectRef get project => ProjectRef(host, workspaceId);
 
-  /// The project's name as a human would say it.
-  ///
-  /// **`workspaceLabel` is null in production, always** — measured against a live
-  /// desktop on 2026-08-06: every canvas cell came back with `workspaceLabel: null`
-  /// and `workspaceId: "canvas:cp_2c7308855b8de2c9"`. The mockup's `CNVS` was invented
-  /// for the mockup, and `preview_home.dart` set the label itself, so nothing before
-  /// this had ever seen what the host actually sends.
-  ///
-  /// [cwd] is where the readable name lives — `…/experiments/codespace-demo` — so the
-  /// last path segment is used before falling back to the id. The id stays as the last
-  /// resort rather than being dropped: an opaque title is bad, but a project with no
-  /// title at all cannot be told from another one.
+  /// Falls back to the cwd basename, then ID, when no workspace label is available.
   String get projectName => workspaceLabel ?? _cwdBasename ?? workspaceId;
 
   /// Last segment of [cwd], ignoring a trailing slash. Null when there is no cwd, or
