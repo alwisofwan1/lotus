@@ -91,7 +91,9 @@ class _PocketAppState extends State<PocketApp> with WidgetsBindingObserver {
   final _navigator = GlobalKey<NavigatorState>();
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   late final WakeRouting _wakes;
-  late final ThemeController _theme = widget.themeController ?? ThemeController();
+  /// Read per build, so a replaced controller takes over; the fallback is made once, if needed.
+  ThemeController? _ownTheme;
+  ThemeController get _theme => widget.themeController ?? (_ownTheme ??= ThemeController());
 
   @override
   void initState() {
@@ -120,7 +122,7 @@ class _PocketAppState extends State<PocketApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     _wakes.dispose();
-    if (widget.themeController == null) _theme.dispose();
+    _ownTheme?.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }

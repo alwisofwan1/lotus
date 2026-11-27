@@ -31,5 +31,14 @@ void main() {
     controller.mode = ThemeMode.system;
     await tester.pump();
     expect(app().themeMode, ThemeMode.system);
+
+    // A new controller replaces the old one, and the old one no longer drives the app.
+    final next = ThemeController(mode: ThemeMode.light);
+    await tester.pumpWidget(PocketApp(root: root, themeController: next));
+    await tester.pump();
+    expect(app().themeMode, ThemeMode.light);
+    controller.mode = ThemeMode.dark;
+    await tester.pump();
+    expect(app().themeMode, ThemeMode.light);
   });
 }
