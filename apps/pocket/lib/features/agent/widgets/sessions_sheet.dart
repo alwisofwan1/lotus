@@ -190,7 +190,7 @@ class _SessionRow extends StatelessWidget {
                   child: Center(
                     child: RunnerMarkGlyph(
                       agentType: cell.agentType,
-                      color: brandColorFor(cell.agentType) ?? t.dim,
+                      color: brandColorFor(cell.agentType, Theme.of(context).brightness) ?? t.dim,
                       size: 24,
                     ),
                   ),

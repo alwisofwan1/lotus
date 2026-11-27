@@ -241,9 +241,9 @@ void main() {
     // Since the 2026-08-27 revamp the mark wears its runner's brand on every row —
     // one mark per agent is identity, not a billboard — and the amber moved to the
     // name, dot and word of the row that waits. A runner with no brand keeps the ink.
-    expect(markColour('Atlas'), brandColorFor('claude'));
-    expect(markColour('Chess'), brandColorFor('claude'));
-    expect(markColour('Koda'), brandColorFor('codex'));
+    expect(markColour('Atlas'), brandColorFor('claude', Brightness.dark));
+    expect(markColour('Chess'), brandColorFor('claude', Brightness.dark));
+    expect(markColour('Koda'), brandColorFor('codex', Brightness.dark));
   });
 
   testWidgets('the waiting row is emphasised, the quiet ones recede', (tester) async {

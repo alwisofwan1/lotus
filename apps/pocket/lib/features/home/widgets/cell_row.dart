@@ -33,9 +33,9 @@ class CellRow extends StatelessWidget {
   final bool unread;
 
   @override
-  Widget build(BuildContext context) => _body(context.tokens);
+  Widget build(BuildContext context) => _body(context.tokens, Theme.of(context).brightness);
 
-  Widget _body(AppTokens t) {
+  Widget _body(AppTokens t, Brightness brightness) {
     final p = CellPresentation.of(cell);
     final waiting = p.emphasised;
     final stateColor = waiting ? t.waiting : t.muted;
@@ -58,7 +58,7 @@ class CellRow extends StatelessWidget {
                 child: Center(
                   child: RunnerMarkGlyph(
                     agentType: cell.agentType,
-                    color: brandColorFor(cell.agentType) ?? t.dim,
+                    color: brandColorFor(cell.agentType, brightness) ?? t.dim,
                     size: markSize,
                   ),
                 ),

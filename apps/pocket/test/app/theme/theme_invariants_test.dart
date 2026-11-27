@@ -79,6 +79,36 @@ void main() {
       expect(rulesOf(with_({ColorRole.ornament: const Color(0xA8F7F2EA)})), contains('order'));
     });
 
+    test('terminal text the colour of its own background', () {
+      ThemeVariant term(TermRole r) => ThemeVariant(
+            brightness: v.brightness,
+            tokens: v.tokens,
+            terminal: v.terminal.copyWith({r: v.terminal[TermRole.background]}),
+            shape: v.shape,
+            elevation: v.elevation,
+          );
+      for (final r in [TermRole.foreground, TermRole.cursor, TermRole.black, TermRole.white]) {
+        expect(rulesOf(term(r)), contains('contrast'), reason: r.name);
+      }
+    });
+
+    test('brand marks read on a light theme too, with no shared-code edit', () {
+      final light = ThemeVariant(
+        brightness: Brightness.light,
+        tokens: v.tokens.copyWith(
+          colors: v.tokens.colors.copyWith({
+            ColorRole.ground: const Color(0xFFFFFFFF),
+            ColorRole.raised: const Color(0x14000000),
+          }),
+        ),
+        terminal: v.terminal,
+        shape: v.shape,
+        elevation: v.elevation,
+      );
+      final brand = checkTheme(light).where((x) => x.subject.startsWith('brand'));
+      expect(brand, isEmpty, reason: brand.join('\n'));
+    });
+
     test('a status colour too close to amber', () {
       expect(rulesOf(with_({ColorRole.error: const Color(0xFFF5A524)})), contains('status-hue'));
     });

@@ -102,8 +102,8 @@ void main() {
           matching: find.byType(RunnerMarkGlyph),
         ))
         .color;
-    expect(colourOf('claude'), brandColorFor('claude'));
-    expect(colourOf('codex'), brandColorFor('codex'));
+    expect(colourOf('claude'), brandColorFor('claude', Brightness.dark));
+    expect(colourOf('codex'), brandColorFor('codex', Brightness.dark));
     expect(colourOf('acme'), AppTokens.dark.dim);
   });
 

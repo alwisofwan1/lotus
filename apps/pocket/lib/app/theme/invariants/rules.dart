@@ -70,12 +70,19 @@ List<Violation> checkTheme(ThemeVariant v) {
   }
 
   final term = v.terminal;
+  final termBg = term[TermRole.background];
+  need('terminal foreground', 'contrast', contrast(term[TermRole.foreground], termBg), 4.5);
+  need('terminal cursor', 'contrast', contrast(term[TermRole.cursor], termBg), 3.0);
   for (final r in ansiRoles.where((r) => r != TermRole.black)) {
-    need('ansi ${r.name}', 'contrast', contrast(term[r], term[TermRole.background]), 3.0);
+    need('ansi ${r.name}', 'contrast', contrast(term[r], termBg), 3.0);
   }
+  // Black is a ground in dark terminals (near the background by convention), so it is
+  // checked as one: white text must read on it, and it must not vanish into the ground.
+  need('ansi white on black', 'contrast', contrast(term[TermRole.white], term[TermRole.black]), 4.5);
+  need('ansi black vs background', 'contrast', contrast(term[TermRole.black], termBg), 1.03);
   for (final b in _brands) {
     for (final bg in [ColorRole.ground, ColorRole.raised]) {
-      need('brand $b on ${bg.name}', 'contrast', contrast(brandColorFor(b)!, solid(bg)), 3.0);
+      need('brand $b on ${bg.name}', 'contrast', contrast(brandColorFor(b, v.brightness)!, solid(bg)), 3.0);
     }
   }
   return out;

@@ -221,7 +221,7 @@ class _RunnerSheetState extends State<_RunnerSheet> {
             // Id-nya, bukan labelnya: mark dan warna dicocokkan dengan apa yang host
             // jalankan, dan runner buatan operator jatuh ke bentuk fallback tanpa warna.
             agentType: runner.isCustom ? runner.label : runner.id,
-            color: brandColorFor(runner.id) ?? t.dim,
+            color: brandColorFor(runner.id, Theme.of(context).brightness) ?? t.dim,
             size: 28,
           ),
         ),

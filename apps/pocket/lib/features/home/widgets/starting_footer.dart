@@ -63,7 +63,7 @@ class StartingFooter extends StatelessWidget {
                         children: [
                           RunnerMarkGlyph(
                             agentType: runner.isCustom ? runner.label : runner.id,
-                            color: brandColorFor(runner.id) ?? t.dim,
+                            color: brandColorFor(runner.id, Theme.of(context).brightness) ?? t.dim,
                             size: 14,
                           ),
                           const SizedBox(width: 8),

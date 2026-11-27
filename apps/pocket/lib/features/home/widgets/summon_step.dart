@@ -207,7 +207,7 @@ class _SummonStepState extends State<SummonStep> {
             child: Center(
               child: RunnerMarkGlyph(
                 agentType: _choice.runner.isCustom ? _choice.runner.label : _choice.runner.id,
-                color: brandColorFor(_choice.runner.id) ?? t.dim,
+                color: brandColorFor(_choice.runner.id, Theme.of(context).brightness) ?? t.dim,
                 size: 28,
               ),
             ),
