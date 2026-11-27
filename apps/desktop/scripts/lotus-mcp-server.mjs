@@ -1233,8 +1233,8 @@ const TOOLS = [
       "while others do too: it gets its own git worktree and branch from the last commit (uncommitted " +
       "changes are not in it), and you merge its branch afterwards. The prompt must stand on its own: the " +
       "child does not see this conversation. Only works inside a Lotus Chat thread. " +
-      "Set verify for a fix or refactor that changes behaviour and must be right; leave it off for small, " +
-      "mechanical or read-only tasks (comments, renames, research), since each round runs a second agent at high effort. " +
+      "Leave verify off by default: set it only when the user asks for verification, or when a risky behaviour " +
+      "change cannot be checked any other way (tell the user you did), since each round runs a second agent at high effort. " +
       "When the child finishes, Lotus has one verifier on the OTHER provider re-run the tests and check the diff; " +
       "only a blocking defect fails it, and a fail goes back to the child automatically, up to rounds times, the " +
       "same verifier re-checking its own reasons. A child that commits nothing, or ends with STATUS: blocked, is " +

@@ -1,6 +1,6 @@
 ---
 name: swarm
-description: Split a larger coding task across several sub-agents that work in parallel, each in its own git worktree, each checked by a verifier on the other provider, then report what passed and what to merge. Use when the user types /swarm, or asks to "swarm", "split this across agents", "pecah ke beberapa agent", "kerjakan paralel", or hands over a list of independent fixes. Runs inside Lotus Chat only.
+description: Split a larger coding task across several sub-agents that work in parallel, each in its own git worktree, each checked by a verifier on the other provider, then report what passed and what to merge. Use ONLY when the user types /swarm or explicitly asks to "swarm", "split this across agents", "pecah ke beberapa agent" or "kerjakan paralel". Do not use it for an ordinary hand-off to one other agent (e.g. "kasih ke codex"): that is a plain lotus_chat_delegate without verify. Runs inside Lotus Chat only.
 ---
 
 # Swarm
