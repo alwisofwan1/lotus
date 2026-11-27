@@ -19,23 +19,9 @@ import type { StructuredSessionsDeps, StructuredSpawnRequest } from "./session-s
 export { codexOnPath, codexPosture } from "./bridges/codex.js";
 
 /**
- * Cells that are not panes: agents run by this host over a structured protocol, with no
- * terminal anywhere (Fase 4, `plans/pocket-chat-conversation-model`).
- *
- * The store knows the timeline; it does not know a dialect. Which runner a cell is, how its
- * permission scale expands, and how its process is spawned all live behind
- * [`ProviderBridgeFactory`] in `bridge-registry.ts` — so a second runner is a file added
- * there, not a copy of this store (`plans/provider-bridge-adoption/PLAN.md` §4, Fase 1).
- *
- * Decided 2026-08-27: a session spawned from the phone may have no TUI. What it has instead
- * is the runner's own event stream — real ids, statuses, streaming text, approvals as
- * requests rather than a terminal scrape. Only Codex so far (`codex app-server`).
- *
- * The store makes such a session look like any other cell to everything downstream: it is
- * merged into the fleet with a `paneId` of its own, answers `/transcript` and `/permission`
- * in the shapes the phone already reads, and publishes `notification` frames so a phone in
- * the field follows it live with **no app update**. The native page is beside that, on
- * `/conversation`, for the client that wants the real thing.
+ * Structured-protocol agents with no terminal (Fase 4); runner, scale and spawn live behind
+ * [`ProviderBridgeFactory`] (`bridge-registry.ts`). They look like any cell downstream (own
+ * `paneId`, `/transcript`, `/permission`), so older phones need no update.
  */
 export type { StructuredSessionsDeps, StructuredSpawnRequest } from "./session-shapes.js";
 
@@ -100,11 +86,8 @@ export class StructuredSessions {
   }
 
   /**
-   * The runners this host can start without a terminal, right now.
-   *
-   * Read from the registry rather than from a constant, so a machine with `codex` but no
-   * `cursor-agent` advertises exactly one — and a route can refuse a spawn by asking here
-   * instead of comparing against a hardcoded name.
+   * Runners startable without a terminal, from the registry (not a constant): `codex` without
+   * `cursor-agent` advertises exactly one.
    */
   headlessRunners(): BridgeProvider[] {
     return this.registry.available().map((f) => f.agentType);
@@ -113,9 +96,7 @@ export class StructuredSessions {
   /**
    * The same runners, each with the name the operator reads.
    *
-   * `bootstrap.runners[]` needs the label because a provider that exists only as a bridge —
-   * `cursor` — has no terminal runner to take a name from, and would otherwise reach the
-   * phone as its bare id or not at all.
+   * A bridge-only provider such as `cursor` has no terminal runner to take a name from.
    */
   headlessRunnerRows(): Array<{ id: BridgeProvider; label: string }> {
     return this.registry.available().map((f) => ({ id: f.agentType, label: f.runnerLabel }));
@@ -198,16 +179,8 @@ export class StructuredSessions {
   }
 
   /**
-   * A sentence for the agent — and the three outcomes are three different things a caller
-   * must be able to tell apart.
-   *
-   * `blocked` exists because of a live failure (devbox-vps, 2026-09-05): a phone answered an
-   * approval chip through this route, the host prompted a session that was waiting for a
-   * decision, and answered 200. Nothing happened, and nothing said so. The operator saw
-   * "needs you" and answered eight more times.
-   *
-   * A cell holding a pending permission is not accepting messages; it is holding a question.
-   * Sending it prose is a mistake worth naming, and `/input` is the route that answers.
+   * `blocked`: a cell with a pending permission holds a question, not messages; a silent 200
+   * there did nothing. `/input` is the route that answers.
    */
   async dispatch(paneId: string, text: string, attachments: readonly PromptAttachment[] = []): Promise<"sent" | "blocked" | "unknown"> {
     let h = this.held.get(paneId);
@@ -218,17 +191,9 @@ export class StructuredSessions {
       if (h === undefined) return "unknown";
     }
     if (h.session.conversation.pendingPermission() !== undefined) return "blocked";
-    // **Not awaited, and that is the whole point.** `prompt()` means different things per
-    // bridge: Codex's `turn/start` resolves once the turn is *accepted*, while ACP's
-    // `session/prompt` and Claude's `stream-json` resolve when the turn *ends*. Awaiting it
-    // made this route hang for the length of the turn — and forever when the turn stopped on
-    // an approval, because the answer arrives on `/input`, a request the phone can only make
-    // after this one returns. Measured 2026-09-07: `spawn` with an initial prompt and
-    // `dispatch` both hung 25 s+ against a real Claude holding a permission.
-    //
-    // `sent` therefore means *handed to the runner*, which is what a caller can act on. What
-    // the turn then does arrives on the conversation lane, and a failure is recorded there as
-    // an error turn by the bridge itself — so nothing is swallowed by not waiting here.
+    // Not awaited: Codex's `prompt()` resolves on accept but ACP's and Claude's resolve when the
+    // turn ends, which hangs this route — forever on an approval, whose answer arrives on `/input`.
+    // `sent` means *handed to the runner*; failures land on the conversation lane as an error turn.
     void h.session.prompt(text, attachments).catch(() => undefined);
     return "sent";
   }
@@ -247,12 +212,8 @@ export class StructuredSessions {
   }
 
   /**
-   * Moves a running cell's posture, or `false` when it cannot be moved.
-   *
-   * False is three different truths — no such pane, a bridge with no translation, a session
-   * that cannot take one back — and they are one answer here on purpose: every one of them
-   * means *the posture on screen is still the posture in force*, which is the only thing the
-   * caller can act on. Reporting a change that did not happen is the failure that matters.
+   * `false` (no pane, no translation, or session cannot take it) means the posture on screen
+   * is still in force. Never report a change that did not happen.
    */
   async setPosture(paneId: string, mode: string): Promise<boolean> {
     const h = this.held.get(paneId);

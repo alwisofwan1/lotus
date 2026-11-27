@@ -1,20 +1,7 @@
 /**
- * The shell hook a standalone host installs, and the rules that keep it harmless.
- *
- * **No node.** ADR-F ships this host as a single binary with no node on the target; a hook that
- * needed node would make TUI permission depend on the runtime the artifact deliberately dropped.
- * This needs `sh` and `curl`, which a VPS has. It is the same shape the desktop's Stop hook has
- * used since `plans/honest-agent-status/` — the drop-file producer stays for the rich payload
- * Fase 3 needs (`hooks/watcher.ts`), and both land in one turn map.
- *
- * **It must never fail.** A `PreToolUse` hook exiting non-zero BLOCKS the tool call — the ADR-8
- * spike used exactly that to implement gating. So every path ends `exit 0`, curl's status is
- * discarded, and stderr goes nowhere.
- *
- * **It must be nearly free for sessions that are not ours.** The hook is registered in the GLOBAL
- * `~/.claude/settings.json`, so it fires in every Claude session on the machine — including ones
- * a person started by hand in their own terminal. The `LOTUS_PANE_ID` guard is what keeps that to
- * one shell spawn and an exit: no file read, no curl, no stdin.
+ * Shell hook: **no node** (ADR-F), only `sh` and `curl`. **Must never fail**: a non-zero
+ * `PreToolUse` hook BLOCKS the tool (ADR-8), so every path ends `exit 0`. It is GLOBAL, so the
+ * `LOTUS_PANE_ID` guard keeps foreign sessions to one shell spawn.
  */
 
 /** Events Claude fires that this host has a status for. Anything else exits at the `case`. */
@@ -69,17 +56,9 @@ exit 0
 }
 
 /**
- * Merges the hook into a Claude settings document without disturbing what is already there.
- *
- * **The shape is Claude's, not ours.** An entry is `{ hooks: [{ type: "command", command }] }`,
- * optionally with a `matcher`. A flat `{ command }` is accepted by nobody: it was written into a
- * real settings file on 2026-09-06, sat there looking installed, and Claude never fired it. That
- * is the shape of every silent failure this project keeps meeting — a write that succeeds and
- * does nothing.
- *
- * The file is the operator's, shared with every other tool that registers hooks, so this adds one
- * entry per event and leaves every other key, event and command untouched. Re-running replaces
- * only the entry whose command is this script, which is what makes reinstalling idempotent.
+ * Merges the hook into a Claude settings document, touching nothing else (the file is shared);
+ * re-running replaces only our own entry. The shape is Claude's `{ hooks: [{ type: "command",
+ * command }] }`: a flat `{ command }` looks installed but never fires.
  */
 export function withClaudeHook(
   settings: Record<string, unknown>,
@@ -102,17 +81,9 @@ export function withClaudeHook(
 }
 
 /**
- * Claude's hook events, and the phase each one means to this host.
- *
- * `Notification` is the one that matters for permission: Claude fires it when it needs the
- * operator. The rest keep the turn map honest about what a cell is doing between questions.
- *
- * `PostToolUse` is here for a third reason, and it is the difference between watching an agent
- * work and seeing its output arrive all at once. Every fire is what tells this host to publish a
- * pane's new steps (slice 3.6); without it the only fires inside a turn are its first and its
- * last, so Chat would sit still for a minute and then fill in. Once per tool call is the cost —
- * one local `curl`, capped at three seconds, and it cannot fail the tool because the script
- * always exits 0.
+ * Claude's hook events and their phase. `Notification` is Claude needing the operator;
+ * `PostToolUse` makes the host publish new steps (slice 3.6), else Chat sits still until the
+ * turn's last fire (cost: one local `curl` per tool call, capped at 3s).
  */
 export const CLAUDE_HOOK_EVENTS: Readonly<Record<string, string>> = {
   Notification: "notification",

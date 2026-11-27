@@ -1,17 +1,9 @@
 import type { CapLevel, RunnerTranscriptCaps } from "../../../types/conversation.js";
 
 /**
- * What each runner's transcript can carry **through this host's pipeline today**.
- *
- * Not what the CLI could do in some other mode: Codex has streaming deltas and first-class
- * approvals in `app-server`, and none of that reaches Lotus while a cell is a PTY with a
- * hook installed. The table says what the phone will actually receive, so the honest
- * sentence per section ("Codex does not report reasoning here") can be written from it —
- * one level per part kind where `transcriptOutlook` had one bit for the whole pane.
- *
- * Levels follow the matrix in `plans/pocket-chat-conversation-model/RESEARCH.md` §5.2,
- * narrowed to the pipeline that exists: hooks + the runner's own file, reshaped by
- * `parts-from-entries.ts`. Every `partial` below has a reason in the comment beside it.
+ * What each runner's transcript carries **through this host's pipeline today** (not what the
+ * CLI could do in another mode), one level per part kind. Levels follow
+ * `plans/pocket-chat-conversation-model/RESEARCH.md` §5.2; every `partial` has a reason beside it.
  */
 const NONE: RunnerTranscriptCaps = level("never");
 
@@ -45,10 +37,9 @@ const CODEX: RunnerTranscriptCaps = {
 };
 
 /**
- * Cursor CLI, through the Claude-format hooks it loads from `~/.claude/settings.json` and
- * the transcript file they report (`~/.cursor/projects/<slug>/agent-transcripts/`). Probe
- * 2026-08-27: tool hooks fire, `UserPromptSubmit`/`Stop` do not, and `~/.cursor/hooks.json`
- * entries never run — so prompts and prose come from the file, live steps from the hooks.
+ * Cursor CLI, via the Claude-format hooks from `~/.claude/settings.json` and the transcript they
+ * report (`~/.cursor/projects/<slug>/agent-transcripts/`). Only tool hooks fire, so prompts and
+ * prose come from the file and live steps from the hooks.
  */
 const CURSOR: RunnerTranscriptCaps = {
   ...NONE,
@@ -71,12 +62,9 @@ function level(l: CapLevel): RunnerTranscriptCaps {
 }
 
 /**
- * Capabilities for a fleet `agentType` (`FleetMember.agentType`, the desktop's collapsed
- * provider: every Claude-family runner arrives as `claude`).
- *
- * Unknown runners get `never` across the board — understating is the error worth making,
- * since a `never` the phone can see is fixable and an `expected` that never arrives is the
- * empty screen this whole shape exists to end. Frozen so a caller cannot edit the table.
+ * Capabilities for a fleet `agentType` (every Claude-family runner arrives as `claude`).
+ * Unknown runners get `never`: understating is fixable, while an `expected` that never arrives
+ * is an empty screen. Frozen.
  */
 export function runnerTranscriptCaps(agentType: string | undefined): RunnerTranscriptCaps {
   switch (agentType) {

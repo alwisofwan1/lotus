@@ -1,12 +1,8 @@
 import type { ToolKind } from "../../../types/conversation.js";
 
 /**
- * A runner's tool name → ACP `ToolKind`.
- *
- * The Claude rows are the mapping `@zed-industries/claude-code-acp` ships in `src/tools.ts`;
- * the Codex rows are the `custom_tool_call` names seen in rollout files on this machine
- * (`exec`, `apply_patch`, `web.search`). Anything else is `other`, which is a kind, not a
- * failure — the phone draws it as a plain step.
+ * Tool name → ACP `ToolKind`. Claude rows mirror `@zed-industries/claude-code-acp`; Codex rows
+ * are `custom_tool_call` names from rollout files. Anything else is `other`.
  */
 const KINDS: Record<string, ToolKind> = {
   read: "read",
@@ -41,12 +37,8 @@ export function kindNamesAFile(kind: ToolKind): boolean {
 }
 
 /**
- * A short, stable id from a string — FNV-1a, 32-bit, hex.
- *
- * Parts have no runner-issued id yet, so one is derived from the entry's own composite
- * key (`timestamp|event|title|toolTarget|body.length`, the same key the phone's
- * `LiveTranscript` already dedupes on). Deterministic, so the same entry served in two
- * pages, or once over REST and once as a live frame, yields the same id.
+ * FNV-1a 32-bit hex of the entry's composite key (`timestamp|event|title|toolTarget|body.length`,
+ * as the phone's `LiveTranscript` dedupes), so REST and live copies share an id.
  */
 export function stableId(key: string): string {
   let h = 0x811c9dc5;

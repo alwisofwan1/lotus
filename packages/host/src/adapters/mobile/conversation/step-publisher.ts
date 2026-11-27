@@ -4,21 +4,9 @@ import type { TranscriptEntry } from "../../../types/transcript.js";
 import { ConversationStream, entryFromStopEvent } from "./conversation-stream.js";
 
 /**
- * One step, on both lanes.
- *
- * A hook event is broadcast as a `notification` — the vocabulary every shipped phone reads —
- * and, since Fase 4, as the `Part` deltas it amounts to. Keeping the decision here rather than
- * in the adapter is what makes it testable without a socket, and keeps the one rule that is
- * easy to get wrong in a place it can be read: **a cell this host runs itself is skipped**,
- * because it already published a native part for the same step, and converting its entry as
- * well would put that step on the wire twice under two different ids.
- *
- * **What an event means, since 2026-09-08: "this cell is worth reading again".** The deltas
- * are derived from the pane's whole entry list — the same list `/transcript` serves — and not
- * from the events this lane happened to see. Two derivations of one conversation is what drew
- * an exchange twice on a phone: the lane's accumulated copy drifted from the file, so the same
- * two steps arrived under a second turn id. `bb` never has that class of bug because one
- * writer owns its timeline; this is the same discipline against a file somebody else owns.
+ * One step on both lanes (`notification` and `Part` deltas). **A cell this host runs itself is
+ * skipped**: it already published a native part. An event only means "worth reading again":
+ * deltas derive from the whole entry list `/transcript` serves, as two derivations drift.
  */
 export interface StepPublisherDeps {
   publishConversation: (paneId: string, agentType: string, update: ConversationUpdate) => void;
@@ -45,11 +33,8 @@ export class StepPublisher {
   }
 
   /**
-   * Publishes the conversation deltas this event produced, and reports how many there were.
-   *
-   * The count is what the event alone accounts for. With an authoritative list available the
-   * read is asynchronous, so the deltas land just after this returns — the caller broadcasts
-   * a `notification` for the same step either way, and neither lane waits on the other.
+   * Returns how many deltas the event alone accounts for; with an authoritative list the read
+   * is async, so deltas land just after this returns.
    */
   publish(event: NotificationEvent): number {
     if (event.kind !== "agent_stop") return 0;
@@ -118,15 +103,8 @@ export interface TranscriptReader {
 }
 
 /**
- * The pane's entries for the conversation lane — the same call the phone seeds Chat with.
- *
- * One list, one derivation: a lane that kept its own copy drifted from the file and filed the
- * same steps under a second turn id, which a phone drew as the exchange happening twice
- * (2026-09-08). Asking for exactly what `/transcript` serves is what makes the two agree.
- *
- * Nothing here is fatal. A host that cannot be asked, an answer without entries, a pane it
- * holds nothing for — all read as *nothing to derive from*, and the step is published from the
- * event in hand instead. Losing a Chat line is not worth an exception on the notification path.
+ * The pane's entries, exactly what `/transcript` serves (one list, one derivation). Never
+ * fatal: failure means *nothing to derive from* and the step comes from the event in hand.
  */
 export function transcriptEntriesOf(
   api: TranscriptReader,

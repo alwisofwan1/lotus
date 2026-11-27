@@ -18,17 +18,9 @@ import {
 } from "./parts.js";
 
 /**
- * An ACP session as a live [`ConversationPage`], fed one `session/update` at a time.
- *
- * **ACP v1 has no turn events.** Codex announces `turn/started` and `turn/completed`; ACP
- * only answers the `session/prompt` request that started the work. So turn boundaries are
- * driven from outside — the session calls [`openTurn`] before it prompts and [`closeTurn`]
- * with the `stopReason` it got back — and everything in between is attributed to whichever
- * turn is open. An update that arrives with no open turn opens one, since a part that cannot
- * be placed is a part the phone never sees.
- *
- * Verified against `cursor-agent acp` on 2026-09-06
- * (`__tests__/fixtures/cursor-acp-turn.jsonl`).
+ * ACP as a live [`ConversationPage`]. **ACP v1 has no turn events**: the session calls
+ * [`openTurn`] / [`closeTurn`] (`stopReason`); an update with no open turn opens one, else the
+ * part is never seen. Fixture: `__tests__/fixtures/cursor-acp-turn.jsonl`.
  */
 export class AcpConversation {
   private readonly turns: Turn[] = [];
@@ -239,12 +231,8 @@ export class AcpConversation {
   }
 
   /**
-   * Grows a streaming part by a chunk, putting **only the chunk** on the wire.
-   *
-   * The capture that produced the comment above is also the measurement that produced this:
-   * 46 chunks for two sentences means re-sending the whole part each time costs 46 copies of
-   * a growing prefix. A `text` delta costs one chunk. The page held here still accumulates
-   * the whole text — `/conversation` serves that to a client that was not listening.
+   * Puts **only the chunk** on the wire; re-sending the part copies a growing prefix each time.
+   * The page still accumulates the whole text for `/conversation`.
    */
   private append(id: string, chunk: string): void {
     const turnId = this.turnId();

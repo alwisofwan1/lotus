@@ -2,19 +2,9 @@ import type { Part } from "../../../types/conversation.js";
 import type { TranscriptEntry } from "../../../types/transcript.js";
 
 /**
- * Native parts → the hook vocabulary a phone in the field already renders.
- *
- * A structured session has no hooks and no ring, so nothing would ever reach
- * `/m/cell/:paneId/transcript` or a `{type: "notification"}` frame for it — and today's
- * Pocket draws Chat from exactly those. This is the bridge back: one entry per meaningful
- * transition, stamped with the **part's own `ts`**, so the entry a phone receives live and
- * the one it reads back over REST are the same entry under `LiveTranscript`'s composite key
- * (`timestamp|event|title|toolTarget|body.length`) and never drawn twice.
- *
- * Phase matters for prose: Codex says things *during* a turn (`commentary`) and *to end* it
- * (`final_answer`). The phone's converter treats `stop` as the end of a turn, so only the
- * closing text may be `stop`; the rest is `agent-response`, which draws as prose and ends
- * nothing. The caller says which is which — the part cannot tell on its own.
+ * Native parts → hook entries (Pocket draws Chat from them). Stamped with the **part's own
+ * `ts`** so live and REST copies share `LiveTranscript`'s key. Only closing text may be `stop`
+ * (it ends a turn); mid-turn prose is `agent-response`. The caller says which.
  */
 export function entryFromPart(part: Part, opts: { closesTurn?: boolean } = {}): TranscriptEntry | undefined {
   const at = part.ts;

@@ -9,16 +9,9 @@ import { claudeProfiles } from "./bridges/claude/index.js";
 import type { StructuredSessions } from "./structured-sessions.js";
 
 /**
- * `POST /m/cells {tui: false}` — an agent this host runs itself, with no terminal.
- *
- * Its own file because the branch is a route in all but name: four refusals, a project
- * lookup, and a spawn. It lives beside the store it drives rather than inside the cell
- * routes, which are otherwise a thin pass-through to the desktop.
- *
- * **Which runners it accepts is the registry's answer, not this file's.** `/m/bootstrap`
- * advertised the same list per runner (`spawn-tuning.ts` → `headless`), so a phone that
- * read it is never refused here — and one that guessed is told what the host actually has,
- * which is the difference between a fixable message and a flat no.
+ * `POST /m/cells {tui: false}` — an agent this host runs itself. Own file because the cell
+ * routes are a thin desktop pass-through. Accepted runners come from the registry, the same
+ * list `/m/bootstrap` advertises (`spawn-tuning.ts` → `headless`).
  */
 export interface HeadlessSpawnRequest {
   provider: string;

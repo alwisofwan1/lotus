@@ -1,24 +1,9 @@
 import type { ConversationUpdate } from "../../../types/conversation.js";
 
 /**
- * The recent conversation deltas per cell, each stamped with a cursor a client can resume from.
- *
- * **Why this exists.** The conversation lane was fire-and-forget: a delta was broadcast and
- * forgotten. Every dropped socket therefore left the phone with a hole it could not name, and
- * the only repair was a manual refresh. On a phone that is not an edge case — the socket dies
- * when the screen locks, when the tailnet blinks, when the host restarts. Reported from a real
- * device on 2026-09-07 as "the conversation only updates if I refresh the page".
- *
- * The shape is taken from the lane that already solved this, PTY output: read from a byte
- * offset, and say `cell.truncated` when the ring cannot reach back that far. Same discipline
- * here — a cursor, and an explicit "you asked for further back than I hold" rather than a
- * silent gap. `bb` reaches the same conclusion from the other end, with a unique
- * `(thread_id, sequence)` on its `events` table; the difference is only that it keeps every
- * event on disk while this keeps a bounded tail in memory.
- *
- * The cursor is **per cell** and monotonic for the life of the host process. It is deliberately
- * not `Part.seq`: that counts arrivals inside one conversation object and restarts with it,
- * which is exactly what a resuming client cannot rely on.
+ * Recent deltas per cell with a resumable cursor, so a dropped socket leaves no silent hole.
+ * Like PTY output: an explicit `truncated` when the bounded tail cannot reach back. The cursor
+ * is **per cell**, monotonic per process; not `Part.seq`, which restarts with its conversation.
  */
 export interface LoggedDelta {
   cursor: number;
@@ -29,10 +14,8 @@ export interface LoggedDelta {
 export interface DeltasSince {
   deltas: LoggedDelta[];
   /**
-   * True when the requested cursor is older than anything still held.
-   *
-   * The client must then refetch the page over REST. Handing it the oldest-held deltas instead
-   * would look like success and leave a hole in the middle of the transcript.
+   * True when the cursor is older than anything held; the client must refetch over REST, as the
+   * oldest-held deltas would leave a hole mid-transcript.
    */
   truncated: boolean;
   /** The oldest cursor still held for this cell, so a client can say how much it lost. */
@@ -61,11 +44,8 @@ export class ConversationDeltaLog {
   }
 
   /**
-   * Everything after `cursor`, or a refusal.
-   *
-   * `cursor: 0` means *I have nothing* and is answered with whatever is held — never
-   * `truncated`, because a client with nothing has no hole to fall into. A cell this host has
-   * never seen answers empty and untruncated for the same reason.
+   * Everything after `cursor`, or a refusal. `cursor: 0` means *I have nothing*: never
+   * `truncated`, nor for a cell never seen (no hole to fall into).
    */
   since(paneId: string, cursor: number): DeltasSince {
     const log = this.held.get(paneId) ?? [];

@@ -9,18 +9,9 @@ import type { AcpAgentDefinition } from "./known-agents.js";
 import { isRecord } from "./parts.js";
 
 /**
- * One ACP agent driven over stdio, with no terminal anywhere.
- *
- * The handshake is the one `cursor-agent acp` accepted on 2026-09-06:
- * `initialize {protocolVersion: 1, clientCapabilities}` → `authenticate {methodId}` →
- * `session/new {cwd, mcpServers}` → `session/prompt {sessionId, prompt}`. `session/prompt` is
- * a **request that stays open for the whole turn** and answers `{stopReason}` — unlike Codex's
- * `turn/start`, which returns immediately and reports the end as a notification. That is the
- * one structural difference the conversation above has to be told about, and why `prompt()`
- * here resolves when the turn *ends*.
- *
- * Nothing about a specific agent lives here: which binary, which auth method, and which mode
- * means read-only all come from [`AcpAgentDefinition`].
+ * One ACP agent over stdio. `session/prompt` is a **request open for the whole turn** (Codex's
+ * `turn/start` returns at once), so `prompt()` resolves when the turn *ends*. Agent specifics
+ * all come from [`AcpAgentDefinition`].
  */
 export interface AcpSessionOptions {
   paneId: string;
@@ -144,8 +135,7 @@ export class AcpSession implements ProviderBridgeSession {
   /**
    * A read-only ask becomes the agent's read-only mode, because these agents do not ask.
    *
-   * A failure here is not fatal on its own — but it must not pass silently either, since the
-   * caller asked for read-only and would otherwise get a cell with full write access.
+   * A failure must not pass silently: the caller would get a cell with full write access.
    */
   private async applyMode(): Promise<void> {
     const modeId = this.opts.permissionMode === "read-only" ? this.opts.agent.readOnlyModeId : undefined;
@@ -161,11 +151,8 @@ export class AcpSession implements ProviderBridgeSession {
   }
 
   /**
-   * `session/request_permission` is the only server request these agents send.
-   *
-   * The promise stays unresolved until the phone answers, which is exactly what the agent
-   * expects — it waits. Anything else is answered `-32601` rather than dropped, so an
-   * unimplemented method shows up as an error instead of a thirty-second silence.
+   * `session/request_permission` stays unresolved until the phone answers (the agent waits).
+   * Anything else gets `-32601`, not a drop, so it errors instead of going silent.
    */
   private async onServerRequest(req: JsonRpcServerRequest): Promise<unknown> {
     if (req.method !== "session/request_permission") {

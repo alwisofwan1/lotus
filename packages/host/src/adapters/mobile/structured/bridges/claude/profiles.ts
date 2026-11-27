@@ -3,13 +3,9 @@ import { homedir } from "node:os";
 import { accountPaths, claudeAccountsIn } from "../../../../../core/accounts/index.js";
 
 /**
- * Which Claude accounts this machine can run a cell under, as directories the CLI accepts
- * through `CLAUDE_CONFIG_DIR`. A thin view over `core/accounts` discovery, so the phone's picker
- * and `/v1/usage` list the same accounts.
- *
- * **Account selection, not pooling:** one cell runs under one profile, chosen deliberately.
- * Getting it wrong reads as an expired session, not an error, because Claude's OAuth is keyed
- * per config dir in the keychain. Discovery is by directory shape; no credential is opened.
+ * Accounts a cell can run under (`CLAUDE_CONFIG_DIR` dirs), a view over `core/accounts` so the
+ * picker and `/v1/usage` agree. Selection, not pooling: a wrong profile reads as an expired
+ * session (OAuth is keyed per config dir). Discovery opens no credential.
  */
 export interface ClaudeProfile {
   /** What a spawn names. `default` is the CLI's own `~/.claude`. */

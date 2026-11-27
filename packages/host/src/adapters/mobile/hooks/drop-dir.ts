@@ -4,14 +4,9 @@ import { join } from "node:path";
 import { parseDropPayload, type DropPayload } from "./payload.js";
 
 /**
- * The drop directory: what the hook script writes into, and this host consumes.
- *
- * A port of `agent_hooks/drop_dir.rs` + `processor.rs` (slice 1b.3), kept as one unit here
- * because on this side there is no Tauri event bus to decouple from — the sink is a callback.
- *
- * Everything filesystem-facing is injected, so the rules below are tested as rules rather than
- * as a directory. That matters: the interesting half of this file is what it REFUSES, and a test
- * that needs a real filesystem to reach those branches tends not to reach them.
+ * The drop directory the hook script writes and this host consumes. Port of
+ * `agent_hooks/drop_dir.rs` + `processor.rs` (slice 1b.3); filesystem access is injected so
+ * the REFUSAL branches are testable.
  */
 
 /** Maximum age of a drop file still worth emitting at start-up. Older ones are unlinked. */
@@ -49,19 +44,15 @@ export interface ProcessDeps extends DropDirDeps {
 }
 
 /**
- * One read-retry after a brief delay.
- *
- * Defends against the case the schema calls out: a create event can arrive before the producer
- * has finished renaming its `.tmp` into place, so the first read sees a partial file. One retry,
- * never a loop — a file that is still broken after it is corrupt, and corrupt files are unlinked.
+ * One read-retry: a create event can precede the producer's `.tmp` rename, so the first read
+ * may be partial. Never a loop: still broken means corrupt, and it is unlinked.
  */
 const READ_RETRY_MS = 50;
 
 /**
  * Processes one drop file: read, parse, hand to `onPayload`, unlink.
  *
- * Unlinking is not cleanup, it is the protocol (`drop-file-schema.md`): the directory is owned by
- * the consumer, and a file left behind is a file the next pass emits again.
+ * Unlinking is the protocol (`drop-file-schema.md`): a file left behind is emitted again.
  */
 export function processDropFile(
   path: string,
@@ -92,11 +83,8 @@ export function processDropFile(
 }
 
 /**
- * Walks the drop directory once at start-up.
- *
- * A host that was down for a day must not wake a phone with yesterday's approvals, so anything
- * past the TTL is unlinked **without being read**. Everything fresh goes through the same
- * `processDropFile` a live event would.
+ * Start-up sweep: anything past the TTL is unlinked **unread**, so yesterday's approvals never
+ * wake a phone. Fresh files use the same `processDropFile` as live events.
  */
 export function drainPending(
   dir: string,

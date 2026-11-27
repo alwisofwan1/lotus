@@ -1,19 +1,9 @@
 import type { Readable, Writable } from "node:stream";
 
 /**
- * JSON-RPC 2.0 over newline-delimited stdio — the transport every provider bridge here
- * shares, since `codex app-server` and ACP agents speak the same framing.
- *
- * Verified against both real binaries (codex 0.150.1 on 2026-08-27, `cursor-agent acp` on
- * 2026-09-06): one JSON object per line, the
- * `"jsonrpc"` header omitted on the wire, and **the server also sends requests** — an
- * approval is `{id, method: "item/commandExecution/requestApproval", params}` and expects
- * `{id, result: {decision}}` back on the same id space. So a line with both `id` and
- * `method` is a request *to* us; with `id` and no `method` it is a response; with `method`
- * and no `id` it is a notification.
- *
- * Nothing here knows any provider's vocabulary. It is the transport, tested with two
- * `PassThrough` streams; the session on top decides what to say.
+ * JSON-RPC over newline-delimited stdio, shared by `codex app-server` and ACP. No `"jsonrpc"`
+ * header, and **the server also sends requests** (approvals): `id`+`method` is a request to
+ * us, `id` alone a response, `method` alone a notification.
  */
 export interface JsonRpcNotification {
   method: string;

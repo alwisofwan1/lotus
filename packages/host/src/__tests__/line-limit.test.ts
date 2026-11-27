@@ -13,7 +13,7 @@ const MAX_RAW_LINES = 1000;
 const MAX_LINE_CHARS = 200;
 const MAX_COMMENT_BLOCK = 5;
 /** Ratchet: over-long comment blocks src/ still has. Lower it when you trim; never raise it. */
-const LONG_COMMENT_BLOCK_CEILING = 237;
+const LONG_COMMENT_BLOCK_CEILING = 97;
 
 /** Lines of text, ignoring a single trailing newline. */
 export function rawLines(content: string): string[] {

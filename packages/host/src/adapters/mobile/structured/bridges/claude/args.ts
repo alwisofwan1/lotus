@@ -2,11 +2,8 @@ import { APPROVAL_PROMPT_TOOL } from "./approval-script.js";
 import type { ClaudeSessionOptions } from "./session.js";
 
 /**
- * The flags a headless Claude cell is started with.
- *
- * `--include-partial-messages` is on because streaming text is the point of this mode; the
- * whole `assistant` message still follows and settles it, so a client that ignores deltas
- * loses nothing. `--verbose` is required by the CLI alongside `--print` + `stream-json`.
+ * Flags for a headless Claude cell. `--include-partial-messages` streams text (the whole
+ * `assistant` message still settles it); `--verbose` is required with `--print` + `stream-json`.
  */
 export function buildArgs(opts: ClaudeSessionOptions, mcpConfig?: string): string[] {
   return [

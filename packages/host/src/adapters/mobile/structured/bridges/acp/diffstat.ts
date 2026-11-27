@@ -1,11 +1,6 @@
 /**
- * `+n −n` from the two texts ACP hands us, which is more than any hook pipeline ever had:
- * Claude reports hunks and Codex a unified diff, but an ACP `diff` block carries the whole
- * before and after, so the count can be computed rather than parsed.
- *
- * Exact for any number of hunks, via an LCS over lines. Large files fall back to trimming the
- * common prefix and suffix — the answer stays right for one contiguous edit, which is what a
- * file that size gets, and the cost stops being quadratic.
+ * `+n −n` from an ACP `diff` block's before/after texts: an LCS over lines; large files trim
+ * the common prefix and suffix instead (right for one contiguous edit, not quadratic).
  */
 const LCS_LINE_CAP = 2000;
 

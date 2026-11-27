@@ -9,22 +9,10 @@ import {
 } from "./messages.js";
 import type { ToolCallPart } from "../../../../../types/conversation.js";
 
+/** Interprets Claude's content blocks; `conversation.ts` keeps the timeline and is the sink. */
 /**
- * Reading Claude's content blocks: the `stream_event` deltas, the whole `assistant` message,
- * and the `tool_result` that comes back as a `user` message.
- *
- * Split out of `conversation.ts` when that file crossed 300 lines, and the seam is the right
- * one rather than a convenient one: everything here is *interpretation of a message*, where
- * what stays behind is *the timeline* — turns, part identity, ordering, emission. The
- * conversation is passed in as the sink it already was.
- */
-/**
- * A partial chunk. The whole `assistant` message follows, so a delta is a view, not the record.
- *
- * The first chunk **opens** the part, and every chunk after it is sent as the characters it
- * added and nothing else (`ConversationUpdate.kind: "text"`). Re-sending the growing part each
- * time was quadratic in the length of the reply, on the one lane that crosses a tailnet to a
- * phone.
+ * A partial chunk; the whole `assistant` message follows. Later chunks send only the added
+ * characters (`ConversationUpdate.kind: "text"`): re-sending the part is quadratic over a tailnet.
  */
 export function applyDelta(c: ClaudeConversation, message: ClaudeMessage): void {
   const event = message["event"];

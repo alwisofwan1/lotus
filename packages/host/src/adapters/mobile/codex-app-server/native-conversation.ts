@@ -10,24 +10,8 @@ import { type CodexItem, partFromItem, patchPart } from "./native-items.js";
 
 /**
  * A Codex `app-server` thread as a live [`ConversationPage`] — the first **native**
- * producer of parts (`provenance: "native"`).
- *
- * Fed one notification at a time (`apply`), verified against a capture of the real
- * binary (`__tests__/fixtures/app-server-turn.jsonl`, 0.150.1, 2026-08-27):
- *
- * | notification | effect |
- * |---|---|
- * | `turn/started` | opens a turn with Codex's own `turn.id` |
- * | `item/started` / `item/completed` | upserts one part by Codex's own `item.id` |
- * | `item/agentMessage/delta` | appends to the streaming `assistant_text` (`delta` is a plain string) |
- * | `item/commandExecution/outputDelta` | appends to the tool call's `output.text` |
- * | `turn/completed` | closes the turn — `completed → end_turn`, `interrupted → cancelled`, `failed → error` |
- * | `thread/tokenUsage/updated` | remembered, folded into the closing `result` part |
- * | `item/commandExecution/requestApproval` (a **server request**) | a `permission` part; `decide()` records the outcome |
- *
- * Ids are Codex's, not hashes: the runner finally has real ones, and the phone dedupes on
- * them across REST and the stream. `seq` counts arrivals, since one item is upserted several
- * times.
+ * producer of parts (`provenance: "native"`). Ids are Codex's own, so the phone can dedupe on
+ * them across REST and the stream; `seq` counts arrivals.
  */
 export type { ConversationUpdate };
 

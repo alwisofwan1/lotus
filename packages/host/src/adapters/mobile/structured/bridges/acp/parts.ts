@@ -10,12 +10,8 @@ import type {
 import { diffStat } from "./diffstat.js";
 
 /**
- * ACP `session/update` payloads, as `cursor-agent acp` actually sends them.
- *
- * Verified against a capture of the real binary on 2026-09-06
- * (`__tests__/fixtures/cursor-acp-turn.jsonl`). Everything here is `unknown`-in, typed-out:
- * an agent is free to send a field we have never seen, and a shape we cannot read must
- * become an `unknown` part rather than a thrown parse.
+ * ACP `session/update` payloads (fixture `__tests__/fixtures/cursor-acp-turn.jsonl`). `unknown`
+ * in, typed out: an unreadable shape becomes an `unknown` part, never a thrown parse.
  */
 export interface AcpUpdate {
   sessionUpdate: string;
@@ -64,9 +60,7 @@ export function locationsOf(raw: unknown): ToolCallPart["locations"] {
 /**
  * The `diff` blocks in a tool call's `content`, counted.
  *
- * `op` is read from which side is empty, so a created file is `add` and a truncated one is
- * `delete` — the same three-way `FileDiff` the hook pipeline produces, but with real counts
- * instead of hunk arithmetic.
+ * `op` is read from which side is empty: a created file is `add`, a truncated one `delete`.
  */
 export function diffOf(raw: unknown): { files: FileDiff[] } | undefined {
   if (!Array.isArray(raw)) return undefined;
@@ -87,11 +81,8 @@ export function diffOf(raw: unknown): { files: FileDiff[] } | undefined {
 }
 
 /**
- * A tool's output, from whichever shape the agent used.
- *
- * `execute` answers `{exitCode, stdout, stderr}` and `read` answers `{content}`; anything
- * else is left absent rather than stringified, since a rendered `[object Object]` is worse
- * than a step with no output.
+ * A tool's output: `execute` gives `{exitCode, stdout, stderr}`, `read` `{content}`; anything
+ * else stays absent, as `[object Object]` is worse than none.
  */
 export function outputOf(raw: unknown): ToolCallPart["output"] | undefined {
   if (!isRecord(raw)) return undefined;
@@ -110,8 +101,7 @@ export function outputOf(raw: unknown): ToolCallPart["output"] | undefined {
 /**
  * ACP `PermissionOption.kind` is already our vocabulary; `optionId` is the key.
  *
- * The key is the agent's own id, never the option's position — the rule ADR-8 pinned after a
- * phone answered the wrong option because the list had been reordered.
+ * The key is the agent's own id, never the option's position (ADR-8).
  */
 export function permissionOptions(raw: unknown): PermissionOption[] {
   if (!Array.isArray(raw)) return [];
@@ -130,12 +120,8 @@ export function permissionOptions(raw: unknown): PermissionOption[] {
 }
 
 /**
- * A `tool_call` or `tool_call_update` folded onto whatever we already held for that call.
- *
- * ACP sends a call three or four times — `pending` with an empty `rawInput`, then a retitle,
- * then `in_progress`, then `completed` with the output — and each message carries only what
- * changed. Absent is therefore *unchanged*, never *cleared*, which is why every field falls
- * back to the held one rather than to a default.
+ * Folds a `tool_call(_update)` onto the held call. ACP sends each call several times with only
+ * what changed: absent means *unchanged*, never *cleared*.
  */
 export function mergeToolCall(
   update: AcpUpdate,

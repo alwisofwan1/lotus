@@ -1,21 +1,7 @@
 /**
- * Reads the agent CLI's **own** hook payload — the JSON Claude and Codex write to a hook's
- * stdin — for the one thing only it knows: where the CLI keeps its transcript.
- *
- * **Why this is separate from `payload.ts`.** That file parses Lotus's own v1 drop-file schema,
- * written by a producer we control. This one parses somebody else's shape, arriving straight off
- * a pipe, and takes three fields out of it. Mixing them would let a change in a foreign format
- * edit the schema we own.
- *
- * **The field names were measured, not read.** `scripts/agent-notify/payload-extractors.mjs`
- * records that both CLIs hand over `transcript_path` on every event, and that the session id
- * arrives in three spellings; its comments say those came off live runs. This accepts exactly
- * what that producer accepts, and nothing more (slice 3.1).
- *
- * **Everything here fails soft.** The caller is an HTTP endpoint a hook invokes, and a hook that
- * sees an error is a hook whose author is tempted to retry or fail the tool call — a `PreToolUse`
- * hook exiting non-zero BLOCKS it. So an unreadable body yields `undefined` and the turn it came
- * with is still recorded.
+ * The CLI's **own** hook payload, read only for its transcript path (slice 3.1); kept apart from
+ * `payload.ts` so a foreign format cannot edit our schema. **Fails soft** (`undefined`): a
+ * `PreToolUse` hook exiting non-zero BLOCKS the tool, and the turn must still be recorded.
  */
 
 /** Mirrors the schema's own cap; re-applied because this body never passed the producer. */

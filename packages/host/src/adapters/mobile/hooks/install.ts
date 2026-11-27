@@ -7,12 +7,8 @@ import type { Logger } from "../../../core/logger.js";
 import { buildClaudeHookScript, withClaudeHook } from "./hook-script.js";
 
 /**
- * Puts the hook where Claude will find it: a script in this host's state dir, named in the
- * operator's global `~/.claude/settings.json`.
- *
- * Idempotent, and re-run on every start on purpose — that is how a fix to the script body ships
- * without the operator doing anything, and how a settings file somebody else edited gets the
- * entry back.
+ * Puts a script in the state dir and names it in `~/.claude/settings.json`. Idempotent and
+ * re-run every start, so script fixes ship and an externally edited file regains the entry.
  */
 
 /** Filename in the state dir. The name is shared between profiles; the path is not. */
@@ -34,11 +30,8 @@ export interface InstalledHook {
 }
 
 /**
- * Writes the script and registers it. Returns what it wrote, or undefined when it could not.
- *
- * Failure is never fatal: hooks are one capability, and a host that refuses to boot because it
- * could not write a settings file is worse than one that starts without TUI permission and says
- * so through `hostCaps`.
+ * Returns what it wrote, or undefined. Never fatal: a host without TUI permission (reported
+ * through `hostCaps`) beats one that refuses to boot.
  */
 export function installClaudeHook(opts: InstallHookOptions): InstalledHook | undefined {
   const scriptPath = join(opts.stateDir, HOOK_SCRIPT_NAME);

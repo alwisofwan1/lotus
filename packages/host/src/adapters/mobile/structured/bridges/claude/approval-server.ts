@@ -5,25 +5,9 @@ import type { Readable, Writable } from "node:stream";
 import { APPROVAL_SERVER_NAME, APPROVAL_TOOL_NAME } from "./approval-script.js";
 
 /**
- * The MCP server `claude` calls to ask whether a tool may run.
- *
- * **A separate process, but not separate code.** `claude` spawns this itself from
- * `--mcp-config`, so it has to be a real process; it reaches back into the session that
- * started the cell over a unix socket the host owns (`LOTUS_APPROVAL_SOCKET`). A socket
- * rather than a port and a token: nothing to leak, no listener reachable from another
- * machine, and it behaves the same on a VPS.
- *
- * It used to live here as a **string** written to a temp file, run by `process.execPath`.
- * That command is wrong on the artefact this project actually ships: a compiled binary
- * ignores a script argument and starts a second Lotus host, so `mcp__lotus__approve` never
- * registered and every approval was refused instead of asked (issue 26). The process is now
- * this same host re-invoked with `--approval-server`, which makes `process.execPath` correct
- * by construction — and lets the protocol be ordinary typed code with ordinary tests.
- *
- * Protocol captured from the real CLI on 2026-09-07 and unchanged here:
- * - `tools/call` arrives as `{name, arguments: {tool_name, input, tool_use_id}}`.
- * - The answer is JSON **inside** a text content block.
- * - The CLI waits indefinitely, which is what lets a phone answer at its own pace.
+ * The MCP server `claude` asks whether a tool may run: this host re-invoked with
+ * `--approval-server` (issue 26), reaching the session over `LOTUS_APPROVAL_SOCKET`. The
+ * answer is JSON **inside** a text content block.
  */
 export interface ApprovalServerIo {
   input: Readable;

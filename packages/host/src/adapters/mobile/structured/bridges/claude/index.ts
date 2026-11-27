@@ -13,11 +13,8 @@ export { claudeProfiles, type ClaudeProfile };
 export type CreateClaudeSession = (opts: ClaudeSessionOptions) => ProviderBridgeSession;
 
 /**
- * Claude's own scale, as `--permission-mode` takes it, mapped from the stop the phone sends.
- *
- * The two legacy words keep the meaning they had before the scale existed. An unrecognised
- * mode lands on `manual` rather than being refused — the safe reading of an unknown posture
- * is *ask*, the same rule `codexPosture` follows.
+ * The phone's stop mapped to `--permission-mode`. Legacy words keep their old meaning; an
+ * unknown mode lands on `manual` (*ask*), as in `codexPosture`.
  */
 export function claudePermissionMode(mode: string | undefined): string {
   switch (mode) {
@@ -36,13 +33,9 @@ export function claudePermissionMode(mode: string | undefined): string {
 }
 
 /**
- * Claude as a [`ProviderBridgeFactory`] — the runner where a terminal is the product, so
- * this is the **second** mode rather than a replacement for the cell TUI.
- *
- * `gating` follows the mode, because since Fase 3b there is a real control behind it: the
- * session starts an MCP approval tool beside the runner, and `--permission-prompt-tool`
- * makes the runner **wait** for the operator. `bypassPermissions` is the one stop that can
- * never ask, so it alone reports `skipped`.
+ * Claude as a [`ProviderBridgeFactory`], the **second** mode beside the cell TUI. `gating`
+ * follows the mode: the runner **waits** for the operator; only `bypassPermissions` never
+ * asks, so it alone is `skipped`.
  */
 export function claudeBridge(createSession?: CreateClaudeSession, readableDir?: string): ProviderBridgeFactory {
   const create = createSession ?? ((o: ClaudeSessionOptions) => new ClaudeStreamSession(o));
@@ -67,12 +60,8 @@ export function claudeBridge(createSession?: CreateClaudeSession, readableDir?: 
 }
 
 /**
- * The config dir for a named profile, or a refusal.
- *
- * Refusing rather than falling back to the ambient account is the whole point: a cell started
- * on the wrong profile does not fail, it works — as somebody else, against another keychain
- * entry, and the operator reads the mismatch as an expired session. The route validates the
- * id against the advertised list first, so a client that read `bootstrap` never lands here.
+ * The config dir for a named profile, or a refusal: never fall back to the ambient account, as
+ * a wrong profile works as somebody else and reads as an expired session.
  */
 function resolveProfile(profileId: string): string {
   const configDir = claudeConfigDir(profileId);

@@ -2,24 +2,9 @@ import type { AgentStopEvent } from "../../../types/notifications.js";
 import type { TranscriptEntry } from "../../../types/transcript.js";
 
 /**
- * Turns "a hook fired" into "here is what is new in this pane's transcript", on the wire the
- * phone already appends from.
- *
- * **Why this exists**, from a real phone on 2026-09-06: Chat on a standalone host read the
- * conversation correctly and never moved until the operator pulled to refresh. The reading was
- * fine; the host simply never said anything. `LiveTranscript` appends from `notification` frames
- * carrying a hook payload (`live_transcript.dart` → `event.hook.toTranscriptEntry()`), and a
- * standalone host published none — it recorded every turn and stayed silent.
- *
- * **Nothing is invented for the wire.** The entries published here are read from the same file
- * `/transcript` serves, so an entry appended live and the same entry fetched later are the same
- * entry. That is what lets the phone dedupe them against each other rather than showing a step
- * twice (`contract/README.md`).
- *
- * The whole file is re-read on each hook fire. Deliberate for now, and the same trade the desktop
- * makes: a transcript is a few MB at most, and a cursor over a parsed list is obviously correct
- * where a streaming reader would have to get line boundaries right against a file being appended
- * to (slice 3.6).
+ * A hook fire → new entries as `notification` frames, read from the file `/transcript` serves
+ * so live and fetched copies dedupe (`contract/README.md`). Re-reads the whole file per fire:
+ * a few MB, simpler than a streaming reader (slice 3.6).
  */
 
 export interface TranscriptEmitterDeps {
