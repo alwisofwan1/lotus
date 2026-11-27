@@ -16,7 +16,7 @@ import 'agent_route.dart';
 import 'composition_root.dart';
 import 'diagnostics_route.dart';
 import 'launch_shell.dart';
-import 'theme/app_theme.dart';
+import 'theme/theme_controller.dart';
 import 'update_notice.dart';
 import 'wake_routing.dart';
 
@@ -45,9 +45,12 @@ import 'wake_routing.dart';
 /// the other projects' waiting agents behind a back tap, which is the exact failure ADR-3's
 /// falsification clause named. Landing on the index answers it in one glance.
 class PocketApp extends StatefulWidget {
-  const PocketApp({required this.root, super.key});
+  const PocketApp({required this.root, this.themeController, super.key});
 
   final CompositionRoot root;
+
+  /// Which theme and mode; the app makes its own (classic, dark) when none is given.
+  final ThemeController? themeController;
 
   @override
   State<PocketApp> createState() => _PocketAppState();
@@ -88,6 +91,7 @@ class _PocketAppState extends State<PocketApp> with WidgetsBindingObserver {
   final _navigator = GlobalKey<NavigatorState>();
   final _messenger = GlobalKey<ScaffoldMessengerState>();
   late final WakeRouting _wakes;
+  late final ThemeController _theme = widget.themeController ?? ThemeController();
 
   @override
   void initState() {
@@ -116,6 +120,7 @@ class _PocketAppState extends State<PocketApp> with WidgetsBindingObserver {
   @override
   void dispose() {
     _wakes.dispose();
+    if (widget.themeController == null) _theme.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -151,11 +156,17 @@ class _PocketAppState extends State<PocketApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    return ThemedApp(controller: _theme, builder: _app);
+  }
+
+  Widget _app(ThemeData theme, ThemeData darkTheme, ThemeMode mode) {
     return MaterialApp(
       navigatorKey: _navigator,
       scaffoldMessengerKey: _messenger,
       title: 'Lotus Pocket',
-      theme: buildAppTheme(),
+      theme: theme,
+      darkTheme: darkTheme,
+      themeMode: mode,
       // The banner covers the corner where the project title lives.
       debugShowCheckedModeBanner: false,
       // Which screen the app opens on is a question about **stored credentials**, so
