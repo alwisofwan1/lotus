@@ -58,9 +58,10 @@ export function partFromItem(item: CodexItem, at: number, seq: number, existing:
       return part;
     }
     case "fileChange": {
-      const changes = item["changes"] as Record<string, { kind?: string; type?: string; unified_diff?: string; unifiedDiff?: string }> | Array<{ path: string; kind?: string; type?: string; unified_diff?: string; unifiedDiff?: string }> | undefined;
+      type Change = { kind?: string; type?: string; unified_diff?: string; unifiedDiff?: string };
+      const changes = item["changes"] as Record<string, Change> | Array<Change & { path: string }> | undefined;
       const files: FileDiff[] = [];
-      const entries: Array<[string, { kind?: string; type?: string; unified_diff?: string; unifiedDiff?: string }]> =
+      const entries: Array<[string, Change]> =
         Array.isArray(changes) ? changes.map((c) => [c.path, c]) : Object.entries(changes ?? {});
       for (const [path, change] of entries) {
         const diff = change.unified_diff ?? change.unifiedDiff;

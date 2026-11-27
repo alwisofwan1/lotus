@@ -81,7 +81,12 @@ export class MobileAdapter implements RemoteAdapter {
   chatAct(action: string, body: Record<string, unknown>): Promise<ChatActionResult> {
     if (this.structured === null) return Promise.resolve({ status: 400, body: { ok: false, error: "this host cannot run an agent without a terminal" } });
     const dir = this.opts.attachmentsDir;
-    return chatActions({ structured: this.structured, api: this.opts.api, onAsk: (p) => this.push?.recordAsk(p), ...(dir === undefined ? {} : { attachments: new ChatAttachmentStore(dir) }) })(action, body);
+    return chatActions({
+      structured: this.structured,
+      api: this.opts.api,
+      onAsk: (p) => this.push?.recordAsk(p),
+      ...(dir === undefined ? {} : { attachments: new ChatAttachmentStore(dir) }),
+    })(action, body);
   }
   private readonly notifications: NotificationRelay;
   /** Hook entries, converted to `Part` deltas so both lanes carry every step. */

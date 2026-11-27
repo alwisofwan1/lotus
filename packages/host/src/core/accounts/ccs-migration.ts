@@ -1,5 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, realpathSync, renameSync, statSync, symlinkSync, unlinkSync, writeFileSync, type Stats } from "node:fs";
+import {
+  copyFileSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync,
+  realpathSync, renameSync, statSync, symlinkSync, unlinkSync, writeFileSync, type Stats,
+} from "node:fs";
 import { basename, dirname, isAbsolute, join, relative } from "node:path";
 
 import { DIRS, FILES, mergeDir, mergeFile } from "./context-links.js";

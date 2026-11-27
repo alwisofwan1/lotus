@@ -44,8 +44,19 @@ Each module owns its concern fully. Cross-module imports flow inward only:
 
 ## Non-negotiable rules
 
-### 300-line limit
-**No file may exceed 300 lines.** When a file approaches the limit, extract a collaborating module. The rule exists to keep every file readable in one pass and reviewable without scrolling.
+### File-size limit
+**No source file may exceed 600 lines of code** (non-blank, non-comment) **or 1000 lines in total**, and no
+code line may be wider than 200 characters (lines that are only string content, such as prompt prose, are
+exempt). Above 400 code lines the test prints a warning: extract a collaborator at a real seam (a type, a
+protocol step, a module) before you hit the wall. Keep functions under ~80 code lines. Tests are exempt.
+The extra room is for cohesion, not a target — do not merge files that were split well.
+Same numbers as `apps/pocket`. Enforced by `src/__tests__/line-limit.test.ts`.
+
+### Comments
+Code should read without them. A comment states one short non-obvious **why**; history, incident write-ups
+and design rationale go to an ADR or `docs/`, linked in one line. No comment block over 5 lines: the
+line-limit test ratchets the repo-wide count of such blocks — it may only go down. When you trim comments,
+lower `LONG_COMMENT_BLOCK_CEILING` to the new count.
 
 ### Test-driven development
 Write the test file before writing implementation code. Every public method on every exported class needs at least one unit test. Every HTTP route needs at least one handler test. `bun run test` must pass before any slice is marked complete.
@@ -57,7 +68,7 @@ Test files live in a `__tests__/` subdirectory beside their source module — e.
 - No wrapper functions that only forward to another function with an identical name
 - No defensive `try/catch` around code that structurally cannot throw
 - No `any` — use `unknown` and narrow it, or define the type
-- No multi-paragraph doc comments — one line only, only when the WHY is non-obvious
+- No multi-paragraph doc comments — one short line, only when the WHY is non-obvious (see Comments)
 - No trailing summary comments that restate what the code already says
 
 ### Dependency injection
@@ -92,7 +103,8 @@ Use `createLogger` from `core/logger.ts`. Never use `console.log` or `console.er
 
 ## Pre-merge checklist
 
-- [ ] No file exceeds 300 lines
+- [ ] No file over 600 code / 1000 total lines; no function over ~80 lines
+- [ ] No new comment block over 5 lines (ratchet test passes)
 - [ ] No `throw new Error("Not implemented")` remains
 - [ ] All public methods have at least one test
 - [ ] `bun run test` passes clean

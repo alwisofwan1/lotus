@@ -177,8 +177,11 @@ Two consequences worth stating, because they are what make the diagram more than
   other path to a mutation. Its tests assert the stronger thing — that a refused gate leaves
   `http.sent` **empty**, not merely that it returned false.
 
-Inherited rules, from `packages/host/CLAUDE.md`: **300 lines per file** (also enforced by the
-layering test), TDD, dependency injection through constructors, no wild `dynamic` (enforced by
+Inherited rules, from `packages/host/CLAUDE.md`: **at most 600 code lines / 1000 total lines per
+file**, warning from 400 code lines, no code line over 200 characters; **comments are one short
+"why"** — no block over 5 lines, history goes to an ADR (both enforced by
+`test/architecture/file_size_test.dart`, whose `longCommentBlockCeiling` ratchets down as comments
+are trimmed); TDD, dependency injection through constructors, no wild `dynamic` (enforced by
 `strict-casts` / `strict-raw-types` / `strict-inference` in `analysis_options.yaml`), no bare
 `print`.
 

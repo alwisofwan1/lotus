@@ -51,10 +51,6 @@ const Set<String> transportPackages = {
   'record',
 };
 
-/// Same limit as `packages/host`: a file that outgrows one pass is a file hiding a
-/// collaborator (see that package's CLAUDE.md).
-const int maxLines = 300;
-
 Iterable<File> dartFiles(String dir) => Directory(dir)
     .listSync(recursive: true)
     .whereType<File>()
@@ -116,16 +112,5 @@ void main() {
 
     expect(violations, isEmpty,
         reason: 'sockets and http live behind core/; hosts/ owns their lifecycle');
-  });
-
-  test('no file under lib/ exceeds $maxLines lines', () {
-    final tooLong = <String>[];
-
-    for (final file in files) {
-      final lines = file.readAsLinesSync().length;
-      if (lines > maxLines) tooLong.add('${file.path}: $lines');
-    }
-
-    expect(tooLong, isEmpty);
   });
 }
