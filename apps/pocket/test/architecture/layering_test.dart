@@ -70,62 +70,84 @@ String? layerOf(String path) {
 }
 
 /// [source] with comments (and, if [strings], string contents) blanked to spaces.
-/// Newlines are kept, so offsets and line numbers still match the file.
+/// Code inside `${…}` stays code. Length and newlines are kept, so offsets still match.
 String blank(String source, {bool strings = false}) {
   final out = StringBuffer();
   var i = 0;
   String keep(String c) => c == '\n' ? '\n' : ' ';
-  while (i < source.length) {
-    final c = source[i];
-    final next = i + 1 < source.length ? source[i + 1] : '';
-    if (c == '/' && next == '/') {
-      while (i < source.length && source[i] != '\n') {
-        out.write(' ');
-        i++;
-      }
-    } else if (c == '/' && next == '*') {
-      var depth = 0;
-      do {
-        if (source.startsWith('/*', i)) {
-          depth++;
-          out.write('  ');
-          i += 2;
-        } else if (source.startsWith('*/', i)) {
-          depth--;
-          out.write('  ');
-          i += 2;
-        } else {
-          out.write(keep(source[i]));
+  late void Function() literal;
+
+  // Stops at the `}` closing an interpolation when [nested].
+  void code({bool nested = false}) {
+    var depth = 0;
+    while (i < source.length) {
+      final c = source[i];
+      if (nested && c == '}' && depth-- == 0) return;
+      if (nested && c == '{') depth++;
+      if (source.startsWith('//', i)) {
+        while (i < source.length && source[i] != '\n') {
+          out.write(' ');
           i++;
         }
-      } while (depth > 0 && i < source.length);
-    } else if (c == "'" || c == '"') {
-      final raw = i > 0 && source[i - 1] == 'r';
-      final quote = source.startsWith(c * 3, i) ? c * 3 : c;
-      out.write(quote);
-      i += quote.length;
-      while (i < source.length && !source.startsWith(quote, i)) {
-        final step = !raw && source[i] == r'\' ? 2 : 1;
-        for (var k = 0; k < step && i < source.length; k++, i++) {
-          out.write(strings ? keep(source[i]) : source[i]);
-        }
+      } else if (source.startsWith('/*', i)) {
+        var level = 0;
+        do {
+          if (source.startsWith('/*', i)) {
+            level++;
+            out.write('  ');
+            i += 2;
+          } else if (source.startsWith('*/', i)) {
+            level--;
+            out.write('  ');
+            i += 2;
+          } else {
+            out.write(keep(source[i++]));
+          }
+        } while (level > 0 && i < source.length);
+      } else if (c == "'" || c == '"') {
+        literal();
+      } else {
+        out.write(c);
+        i++;
       }
-      out.write(quote);
-      i += quote.length;
-    } else {
-      out.write(c);
-      i++;
     }
   }
+
+  literal = () {
+    final raw = i > 0 && source[i - 1] == 'r';
+    final c = source[i];
+    final quote = source.startsWith(c * 3, i) ? c * 3 : c;
+    out.write(quote);
+    i += quote.length;
+    while (i < source.length && !source.startsWith(quote, i)) {
+      if (!raw && source.startsWith(r'${', i)) {
+        out.write(r'${');
+        i += 2;
+        code(nested: true);
+        if (i < source.length) out.write(source[i++]);
+        continue;
+      }
+      final step = !raw && source[i] == r'\' ? 2 : 1;
+      for (var k = 0; k < step && i < source.length; k++, i++) {
+        out.write(strings ? keep(source[i]) : source[i]);
+      }
+    }
+    out.write(quote);
+    i += quote.length;
+  };
+
+  code();
   return out.toString();
 }
 
 /// Every import/export/part target in [source], conditional ones included.
 Iterable<String> directiveTargets(String source) sync* {
   final code = blank(source);
-  for (final m in RegExp(r'^\s*(?:import|export|part)\b([^;]*);', multiLine: true).allMatches(code)) {
+  // Statements are found with strings blanked, so a `;` inside a URI cannot split one.
+  final statements = RegExp(r'(?<=^|[;}])\s*(?:import|export|part)\b[^;]*;', multiLine: true);
+  for (final m in statements.allMatches(blank(source, strings: true))) {
     // Drop `if (dart.library.x == 'y')` conditions, keep every URI around them.
-    final uris = m.group(1)!.replaceAll(RegExp(r'\([^()]*\)'), '');
+    final uris = code.substring(m.start, m.end).replaceAll(RegExp(r'\([^()]*\)'), '');
     for (final q in RegExp(r'''r?(['"])(.*?)\1''', dotAll: true).allMatches(uris)) {
       yield q.group(2)!;
     }
@@ -195,6 +217,7 @@ import 'sibling.dart';
 /* import '../../core/blocked.dart'; */
 import /* why */ '../../core/e.dart';
 import '../../models/f.dart' if (dart.library.io == 'true') '../../core/g.dart';
+import 'sibling.dart'; import '../../core/h.dart';
 ''';
     expect(importsOf(path, source), [
       'core/a.dart',
@@ -205,14 +228,17 @@ import '../../models/f.dart' if (dart.library.io == 'true') '../../core/g.dart';
       'core/e.dart',
       'models/f.dart',
       'core/g.dart',
+      'features/agent/sibling.dart',
+      'core/h.dart',
     ]);
   });
 
   test('colour literals are found however they are spelled', () {
     const source = 'a = Color(0xFF000000); b = Color(\n  0x12345678); c = Colors\n.black;'
         ' d = Color.fromRGBO(0, 0, 0, 1); e = Colors.transparent; f = Color(/* x */ 0xFF123456);'
-        ' // Color(0xFF000000) in a comment\n g = "Colors.black in a string";';
-    expect(colourLiterals(source), hasLength(5));
+        ' // Color(0xFF000000) in a comment\n g = "Colors.black in a string";'
+        r' h = "${Color(0xFF000000)}"; i = "${{1: "x"}[1]} ${Colors.black}"; j = r"${Color(0x1)}";';
+    expect(colourLiterals(source), hasLength(7));
   });
 
   test('features colour only through theme tokens', () {
