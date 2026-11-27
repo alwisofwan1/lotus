@@ -45,8 +45,7 @@ Future<MachineName?> showNameMachine(
 
   return showModalBottomSheet<MachineName>(
     context: context,
-    backgroundColor: sheet.fill,
-    shape: sheet.shape,
+    // Fill and shape come from the theme, so they follow it while open.
     barrierColor: sheet.barrier,
     // The keyboard covers a sheet that does not ask to be measured against it, and a
     // field the operator cannot see is a field they cannot correct.

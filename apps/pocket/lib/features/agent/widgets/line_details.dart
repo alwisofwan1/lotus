@@ -42,40 +42,42 @@ Future<void> showLineDetails(
   required DateTime at,
   DateTime? now,
 }) {
-  final t = context.tokens;
   final when = '${clockLabel(at)} · ${dayLabel(at, now ?? DateTime.now()).toLowerCase()}';
 
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: Color.alphaBlend(t.raise, t.bg),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
     ),
-    builder: (sheet) => SafeArea(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
-            child: Text(
-              when,
-              style: t.mono.copyWith(fontSize: 11.5, letterSpacing: 0.1 * 11.5, color: t.muted),
+    builder: (sheet) {
+      // Read in the route, not the opener, so the sheet follows a theme change.
+      final t = sheet.tokens;
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 12),
+              child: Text(
+                when,
+                style: t.mono.copyWith(fontSize: 11.5, letterSpacing: 0.1 * 11.5, color: t.muted),
+              ),
             ),
-          ),
-          Container(height: 1, color: t.line),
-          ListTile(
-            title: Text(
-              'COPY',
-              style: t.mono.copyWith(fontSize: 11.5, letterSpacing: 0.14 * 11.5, color: t.dim),
+            Container(height: 1, color: t.line),
+            ListTile(
+              title: Text(
+                'COPY',
+                style: t.mono.copyWith(fontSize: 11.5, letterSpacing: 0.14 * 11.5, color: t.dim),
+              ),
+              onTap: () async {
+                await Clipboard.setData(ClipboardData(text: text));
+                if (sheet.mounted) Navigator.of(sheet).pop();
+              },
             ),
-            onTap: () async {
-              await Clipboard.setData(ClipboardData(text: text));
-              if (sheet.mounted) Navigator.of(sheet).pop();
-            },
-          ),
-        ],
-      ),
-    ),
+          ],
+        ),
+      );
+    },
   );
 }

@@ -21,14 +21,20 @@ Future<void> showChangesSheet(
   CellResult? result,
   void Function(String path)? onShowDiff,
 }) {
-  final t = context.tokens;
   return showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
     // The list can be long — a turn that touched twenty files is exactly when this is
     // opened — and a sheet that cannot scroll would hide the tail of it.
     isScrollControlled: true,
-    builder: (context) => SafeArea(
+    // The route's tokens, not the opener's, so the sheet follows a theme change.
+    builder: (context) => _sheet(context.tokens, outcome, result, onShowDiff),
+  );
+}
+
+Widget _sheet(AppTokens t, AgentOutcome? outcome, CellResult? result,
+        void Function(String path)? onShowDiff) =>
+    SafeArea(
       top: false,
       child: Container(
         decoration: BoxDecoration(
@@ -65,6 +71,4 @@ Future<void> showChangesSheet(
           ],
         ),
       ),
-    ),
-  );
-}
+    );

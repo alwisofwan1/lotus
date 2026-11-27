@@ -80,6 +80,10 @@ surface tightens it there.
   at defaults they drew light fences on a screen that has none.
 - Text colours are applied explicitly so a Flutter upgrade cannot drift them.
 - `TextButton` minimum size is `kMinHitTarget` (44): every bare caps label is born tappable.
+- `bottomSheetTheme` carries the sheet fill and shape (`SheetTokens`). A route reads its
+  theme on every build, so an open sheet repaints when the theme changes. Pass neither as
+  an argument, and read tokens from the route's `context`, never the opener's: both are
+  captured once when the route opens. The barrier colour is still captured on open.
 
 ## Classic
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_tokens.dart';
+import 'components/components.dart';
 import 'palettes/classic.dart';
 import 'theme_variant.dart';
 
@@ -12,6 +13,7 @@ ThemeData buildAppTheme([ThemeVariant? variant]) {
   final materialDefaults =
       v.brightness == Brightness.dark ? const ColorScheme.dark() : const ColorScheme.light();
   final container = Color.alphaBlend(t.raise, t.bg);
+  final sheet = ComponentTokens(t, v.shape).sheet;
 
   // secondary/tertiary stay at inert defaults, so no generic widget can pick up `waiting`.
   final colorScheme = materialDefaults.copyWith(
@@ -41,6 +43,12 @@ ThemeData buildAppTheme([ThemeVariant? variant]) {
   return base.copyWith(
     textTheme: base.textTheme.apply(bodyColor: t.text, displayColor: t.text),
     // Bare caps labels would otherwise be 36px tall, under the 44 hit target.
+    // Read by the open route on every build, so a sheet repaints when the theme changes.
+    bottomSheetTheme: BottomSheetThemeData(
+      backgroundColor: sheet.fill,
+      modalBackgroundColor: sheet.fill,
+      shape: sheet.shape,
+    ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
         minimumSize: const Size(kMinHitTarget, kMinHitTarget),

@@ -88,15 +88,19 @@ Future<void> showLinkActions(
   required LinkTarget target,
   void Function(String text)? onQuote,
 }) {
-  final t = context.tokens;
-
   return showModalBottomSheet<void>(
     context: context,
-    backgroundColor: Color.alphaBlend(t.raise, t.bg),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
     ),
-    builder: (sheet) => SafeArea(
+    // The route's tokens, not the opener's, so the sheet follows a theme change.
+    builder: (sheet) => _linkSheet(sheet, sheet.tokens, context, target, onQuote),
+  );
+}
+
+Widget _linkSheet(BuildContext sheet, AppTokens t, BuildContext context, LinkTarget target,
+        void Function(String text)? onQuote) =>
+    SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -148,9 +152,7 @@ Future<void> showLinkActions(
           ),
         ],
       ),
-    ),
-  );
-}
+    );
 
 /// The one failure worth a word: a phone with no browser installed for the scheme, which
 /// `canLaunchUrl` would also have reported — this asks forgiveness rather than

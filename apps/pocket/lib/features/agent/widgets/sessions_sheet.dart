@@ -26,8 +26,7 @@ Future<SessionChoice?> showSessionsSheet(
   final sheet = context.components.sheet;
   return showModalBottomSheet<SessionChoice>(
     context: context,
-    backgroundColor: sheet.fill,
-    shape: sheet.shape,
+    // Fill and shape come from the theme, so they follow it while open.
     barrierColor: sheet.barrier,
     isScrollControlled: true,
     builder: (context) => SessionsSheet(

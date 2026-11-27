@@ -33,8 +33,7 @@ Future<TargetChoice?> showTargetPicker(
 
   return showModalBottomSheet<TargetChoice>(
     context: context,
-    backgroundColor: sheet.fill,
-    shape: sheet.shape,
+    // Fill and shape come from the theme, so they follow it while open.
     barrierColor: sheet.barrier,
     builder: (context) => TargetPicker(
       cells: cells,

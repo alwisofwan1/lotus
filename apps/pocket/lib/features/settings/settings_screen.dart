@@ -234,11 +234,18 @@ class SettingsScreen extends StatelessWidget {
   /// guesses: the agents keep running. Pocket is a remote control, and putting the
   /// remote down does not stop the machine (`map.md` — work belongs to the host).
   Future<void> _confirmUnpair(BuildContext context, HostDiagnosis host) async {
-    final t = context.tokens;
-
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      // The route's tokens, not the opener's, so the dialog follows a theme change.
+      builder: (context) => _unpairDialog(context, context.tokens, host),
+    );
+
+    if (confirmed != true) return;
+    await onUnpair(host.host);
+  }
+
+  static Widget _unpairDialog(BuildContext context, AppTokens t, HostDiagnosis host) =>
+      AlertDialog(
         backgroundColor: Color.alphaBlend(t.raise, t.bg),
         title: Text('Unpair ${host.label}?',
             style: t.ui.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: t.text)),
@@ -259,10 +266,5 @@ class SettingsScreen extends StatelessWidget {
                     fontSize: 13.5, fontWeight: FontWeight.w600, color: t.error)),
           ),
         ],
-      ),
-    );
-
-    if (confirmed != true) return;
-    await onUnpair(host.host);
-  }
+      );
 }

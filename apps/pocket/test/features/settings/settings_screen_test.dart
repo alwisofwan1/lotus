@@ -3,7 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/models/app_build.dart';
 import 'package:lotus_pocket/app/theme/app_theme.dart';
-import 'package:lotus_pocket/app/theme/app_tokens.dart';
+import 'package:lotus_pocket/app/theme/palettes/classic.dart';
+import 'package:lotus_pocket/app/theme/theme.dart';
+import 'package:lotus_pocket/app/theme/theme_variant.dart';
 import 'package:lotus_pocket/core/push_tokens.dart';
 import 'package:lotus_pocket/data/diagnostics.dart';
 import 'package:lotus_pocket/data/measurement_log.dart';
@@ -97,23 +99,27 @@ void main() {
     List<HostDiagnosis> hosts = const [],
     List<String> unreadable = const [],
     MeasurementLog? measurements,
+    ValueNotifier<ThemeData>? theme,
   }) =>
-      tester.pumpWidget(MaterialApp(
-        theme: buildAppTheme(),
-        home: SettingsScreen(
-          read: () => Diagnostics(hosts: hosts, unreadableEntries: unreadable),
-          revision: ChangeNotifier(),
-          onUnpair: (id) async => unpaired.add(id),
-          onReaddress: (id, address) async {
-            moved.add((id, address));
-            return readdressAnswer;
-          },
-          onRename: (id, name) async => renamed.add((id, name)),
-          onPairAnother: () => pairRequests += 1,
-          onPairAgain: repairs.add,
-          onRefresh: () async {},
-          measurements: measurements ?? MeasurementLog(),
-          running: const AppBuild(version: '1.0.0', buildNumber: 29850748),
+      tester.pumpWidget(ValueListenableBuilder<ThemeData>(
+        valueListenable: theme ?? ValueNotifier(buildAppTheme()),
+        builder: (_, data, _) => MaterialApp(
+          theme: data,
+          home: SettingsScreen(
+            read: () => Diagnostics(hosts: hosts, unreadableEntries: unreadable),
+            revision: ChangeNotifier(),
+            onUnpair: (id) async => unpaired.add(id),
+            onReaddress: (id, address) async {
+              moved.add((id, address));
+              return readdressAnswer;
+            },
+            onRename: (id, name) async => renamed.add((id, name)),
+            onPairAnother: () => pairRequests += 1,
+            onPairAgain: repairs.add,
+            onRefresh: () async {},
+            measurements: measurements ?? MeasurementLog(),
+            running: const AppBuild(version: '1.0.0', buildNumber: 29850748),
+          ),
         ),
       ));
 
@@ -321,6 +327,29 @@ void main() {
   });
 
   group('unpairing', () {
+    testWidgets('the open dialog follows a theme change', (tester) async {
+      final dark = classic.dark;
+      final light = ThemeVariant(
+        brightness: Brightness.light,
+        tokens: dark.tokens.copyWith(
+          colors: dark.tokens.colors.copyWith({ColorRole.ground: const Color(0xFFFFFFFF)}),
+        ),
+        terminal: dark.terminal,
+        shape: dark.shape,
+        elevation: dark.elevation,
+      );
+      final theme = ValueNotifier(buildAppTheme(dark));
+      await show(tester, hosts: [host()], theme: theme);
+      await tester.tap(find.text('Unpair'));
+      await tester.pumpAndSettle();
+
+      theme.value = buildAppTheme(light);
+      await tester.pumpAndSettle();
+
+      final fill = tester.widget<AlertDialog>(find.byType(AlertDialog)).backgroundColor;
+      expect(fill, Color.alphaBlend(light.tokens.raise, light.tokens.bg));
+    });
+
     testWidgets('asks first, and says what it does not undo', (tester) async {
       await show(tester, hosts: [host()]);
 
