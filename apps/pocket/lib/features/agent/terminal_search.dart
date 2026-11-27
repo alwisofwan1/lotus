@@ -30,10 +30,9 @@ class TerminalSearch extends ChangeNotifier {
   TerminalSearch({
     required this.terminal,
     required this.controller,
-    required Color otherHit,
-    required Color currentHit,
-  })  : _otherHit = otherHit,
-        _currentHit = currentHit;
+    required this._otherHit,
+    required this._currentHit,
+  });
 
   final Terminal terminal;
   final TerminalController controller;

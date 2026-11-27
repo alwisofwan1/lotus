@@ -47,9 +47,12 @@ No widget, builder or test changes. `ThemeController.select('<id>')` shows it.
 - **Amber is the only meaningful hue** (OKLCH): `waiting` hue 50–95°, chroma ≥ 0.10;
   every neutral role chroma ≤ 0.03 and ≥ 0.10 ΔE_ok from `waiting`; `live` and `error` at
   least 60° of hue away from it.
-- **Terminal**: every ANSI colour but `black` ≥ 3.0 on the terminal background.
-- **Brand marks** ≥ 3.0 on `ground` and `raised` — this is what will force per-brightness
-  brand colours when a light theme lands (Cursor and Grok are near-white).
+- **Terminal**: foreground ≥ 4.5 and cursor ≥ 3.0 on the terminal background; every ANSI
+  colour but `black` ≥ 3.0 on it. `black` is a ground in dark terminals (classic's sits
+  1.05:1 from the background by convention), so it is checked as one: `white` ≥ 4.5 on it,
+  and it may not equal the background.
+- **Brand marks** ≥ 3.0 on `ground` and `raised`, using the table for the variant's
+  brightness (`tokens/brand_marks.dart`; on light, Cursor and Grok go dark and the rest deepen).
 - Built theme: no `ColorScheme` role equals `waiting`; text buttons keep the 44 px target.
 
 The matrix states what the app guarantees today. A palette that sits text3 on a raised
