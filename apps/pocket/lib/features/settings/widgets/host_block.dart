@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../../data/diagnostics.dart';
 import '../../shared/runway_label.dart';
 

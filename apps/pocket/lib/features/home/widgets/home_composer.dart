@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../../data/dictation.dart';
 import '../../../models/host_id.dart';
 import '../../../models/cell.dart';

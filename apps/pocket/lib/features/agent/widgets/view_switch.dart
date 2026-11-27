@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
-import '../../../app/theme/surface_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../page_mode.dart';
 
 /// `Chat | Terminal` — two labelled segments, always visible, one tap each.
@@ -89,7 +88,7 @@ class ViewSwitch extends StatelessWidget {
           borderRadius: BorderRadius.circular(compact ? 6 : 8),
           boxShadow: [
             BoxShadow(
-              color: Color.fromRGBO(0, 0, 0, on ? 0.35 : 0),
+              color: t.shadow.withValues(alpha: on ? 0.35 : 0),
               offset: const Offset(0, 1),
               blurRadius: 3,
             ),

@@ -8,7 +8,7 @@ import 'package:lotus_pocket/features/agent/work_state.dart';
 final _started = DateTime.fromMillisecondsSinceEpoch(1788820000000);
 
 Widget _host(Widget child) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: const [AppTokens.dark]),
+      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
       home: Scaffold(body: Center(child: child)),
     );
 

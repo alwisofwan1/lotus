@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../../models/permission.dart';
 import '../../shared/tactile.dart';
 
@@ -78,9 +78,7 @@ class PermissionCard extends StatelessWidget {
             fontSize: 11,
             letterSpacing: 0.16 * 11,
             fontWeight: FontWeight.w600,
-            // Dark ink on amber, from the mockup — not `bg`, which would be too dark to
-            // read at this weight.
-            color: const Color(0xFF17130A),
+            color: t.onWaiting,
           ),
         ),
       );

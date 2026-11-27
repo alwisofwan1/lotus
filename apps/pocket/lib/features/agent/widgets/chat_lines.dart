@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../chat_transcript.dart';
 import '../pending_dispatch.dart';
 import 'prose_selection.dart';

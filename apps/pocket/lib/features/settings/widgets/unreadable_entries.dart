@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 
 /// Keychain entries that could not be parsed.
 ///

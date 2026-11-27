@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 
 /// `14:07`. Zero-padded so a column of these stays aligned in mono.
 String clockLabel(DateTime at) {

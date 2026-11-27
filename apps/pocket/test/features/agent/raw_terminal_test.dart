@@ -6,10 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/app/theme/app_theme.dart';
-import 'package:lotus_pocket/app/theme/app_tokens.dart';
+import 'package:lotus_pocket/app/theme/registry.dart';
+import 'package:lotus_pocket/app/theme/theme.dart';
 import 'package:lotus_pocket/data/output_buffer.dart';
 import 'package:lotus_pocket/features/agent/widgets/raw_terminal.dart';
-import 'package:lotus_pocket/features/agent/terminal_search.dart';
 import 'package:lotus_pocket/features/agent/widgets/key_bar.dart';
 import 'package:lotus_pocket/features/agent/widgets/arrow_pad.dart';
 import 'package:lotus_pocket/features/agent/sticky_keys.dart';
@@ -1122,7 +1122,7 @@ void main() {
       // The two weights are the app's own ink, not a third colour: this product allows
       // amber and red to mean something, and a search hit is neither.
       final current =
-          controller.highlights.where((h) => h.color == TerminalSearch.currentHit);
+          controller.highlights.where((h) => h.color == themeRegistry.first.dark.terminal[TermRole.findHitCurrent]);
       expect(current, hasLength(1));
     });
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_tokens.dart';
+import '../../app/theme/theme.dart';
 
 /// The capsule itself (`V4 Composer`, v4 tiket 09): a filled box with a 22px corner, what
 /// rides above the field, and one row — `leading`, the field, the send slot.

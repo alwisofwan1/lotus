@@ -7,7 +7,7 @@ import 'package:lotus_pocket/app/theme/app_tokens.dart';
 import 'package:lotus_pocket/features/agent/widgets/thinking_orb.dart';
 
 Widget _host(Widget child, {bool still = false}) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: const [AppTokens.dark]),
+      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
       home: MediaQuery(
         data: MediaQueryData(disableAnimations: still),
         child: Scaffold(body: Center(child: child)),

@@ -4,8 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../../app/theme/app_tokens.dart';
-import '../../../app/theme/surface_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../shared/tactile.dart';
 
 /// Four arrows in one round pad, spanning both rows of the key bar (v4 tiket 05, B2).

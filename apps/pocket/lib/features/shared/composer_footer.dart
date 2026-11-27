@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_tokens.dart';
+import '../../app/theme/theme.dart';
 import 'draft_editor.dart';
 
 /// The line **under** the capsule: what the words go to on the left, how much has been

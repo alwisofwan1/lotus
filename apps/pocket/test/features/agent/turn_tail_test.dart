@@ -28,7 +28,7 @@ CellResult _git(List<ChangedPath> files) => CellResult(
     );
 
 Widget _host(Widget child) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: const [AppTokens.dark]),
+      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
       home: Scaffold(body: Center(child: child)),
     );
 

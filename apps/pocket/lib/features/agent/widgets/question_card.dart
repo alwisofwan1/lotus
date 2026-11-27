@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../../models/conversation.dart';
 
 /// What the agent is asking **you**, in its own words.
@@ -98,7 +98,7 @@ class QuestionCard extends StatelessWidget {
             fontSize: 11,
             letterSpacing: 0.16 * 11,
             fontWeight: FontWeight.w600,
-            color: const Color(0xFF17130A),
+            color: t.onWaiting,
           ),
         ),
       );

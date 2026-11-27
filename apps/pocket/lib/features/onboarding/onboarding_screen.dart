@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_tokens.dart';
+import '../../app/theme/theme.dart';
 import '../../data/pairing_outcome.dart';
 import '../../data/pairing_repository.dart';
 import '../../models/pairing.dart';

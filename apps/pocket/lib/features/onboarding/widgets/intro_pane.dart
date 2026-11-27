@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import 'intro_glyphs.dart';
 
 /// One intro pane's layout, so the three of them cannot drift apart.

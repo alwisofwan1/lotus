@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import 'start_button.dart';
 
 /// Nothing to show yet — **no host has named a single project or cell**.

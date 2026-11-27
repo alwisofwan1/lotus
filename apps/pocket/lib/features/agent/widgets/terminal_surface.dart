@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import 'terminal_metrics.dart';
 import '../terminal_geometry.dart';
 
@@ -240,36 +240,29 @@ class _PinnedSurfaceState extends State<PinnedSurface> {
       );
 }
 
-/// ANSI colours mapped onto the app's own palette where the app has an opinion, and
-/// left as the terminal's own where it does not.
-///
-/// `waiting` and `error` are reused for yellow and red deliberately: those are the two
-/// colours this product allows to mean something, and an agent's own yellow warning
-/// should not be a third amber.
-TerminalTheme terminalTheme(AppTokens t) => TerminalTheme(
-      cursor: t.dim,
-      // Painted over the glyphs, so see-through; sky rather than [AppTokens.raise], which
-      // sat one step off the floor and could not be found on a phone (LOT2-104).
-      selection: const Color(0xFF7DD3FC).withValues(alpha: 0.42),
-      foreground: t.dim,
-      background: t.bg,
-      black: const Color(0xFF0B0B10),
-      white: t.text,
-      red: t.error,
-      green: const Color(0xFF7BD88F),
-      yellow: t.waiting,
-      blue: const Color(0xFF7DD3FC),
-      magenta: const Color(0xFFC4A0F5),
-      cyan: const Color(0xFF67E8F9),
-      brightBlack: t.faint,
-      brightRed: const Color(0xFFFCA5A5),
-      brightGreen: const Color(0xFFA7F3D0),
-      brightYellow: const Color(0xFFFDE68A),
-      brightBlue: const Color(0xFFBAE6FD),
-      brightMagenta: const Color(0xFFE9D5FF),
-      brightCyan: const Color(0xFFA5F3FC),
-      brightWhite: t.text,
-      searchHitBackground: t.waiting,
-      searchHitBackgroundCurrent: t.waiting,
-      searchHitForeground: t.bg,
+/// xterm's theme, read straight from the palette; the choices live in `palettes/`.
+TerminalTheme terminalTheme(TerminalPalette p) => TerminalTheme(
+      cursor: p[TermRole.cursor],
+      selection: p[TermRole.selection],
+      foreground: p[TermRole.foreground],
+      background: p[TermRole.background],
+      black: p[TermRole.black],
+      white: p[TermRole.white],
+      red: p[TermRole.red],
+      green: p[TermRole.green],
+      yellow: p[TermRole.yellow],
+      blue: p[TermRole.blue],
+      magenta: p[TermRole.magenta],
+      cyan: p[TermRole.cyan],
+      brightBlack: p[TermRole.brightBlack],
+      brightRed: p[TermRole.brightRed],
+      brightGreen: p[TermRole.brightGreen],
+      brightYellow: p[TermRole.brightYellow],
+      brightBlue: p[TermRole.brightBlue],
+      brightMagenta: p[TermRole.brightMagenta],
+      brightCyan: p[TermRole.brightCyan],
+      brightWhite: p[TermRole.brightWhite],
+      searchHitBackground: p[TermRole.searchHitBackground],
+      searchHitBackgroundCurrent: p[TermRole.searchHitBackgroundCurrent],
+      searchHitForeground: p[TermRole.searchHitForeground],
     );

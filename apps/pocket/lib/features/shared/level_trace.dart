@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_tokens.dart';
+import '../../app/theme/theme.dart';
 
 /// How loud it has been, for the last few seconds.
 ///

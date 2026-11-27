@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/data/transcript_pager.dart';
 import 'package:lotus_pocket/app/theme/app_theme.dart';
 import 'package:lotus_pocket/app/theme/app_tokens.dart';
-import 'package:lotus_pocket/app/theme/surface_tokens.dart';
 import 'package:lotus_pocket/core/transport.dart';
 import 'package:lotus_pocket/features/agent/agent_page.dart';
 import 'package:lotus_pocket/features/agent/widgets/agent_top_bar.dart';

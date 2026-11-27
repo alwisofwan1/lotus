@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 
 /// The pairing form's submit, which reads its own state: "Pairing…" while a request is
 /// in flight, and no tap target then — a code is single-use, so a doubled request is

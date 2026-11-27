@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../shared/tactile.dart';
 import '../terminal_geometry.dart';
 import 'bar_button.dart';

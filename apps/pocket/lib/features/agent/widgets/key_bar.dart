@@ -3,8 +3,7 @@ import '../../../models/runner_family.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../../app/theme/app_tokens.dart';
-import '../../../app/theme/surface_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../shared/tactile.dart';
 import '../sticky_keys.dart';
 import 'arrow_pad.dart';

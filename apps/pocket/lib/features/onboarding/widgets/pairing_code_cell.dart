@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 
 const Duration _enter = Duration(milliseconds: 260);
 const Duration _leave = Duration(milliseconds: 150);

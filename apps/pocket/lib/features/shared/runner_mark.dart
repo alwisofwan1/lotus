@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../models/runner_family.dart';
 
 import 'runner_marks.g.dart';
 import 'svg_path.dart';
@@ -24,27 +23,6 @@ import 'svg_path.dart';
 /// `muted` normally and `waiting` amber when the agent has stopped for the operator — so
 /// the slot answers *which runner* and *does it want you* at once, and amber still means
 /// exactly one thing.
-/// The colour a runner's own brand paints its mark in, when a surface asks for it.
-///
-/// **Home's agent list and the summon sheet ask; the starting screen and the composer
-/// chip do not.** One runner, one colour, on the two screens an operator sees back to
-/// back — the list it appears in and the sheet that puts it there. Decided with the
-/// 2026-08-27 list revamp; the palette is the vendors' own primaries, chosen to read on
-/// the `#121214` floor (Cursor and Grok are near-white because their marks are).
-///
-/// Null for a runner with no brand here — a custom runner, or one Lotus does not know —
-/// and the caller falls back to the text colour it would have used anyway.
-Color? brandColorFor(String agentType) => switch (RunnerFamily.of(agentType)) {
-      RunnerFamily.claude => const Color(0xFFDA7756),
-      RunnerFamily.codex => const Color(0xFF10A37F),
-      RunnerFamily.cursor => const Color(0xFFF7F7F4),
-      RunnerFamily.gemini => const Color(0xFF4285F4),
-      RunnerFamily.grok => const Color(0xFFFFFFFF),
-      RunnerFamily.kimi => const Color(0xFFAC33F2),
-      RunnerFamily.opencode => const Color(0xFF8B7AB8),
-      RunnerFamily.other => null,
-    };
-
 class RunnerMarkGlyph extends StatelessWidget {
   const RunnerMarkGlyph({
     required this.agentType,

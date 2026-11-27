@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_tokens.dart';
+import '../../app/theme/theme.dart';
 import '../../data/project_repository.dart';
 import '../../models/browse.dart';
 import '../../models/host_id.dart';

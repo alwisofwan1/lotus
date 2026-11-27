@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import 'close_action.dart';
 
 /// Geser satu baris ke kiri, lalu tahan tombolnya untuk mengakhiri agennya.

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../../models/cell.dart';
 
 /// The line under Chat's capsule: what the words go to (v4 tiket 09, `V4 Composer`).

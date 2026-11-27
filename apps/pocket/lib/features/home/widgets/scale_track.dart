@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../shared/tactile.dart';
 
 /// A value chosen off a runner's own scale, on a track the thumb can **drag**.

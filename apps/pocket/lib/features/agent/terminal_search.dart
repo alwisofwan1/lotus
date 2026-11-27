@@ -27,10 +27,19 @@ class SearchHit {
 /// removed by disposing it, so losing track of one leaves a stripe on the screen that
 /// nothing can clear.
 class TerminalSearch extends ChangeNotifier {
-  TerminalSearch({required this.terminal, required this.controller});
+  TerminalSearch({
+    required this.terminal,
+    required this.controller,
+    required this.otherHit,
+    required this.currentHit,
+  });
 
   final Terminal terminal;
   final TerminalController controller;
+
+  /// Two weights of the app's own ink: a hit is neither "needs you" nor "failed".
+  final Color otherHit;
+  final Color currentHit;
 
   /// A ceiling on the work, not on the operator. A 4000-line buffer of a screen-painting
   /// CLI can hold thousands of matches for `e`, and drawing them all costs more than it
@@ -137,17 +146,10 @@ class TerminalSearch extends ChangeNotifier {
       _painted.add(controller.highlight(
         p1: buffer.createAnchor(hit.start, hit.line),
         p2: buffer.createAnchor(hit.end, hit.line),
-        // Neither colour is a new one, and neither is amber. This app allows exactly two
-        // colours to mean something — *you are needed* and *it failed* — and a search
-        // hit is neither. Two weights of the app's own ink say "here" and "here first"
-        // without spending a meaning.
         color: i == _at ? currentHit : otherHit,
       ));
     }
   }
-
-  static const Color otherHit = Color(0x24F7F2EA);
-  static const Color currentHit = Color(0x59F7F2EA);
 
   @override
   void dispose() {

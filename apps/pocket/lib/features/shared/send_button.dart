@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_tokens.dart';
-import '../../app/theme/surface_tokens.dart';
+import '../../app/theme/theme.dart';
 import 'glyphs.dart';
 
 /// The send button, and the treatment is the token system's own: `text` on `bg`, the

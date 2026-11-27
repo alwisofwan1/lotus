@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../models/runner_family.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../../models/bootstrap.dart';
 import '../../shared/glyphs.dart';
 import '../../shared/runner_mark.dart';

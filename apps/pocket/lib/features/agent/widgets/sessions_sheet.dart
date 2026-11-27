@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
-import '../../../app/theme/surface_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../../models/cell.dart';
 import '../../../models/host_id.dart';
 import '../../home/cell_presentation.dart';
@@ -24,14 +23,12 @@ Future<SessionChoice?> showSessionsSheet(
   required String Function(HostId host) machine,
   bool canStart = false,
 }) {
-  final t = context.tokens;
+  final sheet = context.components.sheet;
   return showModalBottomSheet<SessionChoice>(
     context: context,
-    backgroundColor: Color.alphaBlend(t.raise, t.bg),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    barrierColor: const Color(0x99000000),
+    backgroundColor: sheet.fill,
+    shape: sheet.shape,
+    barrierColor: sheet.barrier,
     isScrollControlled: true,
     builder: (context) => SessionsSheet(
       cells: cells,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../shared/tactile.dart';
 
 /// The model picker: one pill, one segment per alias, the chosen one raised.

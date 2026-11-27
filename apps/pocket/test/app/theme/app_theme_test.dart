@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/app/theme/app_theme.dart';
-import 'package:lotus_pocket/app/theme/app_tokens.dart';
+import 'package:lotus_pocket/app/theme/registry.dart';
+import 'package:lotus_pocket/app/theme/theme.dart';
+import 'package:lotus_pocket/app/theme/theme_variant.dart';
 
 /// `buildAppTheme` is the one place `ThemeData` is constructed for this app — no
 /// widget should call `ThemeData(...)` directly. These tests are what makes that a
@@ -73,25 +75,24 @@ void main() {
   group('parameterised for the day a second theme variant exists', () {
     // Not a real theme — proves the builder actually reads its parameter rather
     // than hard-coding AppTokens.dark somewhere inside a giant ThemeData literal.
-    const alternate = AppTokens(
-      bg: Color(0xFF101010),
-      raise: Color(0x11FFFFFF),
-      text: Color(0xFFEEEEEE),
-      dim: Color(0xCCEEEEEE),
-      muted: Color(0x88EEEEEE),
-      faint: Color(0x44EEEEEE),
-      line: Color(0x11EEEEEE),
-      lineStrong: Color(0x22EEEEEE),
-      waiting: Color(0xFFFFD400),
-      error: Color(0xFFFF0000),
-      live: Color(0xFF3FBF8F),
-      mono: TextStyle(),
-      ui: TextStyle(),
-      serif: TextStyle(),
+    final classicDark = themeRegistry.first.dark;
+    final alternate = classicDark.tokens.copyWith(
+      colors: classicDark.tokens.colors.copyWith({
+        ColorRole.ground: const Color(0xFF101010),
+        ColorRole.text: const Color(0xFFEEEEEE),
+        ColorRole.error: const Color(0xFFFF0000),
+      }),
     );
+    ThemeVariant variant(Brightness b) => ThemeVariant(
+          brightness: b,
+          tokens: alternate,
+          terminal: classicDark.terminal,
+          shape: classicDark.shape,
+          elevation: classicDark.elevation,
+        );
 
     test('a different AppTokens produces a theme built from it, not from the default', () {
-      final theme = buildAppTheme(tokens: alternate);
+      final theme = buildAppTheme(variant(Brightness.dark));
 
       expect(theme.extension<AppTokens>(), alternate);
       expect(theme.scaffoldBackgroundColor, alternate.bg);
@@ -100,7 +101,7 @@ void main() {
     });
 
     test('brightness is independent of which tokens are supplied', () {
-      final theme = buildAppTheme(tokens: alternate, brightness: Brightness.light);
+      final theme = buildAppTheme(variant(Brightness.light));
 
       expect(theme.brightness, Brightness.light);
       // The tokens still win over whatever ColorScheme.light() would have defaulted

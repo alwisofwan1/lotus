@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../terminal_feed.dart';
 import '../terminal_geometry.dart';
 import 'flow_surface.dart';
@@ -55,7 +55,6 @@ class RawTerminalSurface extends StatelessWidget {
   }
 
   Widget _surface(BuildContext context) {
-    final t = context.tokens;
     final style = TerminalStyle(
       fontSize: fontSize,
       fontFamily: 'monospace',
@@ -69,7 +68,7 @@ class RawTerminalSurface extends StatelessWidget {
         readOnly: !live,
         focusNode: focusNode,
         focusLine: focusLine,
-        theme: terminalTheme(t),
+        theme: terminalTheme(context.terminalPalette),
         textStyle: style,
       );
     }
@@ -82,7 +81,7 @@ class RawTerminalSurface extends StatelessWidget {
       geometry: feed.geometry,
       cellWidth: terminalCellWidth(fontSize),
       lineHeight: terminalLineHeight(fontSize),
-      theme: terminalTheme(t),
+      theme: terminalTheme(context.terminalPalette),
       textStyle: style,
       revision: feed.revision,
       zoom: zoom,

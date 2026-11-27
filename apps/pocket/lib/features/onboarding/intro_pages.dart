@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_tokens.dart';
+import '../../app/theme/theme.dart';
 import '../shared/lotus_mark.dart';
 import 'widgets/intro_glyphs.dart';
 import 'widgets/intro_pane.dart';

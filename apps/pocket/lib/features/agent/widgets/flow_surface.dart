@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import 'terminal_metrics.dart';
 
 /// The emulator drawn at the phone's own width, scrolled like any other text.
@@ -230,7 +230,7 @@ class NewLinesPill extends StatelessWidget {
       excludeSemantics: true,
       child: Material(
         color: Color.alphaBlend(t.raise, t.bg),
-        elevation: 4,
+        elevation: context.elevation[ElevationRole.floating],
         shape: shape,
         child: InkWell(
           onTap: onTap,

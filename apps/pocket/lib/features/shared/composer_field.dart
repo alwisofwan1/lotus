@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_tokens.dart';
+import '../../app/theme/theme.dart';
 import 'composer_keys.dart';
 
 /// The words, across the full width of the composer's box.

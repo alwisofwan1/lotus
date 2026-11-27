@@ -4,8 +4,7 @@ import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
 
-import '../../app/theme/app_tokens.dart';
-import '../../app/theme/surface_tokens.dart';
+import '../../app/theme/theme.dart';
 import '../../data/agent_repository.dart';
 import '../../data/dictation.dart';
 import '../../data/draft_keeper.dart';

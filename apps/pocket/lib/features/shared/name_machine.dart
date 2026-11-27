@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../app/theme/app_tokens.dart';
+import '../../app/theme/theme.dart';
 
 /// What the sheet was closed with. `null` is a dismissal — the operator swiped it away
 /// or pressed back — and changes nothing.
@@ -41,15 +41,13 @@ Future<MachineName?> showNameMachine(
   required String suggestion,
   bool isFirstMachine = false,
 }) {
-  final t = Theme.of(context).extension<AppTokens>()!;
+  final sheet = context.components.sheet;
 
   return showModalBottomSheet<MachineName>(
     context: context,
-    backgroundColor: Color.alphaBlend(t.raise, t.bg),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    barrierColor: const Color(0x99000000),
+    backgroundColor: sheet.fill,
+    shape: sheet.shape,
+    barrierColor: sheet.barrier,
     // The keyboard covers a sheet that does not ask to be measured against it, and a
     // field the operator cannot see is a field they cannot correct.
     isScrollControlled: true,

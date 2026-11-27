@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../../data/output_buffer.dart';
 import '../../../models/host_id.dart';
 import '../terminal_feed.dart';
@@ -213,7 +213,12 @@ class _RawTerminalState extends State<RawTerminal> with _SelectionLift {
   /// Rebuilds this widget, not only the bar: the surfaces are aimed from `build`, and
   /// the bar's own listener was showing `1/6` over a viewport still on the cursor.
   TerminalSearch _newSearch() =>
-      TerminalSearch(terminal: _feed.terminal, controller: _selection)
+      TerminalSearch(
+        terminal: _feed.terminal,
+        controller: _selection,
+        otherHit: context.terminalPalette[TermRole.findHit],
+        currentHit: context.terminalPalette[TermRole.findHitCurrent],
+      )
         ..addListener(() => setState(() {}));
 
   Widget _immersed(Widget terminal) => switch (widget.immersive) {

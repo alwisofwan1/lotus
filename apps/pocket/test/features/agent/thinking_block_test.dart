@@ -11,7 +11,7 @@ ChatItem _item(ChatLine kind, String text, {int plus = 0}) =>
     ChatItem(kind: kind, text: text, timestamp: _at.add(Duration(seconds: plus)));
 
 Widget _host(Widget child) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: const [AppTokens.dark]),
+      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
       home: Scaffold(body: Center(child: child)),
     );
 

@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm/xterm.dart';
 
-import '../../../app/theme/app_tokens.dart';
-import '../../../app/theme/surface_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../shared/tactile.dart';
 
 /// What can be done with the text the operator just held their thumb on — floated by the
@@ -108,8 +107,8 @@ class SelectionMenu extends StatelessWidget {
 
     return Material(
       color: t.raise2,
-      elevation: 8,
-      shadowColor: Colors.black,
+      elevation: context.elevation[ElevationRole.menu],
+      shadowColor: t.shadow,
       borderRadius: BorderRadius.circular(22),
       clipBehavior: Clip.antiAlias,
       child: Row(

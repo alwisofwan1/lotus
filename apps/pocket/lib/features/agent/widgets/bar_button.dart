@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 
 /// Satu tombol di bar kerja terminal: sebuah teks, **atau** bentuk yang dilukis.
 ///

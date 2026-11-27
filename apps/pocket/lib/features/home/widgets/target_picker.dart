@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/app_tokens.dart';
+import '../../../app/theme/theme.dart';
 import '../../../models/cell.dart';
 import '../../../models/host_id.dart';
 import '../../shared/tactile.dart';
@@ -29,15 +29,13 @@ Future<TargetChoice?> showTargetPicker(
   CellRef? current,
   bool canStartAgent = false,
 }) {
-  final t = Theme.of(context).extension<AppTokens>()!;
+  final sheet = context.components.sheet;
 
   return showModalBottomSheet<TargetChoice>(
     context: context,
-    backgroundColor: Color.alphaBlend(t.raise, t.bg),
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-    ),
-    barrierColor: const Color(0x99000000),
+    backgroundColor: sheet.fill,
+    shape: sheet.shape,
+    barrierColor: sheet.barrier,
     builder: (context) => TargetPicker(
       cells: cells,
       current: current,

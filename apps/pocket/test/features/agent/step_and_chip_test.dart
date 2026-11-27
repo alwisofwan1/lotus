@@ -11,7 +11,7 @@ import 'package:lotus_pocket/models/conversation.dart';
 final _at = DateTime.fromMillisecondsSinceEpoch(1788820000000);
 
 Widget _host(Widget child) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: const [AppTokens.dark]),
+      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
       home: Scaffold(body: Center(child: child)),
     );
 

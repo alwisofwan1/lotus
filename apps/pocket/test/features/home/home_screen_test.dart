@@ -4,7 +4,7 @@ import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/app/theme/app_theme.dart';
-import 'package:lotus_pocket/app/theme/app_tokens.dart';
+import 'package:lotus_pocket/app/theme/theme.dart';
 import 'package:lotus_pocket/data/fleet_repository.dart';
 import 'package:lotus_pocket/hosts/host_failure.dart';
 import 'package:lotus_pocket/data/fleet_store.dart';
