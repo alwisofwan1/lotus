@@ -600,8 +600,25 @@ pub(crate) fn resolve_repo_root(repo_root: &str) -> Result<PathBuf, AppError> {
         .map_err(|err| AppError::Other(format!("Unable to resolve Git repository root: {err}")))
 }
 
+/// WSL shares Windows git may treat as safe. Their files are owned by a Linux uid, never by the
+/// Windows user, so `safe.directory`'s ownership check refused every repo there ("detected dubious
+/// ownership"): status, diff and the editor's ignored-file marks all failed in a WSL workspace.
+/// Scoped to the WSL shares — a distro is registered per Windows user, so a repo there is the
+/// user's own — while every other location keeps git's protection. Matching by prefix (`/*`)
+/// needs git 2.46+; an older git ignores these entries and refuses exactly as before.
+#[cfg(windows)]
+const TRUSTED_WSL_SHARES: &[&str] = &["%(prefix)///wsl.localhost/*", "%(prefix)///wsl$/*"];
+
 pub(crate) fn git_command() -> Command {
-    Command::new(resolve_git_executable()).no_window()
+    #[allow(unused_mut)]
+    let mut command = Command::new(resolve_git_executable()).no_window();
+    // Command-line config is "protected", the only kind besides system and global that git reads
+    // `safe.directory` from. It adds to the user's own entries; it never replaces them.
+    #[cfg(windows)]
+    for share in TRUSTED_WSL_SHARES {
+        command.arg("-c").arg(format!("safe.directory={share}"));
+    }
+    command
 }
 
 fn resolve_git_executable() -> PathBuf {

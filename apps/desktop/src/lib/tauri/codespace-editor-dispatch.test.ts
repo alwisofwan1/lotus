@@ -354,6 +354,44 @@ describe("editorListDirectoryFor", () => {
       { path: "/home/alwi/project/src/ui", kind: "directory" },
     ]);
   });
+
+  it("lists a local Windows folder whose entries Rust spells with backslashes", async () => {
+    mocks.invoke.mockResolvedValueOnce([
+      { path: "C:\\proj\\src", kind: "directory" },
+      { path: "C:\\proj\\README.md", kind: "file" },
+    ]);
+
+    const entries = await editorListDirectoryFor(LOCAL_LOCATION, "C:\\proj");
+
+    expect(mocks.invoke).toHaveBeenCalledWith("editor_list_entries", { root: "C:\\proj", maxDepth: 0 });
+    expect(entries).toEqual([
+      { path: "C:\\proj\\src", kind: "directory" },
+      { path: "C:\\proj\\README.md", kind: "file" },
+    ]);
+  });
+
+  it("lists a WSL share opened from Windows, spelled with forward slashes", async () => {
+    const root = "//wsl.localhost/Ubuntu/home/dev/acme-web";
+    mocks.invoke.mockResolvedValueOnce([
+      { path: `${root}/src`, kind: "directory" },
+      { path: `${root}/package.json`, kind: "file" },
+    ]);
+
+    const entries = await editorListDirectoryFor(LOCAL_LOCATION, `${root}/`);
+
+    expect(entries.map((entry) => entry.path)).toEqual([`${root}/src`, `${root}/package.json`]);
+  });
+
+  it("never takes a sibling that only shares the folder's name as a prefix", async () => {
+    mocks.invoke.mockResolvedValueOnce([
+      { path: "C:\\proj\\a.ts", kind: "file" },
+      { path: "C:\\proj-old\\b.ts", kind: "file" },
+    ]);
+
+    const entries = await editorListDirectoryFor(LOCAL_LOCATION, "C:\\proj");
+
+    expect(entries).toEqual([{ path: "C:\\proj\\a.ts", kind: "file" }]);
+  });
 });
 
 describe("editorIndexFilesFor", () => {

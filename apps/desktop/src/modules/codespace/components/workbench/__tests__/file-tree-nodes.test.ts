@@ -76,3 +76,25 @@ describe("buildTree ignored entries", () => {
     expect(byName).toEqual({ node_modules: true, src: false, "debug.log": true });
   });
 });
+
+describe("buildTree path spelling", () => {
+  function folder(nodes: TreeNode[], name: string) {
+    const node = nodes.find((candidate) => candidate.name === name);
+    if (node?.kind !== "directory") throw new Error(`${name} is not a folder`);
+    return node;
+  }
+
+  it("spells a Windows folder with the root's backslash, as Rust and Go-to-file do", () => {
+    const tree = buildTree("C:\\proj", [{ path: "C:\\proj\\src\\lib\\a.ts", kind: "file" }]);
+    const lib = folder(folder(tree, "src").children, "lib");
+    expect(lib).toMatchObject({ relativePath: "src/lib", absolutePath: "C:\\proj\\src\\lib" });
+    expect(lib.children[0]).toMatchObject({ relativePath: "src/lib/a.ts", absolutePath: "C:\\proj\\src\\lib\\a.ts" });
+  });
+
+  it("keeps a WSL share forward-slashed and never doubles the root's trailing separator", () => {
+    const tree = buildTree("//wsl.localhost/Ubuntu/home/dev/", [
+      { path: "//wsl.localhost/Ubuntu/home/dev/src/a.ts", kind: "file" },
+    ]);
+    expect(folder(tree, "src").absolutePath).toBe("//wsl.localhost/Ubuntu/home/dev/src");
+  });
+});

@@ -1,3 +1,4 @@
+import { joinUnder } from "@/lib/path-utils";
 import type { CodespaceGitFileStatus, EditorListEntry } from "@/lib/tauri-api";
 import { rankPaths } from "@/modules/codespace/services/fuzzy-path";
 
@@ -76,7 +77,7 @@ export function buildTree(rootDir: string, entries: EditorListEntry[]): TreeNode
     let parentAbsolutePath = rootDir;
     for (const segment of segments.slice(0, -1)) {
       const nextRelativePath = parentRelativePath ? `${parentRelativePath}/${segment}` : segment;
-      const nextAbsolutePath = `${parentAbsolutePath}/${segment}`;
+      const nextAbsolutePath = joinUnder(parentAbsolutePath, segment);
       let nextDirectory = parent.directoryChildren.get(segment);
       if (!nextDirectory) {
         nextDirectory = {
@@ -98,7 +99,7 @@ export function buildTree(rootDir: string, entries: EditorListEntry[]): TreeNode
     const itemName = segments[segments.length - 1] ?? relativePath;
     if (entry.kind === "directory") {
       const nextRelativePath = parentRelativePath ? `${parentRelativePath}/${itemName}` : itemName;
-      const nextAbsolutePath = `${parentAbsolutePath}/${itemName}`;
+      const nextAbsolutePath = joinUnder(parentAbsolutePath, itemName);
       if (!parent.directoryChildren.has(itemName)) {
         parent.directoryChildren.set(itemName, {
           kind: "directory",

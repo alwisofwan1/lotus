@@ -533,15 +533,65 @@ pub fn editor_list_entries(
         return Err(AppError::Other(format!("Not a directory: {root}")));
     }
 
-    let mut output = Vec::new();
-    collect_entries(root_path, max_depth.unwrap_or(4) as usize, 0, &mut output)?;
-    mark_git_ignored(root_path, &mut output);
-    Ok(output)
+    let mut listed = Vec::new();
+    collect_entries(root_path, "", max_depth.unwrap_or(4) as usize, 0, &mut listed)?;
+    mark_git_ignored(root_path, &mut listed);
+
+    let base = trim_trailing_separators(&root);
+    let separator = listing_separator(&root);
+    Ok(listed
+        .into_iter()
+        .map(|entry| entry.spelled_under(base, separator))
+        .collect())
+}
+
+/// One listed entry before it is spelled out: its path under the listed root, always with `/`.
+struct ListedEntry {
+    relative: String,
+    directory: bool,
+    ignored: bool,
+}
+
+impl ListedEntry {
+    fn spelled_under(self, base: &str, separator: char) -> EditorListEntry {
+        let relative = if separator == '/' {
+            self.relative
+        } else {
+            self.relative.replace('/', "\\")
+        };
+        EditorListEntry {
+            path: format!("{base}{separator}{relative}"),
+            kind: if self.directory {
+                EditorListEntryKind::Directory
+            } else {
+                EditorListEntryKind::File
+            },
+            ignored: self.ignored,
+        }
+    }
+}
+
+/// The separator listed paths are joined with: the root's own, as `editorIndexFiles` joins on the
+/// TypeScript side, so a file opened from the tree and from Go-to-file is the same string.
+/// `Path::join` put `\` after a `C:/proj` or `//wsl.localhost/…` root on Windows, giving mixed
+/// paths the tree (which finds a folder's children by prefix) never matched: it showed nothing.
+fn listing_separator(root: &str) -> char {
+    if cfg!(windows) && root.contains('\\') {
+        '\\'
+    } else {
+        '/'
+    }
+}
+
+/// `root` without trailing separators, so joining never doubles one (`/` lists as `/a`).
+fn trim_trailing_separators(root: &str) -> &str {
+    root.trim_end_matches(|c| c == '/' || (cfg!(windows) && c == '\\'))
 }
 
 /// Marks what git ignores, so the tree can dim it as VS Code does. One `git check-ignore` for
 /// the whole listing; outside a work tree, or without git, nothing is marked and nothing fails.
-fn mark_git_ignored(directory: &Path, entries: &mut [EditorListEntry]) {
+/// Paths go in relative to `directory`, with `/`: git's own form, whatever the root's spelling.
+fn mark_git_ignored(directory: &Path, entries: &mut [ListedEntry]) {
     use std::collections::HashSet;
     use std::io::Write;
     use std::process::Stdio;
@@ -567,14 +617,23 @@ fn mark_git_ignored(directory: &Path, entries: &mut [EditorListEntry]) {
     };
     let mut input = Vec::new();
     for &index in &candidates {
-        input.extend_from_slice(entries[index].path.as_bytes());
+        input.extend_from_slice(entries[index].relative.as_bytes());
         input.push(0);
     }
-    // A write error (git exited early: not a repository) just means nothing is marked.
-    if let Some(mut stdin) = child.stdin.take() {
-        let _ = stdin.write_all(&input);
-    }
-    let Ok(output) = child.wait_with_output() else { return };
+    let stdin = child.stdin.take();
+    // Written from another thread while this one drains stdout: git flushes each match as it
+    // reads, so writing all of a 10,000-entry listing first could fill the stdout pipe and leave
+    // both processes waiting on each other. A write error (git exited early: not a repository)
+    // just means nothing is marked.
+    let output = std::thread::scope(|scope| {
+        scope.spawn(move || {
+            if let Some(mut stdin) = stdin {
+                let _ = stdin.write_all(&input);
+            }
+        });
+        child.wait_with_output()
+    });
+    let Ok(output) = output else { return };
     // Exit 1 = none ignored, 128 = not a work tree; only 0 carries paths.
     if !output.status.success() {
         return;
@@ -585,7 +644,7 @@ fn mark_git_ignored(directory: &Path, entries: &mut [EditorListEntry]) {
         .filter(|path| !path.is_empty())
         .collect();
     for index in candidates {
-        if ignored.contains(entries[index].path.as_bytes()) {
+        if ignored.contains(entries[index].relative.as_bytes()) {
             entries[index].ignored = true;
         }
     }
@@ -682,53 +741,54 @@ impl ListedKind {
     }
 }
 
+/// Lists `directory` (whose path under the root is `prefix`) and, down to `max_depth`, its folders.
 fn collect_entries(
     directory: &Path,
+    prefix: &str,
     max_depth: usize,
     depth: usize,
-    output: &mut Vec<EditorListEntry>,
+    output: &mut Vec<ListedEntry>,
 ) -> Result<(), AppError> {
     if output.len() >= MAX_LISTED_ENTRIES {
         return Ok(());
     }
 
-    let entries = std::fs::read_dir(directory).map_err(|err| AppError::Other(err.to_string()))?;
-    let mut entries = entries
-        .map(|entry| {
-            let entry = entry.map_err(|err| AppError::Other(err.to_string()))?;
-            let file_type = entry
-                .file_type()
-                .map_err(|err| AppError::Other(err.to_string()))?;
-            let kind = ListedKind::of(&entry, file_type);
-            Ok((entry, kind))
+    let read = match std::fs::read_dir(directory) {
+        Ok(read) => read,
+        // The folder the user opened must be readable, and why not is theirs to see.
+        Err(err) if depth == 0 => return Err(AppError::Other(err.to_string())),
+        // One below it that is not (permissions, removed mid-walk) is left out instead of
+        // failing the whole listing — that used to blank the tree over a single folder.
+        Err(_) => return Ok(()),
+    };
+    // Likewise an entry that cannot be read (gone between the listing and its stat) is skipped.
+    let mut entries: Vec<(String, ListedKind, PathBuf)> = read
+        .filter_map(Result::ok)
+        .filter_map(|entry| {
+            let kind = ListedKind::of(&entry, entry.file_type().ok()?);
+            let name = entry.file_name().to_string_lossy().into_owned();
+            (kind != ListedKind::Other && !is_hidden(&name)).then(|| (name, kind, entry.path()))
         })
-        .collect::<Result<Vec<_>, AppError>>()?;
+        .collect();
+    // Folders first, then by name ignoring case; each key built once, not per comparison.
+    entries.sort_by_cached_key(|(name, kind, _)| (!kind.is_dir(), name.to_lowercase()));
 
-    entries.retain(|(entry, kind)| {
-        *kind != ListedKind::Other && !is_hidden(&entry.file_name().to_string_lossy())
-    });
-    entries.sort_by(|(left_entry, left_type), (right_entry, right_type)| {
-        right_type.is_dir().cmp(&left_type.is_dir()).then_with(|| {
-            left_entry
-                .file_name()
-                .to_string_lossy()
-                .to_lowercase()
-                .cmp(&right_entry.file_name().to_string_lossy().to_lowercase())
-        })
-    });
+    let relative_of = |name: &str| {
+        if prefix.is_empty() {
+            name.to_string()
+        } else {
+            format!("{prefix}/{name}")
+        }
+    };
 
-    for (entry, file_type) in &entries {
+    for (name, kind, _) in &entries {
         if output.len() >= MAX_LISTED_ENTRIES {
             return Ok(());
         }
-        output.push(EditorListEntry {
-            path: entry.path().to_string_lossy().to_string(),
-            kind: if file_type.is_dir() {
-                EditorListEntryKind::Directory
-            } else {
-                EditorListEntryKind::File
-            },
-            ignored: file_type.is_dir() && is_heavy(&entry.file_name().to_string_lossy()),
+        output.push(ListedEntry {
+            relative: relative_of(name),
+            directory: kind.is_dir(),
+            ignored: kind.is_dir() && is_heavy(name),
         });
     }
 
@@ -736,17 +796,17 @@ fn collect_entries(
         return Ok(());
     }
 
-    for (entry, file_type) in entries {
+    for (name, kind, path) in entries {
         if output.len() >= MAX_LISTED_ENTRIES {
             return Ok(());
         }
         // A heavy folder is listed but not walked; a symlinked one is not walked either (loops).
         // Both still open one level at a time when the user expands them.
-        if file_type != ListedKind::Directory || is_heavy(&entry.file_name().to_string_lossy()) {
+        if kind != ListedKind::Directory || is_heavy(&name) {
             continue;
         }
 
-        collect_entries(&entry.path(), max_depth, depth + 1, output)?;
+        collect_entries(&path, &relative_of(&name), max_depth, depth + 1, output)?;
     }
 
     Ok(())
@@ -1059,6 +1119,120 @@ mod tests {
         assert_eq!(ignored("debug.log"), Some(true));
         assert_eq!(ignored("src"), Some(false));
         assert_eq!(ignored(".gitignore"), Some(false));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    fn unique_temp_dir(label: &str) -> std::path::PathBuf {
+        let root = std::env::temp_dir().join(format!(
+            "lotus-editor-{label}-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        fs::create_dir_all(&root).unwrap();
+        root
+    }
+
+    #[test]
+    fn listed_paths_are_joined_with_the_roots_own_separator() {
+        use super::{listing_separator, trim_trailing_separators, ListedEntry};
+        let spell = |root: &str, relative: &str| {
+            ListedEntry { relative: relative.to_string(), directory: false, ignored: false }
+                .spelled_under(trim_trailing_separators(root), listing_separator(root))
+                .path
+        };
+        // A forward-slash root — a WSL share as Lotus stores it, or `C:/proj` — stays forward.
+        assert_eq!(
+            spell("//wsl.localhost/Ubuntu/home/dev/acme-web", "src/app.tsx"),
+            "//wsl.localhost/Ubuntu/home/dev/acme-web/src/app.tsx"
+        );
+        assert_eq!(spell("/home/dev/acme-web/", "README.md"), "/home/dev/acme-web/README.md");
+        assert_eq!(spell("/", "etc"), "/etc");
+        #[cfg(windows)]
+        {
+            assert_eq!(spell(r"C:\proj", "src/a.ts"), r"C:\proj\src\a.ts");
+            assert_eq!(spell(r"C:\", "a.ts"), r"C:\a.ts");
+            assert_eq!(
+                spell(r"\\wsl.localhost\Ubuntu\home\dev", "a/b.ts"),
+                r"\\wsl.localhost\Ubuntu\home\dev\a\b.ts"
+            );
+        }
+    }
+
+    #[test]
+    fn list_entries_spells_children_under_the_root_as_given() {
+        let root = unique_temp_dir("spelling");
+        create_file(&root.join("src/main.rs"));
+        let given = format!("{}/", root.to_string_lossy());
+
+        let entries = editor_list_entries(given.clone(), Some(1)).unwrap();
+        let base = given.trim_end_matches('/');
+        let paths: Vec<_> = entries.iter().map(|entry| entry.path.clone()).collect();
+        let separator = if cfg!(windows) && base.contains('\\') { '\\' } else { '/' };
+        assert_eq!(
+            paths,
+            vec![
+                format!("{base}{separator}src"),
+                format!("{base}{separator}src{separator}main.rs"),
+            ],
+            "every child starts with the root as given plus one separator, never a doubled one"
+        );
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn list_entries_skips_an_unreadable_folder_instead_of_failing() {
+        use std::os::unix::fs::PermissionsExt;
+        let root = unique_temp_dir("unreadable");
+        create_file(&root.join("locked/secret.txt"));
+        create_file(&root.join("src/main.rs"));
+        fs::set_permissions(root.join("locked"), fs::Permissions::from_mode(0o000)).unwrap();
+
+        let listed = editor_list_entries(root.to_string_lossy().to_string(), Some(2));
+
+        fs::set_permissions(root.join("locked"), fs::Permissions::from_mode(0o755)).unwrap();
+        let entries = listed.expect("one unreadable folder must not fail the listing");
+        assert!(entries.iter().any(|entry| entry.path.ends_with("/locked")));
+        assert!(entries.iter().any(|entry| entry.path.ends_with("/src/main.rs")));
+
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn list_entries_unreadable_root_is_an_error() {
+        let root = unique_temp_dir("root-file");
+        let file = root.join("plain.txt");
+        create_file(&file);
+        assert!(editor_list_entries(file.to_string_lossy().to_string(), Some(0)).is_err());
+        let _ = fs::remove_dir_all(root);
+    }
+
+    #[test]
+    fn mark_git_ignored_does_not_stall_when_the_matches_outgrow_the_pipe() {
+        let root = unique_temp_dir("ignore-many");
+        let init = crate::codespace_git::git_command()
+            .args(["init", "-q"])
+            .current_dir(&root)
+            .status();
+        if !matches!(init, Ok(status) if status.success()) {
+            eprintln!("git unavailable; skipping");
+            return;
+        }
+        fs::write(root.join(".gitignore"), "*.log\n").unwrap();
+        // ~3,000 matches of ~60 bytes: well past a 64 KB pipe buffer.
+        let padding = "x".repeat(48);
+        for n in 0..3_000 {
+            fs::write(root.join(format!("{padding}-{n:05}.log")), "").unwrap();
+        }
+
+        let entries = editor_list_entries(root.to_string_lossy().to_string(), Some(0)).unwrap();
+        let logs: Vec<_> = entries.iter().filter(|entry| entry.path.ends_with(".log")).collect();
+        assert_eq!(logs.len(), 3_000);
+        assert!(logs.iter().all(|entry| entry.ignored));
 
         let _ = fs::remove_dir_all(root);
     }

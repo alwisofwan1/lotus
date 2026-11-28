@@ -1,3 +1,4 @@
+import { joinUnder } from "@/lib/path-utils";
 import { isTauri, tauriInvoke } from "@/lib/tauri/runtime";
 import { toWindowRect } from "@/lib/ui-zoom";
 import type { TerminalV2LayoutTree } from "@/modules/codespace/terminal-v2/layout/terminal-v2-layout-tree";
@@ -445,11 +446,7 @@ export async function editorListEntries(root: string, maxDepth?: number): Promis
 export async function editorIndexFiles(root: string): Promise<EditorFileIndex> {
   if (!isTauri()) return { files: [], truncated: false };
   const index = await tauriInvoke<EditorFileIndex>("editor_index_files", { root });
-  const base = root.replace(/[\\/]+$/, "");
-  const join = root.includes("\\")
-    ? (path: string) => `${base}\\${path.replace(/\//g, "\\")}`
-    : (path: string) => `${base}/${path}`;
-  return { files: index.files.map(join), truncated: index.truncated };
+  return { files: index.files.map((path) => joinUnder(root, path)), truncated: index.truncated };
 }
 
 // Workspace-aware dispatchers live in dedicated modules. Re-exported here so
