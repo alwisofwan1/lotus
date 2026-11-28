@@ -219,59 +219,41 @@ html[data-window-glass="true"] body {
 .app-shell-main { position: relative; }
 
 /*
-  Windows: `WindowsTitleBar` draws the window's only title row (menu + window buttons) and owns
-  the top 32px; the app lays out below it. Set from the component, so macOS never sees any of it.
+  Windows: `WindowsTitleBar` overlays the window buttons (and one app-menu button) on the top-right
+  of whatever top bar the route draws — the macOS traffic-light model, mirrored. There is no title
+  row of its own; each top bar only reserves `--windows-caption-w` on its right edge. Set from the
+  component, so macOS never sees any of it.
 */
-html[data-windows-titlebar] { --windows-titlebar-h: 32px; }
-html[data-windows-titlebar] body { padding-top: var(--windows-titlebar-h); height: 100vh; }
-html[data-windows-titlebar] .glass-sidebar { height: calc(100vh - var(--windows-titlebar-h)); }
-html[data-windows-titlebar] .lotus-mini-player { top: calc(var(--windows-titlebar-h) + 6px); }
+html[data-windows-caption] { --windows-caption-w: 174px; }
+html[data-windows-caption] .ws-chrome { padding-right: calc(var(--windows-caption-w) + 8px); }
+/* Routes without a top bar get AppShell's 36px drag strip; the sidebar clears it, as on macOS (pt-11). */
+html[data-windows-caption] .glass-sidebar { padding-top: 2.75rem; }
+html[data-windows-caption] .canvas-topnav { max-width: min(calc(100% - 2 * var(--windows-caption-w) - 2rem), 60rem); }
 
-.windows-titlebar {
+.windows-caption {
   position: fixed;
-  inset: 0 0 auto 0;
-  height: var(--windows-titlebar-h, 32px);
+  top: 0;
+  right: 0;
+  height: var(--windows-caption-h, 36px);
   /* Above app chrome and popovers, so the window can always be moved and closed. */
   z-index: 2147483000;
   display: flex;
-  align-items: center;
-  background: var(--ds-bg-soft);
+  align-items: stretch;
   color: var(--ds-text-muted);
-  font-size: 12px;
   user-select: none;
   -webkit-user-select: none;
 }
-.windows-titlebar-icon {
-  width: 14px;
-  height: 14px;
-  margin: 0 8px 0 12px;
-  border-radius: 3px;
-  /* Named by ink: `-light` is white artwork, for the dark theme. */
-  background: url("/mark-light.png") center / contain no-repeat;
-  flex: none;
-}
-[data-theme-type="light"] .windows-titlebar-icon { background-image: url("/mark-dark.png"); }
-.windows-titlebar-menus { display: flex; gap: 1px; }
-.windows-titlebar-menus button {
-  padding: 3px 8px;
-  border-radius: 6px;
-  color: inherit;
-}
-.windows-titlebar-menus button:hover,
-.windows-titlebar-menus button:focus-visible {
-  background: color-mix(in srgb, var(--ds-text) 8%, transparent);
-  color: var(--ds-text);
-}
-.windows-titlebar-drag { flex: 1; align-self: stretch; }
-.windows-titlebar-caps { display: flex; align-self: stretch; }
-.windows-titlebar-caps button {
+.windows-caption button {
   width: 46px;
   display: grid;
   place-items: center;
   color: inherit;
+  transition: background-color 120ms ease, color 120ms ease;
 }
-.windows-titlebar-caps button:hover { background: color-mix(in srgb, var(--ds-text) 8%, transparent); color: var(--ds-text); }
-.windows-titlebar-caps .windows-titlebar-close:hover { background: #c42b1c; color: #fff; } /* color-literal-ok: Windows' own close-button red */
+.windows-caption .windows-caption-menu { width: 36px; }
+.windows-caption button:hover,
+.windows-caption button:focus-visible { background: color-mix(in srgb, var(--ds-text) 8%, transparent); color: var(--ds-text); }
+.windows-caption .windows-caption-close:hover { background: #c42b1c; color: #fff; } /* color-literal-ok: Windows' own close-button red */
 
 .app-shell-parked {
   position: absolute;

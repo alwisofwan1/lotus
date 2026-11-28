@@ -156,10 +156,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const hasDedicatedChrome = isCodeCanvas || isHome || isSettingsPassThrough;
   const dragRegionEnabled = mounted && isTauri();
   const desktopWindowControls = dragRegionEnabled && !isMacOverlayChrome;
-  // Windows draws its own title row (menu + window buttons), so nothing else reserves room for them.
+  // Windows overlays its window buttons on the top-right of the route's own top bar (no title row).
   const windowsTitleBar = dragRegionEnabled && desktopPlatform === "windows";
   const windowsLikeWindowControls = desktopWindowControls && (desktopPlatform === "windows" || desktopPlatform === "unknown");
-  const defaultChromeHeight = dragRegionEnabled && isMacOverlayChrome && !hasDedicatedChrome ? 36 : 0;
+  // Routes without a top bar of their own get a 36px drag strip: under the traffic lights on macOS,
+  // under the window buttons on Windows.
+  const defaultChromeHeight = dragRegionEnabled && (isMacOverlayChrome || windowsTitleBar) && !hasDedicatedChrome ? 36 : 0;
   const mainTopPadding = defaultChromeHeight;
   const disableReloadShortcutInThisSession =
     mounted && isTauri() && process.env.NODE_ENV === "production";
@@ -383,7 +385,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* The one settings window (ADR-0054), here so ⌘, opens it from every route. */}
       <LotusSettingsProvider>
       <SidebarContext.Provider value={{ collapsed, toggle }}>
-      {windowsTitleBar && <WindowsTitleBar />}
+      {/* 44px on `/`, to sit flush with the workspace shell's title bar (`.ws-chrome`). */}
+      {windowsTitleBar && <WindowsTitleBar height={isHome ? 44 : 36} />}
       {!hideSidebar && <Sidebar />}
       {defaultChromeHeight > 0 && (
         <WindowChrome
@@ -435,7 +438,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           on the platforms that put them there (macOS keeps them top-left). */}
       <QuitAgentsGuard />
       <MusicMiniPlayer
-        rightOffsetPx={desktopWindowControls && !windowsTitleBar ? (windowsLikeWindowControls ? 150 : 104) : 14}
+        rightOffsetPx={windowsTitleBar ? 188 : desktopWindowControls ? (windowsLikeWindowControls ? 150 : 104) : 14}
       />
       </SidebarContext.Provider>
       </LotusSettingsProvider>

@@ -10,57 +10,58 @@ import {
 
 /**
  * Windows only. The native title bar and the native menubar row are turned off there
- * (`windowing::apply_windows_chrome`), and this one 32px row replaces both: the app menu, a drag
- * area, and the window buttons. Each menu title pops the SAME native submenu `build_app_menu`
- * builds, so its items, accelerators labels and handlers are not duplicated here.
+ * (`windowing::apply_windows_chrome`). Instead of a title row of its own, this draws the window
+ * buttons as an overlay on the app's own top bar — the macOS traffic-light model, mirrored to the
+ * right — so the window has exactly one top row. Each route's top bar reserves room for it through
+ * `--windows-caption-w` (globals.css) and stays the drag region.
+ *
+ * The app menu (File, Edit, Window, Help) folds into one button that pops the SAME native menu
+ * `build_app_menu` builds, so its items, accelerator labels and handlers are not duplicated here.
  */
-const MENUS = ["File", "Edit", "Window", "Help"] as const;
-
-export function WindowsTitleBar() {
-  // The rest of the app sizes itself below the bar from this attribute (globals.css).
+export function WindowsTitleBar({ height = 36 }: { height?: number }) {
+  // The rest of the app reserves room for the overlay from this attribute (globals.css).
   useEffect(() => {
-    document.documentElement.dataset.windowsTitlebar = "true";
+    document.documentElement.dataset.windowsCaption = "true";
     return () => {
-      delete document.documentElement.dataset.windowsTitlebar;
+      delete document.documentElement.dataset.windowsCaption;
     };
   }, []);
 
   return (
-    <div className="windows-titlebar" data-tauri-drag-region>
-      <span className="windows-titlebar-icon" aria-hidden="true" />
-      <nav className="windows-titlebar-menus" aria-label="Application menu">
-        {MENUS.map((menu) => (
-          <button
-            key={menu}
-            type="button"
-            onClick={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              void showWindowMenu(menu, rect.left, rect.bottom).catch((err) =>
-                console.error(`[windows-titlebar] ${menu} menu failed`, err),
-              );
-            }}
-          >
-            {menu}
-          </button>
-        ))}
-      </nav>
-      <div className="windows-titlebar-drag" data-tauri-drag-region />
-      <div className="windows-titlebar-caps">
-        <button type="button" aria-label="Minimize" onClick={() => void minimizeCurrentWindow()}>
-          <svg width="10" height="10" aria-hidden="true"><path d="M0 5.5h10" stroke="currentColor" /></svg>
-        </button>
-        <button type="button" aria-label="Maximize" onClick={() => void toggleCurrentWindowMaximize()}>
-          <svg width="10" height="10" aria-hidden="true"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor" /></svg>
-        </button>
-        <button
-          type="button"
-          aria-label="Close"
-          className="windows-titlebar-close"
-          onClick={() => void closeCurrentWindow()}
-        >
-          <svg width="10" height="10" aria-hidden="true"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" /></svg>
-        </button>
-      </div>
+    <div
+      className="windows-caption"
+      style={{ ["--windows-caption-h" as string]: `${height}px` }}
+    >
+      <button
+        type="button"
+        aria-label="Application menu"
+        title="Menu"
+        className="windows-caption-menu"
+        onClick={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          void showWindowMenu("", rect.left, rect.bottom).catch((err) =>
+            console.error("[windows-caption] app menu failed", err),
+          );
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <path d="M2 4h10M2 7h10M2 10h10" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+        </svg>
+      </button>
+      <button type="button" aria-label="Minimize" onClick={() => void minimizeCurrentWindow()}>
+        <svg width="10" height="10" aria-hidden="true"><path d="M0 5.5h10" stroke="currentColor" /></svg>
+      </button>
+      <button type="button" aria-label="Maximize" onClick={() => void toggleCurrentWindowMaximize()}>
+        <svg width="10" height="10" aria-hidden="true"><rect x=".5" y=".5" width="9" height="9" fill="none" stroke="currentColor" /></svg>
+      </button>
+      <button
+        type="button"
+        aria-label="Close"
+        className="windows-caption-close"
+        onClick={() => void closeCurrentWindow()}
+      >
+        <svg width="10" height="10" aria-hidden="true"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" /></svg>
+      </button>
     </div>
   );
 }

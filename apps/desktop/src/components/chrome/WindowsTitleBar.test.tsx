@@ -13,18 +13,28 @@ vi.mock("@/lib/tauri-api", () => api);
 describe("WindowsTitleBar", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("puts the app menu and the window buttons in one title row", () => {
+  it("draws one menu button and the window buttons, with no menu-title row", () => {
     render(<WindowsTitleBar />);
-    for (const name of ["File", "Edit", "Window", "Help", "Minimize", "Maximize", "Close"]) {
+    for (const name of ["Application menu", "Minimize", "Maximize", "Close"]) {
       expect(screen.getByRole("button", { name })).toBeTruthy();
+    }
+    for (const name of ["File", "Edit", "Window", "Help"]) {
+      expect(screen.queryByRole("button", { name })).toBeNull();
     }
   });
 
-  it("opens the native submenu under the clicked title", () => {
+  it("flags the document so top bars reserve room for the overlay", () => {
+    const { unmount } = render(<WindowsTitleBar />);
+    expect(document.documentElement.dataset.windowsCaption).toBe("true");
+    unmount();
+    expect(document.documentElement.dataset.windowsCaption).toBeUndefined();
+  });
+
+  it("pops the whole native app menu under the menu button", () => {
     render(<WindowsTitleBar />);
-    fireEvent.click(screen.getByRole("button", { name: "Edit" }));
+    fireEvent.click(screen.getByRole("button", { name: "Application menu" }));
     // jsdom lays nothing out, so the button's rect is all zeros: x = left, y = bottom.
-    expect(api.showWindowMenu).toHaveBeenCalledWith("Edit", 0, 0);
+    expect(api.showWindowMenu).toHaveBeenCalledWith("", 0, 0);
   });
 
   it("drives the window from its own buttons", () => {

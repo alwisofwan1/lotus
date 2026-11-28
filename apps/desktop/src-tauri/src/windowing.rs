@@ -43,8 +43,8 @@ pub fn create_app_window<R: Runtime>(
     Ok(window)
 }
 
-/// Windows: drop the native title bar and hide the native menubar row; the webview draws one title
-/// row in their place (`WindowsTitleBar.tsx`). The menu stays attached, only hidden, so it can be
+/// Windows: drop the native title bar and hide the native menubar row; the webview overlays the
+/// window buttons and one menu button on its own top bar instead (`WindowsTitleBar.tsx`). The menu stays attached, only hidden, so it can be
 /// popped from that row by [`show_window_menu`]. No-op elsewhere.
 pub fn apply_windows_chrome<R: Runtime>(window: &WebviewWindow<R>) {
     #[cfg(windows)]
@@ -62,7 +62,8 @@ pub fn apply_windows_chrome<R: Runtime>(window: &WebviewWindow<R>) {
 
 /// Pop the app menu's top-level submenu titled `title` (File, Edit, Window, Help) at window point
 /// `x`,`y` (logical px), so the drawn title row reuses the exact items and handlers of
-/// [`build_app_menu`].
+/// [`build_app_menu`]. An empty `title` pops the whole app menu, each submenu as a cascade — the
+/// single menu button the Windows caption overlay draws.
 pub fn show_window_menu<R: Runtime>(
     window: &WebviewWindow<R>,
     title: &str,
@@ -73,6 +74,11 @@ pub fn show_window_menu<R: Runtime>(
         .app_handle()
         .menu()
         .ok_or("the app has no menu")?;
+    if title.is_empty() {
+        return window
+            .popup_menu_at(&menu, LogicalPosition::new(x, y))
+            .map_err(|err| err.to_string());
+    }
     let submenu = menu
         .items()
         .map_err(|err| err.to_string())?
