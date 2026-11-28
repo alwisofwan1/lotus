@@ -183,6 +183,18 @@ The card is `raised`, with a 1 px ring of `waitingRule` at about 20% and a soft 
 never a thick coloured left or right border: amber marks *which* card, the words say *why*. The earlier
 bordered card (*Calm* in the mockup) is kept only as a fallback.
 
+**Shipped 2026-11-28 (`features/home/widgets/needs_you.dart`), with three rules the mockup did not have:**
+
+- **Safe map** (`slip_answers.dart`, user's call): the slider appears only for a permission with exactly one
+  plain "Yes" option and exactly one option starting with "No". Right sends that Yes's printed digit, left
+  the No's. The ends show the prompt's own first words ("Yes", "No"); screen readers hear the whole labels.
+  The middle "Yes, and don't ask again" stays in Chat. Any other shape gets View and "Answer in Chat".
+- **Words:** the host does not say whether a permission runs a command or edits a file, so the head says
+  "Wants your OK" (permission) or "Needs an answer" (question), and the ask line is the cell's own preview
+  in 15/600, not a `$` command line. "Wants to run / edit" waits for the host to send the tool.
+- **Height:** the slips take at most half the screen and scroll inside it, so three waiting agents never
+  push the project index or the dock off a small phone. Both answers go through the gated path (fingerprint).
+
 ### Empty, error and edge states
 
 Mockup section 9 draws each one. Rules for all of them:

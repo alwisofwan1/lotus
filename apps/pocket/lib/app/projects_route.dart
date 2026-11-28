@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../data/fleet_store.dart';
 import '../features/home/add_project.dart';
 import '../features/home/projects_screen.dart';
+import '../features/home/widgets/needs_you.dart';
 import '../hosts/host_registry.dart';
 import '../models/cell.dart';
 import '../models/host_id.dart';
@@ -30,6 +31,8 @@ class ProjectsRoute extends StatelessWidget {
     required this.onOpenDiagnostics,
     required this.onRefresh,
     required this.onAddProject,
+    this.loadAsk,
+    this.onAnswer,
     super.key,
   });
 
@@ -41,6 +44,8 @@ class ProjectsRoute extends StatelessWidget {
   final VoidCallback onOpenDiagnostics;
   final Future<void> Function() onRefresh;
   final void Function(AddProjectChoice choice) onAddProject;
+  final LoadAsk? loadAsk;
+  final AnswerAsk? onAnswer;
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
@@ -64,6 +69,8 @@ class ProjectsRoute extends StatelessWidget {
                 ),
           ],
           onAddProject: onAddProject,
+          loadAsk: loadAsk,
+          onAnswer: onAnswer,
         ),
       );
 }

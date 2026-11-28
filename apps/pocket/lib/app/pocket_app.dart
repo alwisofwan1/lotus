@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/agent_repository.dart';
 import '../data/credential_keeper.dart';
 import '../features/home/home_screen.dart';
 import '../features/home/add_project.dart';
+import '../features/shared/agent_mutations.dart';
 import 'projects_route.dart';
 import '../features/projects/clone_flow.dart';
 import '../features/projects/browse_screen.dart';
@@ -221,6 +223,9 @@ class _PocketAppState extends State<PocketApp> with WidgetsBindingObserver {
           // the two happen in — this is the seam, not a third opinion about either.
           onRefresh: root.fleetRepository.refreshAll,
           onAddProject: (choice) => _addProject(context, choice),
+          // Answered through the same gated path as Chat (ADR-8), so the fingerprint is asked.
+          loadAsk: (cell) => root.agents.permission(cell.ref),
+          onAnswer: AgentMutations(root.agents).answer,
         ),
       );
 

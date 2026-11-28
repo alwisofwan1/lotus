@@ -61,6 +61,15 @@ extension AgentRepositoryReads on AgentRepository {
     );
   }
 
+  /// What one cell is asking right now, alone: Home's slips need this, not a whole Chat.
+  /// Null when the host cannot be reached or does not serve Chat.
+  Future<PermissionSnapshot?> permission(CellRef ref) async {
+    final host = registry.statusOf(ref.host)?.host;
+    final api = registry.apiFor(ref.host);
+    if (host == null || api == null || !host.hasChat) return null;
+    return (await _read(ref.host, () => api.permission(ref.paneId))).value;
+  }
+
   /// One file's diff against HEAD, or null when it could not be read — the screen that
   /// asked says so in a sentence; a diff is read, never retried into a gate.
   Future<CellDiff?> diff(CellRef ref, String file) async {

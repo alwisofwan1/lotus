@@ -7,6 +7,7 @@ import '../hosts/host_failure.dart';
 import '../hosts/host_registry.dart';
 import '../models/host_id.dart';
 import '../models/transcript.dart';
+import '../models/permission.dart';
 import '../models/voice.dart';
 import 'agent_view.dart';
 import 'host_gate.dart';

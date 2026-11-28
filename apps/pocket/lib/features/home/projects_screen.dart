@@ -41,6 +41,8 @@ class ProjectsScreen extends StatefulWidget {
     required this.onRefresh,
     this.addTargets = const [],
     this.onAddProject,
+    this.loadAsk,
+    this.onAnswer,
     super.key,
   }) : assert(
           addTargets.length == 0 || onAddProject != null,
@@ -74,6 +76,10 @@ class ProjectsScreen extends StatefulWidget {
 
   /// Where a chosen way in goes. Null only when [addTargets] is empty.
   final void Function(AddProjectChoice choice)? onAddProject;
+
+  /// What a waiting agent asks, and how to answer it from Home. Null opens Chat instead.
+  final LoadAsk? loadAsk;
+  final AnswerAsk? onAnswer;
 
   @override
   State<ProjectsScreen> createState() => _ProjectsScreenState();
@@ -169,7 +175,13 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         // sejak ADR-3 revisi pertama adalah bahwa `awaiting` tidak boleh bisa tersembunyi
         // di balik pengalih. Menyaring blok ini akan melanggarnya dengan mekanisme baru.
         if (waiting.isNotEmpty)
-          NeedsYou(waiting: waiting, onOpen: widget.onOpenAgent, where: _where),
+          NeedsYou(
+            waiting: waiting,
+            onOpen: widget.onOpenAgent,
+            where: _where,
+            loadAsk: widget.loadAsk,
+            onAnswer: widget.onAnswer,
+          ),
         if (projects.isEmpty)
           Expanded(
             child: Refreshable.fill(
