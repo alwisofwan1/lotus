@@ -19,7 +19,7 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// Not `type`: that name is ThemeExtension's lookup key, and shadowing it unregisters us.
   final AppType fonts;
 
-  /// The classic dark variant, today's only look.
+  /// The classic dark variant: what `buildAppTheme()` builds with no argument.
   static AppTokens get dark => classic.dark.tokens;
 
   Color get bg => colors[ColorRole.ground];

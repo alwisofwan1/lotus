@@ -85,9 +85,53 @@ surface tightens it there.
   an argument, and read tokens from the route's `context`, never the opener's: both are
   captured once when the route opens. The barrier colour is still captured on open.
 
+## Shape
+
+`ShapeRole` names radii by job (`card`, `chip`, `bubble`, `sheetLarge` …), read as
+`context.shape.radius(ShapeRole.x)`. Classic carries each job's historic radius, so it looks
+as it did; Graphite folds them onto 10 / 16 / 24 / pill. Marks of 3 px or less and radii
+computed from a size stay geometry. `test/architecture/radius_tokens_test.dart` refuses a
+literal radius above 3 px under `lib/features/`.
+
+## Choosing a theme
+
+`defaultThemeId` (`registry.dart`) is Graphite, mode `ThemeMode.system`. The pick is saved
+by `data/theme_choice.dart` (`theme:id`, `theme:appearance`) and restored before the first
+frame by `ThemeController.restore`; an id no longer registered falls back to the default.
+Settings shows the picker (`features/settings/widgets/appearance_block.dart`), fed by
+`appearanceOf` in `app/diagnostics_route.dart`.
+
+## Graphite
+
+The default. Graphite & Paper: opaque warm neutrals, one real light and one real dark
+variant, **no waivers**. No `BackdropFilter`: floating surfaces are fill + hairline + shadow.
+
+**Type.** Geist (400 / 500 / 600) for UI and prose, Geist Mono (400) for `mono`, bundled
+from vercel/geist-font 1.9.2 (`assets/fonts/`, OFL). The terminal keeps its own font stack
+(`terminal_metrics.dart`): its grid metrics are fragile.
+
+**Re-solved for AA** (hue kept, lightness moved; ratios against the worst surface in the rule):
+
+| role | mockup | shipped | contrast |
+|---|---|---|---|
+| dark text3 | `#7C786F` 3.96 | `#868279` | 4.55 on s1 |
+| light text3 | `#85807A` 3.53 | `#736E69` | 4.55 on ground |
+| light waiting | `#9A5A06` 4.16 | `#8E5205` | 4.75 on s3 (pressed) |
+| dark error | `#F2837A` | `#F28188` | hue 17°, 61° from amber |
+| light error | `#C2362B` | `#BD3266` | hue 3°, 60° from amber |
+
+The mockup's reds sat 53° and 34° from amber; the status-hue rule wants 60°, and amber's hue
+is the one that keeps its meaning, so red moved.
+
+**Roles the mockup left open.** `key` = s2, `keyActive` = s3 (pressed). Ornament `#65625B`
+dark / `#908B83` light (≥ 3.0). The terminal ground stays dark in light mode (`#111110`), so
+both variants share one terminal palette built from the dark roles; ANSI black is a
+readable grey `#66635C` (3.15 on the ground, white 4.99 on it) and bright black is text3.
+The camera is black with the dark text roles in both. Brand marks pass on both tables.
+
 ## Classic
 
-The only theme today, dark-only (the light slot carries the dark variant).
+Dark-only (the light slot carries the dark variant).
 
 **Floor.** `ground` is `oklch(0.183 0.004 286°)`, `#121214`. The earlier floor sat at
 `oklch(0.132 …)`, where an OLED plus ambient reflection crushes gradation, so the raised
