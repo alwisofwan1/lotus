@@ -10,9 +10,6 @@ import '../agent_activity.dart';
 import '../../shared/refreshable.dart';
 import '../chat_transcript.dart';
 import '../question_flow.dart';
-import '../../../data/done_marks.dart';
-import '../chat_layout.dart';
-import 'chat_result.dart';
 import '../pending_dispatch.dart';
 import '../../../data/agent_outcome.dart';
 import 'agent_notices.dart';
@@ -45,21 +42,8 @@ class ChatBody extends StatelessWidget {
     this.onQuote,
     required this.pager,
     this.onShowDiff,
-    this.onStop,
-    this.doneMarks,
-    this.onInstruct,
     super.key,
   });
-
-  /// Where Done is kept. Null draws no Done action.
-  final DoneMarks? doneMarks;
-
-  /// Sends an ordinary instruction, as the composer would.
-  final void Function(String text)? onInstruct;
-
-  /// Interrupts the turn from the working row. Null for a host that cannot be asked —
-  /// and the control is then not drawn, rather than drawn and inert.
-  final VoidCallback? onStop;
 
   /// Opens one file's diff. Null when the host cannot serve one, and the file rows are
   /// then plain text rather than a control the machine could not honour.
@@ -137,9 +121,8 @@ class ChatBody extends StatelessWidget {
     // Rebuilt from the live store on every step, rather than from the snapshot the page
     // happened to open with. `ChatTranscript.ofTurns` stays the single place that decides
     // what a line is — the source moved twice now, the rules did not.
-    final marks = doneMarks;
     return ListenableBuilder(
-      listenable: Listenable.merge([live, ?marks]),
+      listenable: live,
       builder: (context, _) {
         // Asked for **this** cell by name. The store holds the pager's whole reachable
         // window, so a page that reads "whatever is current" would render its
@@ -165,13 +148,8 @@ class ChatBody extends StatelessWidget {
           // before the closing hook lands.
           turns: turns,
           working: !cell.needsInput && !cell.isIdle && (turns.lastOrNull?.isOpen ?? false),
-          ending: _ending(current, turns),
-          onDone: marks == null || turns.isEmpty
-              ? null
-              : () => markDone(context, marks, cell.ref, turns.last.turnId),
-          onInstruct: onInstruct,
+          ending: _ending(turns),
           live: liveLabel(cell),
-          onStop: onStop,
           onRetry: onRetry,
           footer: _footer(current, turns),
           // Settled here first, then sent: the runner writes its own record of the answer only
@@ -212,14 +190,7 @@ class ChatBody extends StatelessWidget {
   /// them. What it must not do is describe a cell the fleet says is *running* or
   /// *waiting* — that turn is being written.
   /// Once the fleet calls the agent idle, the last turn has a result to show.
-  ChatEnding? _ending(AgentView current, List<Turn> turns) {
-    final last = turns.lastOrNull;
-    if (last == null || !cell.isIdle || cell.needsInput) return null;
-    return ChatEnding(
-      done: doneMarks?.doneFor(cell.ref, lastTurn: last.turnId),
-      uncommitted: current.result?.changes?.files.length ?? 0,
-    );
-  }
+  bool _ending(List<Turn> turns) => turns.isNotEmpty && cell.isIdle && !cell.needsInput;
 
   static bool settled(Cell cell) => cell.isIdle || !cell.turnKnown;
 

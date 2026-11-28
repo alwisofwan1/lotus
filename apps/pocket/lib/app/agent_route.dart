@@ -27,7 +27,6 @@ Future<bool> showAgentPager(NavigatorState? navigator, CompositionRoot root, Cel
         dictation: root.dictation,
         snippets: root.snippets,
         drafts: root.drafts,
-        doneMarks: root.doneMarks,
         hostLabel: root.hostLabel,
         initial: cell.ref,
         // Taken from the cell that was tapped rather than from Home's own selection:

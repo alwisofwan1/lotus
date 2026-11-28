@@ -1,6 +1,5 @@
 import 'chat_transcript.dart';
 import 'pending_dispatch.dart';
-import '../../data/done_marks.dart';
 import 'turn_progress.dart';
 
 /// What Chat actually draws, once grouping and separators have been decided.
@@ -77,7 +76,7 @@ class ProgressRow extends ChatRow {
   final TurnProgress progress;
 }
 
-/// A finished turn's work, folded into `✓ N steps · 3m 10s ›`.
+/// A finished turn's work, folded into `N steps · 3m 10s ›`.
 class SummaryRow extends ChatRow {
   const SummaryRow(this.turnId, this.progress);
 
@@ -85,26 +84,9 @@ class SummaryRow extends ChatRow {
   final TurnProgress progress;
 }
 
-/// The last turn's facts and its actions (View changes, Done), or `Done · 14:20`.
+/// The last turn's facts line, the link to its changes.
 class ResultRow extends ChatRow {
-  const ResultRow(this.done);
-
-  final DoneMark? done;
-}
-
-/// After Done, when the disk still holds uncommitted files: commit or open a PR.
-class TidyRow extends ChatRow {
-  const TidyRow(this.files);
-
-  final int files;
-}
-
-/// What the end of the chat says once the agent has finished.
-class ChatEnding {
-  const ChatEnding({this.done, this.uncommitted = 0});
-
-  final DoneMark? done;
-  final int uncommitted;
+  const ResultRow();
 }
 
 class ChatLayout {
@@ -119,7 +101,7 @@ class ChatLayout {
     String? live,
     Map<String, TurnProgress> progress = const {},
     bool working = false,
-    ChatEnding? ending,
+    bool ending = false,
   }) {
     final rows = <ChatRow>[];
     if (historyEdgeAt != null) rows.add(HistoryEdgeRow(historyEdgeAt));
@@ -157,10 +139,7 @@ class ChatLayout {
     for (final e in progress.entries) {
       if (e.value.took == null) place(e.key);
     }
-    if (ending != null) {
-      rows.add(ResultRow(ending.done));
-      if (ending.done != null && ending.uncommitted > 0) rows.add(TidyRow(ending.uncommitted));
-    }
+    if (ending) rows.add(const ResultRow());
     if (!rows.any((r) => r is ProgressRow) && live != null && live.trim().isNotEmpty) {
       rows.add(LiveRow(live.trim()));
     }

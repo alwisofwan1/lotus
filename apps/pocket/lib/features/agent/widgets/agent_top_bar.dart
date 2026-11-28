@@ -32,12 +32,8 @@ class AgentTopBar extends StatefulWidget {
     this.actions,
     this.changedFiles,
     this.onOpenChanges,
-    this.done = false,
     super.key,
   });
-
-  /// The operator marked the agent Done; the status line says so.
-  final bool done;
 
   final Cell cell;
   final int index;
@@ -109,7 +105,6 @@ class _AgentTopBarState extends State<AgentTopBar> {
                       total: widget.total,
                       waitingAt: widget.waitingAt,
                       open: _open,
-                      done: widget.done,
                       onTap: actions == null ? null : _toggle,
                     ),
                   ),

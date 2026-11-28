@@ -19,13 +19,9 @@ class TopBarTitle extends StatelessWidget {
     required this.total,
     required this.waitingAt,
     required this.open,
-    this.done = false,
     this.onTap,
     super.key,
   });
-
-  /// Marked Done by the operator: the status reads `done` rather than `idle`.
-  final bool done;
 
   final Cell cell;
 
@@ -120,7 +116,7 @@ class TopBarTitle extends StatelessWidget {
         ),
         const SizedBox(width: 6),
         Text(
-          done && cell.isIdle ? 'done' : stateLabel(cell),
+          stateLabel(cell),
           style: asks ? style.copyWith(color: t.waiting, fontWeight: FontWeight.w500) : style,
         ),
         Flexible(

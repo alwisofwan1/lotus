@@ -14,19 +14,16 @@ String tookLabel(Duration d) {
 
 /// The one progress signal of a running turn: done ✓, current bold, next dim.
 class ProgressCard extends StatelessWidget {
-  const ProgressCard({required this.progress, this.onStop, super.key});
+  const ProgressCard({required this.progress, super.key});
 
   final TurnProgress progress;
-
-  /// Interrupts the turn. Null for a host that cannot be asked.
-  final VoidCallback? onStop;
 
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
     return Container(
       margin: const EdgeInsets.only(bottom: 20),
-      padding: const EdgeInsets.fromLTRB(16, 12, 8, 8),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
       decoration: BoxDecoration(
         color: t.raise,
         border: Border.all(color: t.line),
@@ -36,17 +33,6 @@ class ProgressCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           ProgressSteps(steps: progress.steps),
-          if (onStop != null)
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {
-                  Tactile.chose();
-                  onStop!();
-                },
-                child: Text('Stop', style: t.ui.copyWith(fontSize: 13, color: t.muted)),
-              ),
-            ),
         ],
       ),
     );
@@ -166,7 +152,7 @@ class _SweepState extends State<_Sweep> with SingleTickerProviderStateMixin {
   }
 }
 
-/// `✓ 4 steps · 3m 10s ›` — a finished turn's work, opened on tap.
+/// `▭ 4 steps · 3m 10s ›` — a finished turn's work as one small pill, opened on tap.
 class SummaryLine extends StatelessWidget {
   const SummaryLine({required this.progress, required this.open, required this.onToggle, super.key});
 
@@ -177,7 +163,7 @@ class SummaryLine extends StatelessWidget {
   String get label {
     final n = progress.count;
     final took = progress.took;
-    return '${['✓ $n ${n == 1 ? 'step' : 'steps'}', if (took != null) tookLabel(took)].join(' · ')} ›';
+    return '${['$n ${n == 1 ? 'step' : 'steps'}', if (took != null) tookLabel(took)].join(' · ')} ›';
   }
 
   @override
@@ -193,16 +179,41 @@ class SummaryLine extends StatelessWidget {
               Tactile.chose();
               onToggle();
             },
-            borderRadius: context.shape.radius(ShapeRole.tag),
+            borderRadius: context.shape.radius(ShapeRole.pill),
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: kMinHitTarget),
               child: Align(
                 alignment: Alignment.centerLeft,
                 widthFactor: 1,
-                child: Text(
-                  label,
-                  style: t.ui.copyWith(
-                      fontSize: 13, color: t.muted, fontFeatures: const [FontFeature.tabularFigures()]),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: t.raise2,
+                    borderRadius: context.shape.radius(ShapeRole.pill),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 12,
+                          height: 9,
+                          decoration: BoxDecoration(
+                            border: Border.all(color: t.muted, width: 1.3),
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          label,
+                          style: t.ui.copyWith(
+                              fontSize: 13,
+                              color: t.muted,
+                              fontFeatures: const [FontFeature.tabularFigures()]),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),

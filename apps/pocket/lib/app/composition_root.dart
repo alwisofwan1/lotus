@@ -25,7 +25,6 @@ import '../data/build_seen.dart';
 import '../data/draft_keeper.dart';
 import '../data/seen_marks.dart';
 import '../data/snippets.dart';
-import '../data/done_marks.dart';
 import '../data/theme_choice.dart';
 import '../data/live_conversation.dart';
 import '../data/transcript_pager.dart';
@@ -78,7 +77,6 @@ class CompositionRoot {
     required this.snippets,
     required this.seenMarks,
     required this.drafts,
-    required this.doneMarks,
     required this.introSeen,
     required this.buildSeen,
     required this.themeChoice,
@@ -118,9 +116,6 @@ class CompositionRoot {
   /// What was left unsent in each agent's composer. Loaded here with the others so a
   /// page that opens on the first frame already has the draft in hand.
   final DraftKeeper drafts;
-
-  /// Which agents the operator marked Done, kept on the phone.
-  final DoneMarks doneMarks;
 
   /// Loaded here too, so `PocketApp` picks its first screen synchronously.
   final IntroSeen introSeen;

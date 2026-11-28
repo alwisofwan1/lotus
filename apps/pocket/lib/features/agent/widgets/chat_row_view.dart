@@ -27,15 +27,12 @@ class ChatRowView extends StatelessWidget {
     required this.expanded,
     required this.onToggleRun,
     this.onRetry,
-    this.onStop,
     this.outcome,
     this.result,
     this.onOpenChanges,
     this.onAnswerQuestion,
     this.questionChoices = ScreenChoices.none,
     this.onQuote,
-    this.onDone,
-    this.onInstruct,
     super.key,
   });
 
@@ -51,7 +48,6 @@ class ChatRowView extends StatelessWidget {
   final void Function(String id) onToggleRun;
 
   final void Function(PendingDispatch)? onRetry;
-  final VoidCallback? onStop;
   final AgentOutcome? outcome;
   final CellResult? result;
   final VoidCallback? onOpenChanges;
@@ -70,9 +66,6 @@ class ChatRowView extends StatelessWidget {
   /// Quotes a reply into the composer, unsent. Null where there is no composer.
   final void Function(String text)? onQuote;
 
-  final VoidCallback? onDone;
-  final void Function(String text)? onInstruct;
-
   @override
   Widget build(BuildContext context) => switch (row) {
         HistoryEdgeRow(:final entries) => HistoryEdge(entries: entries),
@@ -85,21 +78,16 @@ class ChatRowView extends StatelessWidget {
             onRetry: onRetry == null ? null : () => onRetry!(pending),
           ),
         LiveRow(:final text) => LiveLine(text: text),
-        ProgressRow(:final progress) => ProgressCard(progress: progress, onStop: onStop),
+        ProgressRow(:final progress) => ProgressCard(progress: progress),
         SummaryRow(:final turnId, :final progress) => SummaryLine(
             progress: progress,
             open: expanded.contains(turnId),
             onToggle: () => onToggleRun(turnId),
           ),
-        ResultRow(:final done) => ResultBlock(
+        ResultRow() => ResultBlock(
             facts: resultFacts(outcome, result),
-            done: done,
             onOpenChanges: onOpenChanges,
-            onDone: onDone,
           ),
-        TidyRow(:final files) => onInstruct == null
-            ? const SizedBox.shrink()
-            : TidyOffer(files: files, onInstruct: onInstruct!),
       };
 
   Widget _line(ChatItem item) => switch (item.kind) {

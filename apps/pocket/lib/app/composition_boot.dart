@@ -60,8 +60,6 @@ Future<CompositionRoot> bootRoot({
   await seenMarks.load();
   final drafts = DraftKeeper(store);
   await drafts.load();
-  final doneMarks = DoneMarks(store, now: now);
-  await doneMarks.load();
   final introSeen = IntroSeen(store);
   await introSeen.load();
   // After the intro bit, which is what tells an upgraded phone from a fresh install.
@@ -112,7 +110,6 @@ Future<CompositionRoot> bootRoot({
     snippets: snippets,
     seenMarks: seenMarks,
     drafts: drafts,
-    doneMarks: doneMarks,
     introSeen: introSeen,
     buildSeen: buildSeen,
     themeChoice: themeChoice,

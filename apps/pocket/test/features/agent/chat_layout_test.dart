@@ -3,7 +3,6 @@ import 'package:lotus_pocket/features/agent/chat_layout.dart';
 import 'package:lotus_pocket/features/agent/chat_transcript.dart';
 import 'package:lotus_pocket/features/agent/pending_dispatch.dart';
 import 'package:lotus_pocket/features/agent/turn_progress.dart';
-import 'package:lotus_pocket/data/done_marks.dart';
 import 'package:lotus_pocket/models/conversation.dart';
 
 final DateTime noon = DateTime.utc(2026, 8, 7, 12);
@@ -48,7 +47,7 @@ ChatLayout layout(
   String? live,
   Map<String, TurnProgress> progress = const {},
   bool working = false,
-  ChatEnding? ending,
+  bool ending = false,
 }) =>
     ChatLayout.of(ChatTranscript(items),
         historyEdgeAt: edge, pending: pending, live: live,
@@ -258,19 +257,10 @@ void _simpleChat() {
       expect(only<SummaryRow>(l), isEmpty);
     });
 
-    test('the result comes last; the tidy-up offer only once done with uncommitted files', () {
+    test('the result row comes last, and only once the agent finished', () {
       final items = [prompt('t-1'), inTurn(prose(), 't-1')];
-      final notDone = layout(items, ending: const ChatEnding(uncommitted: 3));
-      expect(notDone.rows.last, isA<ResultRow>());
-      expect(only<TidyRow>(notDone), isEmpty);
-
-      final mark = DoneMark('t-1', noon);
-      final done = layout(items, ending: ChatEnding(done: mark, uncommitted: 3));
-      expect(only<ResultRow>(done).single.done, mark);
-      expect(only<TidyRow>(done).single.files, 3);
-
-      final clean = layout(items, ending: ChatEnding(done: mark));
-      expect(only<TidyRow>(clean), isEmpty);
+      expect(layout(items, ending: true).rows.last, isA<ResultRow>());
+      expect(only<ResultRow>(layout(items)), isEmpty);
     });
 
     test('the live phrase is the fallback for a host with no turns, never beside progress', () {

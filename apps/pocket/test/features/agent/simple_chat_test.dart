@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/app/theme/app_theme.dart';
-import 'package:lotus_pocket/data/done_marks.dart';
-import 'package:lotus_pocket/features/agent/chat_layout.dart';
 import 'package:lotus_pocket/features/agent/chat_transcript.dart';
 import 'package:lotus_pocket/features/agent/widgets/chat_view.dart';
 import 'package:lotus_pocket/models/cell_result.dart';
@@ -48,7 +46,7 @@ void main() {
   setUp(calls.clear);
 
   Future<void> show(WidgetTester tester, Turn t,
-          {bool working = false, ChatEnding? ending, CellResult? result}) =>
+          {bool working = false, bool ending = false, CellResult? result}) =>
       tester.pumpWidget(MaterialApp(
         theme: buildAppTheme(),
         home: Scaffold(
@@ -62,8 +60,6 @@ void main() {
             onOpenTerminal: () {},
             onRefresh: () async {},
             onOpenChanges: () => calls.add('changes'),
-            onDone: () => calls.add('done'),
-            onInstruct: calls.add,
           ),
         ),
       ));
@@ -100,49 +96,32 @@ void main() {
     }
   });
 
-  testWidgets('result: summary line, the answer, the facts and two actions', (tester) async {
+  testWidgets('result: a steps pill, the answer, and a facts line that opens the changes', (tester) async {
     final done = [
       ...planned.take(2),
       plan([('Study the transports', PlanStatus.completed), ('Write SshTransport', PlanStatus.completed)]),
       prose('Done. SSH has its own transport now.'),
     ];
-    await show(tester, turn(done, ended: true), ending: const ChatEnding(uncommitted: 3), result: changes);
+    await show(tester, turn(done, ended: true), ending: true, result: changes);
 
-    expect(find.text('✓ 2 steps · 3m 10s ›'), findsOneWidget);
+    expect(find.text('2 steps · 3m 10s ›'), findsOneWidget);
     expect(find.text('Study the transports'), findsNothing, reason: 'collapsed until tapped');
-    await tester.tap(find.text('✓ 2 steps · 3m 10s ›'));
+    await tester.tap(find.text('2 steps · 3m 10s ›'));
     await tester.pump();
     expect(find.text('Study the transports'), findsOneWidget);
 
     expect(find.text('Done. SSH has its own transport now.'), findsOneWidget);
-    expect(find.text('3 files +184 −12'), findsOneWidget);
     expect(find.textContaining('tests'), findsNothing, reason: 'the host reports no test result');
+    expect(find.text('View changes'), findsNothing);
+    expect(find.text('Done'), findsNothing, reason: 'Done lives in the header');
 
-    await tester.tap(find.text('View changes'));
-    await tester.tap(find.text('Done'));
-    expect(calls, ['changes', 'done']);
-    expect(tester.getSize(find.ancestor(of: find.text('Done'), matching: find.byType(InkWell))).height,
-        greaterThanOrEqualTo(48));
+    await tester.tap(find.text('3 files +184 −12 ›'));
+    expect(calls, ['changes']);
   });
 
-  testWidgets('after Done: the time it was marked, and the tidy-up offer', (tester) async {
-    final t = turn([user('go'), tool('a'), prose('All done.')], ended: true);
-    final mark = DoneMark('t-1', DateTime(2026, 8, 7, 14, 20));
-    await show(tester, t, ending: ChatEnding(done: mark, uncommitted: 3), result: changes);
-
-    expect(find.text('Done · 14:20'), findsOneWidget);
-    expect(find.widgetWithText(InkWell, 'Done'), findsNothing);
-    expect(find.text('3 files not committed — tidy up?'), findsOneWidget);
-    await tester.tap(find.text('Commit only'));
-    await tester.tap(find.text('Create PR'));
-    expect(calls, hasLength(2));
-    expect(calls.first, contains('Commit'));
-    expect(calls.last, contains('pull request'));
-  });
-
-  testWidgets('after Done with a clean tree there is nothing to offer', (tester) async {
+  testWidgets('a turn that changed nothing draws no facts line', (tester) async {
     final t = turn([user('go'), prose('All done.')], ended: true);
-    await show(tester, t, ending: ChatEnding(done: DoneMark('t-1', start)));
-    expect(find.textContaining('not committed'), findsNothing);
+    await show(tester, t, ending: true);
+    expect(find.textContaining('files'), findsNothing);
   });
 }

@@ -42,10 +42,7 @@ class ChatView extends StatefulWidget {
     this.live,
     this.turns = const [],
     this.working = false,
-    this.ending,
-    this.onDone,
-    this.onInstruct,
-    this.onStop,
+    this.ending = false,
     this.outcome,
     this.result,
     this.onOpenChanges,
@@ -97,16 +94,8 @@ class ChatView extends StatefulWidget {
   /// Whether the agent is working now; an open turn draws its progress only then.
   final bool working;
 
-  /// The end of the list once the agent finished: result, Done, tidy-up offer.
-  final ChatEnding? ending;
-
-  final VoidCallback? onDone;
-
-  /// Sends an ordinary instruction to the agent (the tidy-up offers).
-  final void Function(String text)? onInstruct;
-
-  /// Interrupts the turn from the progress card. Null for a host that cannot be asked.
-  final VoidCallback? onStop;
+  /// Whether the list ends with the finished turn's facts line.
+  final bool ending;
 
   /// The ring's account of the last turn, for the tail line. Null while it is running.
   final AgentOutcome? outcome;
@@ -213,8 +202,7 @@ class _ChatViewState extends State<ChatView> {
         old.pending.length != widget.pending.length ||
         old.live != widget.live ||
         old.working != widget.working ||
-        (old.ending == null) != (widget.ending == null) ||
-        old.ending?.done != widget.ending?.done;
+        old.ending != widget.ending;
     if (grew) _scroll.stickToBottom();
   }
 
@@ -272,15 +260,12 @@ class _ChatViewState extends State<ChatView> {
                 if (!_expanded.remove(id)) _expanded.add(id);
               }),
               onRetry: widget.onRetry,
-              onStop: widget.onStop,
               outcome: widget.outcome,
               result: widget.result,
               onOpenChanges: widget.onOpenChanges,
               onAnswerQuestion: widget.onAnswerQuestion,
               questionChoices: widget.questionChoices,
               onQuote: widget.onQuote,
-              onDone: widget.onDone,
-              onInstruct: widget.onInstruct,
             );
           },
           ),

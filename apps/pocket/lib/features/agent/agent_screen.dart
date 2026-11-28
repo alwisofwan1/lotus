@@ -8,7 +8,6 @@ import '../../data/live_conversation.dart';
 import '../../data/transcript_pager.dart';
 import '../../data/draft_keeper.dart';
 import '../../data/snippets.dart';
-import '../../data/done_marks.dart';
 import '../../models/host_id.dart';
 import '../shared/tactile.dart';
 import 'agent_page.dart';
@@ -41,7 +40,6 @@ class AgentScreen extends StatefulWidget {
     required this.project,
     required this.snippets,
     required this.drafts,
-    this.doneMarks,
     this.dictation,
     super.key,
   });
@@ -57,8 +55,6 @@ class AgentScreen extends StatefulWidget {
   /// is only the thing that pages between them.
   final DraftKeeper drafts;
 
-  /// Where Done is kept; handed to every page.
-  final DoneMarks? doneMarks;
 
   /// The microphone, or null in a build without one. Handed straight through to the
   /// composer on every page in the pager.
@@ -214,7 +210,6 @@ class _AgentScreenState extends State<AgentScreen> {
           pager: widget.pager,
           snippets: widget.snippets,
           drafts: widget.drafts,
-          doneMarks: widget.doneMarks,
           dictation: widget.dictation,
           index: i,
           total: _refs.length,
