@@ -1,5 +1,5 @@
 import type { ClaudeConversation } from "./conversation.js";
-import { isRecord } from "../acp/parts.js";
+import { isRecord, planEntries } from "../acp/parts.js";
 import {
   blocksOf,
   toolKindOf,
@@ -76,6 +76,10 @@ export function applyAssistant(c: ClaudeConversation, message: ClaudeMessage): v
           locations: [],
           ...c.stamp(`tool-${toolCallId}`),
         });
+        // Claude's todo list is its plan; one part per turn, replaced on every rewrite.
+        const input = block["input"];
+        const entries = name === "TodoWrite" && isRecord(input) ? planEntries(input["todos"]) : [];
+        if (entries.length > 0) c.upsert({ type: "plan_update", entries, ...c.stamp(`plan-${c.turnId()}`) });
         break;
       }
       default:

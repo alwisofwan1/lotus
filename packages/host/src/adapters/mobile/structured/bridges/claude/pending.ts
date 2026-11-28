@@ -121,6 +121,7 @@ export const CLAUDE_STREAM_CAPS: Partial<RunnerTranscriptCaps> = {
   diff: "expected",
   usage: "expected",
   permission: "expected",
+  plan: "expected",
 };
 
 /**

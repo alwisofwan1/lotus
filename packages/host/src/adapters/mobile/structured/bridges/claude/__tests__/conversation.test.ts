@@ -188,7 +188,7 @@ describe("ClaudeConversation, against the captured stream-json turn", () => {
 
   it("reports what this wire actually gives, per dimension", () => {
     const caps = replay().page().capabilities;
-    expect(caps).toMatchObject({ streaming: "expected", reasoning: "expected", usage: "expected" });
+    expect(caps).toMatchObject({ streaming: "expected", reasoning: "expected", usage: "expected", plan: "expected" });
     // `never` until Fase 3b: the runner now asks through an MCP tool and waits for the answer.
     expect(caps.permission).toBe("expected");
   });
@@ -235,6 +235,28 @@ describe("ClaudeConversation, shapes the capture did not contain", () => {
     const part = c.requestPermission("r-2", { toolName: "TodoWrite", toolUseId: "", input: {} });
     expect(part.type === "permission" ? part.title : "").toBe("TodoWrite");
     expect(part).not.toHaveProperty("toolCallId");
+  });
+
+  it("turns a TodoWrite into the turn's plan, and a later one replaces it", () => {
+    const c = new ClaudeConversation("ss-claude");
+    c.openTurn("go");
+    const todo = (id: string, todos: unknown[]) =>
+      c.apply({ type: "assistant", message: { content: [{ type: "tool_use", id, name: "TodoWrite", input: { todos } }] } });
+    todo("toolu_1", [{ content: "Read it", status: "in_progress", activeForm: "Reading it" }]);
+    todo("toolu_2", [
+      { content: "Read it", status: "completed" },
+      { content: "Fix it", status: "in_progress" },
+    ]);
+    const parts = c.page().turns[0]?.parts ?? [];
+    const plans = parts.filter((p) => p.type === "plan_update");
+    expect(plans).toHaveLength(1);
+    expect(plans[0]).toMatchObject({
+      entries: [
+        { content: "Read it", status: "completed", priority: "medium" },
+        { content: "Fix it", status: "in_progress", priority: "medium" },
+      ],
+    });
+    expect(tools(c).map((t) => t.toolName)).toEqual(["TodoWrite", "TodoWrite"]);
   });
 
   it("does not throw on a message it has never seen, and keeps it as unknown", () => {
