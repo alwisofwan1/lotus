@@ -27,6 +27,13 @@ List<String> renderedText(WidgetTester tester) => tester
     .toList();
 
 void main() {
+  testWidgets('the agent reads at 16/24, the reading size of the simplified chat', (tester) async {
+    await pumpProse(tester, 'Done. SSH has its own transport now.');
+    final style = tester.widget<GptMarkdown>(find.byType(GptMarkdown)).style!;
+    expect(style.fontSize, 16);
+    expect(style.fontSize! * style.height!, 24);
+  });
+
   group('brackets are the agent\'s words, not markup', () {
     testWidgets('[2] stays a bracketed digit inside a sentence', (tester) async {
       await pumpProse(tester, 'Pilih opsi [2] pada baris [42] file itu.');

@@ -171,17 +171,10 @@ void main() {
   });
 
   group('sticky scroll', () {
-    /// A transcript tall enough to scroll.
-    ///
-    /// **Every step carries a diff, and that is load-bearing rather than incidental.**
-    /// A run of three or more look-around steps now collapses into one capsule row
-    /// (`ChatLayout`), so eighty identical `Bash` lines would render as a *single* line
-    /// and none of the assertions below would have anything to scroll. A step that
-    /// changed something is never folded away, which is exactly the property that makes
-    /// it usable here.
+    /// A transcript tall enough to scroll. Prose, because Chat no longer draws steps.
     List<ChatItem> manySteps(int n) => [
           for (var i = 0; i < n; i++)
-            step('step number $i in a long transcript', diff: '+1 −0'),
+            prose('line number $i in a long transcript'),
         ];
 
     testWidgets('opens at the newest, not at the top', (tester) async {
@@ -315,37 +308,12 @@ void main() {
     });
   });
 
-  group('a run of look-around steps, folded', () {
-    List<ChatItem> run() => [
-          step('first/target.ts'),
-          step('second/target.ts'),
-          step('third/target.ts'),
-        ];
+  testWidgets('tool steps are not drawn in Chat — they stay in Terminal', (tester) async {
+    await show(tester, [step('first/target.ts'), step('second/target.ts'), prose('Done.')]);
+    await tester.pumpAndSettle();
 
-    testWidgets('collapses to a count and a summary, hiding the targets', (tester) async {
-      await show(tester, run());
-      await tester.pumpAndSettle();
-
-      expect(find.text('3 steps'), findsOne);
-      expect(find.text('bash ×3'), findsOne);
-      // Nothing is lost, but nothing is spent on it either: six greps and reads used to
-      // occupy the same height as the prose that answered the question.
-      expect(find.text('second/target.ts'), findsNothing);
-    });
-
-    testWidgets('one tap puts every step back', (tester) async {
-      await show(tester, run());
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('3 steps'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('first/target.ts'), findsOne);
-      expect(find.text('second/target.ts'), findsOne);
-      expect(find.text('third/target.ts'), findsOne);
-      // Still one row's worth of chrome — the capsule stays as the thing you close.
-      expect(find.text('3 steps'), findsOne);
-    });
+    expect(find.textContaining('target.ts'), findsNothing);
+    expect(find.text('Done.'), findsOne);
   });
 
   group('what the operator said, before the host has echoed it', () {

@@ -5,14 +5,14 @@ import '../../shared/refreshable.dart';
 import 'chat_empty.dart';
 import '../chat_layout.dart';
 import '../chat_scroll.dart';
-import '../work_state.dart';
+import '../turn_progress.dart';
+import '../../../models/conversation.dart';
 import '../chat_transcript.dart';
 import '../question_digits.dart';
 import '../pending_dispatch.dart';
 import '../../../data/agent_outcome.dart';
 import '../../../models/cell_result.dart';
 import 'chat_row_view.dart';
-import 'turn_tail.dart';
 import 'chat_marks.dart';
 
 /// Chat: what you asked, what it did, what it said.
@@ -40,7 +40,11 @@ class ChatView extends StatefulWidget {
     this.historyEdgeAt,
     this.pending = const [],
     this.live,
-    this.work,
+    this.turns = const [],
+    this.working = false,
+    this.ending,
+    this.onDone,
+    this.onInstruct,
     this.onStop,
     this.outcome,
     this.result,
@@ -84,16 +88,24 @@ class ChatView extends StatefulWidget {
   /// What the operator said that the host has not echoed back yet.
   final List<PendingDispatch> pending;
 
-  /// What the agent is doing right now, or null when it is not working.
-  ///
-  /// The phrase form, for a host with no conversation lane. Where [work] is set it wins.
+  /// What the agent is doing right now, for a host with no conversation lane.
   final String? live;
 
-  /// The turn in progress, read from the conversation the store holds. Null when
-  /// nothing is running.
-  final WorkState? work;
+  /// The turns behind [transcript], read for each turn's progress.
+  final List<Turn> turns;
 
-  /// Interrupts the turn from the working row. Null for a host that cannot be asked.
+  /// Whether the agent is working now; an open turn draws its progress only then.
+  final bool working;
+
+  /// The end of the list once the agent finished: result, Done, tidy-up offer.
+  final ChatEnding? ending;
+
+  final VoidCallback? onDone;
+
+  /// Sends an ordinary instruction to the agent (the tidy-up offers).
+  final void Function(String text)? onInstruct;
+
+  /// Interrupts the turn from the progress card. Null for a host that cannot be asked.
   final VoidCallback? onStop;
 
   /// The ring's account of the last turn, for the tail line. Null while it is running.
@@ -136,8 +148,20 @@ class ChatView extends StatefulWidget {
 class _ChatViewState extends State<ChatView> {
   late final ChatScroll _scroll;
 
-  /// Which collapsed runs the operator has opened, by [StepRunRow.id].
+  /// Which finished turns' summaries the operator has opened, by turn id.
   final Set<String> _expanded = {};
+
+  /// The highest phase each turn has shown, so a phase never goes backwards on screen.
+  final Map<String, Phase> _floors = {};
+
+  Map<String, TurnProgress> _progress() => {
+        for (final turn in widget.turns)
+          turn.turnId: () {
+            final p = TurnProgress.of(turn, floor: _floors[turn.turnId] ?? Phase.reading);
+            if (turn.isOpen) _floors[turn.turnId] = p.phase;
+            return p;
+          }(),
+      };
 
   /// How long the transcript was when the operator scrolled away from the end.
   int _readTo = 0;
@@ -187,7 +211,10 @@ class _ChatViewState extends State<ChatView> {
     _readTo += _scroll.noteTranscript(old.transcript, widget.transcript);
     final grew = old.transcript.items.length != widget.transcript.items.length ||
         old.pending.length != widget.pending.length ||
-        old.live != widget.live;
+        old.live != widget.live ||
+        old.working != widget.working ||
+        (old.ending == null) != (widget.ending == null) ||
+        old.ending?.done != widget.ending?.done;
     if (grew) _scroll.stickToBottom();
   }
 
@@ -204,8 +231,9 @@ class _ChatViewState extends State<ChatView> {
       historyEdgeAt: widget.historyEdgeAt,
       pending: widget.pending,
       live: widget.live,
-      work: widget.work,
-      tail: TurnTail.has(widget.outcome, widget.result),
+      progress: _progress(),
+      working: widget.working,
+      ending: widget.ending,
     );
 
     // Nothing to draw yet — a state of its own, and its own widget. See [ChatEmpty].
@@ -251,6 +279,8 @@ class _ChatViewState extends State<ChatView> {
               onAnswerQuestion: widget.onAnswerQuestion,
               questionChoices: widget.questionChoices,
               onQuote: widget.onQuote,
+              onDone: widget.onDone,
+              onInstruct: widget.onInstruct,
             );
           },
           ),

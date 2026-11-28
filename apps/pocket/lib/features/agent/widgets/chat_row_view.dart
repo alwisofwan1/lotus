@@ -7,12 +7,11 @@ import '../chat_transcript.dart';
 import '../question_digits.dart';
 import '../pending_dispatch.dart';
 import 'chat_lines.dart';
-import 'chat_marks.dart';
 import 'chat_steps.dart';
+import 'chat_marks.dart';
+import 'chat_progress.dart';
+import 'chat_result.dart';
 import 'question_card.dart';
-import 'thinking_block.dart';
-import 'turn_tail.dart';
-import 'working_row.dart';
 
 /// One row of Chat, as the widget it is.
 ///
@@ -35,6 +34,8 @@ class ChatRowView extends StatelessWidget {
     this.onAnswerQuestion,
     this.questionChoices = ScreenChoices.none,
     this.onQuote,
+    this.onDone,
+    this.onInstruct,
     super.key,
   });
 
@@ -69,27 +70,36 @@ class ChatRowView extends StatelessWidget {
   /// Quotes a reply into the composer, unsent. Null where there is no composer.
   final void Function(String text)? onQuote;
 
+  final VoidCallback? onDone;
+  final void Function(String text)? onInstruct;
+
   @override
   Widget build(BuildContext context) => switch (row) {
         HistoryEdgeRow(:final entries) => HistoryEdge(entries: entries),
         DayBreakRow(:final at) => DayMark(at: at),
         TurnBreakRow() => const TurnGap(),
         LineRow(:final item) => _line(item),
-        StepRunRow(:final id) => StepCapsule(
-            row: row as StepRunRow,
-            expanded: expanded.contains(id),
-            onToggle: () => onToggleRun(id),
-          ),
         PendingRow(:final pending) => MineBubble(
             text: pending.text,
             state: pending.state,
             onRetry: onRetry == null ? null : () => onRetry!(pending),
           ),
         LiveRow(:final text) => LiveLine(text: text),
-        WorkRow(:final state) => WorkingRow(state: state, onStop: onStop),
-        // Open while it is the newest thing, and openable once it is not: the
-        // expansion set is the same one the collapsed step runs use.
-        TailRow() => TurnTail(outcome: outcome, result: result, onOpen: onOpenChanges),
+        ProgressRow(:final progress) => ProgressCard(progress: progress, onStop: onStop),
+        SummaryRow(:final turnId, :final progress) => SummaryLine(
+            progress: progress,
+            open: expanded.contains(turnId),
+            onToggle: () => onToggleRun(turnId),
+          ),
+        ResultRow(:final done) => ResultBlock(
+            facts: resultFacts(outcome, result),
+            done: done,
+            onOpenChanges: onOpenChanges,
+            onDone: onDone,
+          ),
+        TidyRow(:final files) => onInstruct == null
+            ? const SizedBox.shrink()
+            : TidyOffer(files: files, onInstruct: onInstruct!),
       };
 
   Widget _line(ChatItem item) => switch (item.kind) {
@@ -100,13 +110,10 @@ class ChatRowView extends StatelessWidget {
             digits: questionChoices.digits,
             extras: questionChoices.extras,
           ),
-        ChatLine.step => StepLine(item: item),
+        // Work stays in Terminal; `ChatLayout` never hands these over.
+        ChatLine.step || ChatLine.thinking => const SizedBox.shrink(),
         ChatLine.problem => ProblemLine(item: item),
         ChatLine.notice => NoticeLine(item: item),
         ChatLine.prose => ProseLine(item: item, agent: agent, onQuote: onQuote),
-        // Reached only for a lone reasoning line outside a run, which `ChatLayout` does
-        // not produce today — kept exhaustive rather than wildcarded so a new kind
-        // cannot be added without a decision here.
-        ChatLine.thinking => ThinkingBlock(items: [item], open: true),
       };
 }

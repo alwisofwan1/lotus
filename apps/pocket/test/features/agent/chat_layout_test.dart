@@ -2,6 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/features/agent/chat_layout.dart';
 import 'package:lotus_pocket/features/agent/chat_transcript.dart';
 import 'package:lotus_pocket/features/agent/pending_dispatch.dart';
+import 'package:lotus_pocket/features/agent/turn_progress.dart';
+import 'package:lotus_pocket/data/done_marks.dart';
+import 'package:lotus_pocket/models/conversation.dart';
 
 final DateTime noon = DateTime.utc(2026, 8, 7, 12);
 
@@ -38,85 +41,41 @@ ChatItem problem([DateTime? at]) => ChatItem(
       timestamp: at ?? noon,
     );
 
-ChatLayout layout(List<ChatItem> items, {int? edge, List<PendingDispatch> pending = const [], String? live}) =>
-    ChatLayout.of(ChatTranscript(items), historyEdgeAt: edge, pending: pending, live: live);
+ChatLayout layout(
+  List<ChatItem> items, {
+  int? edge,
+  List<PendingDispatch> pending = const [],
+  String? live,
+  Map<String, TurnProgress> progress = const {},
+  bool working = false,
+  ChatEnding? ending,
+}) =>
+    ChatLayout.of(ChatTranscript(items),
+        historyEdgeAt: edge, pending: pending, live: live,
+        progress: progress, working: working, ending: ending);
+
+ChatItem prompt(String turnId) =>
+    ChatItem(kind: ChatLine.prompt, text: 'Move SSH', timestamp: noon).inTurn(turnId, null);
+
+TurnProgress progressOf({required bool open, int tools = 2}) => TurnProgress.of(Turn(
+      turnId: 't',
+      startedAt: noon,
+      endedAt: open ? null : noon.add(const Duration(seconds: 70)),
+      parts: [
+        for (var i = 0; i < tools; i++)
+          ToolCallPart(
+              id: 'c$i', ts: noon, seq: i, provenance: Provenance.native, toolCallId: 'c$i',
+              toolName: 'Read', title: 'a.dart', kind: 'read', status: 'completed',
+              locations: const [], files: const []),
+      ],
+    ));
 
 /// Rows of one kind, in order.
 List<T> only<T extends ChatRow>(ChatLayout l) => l.rows.whereType<T>().toList();
 
 void main() {
   _turnBreaks();
-  _workFold();
-  group('runs of look-around steps collapse; edits never do', () {
-    test('three consecutive steps become one capsule', () {
-      final l = layout([step('Grep'), step('Read'), step('Read')]);
-
-      final runs = only<StepRunRow>(l);
-      expect(runs, hasLength(1));
-      expect(runs.single.steps, hasLength(3));
-      // And none of them is also drawn as its own line.
-      expect(only<LineRow>(l), isEmpty);
-    });
-
-    test('two now fold, where it used to take three', () {
-      // Changed by issue 03. The old rule read: "collapsing two into `2 steps` costs a
-      // tap and saves one line — a worse screen, not a tidier one." True while the fold
-      // was about tidiness; the fold is now about leaving the answer alone at full size,
-      // and two lines of work already compete with it.
-      final l = layout([step('Grep'), step('Read')]);
-
-      expect(only<StepRunRow>(l), hasLength(1));
-      expect(only<LineRow>(l), isEmpty);
-    });
-
-    test('a step carrying a diff breaks the run and keeps its own line', () {
-      // The rule that keeps the collapse honest: a read is how an agent looks around,
-      // an edit changed something on the operator's machine.
-      final l = layout([
-        step('Read'),
-        step('Read'),
-        step('Edit', diff: '+0 −34'),
-        step('Read'),
-        step('Read'),
-      ]);
-
-      // The edit keeps its own line; the reads either side fold into a run each.
-      expect(only<StepRunRow>(l), hasLength(2));
-      expect(only<LineRow>(l), hasLength(1));
-      expect(only<LineRow>(l).single.item.diff, '+0 −34');
-    });
-
-    test('prose interrupts a run rather than being swallowed by it', () {
-      final l = layout([step('Read'), step('Read'), prose(), step('Read'), step('Read')]);
-
-      expect(only<StepRunRow>(l), hasLength(2));
-      // The prose is the one thing left at full size between them.
-      expect(only<LineRow>(l), hasLength(1));
-      expect(only<LineRow>(l).single.item.kind, ChatLine.prose);
-    });
-
-    test('the summary names each tool once, counting repeats', () {
-      final run = only<StepRunRow>(
-        layout([step('Grep'), step('Read'), step('Read'), step('Read'), step('Grep')]),
-      ).single;
-
-      expect(run.summary, 'grep ×2, read ×3');
-    });
-
-    test('the id comes from the run itself, so trimming the front cannot move it', () {
-      // The host's ring holds sixty entries and drops the oldest, so every list index
-      // shifts on overflow — an expanded capsule would silently close while a different
-      // one opened.
-      final head = [prose(), prose()];
-      final run = [step('Read'), step('Read'), step('Read')];
-
-      final before = only<StepRunRow>(layout([...head, ...run])).single;
-      final after = only<StepRunRow>(layout(run)).single;
-
-      expect(after.id, before.id);
-    });
-  });
-
+  _simpleChat();
   group('day breaks', () {
     test('the first row of any transcript gets one', () {
       expect(only<DayBreakRow>(layout([prose()])), hasLength(1));
@@ -126,21 +85,6 @@ void main() {
       final l = layout([prose(noon), prose(noon.add(const Duration(days: 1)))]);
 
       expect(only<DayBreakRow>(l), hasLength(2));
-    });
-
-    test('a run cannot span a day, so the break is never swallowed', () {
-      final tomorrow = noon.add(const Duration(days: 1));
-      final l = layout([
-        step('Read'),
-        step('Read'),
-        step('Read'),
-        step('Read', at: tomorrow),
-        step('Read', at: tomorrow),
-        step('Read', at: tomorrow),
-      ]);
-
-      expect(only<DayBreakRow>(l), hasLength(2));
-      expect(only<StepRunRow>(l), hasLength(2));
     });
   });
 
@@ -266,87 +210,72 @@ void _turnBreaks() {
   });
 }
 
-/// One line for the work, so the answer is the only thing at full size.
-///
-/// Reasoning and tool steps used to be two separate folds — [ThinkingRow] and
-/// [StepRunRow] — and a lone step did not fold at all. Three appearances for one idea:
-/// *this is what it did to get there*. Issue 03 of `plans/pocket-chat-turn-presentation`.
-void _workFold() {
-  group('reasoning and steps fold together', () {
-    test('reasoning next to steps is one run, not two rows', () {
-      final l = layout([thinking(), step('Grep'), step('Read')]);
-
-      expect(only<StepRunRow>(l), hasLength(1));
-      expect(only<LineRow>(l), isEmpty);
-      // `ThinkingRow` is gone entirely — reasoning has no fold of its own any more.
+/// Section H: Chat carries the prompt, one progress signal, the answer and the result.
+void _simpleChat() {
+  group('the simplified chat', () {
+    test('tool steps and reasoning never draw in Chat — they stay in Terminal', () {
+      final l = layout([inTurn(step('Read'), 't-1'), inTurn(thinking(), 't-1'), inTurn(prose(), 't-1')]);
+      expect(only<LineRow>(l).map((r) => r.item.kind), [ChatLine.prose]);
     });
 
-    test('one step keeps its line, and with it the path it touched', () {
-      // Settled by evidence: taking the threshold to one turned three tests in
-      // `agent_screen_test.dart` red, each asserting a single step shows its target.
-      // A lone step is already recessive against serif prose — mono, dim, one glyph
-      // wide — so folding it bought consistency and sold the fact the line carries.
-      final l = layout([step('Grep')]);
-
-      expect(only<StepRunRow>(l), isEmpty);
-      expect(only<LineRow>(l), hasLength(1));
-      expect(only<LineRow>(l).single.item.text, 'src/legacy/shim.ts');
+    test('a failure and a notice still draw', () {
+      final l = layout([problem(), notice()]);
+      expect(only<LineRow>(l), hasLength(2));
     });
 
-    test('the summary names thinking ahead of the tools', () {
-      final run = only<StepRunRow>(layout([thinking(), step('Grep'), step('Read')])).single;
-
-      expect(run.summary, 'thinking, grep, read');
+    test('working: the progress sits right under the prompt, above anything said since', () {
+      final l = layout(
+        [prompt('t-1'), inTurn(step('Read'), 't-1'), inTurn(prose(), 't-1')],
+        progress: {'t-1': progressOf(open: true)},
+        working: true,
+      );
+      final kinds = l.rows.where((r) => r is! DayBreakRow).map((r) => r.runtimeType).toList();
+      expect(kinds, [LineRow, ProgressRow, LineRow]);
     });
 
-    test('two thoughts are counted like any other repeat', () {
-      final run = only<StepRunRow>(layout([thinking(), thinking(), step('Read')])).single;
-
-      expect(run.summary, 'thinking ×2, read');
+    test('an open turn draws no progress once the agent stopped working', () {
+      final l = layout([prompt('t-1')], progress: {'t-1': progressOf(open: true)});
+      expect(only<ProgressRow>(l), isEmpty);
     });
 
-    test('no thinking, no mention of it', () {
-      final run = only<StepRunRow>(layout([step('Grep'), step('Read')])).single;
-
-      expect(run.summary, 'grep, read');
+    test('a progress row whose turn has no line yet goes last', () {
+      final l = layout([], progress: {'t-1': progressOf(open: true)}, working: true);
+      expect(l.rows.last, isA<ProgressRow>());
     });
 
-    test('the count counts steps, and thinking is not a step', () {
-      // The capsule prints this number over the word "steps". With reasoning folded into
-      // the same run, `steps.length` started answering a different question than the one
-      // the label asks.
-      final run = only<StepRunRow>(layout([thinking(), thinking(), step('Read')])).single;
-
-      expect(run.stepCount, 1);
-      expect(run.steps, hasLength(3));
+    test('a finished turn folds its work into one summary line above the answer', () {
+      final l = layout(
+        [prompt('t-1'), inTurn(prose(), 't-1')],
+        progress: {'t-1': progressOf(open: false, tools: 4)},
+      );
+      final kinds = l.rows.where((r) => r is! DayBreakRow).map((r) => r.runtimeType).toList();
+      expect(kinds, [LineRow, SummaryRow, LineRow]);
+      expect(only<SummaryRow>(l).single.progress.count, 4);
     });
 
-    test('the count reads as English, singular and plural', () {
-      String labelOf(List<ChatItem> items) =>
-          only<StepRunRow>(layout(items)).single.countLabel;
-
-      expect(labelOf([thinking(), step('Read')]), '1 step');
-      expect(labelOf([step('Read'), step('Grep')]), '2 steps');
-      // A run that is only the agent working something out has no steps to count, and
-      // `0 steps` would be a number where the truth is "none of this was a step".
-      expect(labelOf([thinking(), thinking()]), 'thinking');
+    test('a reply with no work behind it has no summary line', () {
+      final l = layout([prompt('t-1'), inTurn(prose(), 't-1')], progress: {'t-1': progressOf(open: false, tools: 0)});
+      expect(only<SummaryRow>(l), isEmpty);
     });
 
-    test('a notice never folds either — a quota wall must be seen coming', () {
-      final l = layout([step('Read'), step('Grep'), notice(), step('Read'), step('Grep')]);
+    test('the result comes last; the tidy-up offer only once done with uncommitted files', () {
+      final items = [prompt('t-1'), inTurn(prose(), 't-1')];
+      final notDone = layout(items, ending: const ChatEnding(uncommitted: 3));
+      expect(notDone.rows.last, isA<ResultRow>());
+      expect(only<TidyRow>(notDone), isEmpty);
 
-      expect(only<StepRunRow>(l), hasLength(2));
-      expect(only<LineRow>(l), hasLength(1));
-      expect(only<LineRow>(l).single.item.kind, ChatLine.notice);
+      final mark = DoneMark('t-1', noon);
+      final done = layout(items, ending: ChatEnding(done: mark, uncommitted: 3));
+      expect(only<ResultRow>(done).single.done, mark);
+      expect(only<TidyRow>(done).single.files, 3);
+
+      final clean = layout(items, ending: ChatEnding(done: mark));
+      expect(only<TidyRow>(clean), isEmpty);
     });
 
-    test('a failure never folds — red is there to be seen', () {
-      // Runs of two either side, so the only line left unfolded is the failure itself.
-      final l = layout([step('Read'), step('Grep'), problem(), step('Read'), step('Grep')]);
-
-      expect(only<StepRunRow>(l), hasLength(2));
-      expect(only<LineRow>(l), hasLength(1));
-      expect(only<LineRow>(l).single.item.kind, ChatLine.problem);
+    test('the live phrase is the fallback for a host with no turns, never beside progress', () {
+      final l = layout([prompt('t-1')], progress: {'t-1': progressOf(open: true)}, working: true, live: 'atlas');
+      expect(only<LiveRow>(l), isEmpty);
     });
   });
 }

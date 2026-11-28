@@ -143,10 +143,16 @@ class PagerHarness {
   /// target (`notification_event.rs`), and `StepLine` draws the tool's **name**
   /// lowercased while drawing the target verbatim — so asserting on the title would be
   /// asserting on a typographic rule instead of on the step arriving.
+  /// A reply line, which Chat draws (tool steps stay in Terminal).
+  void emitReply({String paneId = 'p-1', required String body}) =>
+      emitHook(paneId: paneId, event: 'agent-response', title: '', toolTarget: '', body: body);
+
   void emitHook({
     HostId host = const HostId('mac'),
     String paneId = 'p-1',
     String title = 'Grep',
+    String event = 'tool-pre',
+    String body = '',
     required String toolTarget,
     int at = 1785664900000,
   }) =>
@@ -158,10 +164,10 @@ class PagerHarness {
             'timestamp': at,
             'pane_id': paneId,
             'agent_type': 'claude',
-            'event': 'tool-pre',
+            'event': event,
             'tool_target': toolTarget,
             'title': title,
-            'body': '',
+            'body': body,
             'status': 'running',
             'body_truncated': false,
           }),

@@ -25,7 +25,7 @@ Turn _turn(List<Part> parts, {bool ended = false}) => Turn(
     endedAt: ended ? _at.add(const Duration(minutes: 3, seconds: 10)) : null,
     stopReason: ended ? 'end_turn' : null);
 
-List<(String, StepState)> _rows(TurnProgress p) => [for (final s in p.steps) (s.label, s.state)];
+List<(String, ProgressState)> _rows(TurnProgress p) => [for (final s in p.steps) (s.label, s.state)];
 
 void main() {
   test('the agent own plan wins, read as done / now / next', () {
@@ -40,9 +40,9 @@ void main() {
     ]));
     expect(p.fromPlan, isTrue);
     expect(_rows(p), [
-      ('Read the transport', StepState.done),
-      ('Write SshTransport', StepState.now),
-      ('Run the tests', StepState.next),
+      ('Read the transport', ProgressState.done),
+      ('Write SshTransport', ProgressState.now),
+      ('Run the tests', ProgressState.next),
     ]);
   });
 
@@ -52,17 +52,17 @@ void main() {
       _plan([('New A', PlanStatus.completed), ('New B', PlanStatus.pending)]),
     ]));
     // Nothing in progress while the turn runs: the first open entry is the one being worked on.
-    expect(_rows(p), [('New A', StepState.done), ('New B', StepState.now)]);
+    expect(_rows(p), [('New A', ProgressState.done), ('New B', ProgressState.now)]);
   });
 
   test('without a plan, four phases read from the kind of work', () {
     final p = TurnProgress.of(_turn([_user('go'), _tool('read', 'a.dart'), _tool('edit', 'a.dart')]));
     expect(p.fromPlan, isFalse);
     expect(_rows(p), [
-      ('Reading', StepState.done),
-      ('Changing', StepState.now),
-      ('Testing', StepState.next),
-      ('Summing up', StepState.next),
+      ('Reading', ProgressState.done),
+      ('Changing', ProgressState.now),
+      ('Testing', ProgressState.next),
+      ('Summing up', ProgressState.next),
     ]);
   });
 
@@ -84,7 +84,7 @@ void main() {
 
   test('prose at the end is summing up; skipped phases are not drawn as done', () {
     final p = TurnProgress.of(_turn([_user('go'), _tool('read', 'a'), _prose('Done. It works.')]));
-    expect(_rows(p), [('Reading', StepState.done), ('Summing up', StepState.now)]);
+    expect(_rows(p), [('Reading', ProgressState.done), ('Summing up', ProgressState.now)]);
   });
 
   test('a finished turn: everything done, with a count and the time it took', () {
@@ -92,7 +92,7 @@ void main() {
       _plan([('A', PlanStatus.completed), ('B', PlanStatus.completed)]),
       _prose('ok'),
     ], ended: true));
-    expect(planned.steps.every((s) => s.state == StepState.done), isTrue);
+    expect(planned.steps.every((s) => s.state == ProgressState.done), isTrue);
     expect(planned.count, 2);
     expect(planned.took, const Duration(minutes: 3, seconds: 10));
 
@@ -100,7 +100,7 @@ void main() {
       _tool('read', 'a'), _tool('read', 'b'), _tool('edit', 'a'), _prose('ok'),
     ], ended: true));
     expect(unplanned.count, 3, reason: 'without a plan the count is the tool steps');
-    expect(_rows(unplanned).map((r) => r.$2).toSet(), {StepState.done});
+    expect(_rows(unplanned).map((r) => r.$2).toSet(), {ProgressState.done});
   });
 
   test('a reply with no work behind it has nothing to summarise', () {

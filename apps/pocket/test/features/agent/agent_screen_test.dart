@@ -134,7 +134,7 @@ void main() {
 
       // Asserted through behaviour rather than through `live.watching`, so this test
       // keeps its meaning when the store stops having a single pointer to inspect.
-      harness.emitHook(paneId: 'p-2', toolTarget: 'lib/search.dart');
+      harness.emitReply(paneId: 'p-2', body: 'lib/search.dart');
       await tester.pumpAndSettle();
 
       expect(find.text('lib/search.dart'), findsOne,
@@ -159,13 +159,13 @@ void main() {
       // and the text stays painted from the frame before. The store is already wrong;
       // the screen simply has not been told. Asking for a *new* step is what makes the
       // difference observable, because a store pointed at nothing drops every frame.
-      harness.emitHook(paneId: 'p-1', toolTarget: 'lib/renamed.dart');
+      harness.emitReply(paneId: 'p-1', body: 'lib/renamed.dart');
       await tester.pumpAndSettle();
       expect(find.text('lib/renamed.dart'), findsOne,
           reason: 'the page you came back to is genuinely live, not a stale painting');
     });
 
-    testWidgets('4. a step that lands while its agent is off screen is not lost',
+    testWidgets('4. a reply that lands while its agent is off screen is not lost',
         (tester) async {
       await open(tester);
       await swipe(tester, forward: true);
@@ -174,7 +174,7 @@ void main() {
       // Atlas keeps working while Borea is the one being looked at. The host broadcasts
       // this frame unconditionally (`stream-hub.ts`), so keeping it costs nothing on the
       // wire — throwing it away is what costs the operator the step.
-      harness.emitHook(paneId: 'p-1', toolTarget: 'lib/offscreen.dart');
+      harness.emitReply(paneId: 'p-1', body: 'lib/offscreen.dart');
       await tester.pumpAndSettle();
       expect(find.text('lib/offscreen.dart'), findsNothing,
           reason: 'not on the page it does not belong to');

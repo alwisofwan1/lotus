@@ -125,7 +125,7 @@ class AgentProse extends StatelessWidget {
       tableBuilder: (context, rows, style, config) => ProseTable(rows: rows, config: config),
       // Serif is the signal that this is the agent talking rather than the app
       // reporting — the distinction `MVP.md` bought a whole typeface for.
-      style: t.serif.copyWith(fontSize: 14.5, height: 1.55, color: t.text),
+      style: t.serif.copyWith(fontSize: 16, height: 1.5, color: t.text),
       // Links keep the prose colour instead of the framework's blue.
       followLinkColor: true,
       // A markdown link goes through the same door a bare one does, so an operator

@@ -10,7 +10,9 @@ import '../agent_activity.dart';
 import '../../shared/refreshable.dart';
 import '../chat_transcript.dart';
 import '../question_flow.dart';
-import '../work_state.dart';
+import '../../../data/done_marks.dart';
+import '../chat_layout.dart';
+import 'chat_result.dart';
 import '../pending_dispatch.dart';
 import '../../../data/agent_outcome.dart';
 import 'agent_notices.dart';
@@ -44,8 +46,16 @@ class ChatBody extends StatelessWidget {
     required this.pager,
     this.onShowDiff,
     this.onStop,
+    this.doneMarks,
+    this.onInstruct,
     super.key,
   });
+
+  /// Where Done is kept. Null draws no Done action.
+  final DoneMarks? doneMarks;
+
+  /// Sends an ordinary instruction, as the composer would.
+  final void Function(String text)? onInstruct;
 
   /// Interrupts the turn from the working row. Null for a host that cannot be asked —
   /// and the control is then not drawn, rather than drawn and inert.
@@ -127,8 +137,9 @@ class ChatBody extends StatelessWidget {
     // Rebuilt from the live store on every step, rather than from the snapshot the page
     // happened to open with. `ChatTranscript.ofTurns` stays the single place that decides
     // what a line is — the source moved twice now, the rules did not.
+    final marks = doneMarks;
     return ListenableBuilder(
-      listenable: live,
+      listenable: Listenable.merge([live, ?marks]),
       builder: (context, _) {
         // Asked for **this** cell by name. The store holds the pager's whole reachable
         // window, so a page that reads "whatever is current" would render its
@@ -150,18 +161,15 @@ class ChatBody extends StatelessWidget {
           // Only at the cap. Below it nothing was dropped, so there is no edge to state.
           historyEdgeAt: live.atHistoryEdge(cell.ref) ? live.partsHeld(cell.ref) : null,
           pending: pending.where((p) => !p.settledBy(prompts)).toList(),
-          // Read from the turn the store holds, not from a phrase the fleet happened to
-          // send: `lastOutputPreview` is absent on a standalone host, which is why the
-          // old row drew nothing while an agent worked (`work_state.dart`).
-          //
-          // Two states are not "working" however open the last turn looks, and the fleet
-          // is the authority on both (ADR-8): a cell **asking you something** is waiting,
-          // not working — the permission card is the screen then, and a turning orb beside
-          // it would be a second voice. And a cell the fleet calls **idle** is finished
-          // even if its closing hook has not arrived yet, which on a terminal cell can be
-          // 60s later. Unknown is left alone: it is the common case on a standalone host,
-          // and it is exactly where this row was missing.
-          work: cell.needsInput || cell.isIdle ? null : WorkState.of(turns),
+          // The fleet is the authority (ADR-8): asking is waiting, idle is finished even
+          // before the closing hook lands.
+          turns: turns,
+          working: !cell.needsInput && !cell.isIdle && (turns.lastOrNull?.isOpen ?? false),
+          ending: _ending(current, turns),
+          onDone: marks == null || turns.isEmpty
+              ? null
+              : () => markDone(context, marks, cell.ref, turns.last.turnId),
+          onInstruct: onInstruct,
           live: liveLabel(cell),
           onStop: onStop,
           onRetry: onRetry,
@@ -203,6 +211,16 @@ class ChatBody extends StatelessWidget {
   /// four cells, all `UNKNOWN`, and a gate on `isIdle` alone drew the card for none of
   /// them. What it must not do is describe a cell the fleet says is *running* or
   /// *waiting* — that turn is being written.
+  /// Once the fleet calls the agent idle, the last turn has a result to show.
+  ChatEnding? _ending(AgentView current, List<Turn> turns) {
+    final last = turns.lastOrNull;
+    if (last == null || !cell.isIdle || cell.needsInput) return null;
+    return ChatEnding(
+      done: doneMarks?.doneFor(cell.ref, lastTurn: last.turnId),
+      uncommitted: current.result?.changes?.files.length ?? 0,
+    );
+  }
+
   static bool settled(Cell cell) => cell.isIdle || !cell.turnKnown;
 
   /// The one slot in Chat that answers *what now*. A question the agent is asking wins;

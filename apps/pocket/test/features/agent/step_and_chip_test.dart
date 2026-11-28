@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/app/theme/app_theme.dart';
-import 'package:lotus_pocket/app/theme/app_tokens.dart';
 import 'package:lotus_pocket/features/agent/chat_transcript.dart';
 import 'package:lotus_pocket/features/agent/widgets/changes_chip.dart';
-import 'package:lotus_pocket/features/agent/chat_layout.dart';
 import 'package:lotus_pocket/features/agent/widgets/chat_steps.dart';
-import 'package:lotus_pocket/features/agent/widgets/thinking_block.dart';
 import 'package:lotus_pocket/models/conversation.dart';
 
 final _at = DateTime.fromMillisecondsSinceEpoch(1788820000000);
@@ -29,7 +26,6 @@ List<ChatItem> _items(List<Part> parts) =>
     ChatTranscript.ofTurns([Turn(turnId: 't-1', startedAt: _at, parts: parts)]).items;
 
 void main() {
-  _capsuleBody();
   _noticeLine();
   /// Three meanings shared one appearance until 2026-09-08: a failed command, an
   /// interruption and a file being read all drew the same mono line. The transcript
@@ -45,25 +41,6 @@ void main() {
       final items = _items([_error('Interrupted by the operator')]);
       expect(items.single.kind, ChatLine.problem);
       expect(items.single.text, 'Interrupted by the operator');
-    });
-
-    testWidgets('the glyph column says done, failed, or merely happened', (tester) async {
-      for (final (status, glyph) in [
-        ('completed', '✓'),
-        ('failed', '✕'),
-        ('cancelled', '–'),
-        ('in_progress', '·'),
-      ]) {
-        await tester.pumpWidget(_host(StepLine(item: _items([_tool(status)]).single)));
-        expect(find.text(glyph), findsOneWidget, reason: 'for $status');
-      }
-    });
-
-    testWidgets('a failure is drawn in the colour that already means that', (tester) async {
-      await tester.pumpWidget(_host(ProblemLine(item: _items([_error('boom')]).single)));
-      final text = tester.widget<Text>(find.text('boom'));
-      expect(text.style?.color, AppTokens.dark.error);
-      expect(find.text('✕'), findsOneWidget);
     });
   });
 
@@ -92,28 +69,6 @@ void main() {
 
 /// Opening a fold must draw each line in its own voice.
 ///
-/// Reasoning folds into the same run as tool steps since issue 03 of
-/// `plans/pocket-chat-turn-presentation`. The expanded body drew every member through
-/// [StepLine] — mono, with a tool glyph in the left column — which is the voice for what
-/// the agent *did*, not for what it was working out. `MVP.md` buys a whole typeface for
-/// that difference.
-void _capsuleBody() {
-  testWidgets('an opened fold draws reasoning as reasoning, not as a step', (tester) async {
-    final row = StepRunRow('r-1', [
-      ChatItem(kind: ChatLine.thinking, text: 'Menimbang dua penyebab.', timestamp: _at),
-      ChatItem(kind: ChatLine.step, text: 'src/pty.rs', label: 'Read', timestamp: _at),
-    ]);
-
-    await tester.pumpWidget(_host(
-      StepCapsule(row: row, expanded: true, onToggle: () {}),
-    ));
-
-    expect(find.byType(ThinkingBlock), findsOneWidget);
-    // The one `Read` is still a step; the thought is not.
-    expect(find.byType(StepLine), findsOneWidget);
-  });
-}
-
 /// A notice is mono like a step and never red.
 ///
 /// `AppTokens.error` is one of the two colours `MVP.md` allows this screen, and its whole

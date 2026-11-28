@@ -284,8 +284,7 @@ void main() {
   });
 
   group('Chat: three kinds of line, and no colour at all', () {
-    testWidgets('renders the prompt bubble, the steps, and the diff badge',
-        (tester) async {
+    testWidgets('renders the prompt bubble, and leaves the steps to Terminal', (tester) async {
       http
         ..enqueue(fixture('rest-transcript'))
         ..enqueue('{"paneId":"p-1","awaiting":false,"prompt":null}');
@@ -293,10 +292,9 @@ void main() {
       await show(tester, cell(turn: 'running'));
 
       expect(find.text('clean up the legacy files'), findsOne);
-      expect(find.text('edit'), findsOne);
-      expect(find.text('read'), findsOne);
-      // Absent is not zero: only the Edit entry carries counts in the fixture.
-      expect(find.textContaining('−34', findRichText: true), findsOne);
+      expect(find.text('edit'), findsNothing);
+      expect(find.text('read'), findsNothing);
+      expect(find.textContaining('−34', findRichText: true), findsNothing);
     });
 
     /// The door into raw output is the header's `Chat | Terminal` switch (ADR-6 addendum

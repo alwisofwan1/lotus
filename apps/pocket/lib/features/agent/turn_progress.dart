@@ -1,6 +1,6 @@
 import '../../models/conversation.dart';
 
-enum StepState { done, now, next }
+enum ProgressState { done, now, next }
 
 /// The four generic phases, used when the agent keeps no plan of its own.
 enum Phase {
@@ -16,7 +16,7 @@ enum Phase {
 class ProgressStep {
   const ProgressStep(this.label, this.state);
   final String label;
-  final StepState state;
+  final ProgressState state;
 }
 
 /// Chat's one progress signal for a turn: the agent's plan, else the generic phases.
@@ -65,13 +65,13 @@ class TurnProgress {
     final steps = <ProgressStep>[
       for (final p in Phase.values)
         if (!open && reached.contains(p))
-          ProgressStep(p.label, StepState.done)
+          ProgressStep(p.label, ProgressState.done)
         else if (open && p == top)
-          ProgressStep(p.label, StepState.now)
+          ProgressStep(p.label, ProgressState.now)
         else if (open && p.index < top.index && reached.contains(p))
-          ProgressStep(p.label, StepState.done)
+          ProgressStep(p.label, ProgressState.done)
         else if (open && p.index > top.index)
-          ProgressStep(p.label, StepState.next),
+          ProgressStep(p.label, ProgressState.next),
     ];
     return TurnProgress._(steps, fromPlan: false, phase: top, count: tools, took: took);
   }
@@ -85,7 +85,7 @@ class TurnProgress {
       };
 
   static List<ProgressStep> _planSteps(List<PlanEntry> entries, {required bool open}) {
-    if (!open) return [for (final e in entries) ProgressStep(e.content, StepState.done)];
+    if (!open) return [for (final e in entries) ProgressStep(e.content, ProgressState.done)];
     // A plan with nothing marked in progress is still being worked: the first open entry is.
     final anyNow = entries.any((e) => e.status == PlanStatus.inProgress);
     final firstOpen = entries.indexWhere((e) => e.status != PlanStatus.completed);
@@ -94,9 +94,9 @@ class TurnProgress {
         ProgressStep(
           entries[i].content,
           switch (entries[i].status) {
-            PlanStatus.completed => StepState.done,
-            PlanStatus.inProgress => StepState.now,
-            PlanStatus.pending => !anyNow && i == firstOpen ? StepState.now : StepState.next,
+            PlanStatus.completed => ProgressState.done,
+            PlanStatus.inProgress => ProgressState.now,
+            PlanStatus.pending => !anyNow && i == firstOpen ? ProgressState.now : ProgressState.next,
           },
         ),
     ];
