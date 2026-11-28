@@ -182,6 +182,47 @@ The card is `raised`, with a 1 px ring of `waitingRule` at about 20% and a soft 
 never a thick coloured left or right border: amber marks *which* card, the words say *why*. The earlier
 bordered card (*Calm* in the mockup) is kept only as a fallback.
 
+### Empty, error and edge states
+
+Mockup section 9 draws each one. Rules for all of them:
+
+- Say what happened in plain words, then give at most two ways out. A primary action is an inverted pill.
+- **Colour:** grey means it will fix itself or it waits on the world (Mac asleep, no internet, plan limit).
+  Red ink means the user must act (exit code, expired key, folder gone). Red is never a fill. Amber is never
+  used here, unless an agent really needs you.
+- Show the last known list when the Mac is gone, dimmed, with "seen 10:42". Never show an empty screen that
+  hides what was there.
+- An approval needs a live link: offline, the slider is replaced by "Needs connection". Approvals are never
+  queued.
+- Loading is a still skeleton under a real header. No spinner as a whole screen, no shimmer.
+
+Four shapes cover every state, so they read as one family:
+
+| Shape | Used for | Look |
+|---|---|---|
+| **Orb hero** | full-screen empty (not paired, nothing found) | a 64 px `raised` tile with two hairline rings, display 28 title, one body line, one pill |
+| **Slip** | anything the user must act on (approval, agent stopped) | the needs-you slip: head, tear line, stub with the actions. An error slip uses red ink, never a red fill |
+| **Capsule** | a state of the link or the Mac on Home | a floating `raised` pill under the header with an icon, words and one inverted button |
+| **Event pill** | something that happened elsewhere (answered on the Mac) | a slim pill on a hairline divider, centred in the chat |
+
+Small rules: a ghost slip (dashed outline) shows where agents will appear; the search query itself is the
+picture; a setting that is off is fixed with a real switch in place; a plan limit shows a time ring until reset;
+a start failure is an inverted snackbar with one action; a Mac is a device tile with a status dot.
+
+| State | Where | Words | Way out |
+|---|---|---|---|
+| Not paired | first run | "Pair with your Mac" | Scan pairing code · Type the address |
+| No agents | Home | "No agents yet" | last projects as one-tap starts · New agent |
+| Nobody needs you | Home | "Nobody needs you · 3 agents are working" | none |
+| Mac asleep | Home, Chat | "Studio Mac is asleep · seen 10:42" | Try again |
+| Search, no match | Home | "No agent matches “deploy”" | Cancel |
+| Notifications off | Home | "Notifications are off" | Turn on |
+| Agent stopped | Chat | "Kai stopped · exit code 1" + last lines | Open terminal · Restart |
+| Answered elsewhere | Chat | "Allowed on Studio Mac · 10:46" (log line) | none |
+| Plan limit | Chat | "Claude limit reached · resets at 14:00" | Switch model · Notify me |
+| Cannot start | Setup, toast | "Sign in on your Mac" / "Could not start Kai" | Pick folder |
+| More than one Mac | Mac pill sheet | per Mac: "2 need you", "Asleep", "Key expired" | All Macs · Pair another Mac |
+
 ## 9. Icons and logos
 
 - **UI icons:** one outline set, 1.5 px stroke, 20 px in rows and 24 px in the app bar. No emoji or Unicode glyphs
