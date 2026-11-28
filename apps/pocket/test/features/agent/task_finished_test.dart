@@ -23,8 +23,9 @@ Part _plan(List<PlanStatus> states) => PlanUpdatePart(
     id: 'plan${_seq++}', ts: _at, seq: _seq, provenance: Provenance.hook,
     entries: [for (final (i, s) in states.indexed) PlanEntry(content: 'Step $i', status: s)]);
 
-Part _error() => ErrorPart(
-    id: 'e${_seq++}', ts: _at, seq: _seq, provenance: Provenance.hook, message: 'boom', recoverable: false);
+Part _error({bool recoverable = false}) => ErrorPart(
+    id: 'e${_seq++}', ts: _at, seq: _seq, provenance: Provenance.hook, message: 'boom',
+    recoverable: recoverable);
 
 Part _openQuestion() => QuestionPart(
     id: 'q${_seq++}', ts: _at, seq: _seq, provenance: Provenance.hook, questions: const []);
@@ -72,6 +73,9 @@ void main() {
   group('how the turn ended', () {
     test('an error part is not finished', () {
       expect(_finished([_turn([..._worked(), _error()])]), isFalse);
+    });
+    test('a recoverable notice (plan-limit warning) is still finished', () {
+      expect(_finished([_turn([..._worked(), _error(recoverable: true)])]), isTrue);
     });
     test('stopped by the operator is not finished', () {
       expect(_finished([_turn(_worked(), stop: 'cancelled')]), isFalse);

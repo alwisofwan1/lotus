@@ -13,7 +13,8 @@ bool taskLooksFinished({
   if (!cell.turnKnown || !cell.isIdle || promptPending) return false;
   final last = turns.lastOrNull;
   if (last == null || last.isOpen || last.stopReason != 'end_turn') return false;
-  if (asking(turns) || last.parts.any((p) => p is ErrorPart)) return false;
+  // A recoverable error is a notice (a plan-limit heads-up), not a failure.
+  if (asking(turns) || last.parts.any((p) => p is ErrorPart && !p.recoverable)) return false;
 
   final worked = last.parts.any((p) => p is ToolCallPart || p is PlanUpdatePart && p.entries.isNotEmpty);
   if (!worked) return false;
