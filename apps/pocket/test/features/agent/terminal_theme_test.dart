@@ -12,7 +12,7 @@ void main() {
   // It was `t.raise`, one step off the background: a selection the operator could not
   // find on a phone in daylight (LOT2-104).
   group('the selection', () {
-    final selection = terminalTheme(themeRegistry.first.dark.terminal).selection;
+    final selection = terminalTheme(themeById('classic').dark.terminal).selection;
 
     test('lets the text under it through', () {
       expect(selection.a, inInclusiveRange(0.25, 0.5));

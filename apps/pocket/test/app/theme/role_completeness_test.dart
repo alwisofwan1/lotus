@@ -5,7 +5,7 @@ import 'package:lotus_pocket/app/theme/theme.dart';
 
 /// Generic over each role enum, so a new role is covered without editing this file.
 void main() {
-  final v = themeRegistry.first.dark;
+  final v = themeById('classic').dark;
   const probe = Color(0xFF123456);
 
   group('AppColors is complete over ColorRole', () {

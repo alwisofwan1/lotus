@@ -61,7 +61,7 @@ void main() {
   }
 
   group('checkTheme names what is wrong', () {
-    final v = themeRegistry.first.dark;
+    final v = themeById('classic').dark;
     ThemeVariant with_(Map<ColorRole, Color> over) => ThemeVariant(
           brightness: v.brightness,
           tokens: v.tokens.copyWith(colors: v.tokens.colors.copyWith(over)),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/app/composition_root.dart';
+import 'package:lotus_pocket/app/diagnostics_route.dart';
 import 'package:lotus_pocket/app/pocket_app.dart';
 import 'package:lotus_pocket/app/theme/app_tokens.dart';
 import 'package:lotus_pocket/app/theme/registry.dart';
@@ -73,5 +74,24 @@ void main() {
     final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
     expect(app.themeMode, ThemeMode.dark);
     expect(app.darkTheme!.extension<AppTokens>(), AppTokens.dark);
+  });
+
+  test('the Settings picker drives the controller, which saves the pick', () async {
+    final store = InMemorySecureStore();
+    final choice = ThemeChoice(store);
+    await choice.load();
+    final controller = ThemeController.restore(choice);
+    final picker = appearanceOf(controller);
+
+    expect(picker.themes.map((d) => d.id), ['graphite', 'classic']);
+    expect(picker.themeId, 'graphite');
+    picker.onTheme('classic');
+    picker.onMode(ThemeMode.dark);
+    await pumpEventQueue();
+
+    expect(controller.theme.id, 'classic');
+    expect(controller.mode, ThemeMode.dark);
+    expect(store.entries[ThemeChoice.themeKey], 'classic');
+    expect(store.entries[ThemeChoice.appearanceKey], 'dark');
   });
 }

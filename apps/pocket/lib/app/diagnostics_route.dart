@@ -5,7 +5,19 @@ import 'package:flutter/material.dart';
 import '../data/diagnostics.dart';
 import '../features/onboarding/onboarding_screen.dart';
 import '../features/settings/settings_screen.dart';
+import '../features/settings/widgets/appearance_block.dart';
 import 'composition_root.dart';
+import 'theme/registry.dart';
+import 'theme/theme_controller.dart';
+
+/// The picker's view of [theme]: every registered theme, and picks go straight to it.
+AppearanceSettings appearanceOf(ThemeController theme) => AppearanceSettings(
+      themes: [for (final d in themeRegistry) (id: d.id, label: d.label)],
+      themeId: theme.theme.id,
+      mode: theme.mode,
+      onTheme: theme.select,
+      onMode: (m) => theme.mode = m,
+    );
 
 /// The two routes reached from Diagnostics, and the reason they are one file.
 ///
@@ -27,7 +39,7 @@ import 'composition_root.dart';
   /// the confirmation. With none left, `Credentials.forget` has already notified and
   /// onboarding has replaced Home underneath this route, so leaving the operator on an
   /// empty Diagnostics with a back button would hide the screen they now need.
-  void openDiagnostics(BuildContext context, CompositionRoot root) {
+  void openDiagnostics(BuildContext context, CompositionRoot root, ThemeController theme) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SettingsScreen(
@@ -37,7 +49,8 @@ import 'composition_root.dart';
             push: root.push,
             now: root.now(),
           ),
-          revision: Listenable.merge([root.registry, root.credentials]),
+          // The theme controller too: a mode change can leave ThemeData equal, so no rebuild.
+          revision: Listenable.merge([root.registry, root.credentials, theme]),
           onUnpair: (host) async {
             await root.pairing.unpair(host);
             if (root.credentials.devices.isEmpty && context.mounted) {
@@ -66,6 +79,7 @@ import 'composition_root.dart';
           onRefresh: root.fleetRepository.refreshAll,
           measurements: root.measurements,
           running: root.buildSeen.current,
+          appearance: () => appearanceOf(theme),
         ),
       ),
     );

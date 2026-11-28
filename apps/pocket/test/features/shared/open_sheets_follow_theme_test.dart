@@ -14,7 +14,7 @@ import 'package:lotus_pocket/models/cell_result.dart';
 /// A sheet open while the theme changes must repaint in the new theme, not keep the
 /// colours it was opened with.
 void main() {
-  final dark = themeRegistry.first.dark;
+  final dark = themeById('classic').dark;
   final light = ThemeVariant(
     brightness: Brightness.light,
     tokens: dark.tokens.copyWith(

@@ -75,7 +75,7 @@ void main() {
   group('parameterised for the day a second theme variant exists', () {
     // Not a real theme — proves the builder actually reads its parameter rather
     // than hard-coding AppTokens.dark somewhere inside a giant ThemeData literal.
-    final classicDark = themeRegistry.first.dark;
+    final classicDark = themeById('classic').dark;
     final alternate = classicDark.tokens.copyWith(
       colors: classicDark.tokens.colors.copyWith({
         ColorRole.ground: const Color(0xFF101010),

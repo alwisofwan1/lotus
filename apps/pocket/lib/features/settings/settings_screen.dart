@@ -10,6 +10,7 @@ import '../shared/host_label.dart';
 import '../shared/refreshable.dart';
 import '../shared/name_machine.dart';
 import 'widgets/app_build_block.dart';
+import 'widgets/appearance_block.dart';
 import 'widgets/host_block.dart';
 import 'widgets/pair_another.dart';
 import 'widgets/unreadable_entries.dart';
@@ -28,9 +29,9 @@ import 'widgets/readdress_dialog.dart';
 /// screens calm, and it is also what makes an absent capability indistinguishable from
 /// a broken one. This is where the difference is written down.
 ///
-/// **No settings, despite the entry that opens it being called that.** There is
-/// nothing here to configure: every value is measured, and the two controls act on a
-/// pairing rather than on a preference — move a host to a new address, or give it up.
+/// **One setting only: the look** (theme and appearance). Every other value is
+/// measured, and the other controls act on a pairing rather than on a preference — move
+/// a host to a new address, or give it up.
 /// A preference would need a reason to exist, and none of the decisions this app makes
 /// — TTL, gate, push scope — are the operator's to tune.
 ///
@@ -49,6 +50,7 @@ class SettingsScreen extends StatelessWidget {
     required this.onRefresh,
     required this.measurements,
     required this.running,
+    this.appearance,
     super.key,
   });
 
@@ -113,6 +115,9 @@ class SettingsScreen extends StatelessWidget {
   /// This phone's build, shown last (see [AppBuildBlock]).
   final AppBuild running;
 
+  /// Read on every rebuild like [read]; null hides the picker.
+  final AppearanceSettings Function()? appearance;
+
   @override
   Widget build(BuildContext context) {
     final t = context.tokens;
@@ -164,6 +169,7 @@ class SettingsScreen extends StatelessWidget {
         if (diagnostics.unreadableEntries.isNotEmpty)
           UnreadableEntries(keys: diagnostics.unreadableEntries),
         MeasurementLogBlock(measurements: measurements),
+        if (appearance case final look?) AppearanceBlock(settings: look()),
         AppBuildBlock(running: running),
       ],
       ),

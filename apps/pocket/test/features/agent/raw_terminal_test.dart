@@ -1124,7 +1124,7 @@ void main() {
       // The two weights are the app's own ink, not a third colour: this product allows
       // amber and red to mean something, and a search hit is neither.
       final current =
-          controller.highlights.where((h) => h.color == themeRegistry.first.dark.terminal[TermRole.findHitCurrent]);
+          controller.highlights.where((h) => h.color == themeById('classic').dark.terminal[TermRole.findHitCurrent]);
       expect(current, hasLength(1));
     });
 
@@ -1136,7 +1136,7 @@ void main() {
 
       const current = Color(0x66123456);
       const other = Color(0x33123456);
-      final base = themeRegistry.first.dark;
+      final base = themeById('classic').dark;
       await show(tester, theme: buildAppTheme(ThemeVariant(
         brightness: base.brightness,
         tokens: base.tokens,

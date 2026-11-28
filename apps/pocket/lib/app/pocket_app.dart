@@ -281,7 +281,7 @@ class _PocketAppState extends State<PocketApp> with WidgetsBindingObserver {
 
   /// Pushes Diagnostics. The wiring lives in its own file — see `diagnostics_route.dart`
   /// for why the two routes there belong together.
-  void _openDiagnostics(BuildContext context) => openDiagnostics(context, root);
+  void _openDiagnostics(BuildContext context) => openDiagnostics(context, root, _theme);
 
   /// Opens the agent pager — from Home's list, the index's `needs you` block, or a
   /// wake-up. From the last two nothing underneath can start an agent, so the pager's
