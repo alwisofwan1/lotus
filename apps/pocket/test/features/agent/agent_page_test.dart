@@ -503,13 +503,13 @@ void main() {
       expect(find.text('…or tell Atlas what to do instead'), findsOne);
     });
 
-    testWidgets('a working agent gets the plain reply prompt', (tester) async {
+    testWidgets('a working agent takes an added instruction', (tester) async {
       http
         ..enqueue(fixture('rest-transcript'))
         ..enqueue('{"paneId":"p-1","awaiting":false,"prompt":null}');
       await show(tester, cell(turn: 'running'));
 
-      expect(find.text('Reply to Atlas'), findsOne);
+      expect(find.text('Add an instruction…'), findsOne);
     });
 
     testWidgets('typing and sending dispatches, gated', (tester) async {

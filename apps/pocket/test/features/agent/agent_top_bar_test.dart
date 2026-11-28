@@ -37,6 +37,7 @@ void main() {
     WidgetTester tester, {
     AgentSurface surface = AgentSurface.chat,
     bool canShow = true,
+    bool canClose = false,
     int? changed,
   }) async {
     await tester.pumpWidget(MaterialApp(
@@ -54,7 +55,7 @@ void main() {
           actions: CellActionHandlers(
             onStop: (c) => stopped.add(c.title),
             onClose: (_) {},
-            canClose: (_) => false,
+            canClose: (_) => canClose,
           ),
           changedFiles: changed,
           onOpenChanges: () => changesOpened++,
@@ -97,22 +98,36 @@ void main() {
 
   testWidgets('the switch asks for the other view, and never for the one shown',
       (tester) async {
-    await bar(tester);
+    await bar(tester, surface: AgentSurface.terminal);
 
-    await tester.tap(segment('Chat'));
     await tester.tap(segment('Terminal'));
+    await tester.tap(segment('Chat'));
 
-    expect(shown, [AgentSurface.terminal]);
+    expect(shown, [AgentSurface.chat]);
+  });
+
+  testWidgets('on Chat the header has no switch: it sits by the composer', (tester) async {
+    await bar(tester);
+    expect(find.byType(ViewSwitch), findsNothing);
+  });
+
+  testWidgets('⋯ opens the actions, and Close is there', (tester) async {
+    await bar(tester, canClose: true);
+    expect(find.text('Close'), findsNothing);
+
+    await tester.tap(find.byTooltip('More actions'));
+    await tester.pumpAndSettle();
+    expect(find.text('Close'), findsOne);
   });
 
   testWidgets('each segment is at least a thumb tall, though the track is not', (tester) async {
-    await bar(tester);
+    await bar(tester, surface: AgentSurface.terminal);
 
     expect(tester.getSize(find.byType(ViewSwitch)).height, greaterThanOrEqualTo(44));
-    // The top edge of the 44px box, outside the drawn track, still counts as Terminal.
+    // The top edge of the 44px box, outside the drawn track, still counts as Chat.
     final box = tester.getRect(find.byType(ViewSwitch));
-    await tester.tapAt(Offset(box.right - 10, box.top + 1));
-    expect(shown, [AgentSurface.terminal]);
+    await tester.tapAt(Offset(box.left + 10, box.top + 1));
+    expect(shown, [AgentSurface.chat]);
   });
 
   testWidgets('the selected segment says so to a screen reader', (tester) async {

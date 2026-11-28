@@ -168,6 +168,8 @@ void markDone(BuildContext context, DoneMarks marks, CellRef ref, String turnId)
     ..showSnackBar(SnackBar(
       content: const Text('Marked done'),
       duration: const Duration(seconds: 5),
+      // An action would otherwise keep it up until dismissed; Undo is a 5 s window.
+      persist: false,
       action: SnackBarAction(label: 'Undo', onPressed: () => marks.clear(ref)),
     ));
 }

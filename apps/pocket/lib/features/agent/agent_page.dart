@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show SystemChrome, SystemUiMode, SystemUi
 import '../../app/theme/theme.dart';
 import '../../data/agent_repository.dart';
 import '../../data/dictation.dart';
+import '../../data/done_marks.dart';
 import '../../data/draft_keeper.dart';
 import '../../data/live_conversation.dart';
 import '../../data/transcript_pager.dart';
@@ -62,8 +63,12 @@ class AgentPage extends StatefulWidget {
     required this.hostLabel,
     required this.onBack,
     this.onSessions,
+    this.doneMarks,
     super.key,
   });
+
+  /// Where Done is kept, per agent. Null draws no Done action.
+  final DoneMarks? doneMarks;
 
   final Cell cell;
   final AgentRepository repository;
@@ -130,6 +135,7 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
     super.initState();
     _composer.addListener(_keepDraft);
     widget.active?.addListener(_syncTail);
+    widget.doneMarks?.addListener(_onDoneChanged);
     _poll = QuestionPoll(
       live: widget.live,
       ref: widget.cell.ref,
@@ -157,6 +163,7 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
   void dispose() {
     _poll.dispose();
     widget.active?.removeListener(_syncTail);
+    widget.doneMarks?.removeListener(_onDoneChanged);
     _composer.removeListener(_keepDraft);
     // Before the field goes: the last thing typed may still be inside the settle window,
     // and this page is the last object that could have written it.
@@ -174,6 +181,8 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
   /// Reads this cell, then seeds the transcript with whatever the host had. The store is
   /// **already collecting** before this runs, which is why `seed` merges rather than
   /// replaces: a turn can produce a dozen hook events in one round trip.
+  void _onDoneChanged() => setState(() {});
+
   @override
   Future<void> _load() async {
     final view = await widget.repository.load(widget.cell.ref);
@@ -197,6 +206,10 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
     // `AgentScreen` leaves the status bar to the page, so Terminal's ground can reach the
     // top of the glass instead of stopping under a strip of the app's floor.
     final statusBar = MediaQuery.paddingOf(context).top;
+    final lastTurn = widget.live.turnsFor(widget.cell.ref).lastOrNull?.turnId;
+    final done = widget.doneMarks?.doneFor(widget.cell.ref, lastTurn: lastTurn) != null;
+    final c = widget.cell;
+    final working = c.turnKnown && !c.isIdle && !c.needsInput;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: overlayFor(ground),
@@ -239,6 +252,7 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
               // for a host that just said it cannot be reached. None for a Chat cell: no terminal.
               onShow: widget.cell.terminal && view != null && !view.isFailed ? _show : null,
               onBack: widget.onBack,
+              done: done,
               // No *Send here*: the composer below is already this agent's.
               actions: _mutations.handlers(context),
               // Drawn only when git has files, so it never opens an empty sheet.
@@ -276,6 +290,8 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
                 onShowDiff: (path) => openDiff(context, cell: widget.cell, repository: widget.repository, path: path),
                 // `/m/cell/:paneId/stop`, which only the raw terminal could reach before.
                 onStop: () => unawaited(_mutations.stop(context, widget.cell)),
+                doneMarks: widget.doneMarks,
+                onInstruct: (text) => unawaited(_send(text)),
               ),
               terminal: onGround(ColoredBox(color: ground, child: _terminal(view))),
             ),
@@ -292,6 +308,12 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
             terminalShown: _mode.onTerminal,
             terminalLive: _mode.live,
             answerable: view?.answerable ?? false,
+            placeholder: working
+                ? 'Add an instruction…'
+                : done
+                    ? 'New task for ${c.title}…'
+                    : 'Reply to ${c.title}…',
+            onShow: widget.cell.terminal && view != null && !view.isFailed ? _show : null,
             onSend: _send,
           )),
         ],
