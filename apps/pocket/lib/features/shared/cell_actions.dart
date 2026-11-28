@@ -55,8 +55,14 @@ class CellActions extends StatelessWidget {
     required this.onAskClose,
     required this.onCancelClose,
     this.indent = 0,
+    this.offerClose = true,
+    this.closeLabel = 'Close',
     super.key,
   });
+
+  /// False hides Close, for a page whose header already closes the agent (Done).
+  final bool offerClose;
+  final String closeLabel;
 
   final Cell cell;
   final CellActionHandlers handlers;
@@ -113,7 +119,7 @@ class CellActions extends StatelessWidget {
           // warm colour a single meaning, and a destructive control that competed with
           // it would win — red is louder than amber, and it would be shouting about
           // something nobody is being asked to do.
-          if (handlers.canClose(cell)) _Quiet(label: 'Close', onTap: onAskClose),
+          if (offerClose && handlers.canClose(cell)) _Quiet(label: closeLabel, onTap: onAskClose),
         ],
       );
 

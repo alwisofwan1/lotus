@@ -5,6 +5,7 @@ import '../../../models/cell.dart';
 import '../../shared/back_glyph.dart';
 import '../../shared/cell_actions.dart';
 import '../page_mode.dart';
+import 'header_action.dart';
 import 'top_bar_title.dart';
 import 'view_switch.dart';
 
@@ -32,8 +33,18 @@ class AgentTopBar extends StatefulWidget {
     this.actions,
     this.changedFiles,
     this.onOpenChanges,
+    this.action = HeaderAction.none,
+    this.onAction,
+    this.offerClose = true,
     super.key,
   });
+
+  /// The one text slot (Stop / Done). Drawn on Chat only.
+  final HeaderAction action;
+  final VoidCallback? onAction;
+
+  /// Whether the drawer lists Close. False while the slot says Done, the same action.
+  final bool offerClose;
 
   final Cell cell;
   final int index;
@@ -92,7 +103,7 @@ class _AgentTopBarState extends State<AgentTopBar> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(2, 5, 12, 5),
+            padding: const EdgeInsets.fromLTRB(2, 5, 4, 5),
             child: Row(
               children: [
                 BackGlyph(onTap: widget.onBack),
@@ -109,13 +120,13 @@ class _AgentTopBarState extends State<AgentTopBar> {
                     ),
                   ),
                 ),
-                // On Chat the switch sits by the composer, near the thumb.
-                if (onShow != null && onTerminal) ...[
+                if (onShow != null) ...[
                   const SizedBox(width: 8),
                   ViewSwitch(shown: widget.shown, onShow: onShow),
                 ],
-                // On Terminal the switch takes this place; the title still opens the actions.
-                if (actions != null && !onTerminal)
+                if (!onTerminal && widget.onAction != null && widget.action != HeaderAction.none)
+                  HeaderActionButton(action: widget.action, onTap: widget.onAction!),
+                if (actions != null)
                   IconButton(
                     tooltip: 'More actions',
                     onPressed: _toggle,
@@ -157,6 +168,8 @@ class _AgentTopBarState extends State<AgentTopBar> {
               cell: widget.cell,
               handlers: actions,
               confirmingClose: _confirming,
+              offerClose: widget.offerClose,
+              closeLabel: 'Close agent',
               onAskClose: () => setState(() => _confirming = true),
               onCancelClose: () => setState(() => _confirming = false),
               indent: _indent,

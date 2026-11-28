@@ -2,12 +2,9 @@ import '../../models/cell.dart';
 import '../../models/conversation.dart';
 import 'question_flow.dart';
 
-/// Whether what the operator asked for can reasonably be called finished.
-///
-/// Gates the header's Done: it must not show on every idle pane, or it nags. Every check
-/// reads data the app already holds. Idle with a known turn, an ordinary `end_turn`, real
-/// work (a tool call or plan step), a plan with nothing open, and closing words that do
-/// not end on a question. [promptPending] is a sentence sent but not yet echoed back.
+/// Whether the last ask can reasonably be called finished; gates the header's Done so it
+/// never nags. Idle, a clean `end_turn`, real work, no open plan step, and closing words
+/// that do not ask something. [promptPending] is a sentence sent but not yet echoed back.
 bool taskLooksFinished({
   required Cell cell,
   required List<Turn> turns,

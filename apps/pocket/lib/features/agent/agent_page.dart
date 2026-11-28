@@ -16,6 +16,8 @@ import '../../models/permission.dart';
 import '../shared/agent_mutations.dart';
 import '../../data/agent_outcome.dart';
 import 'chat_seed.dart';
+import 'close_with_undo.dart';
+import 'task_finished.dart';
 import 'widgets/changes_sheet.dart';
 import 'pending_dispatch.dart';
 import 'pty_size_lease.dart';
@@ -26,6 +28,7 @@ import 'diff_screen.dart';
 import 'widgets/agent_input.dart';
 import 'widgets/agent_top_bar.dart';
 import 'widgets/agent_views.dart';
+import 'widgets/header_action.dart';
 import 'widgets/immersive_controls.dart' show ImmersiveExits;
 import 'widgets/mini_bar.dart';
 import 'widgets/quote_strip.dart';
@@ -186,6 +189,35 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
     });
   }
 
+  /// Stop while working, Done once the task looks finished (and the host can close), else none.
+  HeaderAction _headerAction() {
+    final c = widget.cell;
+    if (c.turnKnown && !c.isIdle && !c.needsInput) return HeaderAction.stop;
+    final prompts = widget.live.promptsFor(c.ref);
+    final finished = taskLooksFinished(
+      cell: c,
+      turns: widget.live.turnsFor(c.ref),
+      promptPending: _pending.any((p) => !p.settledBy(prompts)),
+    );
+    return finished && widget.repository.canCloseOn(c.host) ? HeaderAction.done : HeaderAction.none;
+  }
+
+  void _onHeaderAction(HeaderAction action) {
+    switch (action) {
+      case HeaderAction.stop:
+        unawaited(_mutations.stop(context, widget.cell));
+      case HeaderAction.done:
+        closeWithUndo(
+          messenger: ScaffoldMessenger.of(context),
+          mutations: _mutations,
+          cell: widget.cell,
+          uncommitted: _view?.result?.changes?.files.length ?? 0,
+          leave: widget.onBack,
+        );
+      case HeaderAction.none:
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final view = _view;
@@ -230,8 +262,16 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
             ))
           // Find open in Terminal: its bar is the header for as long as it lasts (B4).
           else if (!_mode.immersive && !(_finding && _mode.onTerminal))
-            onGround(AgentTopBar(
+            // Listens to the transcript: Done depends on how the last turn ended.
+            ListenableBuilder(
+              listenable: widget.live,
+              builder: (context, _) {
+                final action = _headerAction();
+                return onGround(AgentTopBar(
               cell: widget.cell,
+              action: action,
+              onAction: () => _onHeaderAction(action),
+              offerClose: action != HeaderAction.done,
               index: widget.index,
               total: widget.total,
               waitingAt: widget.waitingAt,
@@ -256,7 +296,9 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
                         cell: widget.cell, repository: widget.repository, path: path)
                     : null,
               ),
-            )),
+            ));
+              },
+            ),
           Expanded(
             child: AgentViews(
               shown: _mode.surface,
@@ -293,7 +335,6 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
             terminalLive: _mode.live,
             answerable: view?.answerable ?? false,
             placeholder: working ? 'Add an instruction…' : 'Reply to ${c.title}…',
-            onShow: widget.cell.terminal && view != null && !view.isFailed ? _show : null,
             onSend: _send,
           )),
         ],

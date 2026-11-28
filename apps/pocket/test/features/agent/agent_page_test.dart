@@ -577,8 +577,7 @@ void main() {
       await show(tester, cell(turn: 'running'), theme: theme);
     }
 
-    Finder segment(String label) =>
-        find.descendant(of: find.byType(ViewSwitch), matching: find.text(label));
+    Finder segment(String label) => find.byKey(ValueKey('view-${label.toLowerCase()}'));
 
     Future<void> showTerminal(WidgetTester tester) async {
       await tester.tap(segment('Terminal'));
@@ -967,10 +966,7 @@ void main() {
         ..enqueue(fixture('rest-transcript'))
         ..enqueue('{"paneId":"p-1","awaiting":false,"prompt":null}');
       await show(tester, cell(host: vps, turn: 'running'));
-      await tester.tap(find.descendant(
-        of: find.byType(ViewSwitch),
-        matching: find.text('Terminal'),
-      ));
+      await tester.tap(find.byKey(const ValueKey('view-terminal')));
       await tester.pumpAndSettle();
     }
 

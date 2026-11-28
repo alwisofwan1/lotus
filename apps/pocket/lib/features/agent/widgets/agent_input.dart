@@ -7,8 +7,6 @@ import '../../shared/composer.dart';
 import '../../shared/mutation_notice.dart';
 import 'quote_strip.dart';
 import 'composer_context.dart';
-import '../page_mode.dart';
-import 'view_switch.dart';
 
 /// Puts a chosen line in the field, caret at the end, **unsent**.
 ///
@@ -72,15 +70,11 @@ class AgentInput extends StatelessWidget {
     this.quote,
     this.onDropQuote,
     this.placeholder,
-    this.onShow,
     super.key,
   });
 
   /// What the empty field says for the agent's state; null leaves it to the mood.
   final String? placeholder;
-
-  /// Chat | Terminal, kept by the thumb. Null draws no switch (a Chat-only cell).
-  final ValueChanged<AgentSurface>? onShow;
 
   final Cell cell;
   final AgentRepository repository;
@@ -124,14 +118,6 @@ class AgentInput extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (onShow != null)
-          Padding(
-            padding: const EdgeInsets.only(left: 12, top: 4),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: ViewSwitch(shown: AgentSurface.chat, onShow: onShow!),
-            ),
-          ),
         Composer(
           mood: answerable ? ComposerMood.asking : ComposerMood.working,
           agent: cell.title,

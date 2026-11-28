@@ -187,6 +187,18 @@ class AgentMutations {
     return outcome.succeeded;
   }
 
+  /// The close Done schedules, run when its undo window has passed.
+  ///
+  /// Takes the messenger, not a context: the page that asked is gone by now. Says nothing on
+  /// success — `Closed <agent>` was shown when Done was tapped — and a refusal in words.
+  Future<bool> closeAfterUndo(ScaffoldMessengerState messenger, Cell target) async {
+    final outcome = await agents.close(target.ref, reason: 'Close ${target.title}');
+    if (outcome.succeeded) Tactile.answered();
+    final notice = outcome.succeeded ? null : noticeFor(outcome, agent: target.title);
+    if (notice != null) messenger.showSnackBar(SnackBar(content: Text(notice)));
+    return outcome.succeeded;
+  }
+
   /// Answers a pending prompt with the digit the host printed.
   ///
   /// Goes to `/input` — a **key press** — never `/dispatch`, which is a sentence the host

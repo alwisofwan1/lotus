@@ -308,7 +308,7 @@ void main() {
       await tester.pump();
     }
 
-    Finder front(String label) => find.text(label).hitTestable();
+    Finder front(String label) => find.byKey(ValueKey('view-${label.toLowerCase()}')).hitTestable();
 
     String drawn(WidgetTester tester) {
       final lines = tester.widget<TerminalView>(find.byType(TerminalView)).terminal.buffer.lines;
@@ -382,7 +382,7 @@ void main() {
   });
 
   group('the Sessions sheet moves the pager, and hands New back (v4 tiket 08)', () {
-    Finder front(String label) => find.text(label).hitTestable();
+    Finder front(String label) => find.byKey(ValueKey('view-${label.toLowerCase()}')).hitTestable();
 
     Future<void> openSessions(WidgetTester tester) async {
       await tester.tap(front('Terminal'));
@@ -460,7 +460,7 @@ void main() {
   });
 
   group('turning the phone on Terminal goes full screen (v4 tiket 10)', () {
-    Finder front(String label) => find.text(label).hitTestable();
+    Finder front(String label) => find.byKey(ValueKey('view-${label.toLowerCase()}')).hitTestable();
     final chrome = <String>[];
 
     void hold(WidgetTester tester, {required bool landscape}) {
