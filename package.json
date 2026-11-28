@@ -21,6 +21,7 @@
     "release": "cd apps/desktop && bun run release",
     "release:mac": "cd apps/desktop && bun run release:mac",
     "release:notes": "cd apps/desktop && bun run release:notes",
+    "tauri:dev:win": "cd apps/desktop && bun run tauri:dev:win",
     "tauri:build:win": "cd apps/desktop && bun run tauri:build:win",
     "setup:linux": "cd apps/desktop && bun run setup:linux",
     "clean:rust-temp": "cd apps/desktop && bun run clean:rust-temp",

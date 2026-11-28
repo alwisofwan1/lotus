@@ -22,6 +22,7 @@
     "tauri:dev": "bun run clean:rust-temp && bun run mcp:bundle && bun scripts/build-host-bundle.mjs && bun scripts/build-sessiond.mjs && tauri dev --config src-tauri/tauri.dev.conf.json",
     "tauri:build": "bun run tauri:build:exec",
     "tauri:build:exec": "bun scripts/check-release-env.mjs && bun run clean:rust-temp && bun run mcp:bundle && bun run chat-bridge:bundle && bun scripts/build-host-bundle.mjs && bun scripts/build-sessiond.mjs --release && rimraf out .next/cache && CI=true tauri build",
+    "tauri:dev:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tauri-dev-windows.ps1",
     "tauri:build:win": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/tauri-build-windows.ps1",
     "release": "bun scripts/release.mjs",
     "release:mac": "bun scripts/release-macos.mjs",

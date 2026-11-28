@@ -22,6 +22,10 @@ bun run tauri:build
 # Avoids link.exe not found.
 bun run tauri:build:win
 
+# Windows dev — `tauri:dev` with the same MSVC setup, plus tauri.dev.windows.conf.json (opaque
+# window, no POSIX `PORT=3001 npm run dev`). Run from a clone on the Windows filesystem, not WSL.
+bun run tauri:dev:win
+
 # Inner build step only (rimraf + CI=true tauri build) — usually invoked by tauri:build / tauri:build:win
 bun run tauri:build:exec
 
@@ -64,7 +68,17 @@ it is still never committed; in CI it comes from a secret.
   **Windows**, prefer `bun run tauri:build:win`, which runs
   `apps/desktop/scripts/tauri-build-windows.ps1`: finds VS/Build Tools with `vswhere`, runs
   `vcvars64.bat` inside one `cmd.exe` session so `link.exe` and Windows SDK libs (e.g.
-  `kernel32.lib`) are visible to Rust/Cargo when `bun` spawns `tauri build`.
+  `kernel32.lib`) are visible to Rust/Cargo when `bun` spawns `tauri build`. The VS lookup is
+  shared with `tauri-dev-windows.ps1` through `scripts/windows-msvc.ps1`.
+- **Windows dev:** plain `bun run tauri:dev` fails or misleads on Windows: no `link.exe`; the dev
+  config's `beforeDevCommand` (`PORT=3001 npm run dev`) is POSIX that cmd.exe cannot run; and the
+  dev config's macOS window list (`transparent: true`) replaces `tauri.windows.conf.json`, so the
+  window opens invisible. `bun run tauri:dev:win` fixes all three by merging
+  `src-tauri/tauri.dev.windows.conf.json` last. Use a clone on the Windows filesystem: a WSL
+  clone has Linux `node_modules`. A copy without `.git` also breaks dev: Tailwind v4 only honours
+  `.gitignore` inside a git repo, so it scans `src-tauri/target/` (GBs) and Turbopack's first
+  compile hangs (measured: 91 s per CSS pass without `.git`, 16 s with it). The first page compile
+  of a fresh `.next` takes about 3 minutes on Windows.
 - Build output: `apps/desktop/src-tauri/target/release/bundle/` (`.app`/`.dmg` on macOS,
   `.exe`/`.msi` on Windows).
 - Both `tauri:dev` and `tauri:build:exec` first run `apps/desktop/scripts/build-host-bundle.mjs`,

@@ -68,6 +68,7 @@ crosses the boundary is `apps/desktop/scripts/build-host-bundle.mjs`, which writ
 ```bash
 # From the repo root — thin pass-through scripts delegate to the right package
 bun run tauri:dev        # desktop, native window with hot reload
+bun run tauri:dev:win    # the same on Windows (MSVC env + Windows window config; see tauri-build skill)
 bun run test             # desktop suite
 bun run host:test        # packages/host suite
 bun run pocket:test      # apps/pocket suite

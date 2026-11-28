@@ -1,0 +1,20 @@
+{
+  "$schema": "./gen/schemas/desktop-schema.json",
+  "build": {
+    "beforeDevCommand": "bun run dev -p 3001"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Lotus Dev",
+        "decorations": false,
+        "transparent": false,
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600
+      }
+    ]
+  }
+}
