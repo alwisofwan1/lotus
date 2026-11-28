@@ -574,11 +574,30 @@ void main() {
     test('a part type this app has never seen is kept as unknown, not dropped', () {
       final part = Part.fromJson({
         'id': 'x', 'ts': 1785664800000, 'seq': 0, 'provenance': 'native',
-        'type': 'plan_update', 'entries': <Object?>[],
+        'type': 'mode_change', 'modeId': 'plan',
       });
       expect(part, isA<UnknownPart>());
-      expect((part as UnknownPart).rawType, 'plan_update');
+      expect((part as UnknownPart).rawType, 'mode_change');
       expect(part.provenance, Provenance.native);
+    });
+
+    test('plan_update reads its entries, and an odd status reads pending', () {
+      final part = Part.fromJson({
+        'id': 'plan-t1', 'ts': 1785664800000, 'seq': 3, 'provenance': 'native',
+        'type': 'plan_update', 'entries': <Object?>[
+          {'content': 'Read the transport', 'priority': 'medium', 'status': 'completed'},
+          {'content': 'Write SshTransport', 'priority': 'high', 'status': 'in_progress'},
+          {'content': 'Run the tests', 'status': 'later'},
+          {'priority': 'low'},
+        ],
+      });
+      expect(part, isA<PlanUpdatePart>());
+      final plan = part as PlanUpdatePart;
+      expect(plan.entries.map((e) => (e.content, e.status)), [
+        ('Read the transport', PlanStatus.completed),
+        ('Write SshTransport', PlanStatus.inProgress),
+        ('Run the tests', PlanStatus.pending),
+      ]);
     });
 
     test('transcript keeps a diff stat absent rather than zero', () {

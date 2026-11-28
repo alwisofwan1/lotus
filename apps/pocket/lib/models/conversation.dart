@@ -91,9 +91,10 @@ sealed class Part {
       'error' => ErrorPart(
           id: id, ts: ts, seq: seq, provenance: provenance,
           message: json['message']! as String, recoverable: json['recoverable'] as bool? ?? false),
-      // `permission`, `plan_update`, `mode_change`, `result` arrive from no host today
-      // (every runner is `never` for them); they are kept whole here so the UI can name
-      // them, and grow their own classes when a producer exists.
+      'plan_update' => PlanUpdatePart(
+          id: id, ts: ts, seq: seq, provenance: provenance,
+          entries: PlanEntry.listFrom(json['entries'])),
+      // `permission`, `mode_change`, `result` are kept whole so the UI can still name them.
       _ => UnknownPart(
           id: id, ts: ts, seq: seq, provenance: provenance,
           rawType: json['rawType'] as String? ?? type,
@@ -195,6 +196,37 @@ class ToolCallPart extends Part {
       ],
     );
   }
+}
+
+enum PlanStatus { pending, inProgress, completed }
+
+class PlanEntry {
+  const PlanEntry({required this.content, required this.status});
+  final String content;
+  final PlanStatus status;
+
+  /// Entries with no text are dropped: a blank step would draw as an empty row.
+  static List<PlanEntry> listFrom(Object? raw) => [
+        for (final e in (raw as List<Object?>?) ?? const <Object?>[])
+          if (e case {'content': final String content} when content.trim().isNotEmpty)
+            PlanEntry(
+              content: content.trim(),
+              status: switch ((e as Map<String, Object?>)['status']) {
+                'completed' => PlanStatus.completed,
+                'in_progress' => PlanStatus.inProgress,
+                _ => PlanStatus.pending,
+              },
+            ),
+      ];
+}
+
+/// The agent's own todo list, replaced whole on every update.
+class PlanUpdatePart extends Part {
+  const PlanUpdatePart({
+    required super.id, required super.ts, required super.seq, required super.provenance,
+    required this.entries,
+  });
+  final List<PlanEntry> entries;
 }
 
 class StatusPart extends Part {
