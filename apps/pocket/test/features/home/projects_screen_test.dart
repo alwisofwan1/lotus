@@ -184,8 +184,10 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.textContaining('unreachable', findRichText: true), findsOne);
+      // One capsule under the header names the machine and when it last spoke.
+      expect(find.textContaining('mac is not answering · seen '), findsOne);
 
-      await tester.tap(find.text('ASK AGAIN'));
+      await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
 
       expect(asked, 1);
@@ -196,7 +198,7 @@ void main() {
       fleet.adopt(mac, [cell(mac, 'p-1', title: 'Atlas', turn: 'running')]);
       await tester.pumpWidget(host());
 
-      expect(find.text('ASK AGAIN'), findsNothing);
+      expect(find.text('Try again'), findsNothing);
     });
   });
 
@@ -301,7 +303,21 @@ void main() {
       // Layar kosong tanpa kalimat terbaca sebagai app yang kehilangan datanya — dan
       // `Nothing here yet.` akan menjadi kebohongan, karena project-nya ada.
       expect(find.textContaining('No project matches'), findsOne);
-      expect(find.text('Nothing here yet.'), findsNothing);
+      expect(find.text('Nothing here yet'), findsNothing);
+    });
+
+    testWidgets('Clear search on the empty state brings the index back and empties the field',
+        (tester) async {
+      fleet.adoptProjects(mac, [project(mac, 'CNVS')]);
+      await tester.pumpWidget(host());
+
+      await type(tester, 'zzz');
+      expect(find.text('“zzz”'), findsOne);
+      await tester.tap(find.text('Clear search'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('CNVS'), findsOne);
+      expect(find.widgetWithText(TextField, 'zzz'), findsNothing);
     });
 
     testWidgets('agen yang menunggu tidak bisa disembunyikan oleh sebuah query',
@@ -420,9 +436,9 @@ void main() {
         ),
       ));
 
-      expect(find.text('Nothing here yet.'), findsOne);
+      expect(find.text('Nothing here yet'), findsOne);
 
-      await tester.tap(find.text('DIAGNOSTICS'));
+      await tester.tap(find.text('Diagnostics'));
       await tester.pumpAndSettle();
 
       expect(opens, 1);
@@ -532,7 +548,7 @@ void main() {
       await tester.pumpWidget(host(addTargets: const [offersBoth], onAddProject: (_) {}));
 
       expect(find.text('Add project'), findsOneWidget);
-      expect(find.text('DIAGNOSTICS'), findsOneWidget);
+      expect(find.text('Diagnostics'), findsOneWidget);
     });
 
     testWidgets('indeks kosong tanpa mesin yang menerimanya: hanya Diagnostics',
@@ -540,7 +556,7 @@ void main() {
       await tester.pumpWidget(host());
 
       expect(find.text('Add project'), findsNothing);
-      expect(find.text('DIAGNOSTICS'), findsOneWidget);
+      expect(find.text('Diagnostics'), findsOneWidget);
     });
 
     testWidgets('fleet yang panjang tidak mendorongnya keluar layar', (tester) async {

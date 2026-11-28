@@ -1142,9 +1142,9 @@ void main() {
       fleet.markUnreachable(mac);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Unreachable'), findsOne);
+      expect(find.textContaining('Not answering'), findsOne);
 
-      await tester.tap(find.text('ASK AGAIN'));
+      await tester.tap(find.text('Try again'));
       await tester.pumpAndSettle();
 
       expect(calls, 1);
@@ -1157,7 +1157,7 @@ void main() {
       await showPullable(tester);
       await push(tester, mac, [cell(mac, 'p-1', title: 'Atlas', turn: 'running')]);
 
-      expect(find.text('ASK AGAIN'), findsNothing);
+      expect(find.text('Try again'), findsNothing);
     });
 
     testWidgets('a host that did not answer is named, with its cause', (tester) async {
@@ -1185,12 +1185,12 @@ void main() {
     testWidgets('the header states it, rather than leaving the rows to imply it',
         (tester) async {
       await showMockupFleet(tester);
-      expect(find.textContaining('Unreachable'), findsNothing);
+      expect(find.textContaining('Not answering'), findsNothing);
 
       fleet.markUnreachable(mac);
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Unreachable'), findsOne);
+      expect(find.textContaining('Not answering'), findsOne);
     });
 
     testWidgets('the rows stay — the point is that they are old, not that they are gone',
@@ -1226,7 +1226,7 @@ void main() {
       await showMockupFleet(tester);
       fleet.markUnreachable(mac);
       await tester.pumpAndSettle();
-      expect(find.textContaining('Unreachable'), findsOne);
+      expect(find.textContaining('Not answering'), findsOne);
 
       // `adopt` drops the host from `_stale` — it just spoke, so it is reachable by
       // definition. The screen has to follow that on its own: a notice that outlives
@@ -1235,7 +1235,7 @@ void main() {
         cell(mac, 'p-1', title: 'Atlas', turn: 'needs-input', preview: 'Delete src/legacy/shim.ts?'),
       ]);
 
-      expect(find.textContaining('Unreachable'), findsNothing);
+      expect(find.textContaining('Not answering'), findsNothing);
     });
 
     /// This is the test that said *no number here*, and it changed on purpose.
@@ -1251,7 +1251,7 @@ void main() {
       fleet.markUnreachable(mac);
       await tester.pumpAndSettle();
 
-      expect(find.text('Unreachable — last heard from 4m ago.'), findsOne);
+      expect(find.text('Not answering · last heard 4m ago'), findsOne);
     });
 
     testWidgets('the age tracks the clock rather than the moment it went stale',
@@ -1263,7 +1263,7 @@ void main() {
       // and it must not reset an age that belongs to `mac`.
       await push(tester, vps, [cell(vps, 'p-9', title: 'Nova', turn: 'running')]);
 
-      expect(find.text('Unreachable — last heard from 2h ago.'), findsOne);
+      expect(find.text('Not answering · last heard 2h ago'), findsOne);
     });
 
     /// Pinned against the widget, not against Home, because **Home cannot produce
@@ -1292,7 +1292,7 @@ void main() {
         ),
       ));
 
-      expect(find.text('Unreachable — showing what it last said.'), findsOne);
+      expect(find.text('Not answering · showing what it last said'), findsOne);
       expect(find.textContaining('0s'), findsNothing);
     });
   });

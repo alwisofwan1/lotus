@@ -52,6 +52,9 @@ class FleetStore extends ChangeNotifier {
 
   bool isStale(HostId host) => _stale.contains(host);
 
+  /// Every host that stopped answering, for the one capsule that says so on Home.
+  List<HostId> get staleHosts => List.unmodifiable(_stale);
+
   /// The cell behind a pane id from a push — which names no host, so every host is
   /// searched. `endsWith` too: the host matches a bare uuid against its prefixed pane
   /// id the same way, and the phone should not have to learn the desktop's spelling.

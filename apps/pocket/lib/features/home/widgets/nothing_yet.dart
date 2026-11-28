@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../../app/theme/theme.dart';
-import 'start_button.dart';
+import '../../shared/state_shapes.dart';
 
 /// Nothing to show yet — **no host has named a single project or cell**.
 ///
@@ -40,49 +39,11 @@ class NothingYet extends StatelessWidget {
   final VoidCallback? onAddProject;
 
   @override
-  Widget build(BuildContext context) {
-    final t = context.tokens;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Nothing here yet.',
-              textAlign: TextAlign.center,
-              style: t.ui.copyWith(fontSize: 13, color: t.muted),
-            ),
-            if (onAddProject case final add?) ...[
-              const SizedBox(height: 22),
-              // The app's own primary language — filled with `text`, inked with `bg`
-              // (`start_button.dart`). Borrowed rather than re-drawn, so this screen
-              // cannot grow a second idea of what a commit looks like.
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 230),
-                child: StartButton(
-                  onStart: add,
-                  label: 'Add project',
-                  semanticsLabel: 'Add a project to this machine',
-                ),
-              ),
-            ],
-            const SizedBox(height: 18),
-            TextButton(
-              onPressed: onOpenDiagnostics,
-              child: Text(
-                'DIAGNOSTICS',
-                style: t.mono.copyWith(
-                  fontSize: 11,
-                  letterSpacing: 1.76,
-                  color: t.dim,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => OrbHero(
+        icon: Icons.folder_open_outlined,
+        title: 'Nothing here yet',
+        body: 'Projects you open on your Mac show up here.',
+        primary: onAddProject == null ? null : (label: 'Add project', onTap: onAddProject!),
+        secondary: (label: 'Diagnostics', onTap: onOpenDiagnostics),
+      );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../app/theme/theme.dart';
+import '../../shared/state_shapes.dart';
 import '../../shared/age_label.dart';
 import '../../shared/back_glyph.dart';
 import '../../shared/tilde_path.dart';
@@ -98,53 +99,14 @@ class ProjectHeader extends StatelessWidget {
   Widget _unreachable(BuildContext context, AppTokens t) {
     final age = ageLabel(project.silence?.inMilliseconds);
     final ask = onAskAgain;
-
-    final said = Text(
-      age == null
-          ? 'Unreachable — showing what it last said.'
-          : 'Unreachable — last heard from $age ago.',
-      style: t.ui.copyWith(fontSize: 12.5, color: t.muted),
-    );
-    if (ask == null) return said;
-
-    // **Kalimatnya ada sejak 2026-08-09; tombolnya baru 2026-08-12.** Selama tiga hari itu
-    // layar ini menyatakan bahwa semua yang di bawahnya sudah tua, lalu menyerahkan
-    // satu-satunya cara bertindak atasnya kepada tarikan yang tidak terlihat — tepat di
-    // saat ia paling dibutuhkan. Temuan §9 no. 7 di `revamp-audit.html`, dan aturan yang
-    // dilanggarnya sudah tertulis di `chat_body.dart`: sebuah gesture tanpa kontrol yang
-    // terlihat hanya ditemukan orang yang sudah menduganya. Itu sebabnya `TRY AGAIN` tetap
-    // ada di sebelah tarik-untuk-muat di sana; di sini kalimatnya ada tanpa tombolnya.
-    //
-    // Hanya di keadaan ini, bukan permanen: tarikannya tetap bekerja di mana saja, dan
-    // sebuah kontrol yang selalu ada berhenti berarti apa pun.
-    return Row(
-      children: [
-        Flexible(child: said),
-        const SizedBox(width: 4),
-        Semantics(
-          button: true,
-          label: 'Ask every machine again',
-          child: InkWell(
-            onTap: ask,
-            borderRadius: context.shape.radius(ShapeRole.tag),
-            child: Padding(
-              // Tinggi 44 lewat padding vertikal alih-alih kotak: barisnya sebuah kalimat,
-              // dan sebuah kotak 44px di sebelahnya akan mendorong judul di atasnya.
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 13),
-              child: ExcludeSemantics(
-                child: Text(
-                  'ASK AGAIN',
-                  style: t.mono.copyWith(
-                    fontSize: 10.5,
-                    letterSpacing: 0.16 * 10.5,
-                    color: t.dim,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
+    // The rows below stay, dimmed: an empty screen would hide what was there (DESIGN.md §8).
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: StateCapsule(
+        icon: Icons.cloud_off_outlined,
+        words: age == null ? 'Not answering · showing what it last said' : 'Not answering · last heard $age ago',
+        action: ask == null ? null : (label: 'Try again', onTap: ask),
+      ),
     );
   }
 

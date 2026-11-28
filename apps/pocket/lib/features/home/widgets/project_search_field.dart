@@ -35,6 +35,13 @@ class _ProjectSearchFieldState extends State<ProjectSearchField> {
   );
 
   @override
+  void didUpdateWidget(ProjectSearchField old) {
+    super.didUpdateWidget(old);
+    // "Clear search" on the empty state clears the query from outside; the field follows.
+    if (widget.query != _text.text) _text.text = widget.query;
+  }
+
+  @override
   void dispose() {
     _text.dispose();
     super.dispose();

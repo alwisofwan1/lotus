@@ -5,6 +5,7 @@ import '../../data/fleet_store.dart';
 import '../../models/cell.dart';
 import '../../models/host_id.dart';
 import '../shared/refreshable.dart';
+import '../shared/state_shapes.dart';
 import 'add_project.dart';
 import 'project_presentation.dart';
 import 'project_search.dart';
@@ -164,7 +165,6 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
                   // `· unreachable`, dan sampai 2026-08-12 satu-satunya cara bertindak
                   // atasnya adalah tarikan yang tidak terlihat — temuan §9 no. 7. Aturan
                   // yang dilanggarnya sudah tertulis di `chat_body.dart`.
-                  if (rows.any((r) => r.isStale)) _askAgain(t),
                 ],
               ),
             ],
@@ -174,6 +174,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
         // yang bisa dibangun — ia menyembunyikan dengan diam — dan properti yang mengikat
         // sejak ADR-3 revisi pertama adalah bahwa `awaiting` tidak boleh bisa tersembunyi
         // di balik pengalih. Menyaring blok ini akan melanggarnya dengan mekanisme baru.
+        if (fleet.staleHosts.isNotEmpty) _notAnswering(),
         if (waiting.isNotEmpty)
           NeedsYou(
             waiting: waiting,
@@ -246,43 +247,43 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     showAddProjectSheet(context, choices: choices, onChoose: widget.onAddProject!);
   }
 
-  /// Menanyakan ulang ke setiap host, terlihat.
-  ///
-  /// Tidak permanen: tarikannya tetap bekerja di mana saja, dan sebuah kontrol yang selalu
-  /// ada berhenti berarti apa pun. Ia muncul tepat ketika sebuah baris di bawahnya baru
-  /// mengatakan bahwa isinya sudah tua.
-  Widget _askAgain(AppTokens t) => Semantics(
-    button: true,
-    label: 'Ask every machine again',
-    child: InkWell(
-      onTap: widget.onRefresh,
-      borderRadius: context.shape.radius(ShapeRole.tag),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 13),
-        child: ExcludeSemantics(
-          child: Text(
-            'ASK AGAIN',
-            style: t.mono.copyWith(
-              fontSize: 10.5,
-              letterSpacing: 0.16 * 10.5,
-              color: t.dim,
-            ),
-          ),
-        ),
+  /// One capsule for every machine that stopped answering; its rows stay, marked.
+  Widget _notAnswering() {
+    final stale = fleet.staleHosts;
+    final String words;
+    if (stale.length == 1) {
+      final label = widget.hostLabel(stale.single);
+      final seen = fleet.lastHeardFrom(stale.single);
+      words = '${label.isEmpty ? 'Your Mac' : label} is not answering${seen == null ? '' : ' · seen ${_clock(seen)}'}';
+    } else {
+      words = '${stale.length} machines are not answering';
+    }
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 0),
+      child: StateCapsule(
+        icon: Icons.cloud_off_outlined,
+        words: words,
+        action: (label: 'Try again', onTap: () => widget.onRefresh()),
       ),
-    ),
-  );
+    );
+  }
 
-  /// Menyebut query-nya, supaya operator tahu app membaca apa dan bukan menebak.
-  Widget _noMatch(AppTokens t) => Center(
-    child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Text(
-        'No project matches “$_query”.',
-        textAlign: TextAlign.center,
-        style: t.ui.copyWith(fontSize: 13.5, color: t.dim),
-      ),
+  static String _clock(DateTime t) {
+    final l = t.toLocal();
+    return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// The query itself is the picture, so the operator sees what was read, not a guess.
+  Widget _noMatch(AppTokens t) => OrbHero(
+    picture: Text(
+      '“$_query”',
+      textAlign: TextAlign.center,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: t.mono.copyWith(fontSize: 20, color: t.muted),
     ),
+    title: 'No project matches',
+    secondary: (label: 'Clear search', onTap: () => setState(() => _query = '')),
   );
 
   ProjectPresentation _present(ProjectRef project) =>
