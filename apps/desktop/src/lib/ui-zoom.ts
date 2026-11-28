@@ -1,3 +1,4 @@
+import { hasPrimaryModifier } from "@/lib/hotkeys/platform-chords";
 import { isTauri } from "@/lib/tauri/runtime";
 
 /**
@@ -69,15 +70,22 @@ export function setUiZoom(zoom: number): Promise<void> {
   return apply(next);
 }
 
-function isZoomKey(event: KeyboardEvent): 1 | -1 | 0 | null {
-  if (!event.metaKey || event.altKey || event.ctrlKey) return null;
+/**
+ * ⌘= / ⌘- / ⌘0 on macOS, Ctrl= / Ctrl- / Ctrl0 elsewhere. Off macOS the key reached WebView2's own
+ * page zoom instead, which is neither saved nor known to `toWindowRect`.
+ */
+export function isZoomKey(
+  event: Pick<KeyboardEvent, "key" | "code" | "metaKey" | "ctrlKey" | "altKey">,
+  platform?: string,
+): 1 | -1 | 0 | null {
+  if (event.altKey || !hasPrimaryModifier(event, platform)) return null;
   if (event.key === "=" || event.key === "+" || event.code === "NumpadAdd") return 1;
   if (event.key === "-" || event.key === "_" || event.code === "NumpadSubtract") return -1;
   if (event.key === "0" || event.code === "Numpad0") return 0;
   return null;
 }
 
-/** Applies the saved size and wires ⌘+ / ⌘− / ⌘0 and cross-window sync. Returns the cleanup. */
+/** Applies the saved size and wires ⌘+ / ⌘− / ⌘0 (Ctrl off macOS) and cross-window sync. Returns the cleanup. */
 export function installUiZoom(): () => void {
   void apply(readStored()).catch(() => undefined);
 

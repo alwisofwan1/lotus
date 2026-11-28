@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { getUiZoom, normalizeUiZoom, setUiZoom, stepUiZoom, toWindowRect } from "@/lib/ui-zoom";
+import { getUiZoom, isZoomKey, normalizeUiZoom, setUiZoom, stepUiZoom, toWindowRect } from "@/lib/ui-zoom";
 import { dragDropHitTestPoints } from "@/modules/codespace/services/terminal-file-drop";
 
 afterEach(() => setUiZoom(1));
@@ -30,5 +30,25 @@ describe("ui zoom", () => {
   it("maps a native drop point back into zoomed CSS px", () => {
     expect(dragDropHitTestPoints({ x: 125, y: 250 }, 1, 1.25)).toEqual([{ x: 100, y: 200 }]);
     expect(dragDropHitTestPoints({ x: 250, y: 500 }, 2, 1.25)).toEqual([{ x: 200, y: 400 }, { x: 100, y: 200 }]);
+  });
+});
+
+describe("isZoomKey", () => {
+  const press = (key: string, mods: { metaKey?: boolean; ctrlKey?: boolean; altKey?: boolean } = {}) => ({
+    key, code: "", metaKey: false, ctrlKey: false, altKey: false, ...mods,
+  });
+
+  it("zooms on ⌘ on macOS and leaves Ctrl alone there", () => {
+    expect(isZoomKey(press("=", { metaKey: true }), "MacIntel")).toBe(1);
+    expect(isZoomKey(press("-", { metaKey: true }), "MacIntel")).toBe(-1);
+    expect(isZoomKey(press("0", { metaKey: true }), "MacIntel")).toBe(0);
+    expect(isZoomKey(press("=", { ctrlKey: true }), "MacIntel")).toBeNull();
+  });
+
+  it("zooms on Ctrl on Windows, where there is no ⌘", () => {
+    expect(isZoomKey(press("=", { ctrlKey: true }), "Win32")).toBe(1);
+    expect(isZoomKey(press("-", { ctrlKey: true }), "Win32")).toBe(-1);
+    expect(isZoomKey(press("0", { ctrlKey: true }), "Win32")).toBe(0);
+    expect(isZoomKey(press("=", { ctrlKey: true, altKey: true }), "Win32")).toBeNull();
   });
 });

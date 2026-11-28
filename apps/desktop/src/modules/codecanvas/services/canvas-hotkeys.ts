@@ -20,6 +20,7 @@ import {
   UNBOUND_CHORD,
   type ChordEventLike,
 } from "@/lib/hotkeys/chord";
+import { isMacPlatform } from "@/lib/platform";
 import { VOICE_HOTKEY_DEFAULTS, type VoiceHotkeyId } from "@/modules/voice-core/voice-hotkeys";
 import { toolForShortcut } from "./canvas-tool";
 
@@ -175,14 +176,11 @@ const KEY_GLYPHS: Record<string, string> = {
 /**
  * Which modifier glyphs to print. `mac` when it cannot tell — the glyphs are the denser, more
  * common case here, and guessing `other` would print "Ctrl" on the machine this app is developed on.
- *
- * `HotkeysTab` still carries an identical private copy; it predates this and is left alone rather
- * than refactored from a concurrent branch. Worth collapsing into this one next time that file is
- * open for its own reasons.
+ * The platform itself is read from `@/lib/platform`, like every other keyboard decision.
  */
 export function detectCanvasHotkeyPlatform(): CanvasHotkeyPlatform {
   if (typeof navigator === "undefined") return "mac";
-  return /mac|iphone|ipad|ipod/i.test(navigator.platform) ? "mac" : "other";
+  return isMacPlatform() ? "mac" : "other";
 }
 
 export function formatChord(chord: string, platform: CanvasHotkeyPlatform): string[] {
@@ -309,11 +307,18 @@ export interface HotkeyTargetInfo {
   codeEditor?: boolean;
   /** Monaco has find, suggest, hover, parameter hints or rename open. */
   editorWidgetOpen?: boolean;
+  /**
+   * The focused surface keeps this exact key press: on Windows/Linux a terminal's Ctrl+letter
+   * control characters and Ctrl+Shift+C/V, or a text field's Ctrl+Z/Y/C/V/X/A. Always false on
+   * macOS. See `@/lib/hotkeys/platform-chords`.
+   */
+  surfaceOwnsChord?: boolean;
 }
 
 /**
  * Whether a resolved chord should fire given the focus target. Mod chords fire everywhere (a
- * focused terminal doesn't swallow them). Escape is the cross-layer exit: it leaves any non-terminal
+ * focused terminal doesn't swallow ⌘); off macOS, where `mod` is Ctrl, the chords a terminal or a
+ * text field owns are filtered earlier by `surfaceOwnsChord`. Escape is the cross-layer exit: it leaves any non-terminal
  * control (canvas or a note/input) but is never stolen from a terminal. All other bare keys —
  * including Enter — belong to the focused editable control while typing.
  */
@@ -335,6 +340,8 @@ export function shouldDispatchCanvasHotkeyCommand(
   chord: string,
   target: HotkeyTargetInfo,
 ): boolean {
+  // Ahead of the global commands on purpose: a voice chord on Ctrl+Shift+V must not eat paste.
+  if (target.surfaceOwnsChord) return false;
   if (isGlobalCanvasHotkeyCommand(command)) return true;
   // In Code the editor owns every chord (⌘K is its chord prefix, ⌘G find next, ⌥⌘↑ add cursor, ⌘. quick
   // fix) except the Dock's own: Monaco has no ⌘B Bold, and the Dock must stay closable from the editor.

@@ -11,6 +11,7 @@ import { providerFromAgentCommand } from "@/modules/codespace/services/terminal-
 import { reduceInlineTerminalInput } from "@/modules/codespace/services/terminal-inline-suggestions";
 import { getSuggestionRemainder } from "@/modules/codespace/services/terminal-suggestions";
 import { handleTerminalCustomKeyEvent, type TerminalShortcutEvent } from "@/modules/codespace/services/terminal-keybindings";
+import { withTerminalClipboardKeys } from "@/modules/codespace/services/terminal-clipboard-keys";
 import {
   createTerminalSearchOptions,
   hasVisibleTerminalSearchSelection,
@@ -1312,14 +1313,14 @@ export function useLegacyTerminalRuntime({
         const dataDisposable = term.onData?.(handleTerminalData);
         const renderDisposable = term.onRender?.(() => settleTerminalReveal());
         const writeParsedDisposable = term.onWriteParsed?.(scheduleAgentStandbyBufferCheck);
-        term.attachCustomKeyEventHandler?.((event: KeyboardEvent) =>
+        term.attachCustomKeyEventHandler?.(withTerminalClipboardKeys(term, (event: KeyboardEvent) =>
           handleTerminalCustomKeyEvent(
             event,
             (data) => writeRuntimeSession(paneId, data),
             (customEvent) => onTerminalCustomKeyRef.current?.(customEvent),
             { shiftEnterSequence: () => shiftEnterNewlineRef.current?.() ?? null },
           ),
-        );
+        ));
         rendererEventSubscription = {
           dispose: () => {
             dataDisposable?.dispose?.();

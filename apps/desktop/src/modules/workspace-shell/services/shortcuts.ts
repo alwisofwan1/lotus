@@ -3,8 +3,14 @@
  *
  * Kept as predicates over a KeyboardEvent rather than a table of strings so the platform
  * difference — ⌘ on macOS, Ctrl everywhere else — is answered once, here, instead of at every
- * handler that has to ask.
+ * handler that has to ask. The platform question itself is `@/lib/platform`'s; the label and
+ * modifier helpers are shared app-wide from `@/lib/hotkeys` and re-exported here for the shell.
  */
+
+import { hasPrimaryModifier } from "@/lib/hotkeys/platform-chords";
+
+export { formatShortcut } from "@/lib/hotkeys/format-shortcut";
+export { hasPrimaryModifier };
 
 export interface ShortcutEvent {
   key: string;
@@ -12,12 +18,6 @@ export interface ShortcutEvent {
   ctrlKey: boolean;
   shiftKey: boolean;
   altKey: boolean;
-}
-
-/** macOS uses ⌘; Windows and Linux use Ctrl. */
-export function hasPrimaryModifier(event: ShortcutEvent, platform: string = navigator.platform): boolean {
-  const isMac = /mac|iphone|ipad/i.test(platform);
-  return isMac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
 }
 
 export function isSplitRightShortcut(event: ShortcutEvent, platform?: string): boolean {
@@ -71,7 +71,11 @@ export function isToggleRailShortcut(event: ShortcutEvent, platform?: string): b
   );
 }
 
-/** ⌘J opens the Jump palette. Only ⌘ on a Mac: Ctrl+J is a newline in the terminal and in Claude Code. */
+/**
+ * ⌘J opens the Jump palette; Ctrl+J off macOS. Ctrl+J is also a newline in a terminal and in
+ * Claude Code, and there the terminal keeps it: its listener sits on the bubble phase, and xterm
+ * stops the key from bubbling once it has sent it.
+ */
 export function isJumpPaletteShortcut(event: ShortcutEvent, platform?: string): boolean {
   return event.key.toLowerCase() === "j" && !event.shiftKey && !event.altKey && hasPrimaryModifier(event, platform);
 }
@@ -110,21 +114,6 @@ export function paneShortcutKind(event: ShortcutEvent, platform?: string): PaneS
   return match?.kind ?? null;
 }
 
-/**
- * The chord as THIS machine's keyboard writes it.
- *
- * The menu's labels were written as macOS chords in a constant, so Windows and Linux were told to
- * press ⌘. The predicates above already answer the platform question once; this is the same
- * answer, for the eyes.
- */
-export function formatShortcut(
-  chord: string,
-  platform: string = typeof navigator === "undefined" ? "" : navigator.platform,
-): string {
-  const isMac = /mac|iphone|ipad/i.test(platform);
-  if (isMac) return chord;
-  return chord.replace(/⌘/g, "Ctrl+").replace(/⇧/g, "Shift+");
-}
 
 /**
  * Moving focus from pane to pane.

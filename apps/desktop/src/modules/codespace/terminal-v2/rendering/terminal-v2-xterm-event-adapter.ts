@@ -1,6 +1,11 @@
+import {
+  withTerminalClipboardKeys,
+  type TerminalSelectionLike,
+} from "@/modules/codespace/services/terminal-clipboard-keys";
+
 export type TerminalV2XtermEventDisposable = { dispose(): void };
 
-export type TerminalV2XtermEventTerminal = {
+export type TerminalV2XtermEventTerminal = TerminalSelectionLike & {
   onData?: (listener: (data: string) => void) => TerminalV2XtermEventDisposable | undefined;
   onRender?: (listener: () => void) => TerminalV2XtermEventDisposable | undefined;
   onWriteParsed?: (listener: () => void) => TerminalV2XtermEventDisposable | undefined;
@@ -49,7 +54,9 @@ export function attachTerminalV2XtermEvents({
     : undefined;
 
   if (handlers.onCustomKey && terminal.attachCustomKeyEventHandler) {
-    terminal.attachCustomKeyEventHandler((event) => handlers.onCustomKey?.(event) ?? false);
+    terminal.attachCustomKeyEventHandler(
+      withTerminalClipboardKeys(terminal, (event) => handlers.onCustomKey?.(event) ?? false),
+    );
   }
 
   let disposed = false;

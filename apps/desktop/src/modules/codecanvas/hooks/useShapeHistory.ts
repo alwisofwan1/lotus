@@ -1,6 +1,7 @@
 "use client";
 import { useCallback, useEffect, useRef } from "react";
 import type { Edge, Node } from "@xyflow/react";
+import { isRedoAliasChord } from "@/lib/hotkeys/platform-chords";
 import {
   captureShapeSnapshot,
   createShapeHistory,
@@ -119,14 +120,16 @@ export function useShapeHistory({ nodes, edges, resetKey, restore }: UseShapeHis
   const undo = useCallback(() => step("undo"), [step]);
   const redo = useCallback(() => step("redo"), [step]);
 
-  // ⌘Z / ⇧⌘Z (Ctrl on non-mac). Anything editable owns its own undo — never intercept there.
+  // ⌘Z / ⇧⌘Z (Ctrl on non-mac, plus the Windows redo Ctrl+Y). Anything editable owns its own
+  // undo — never intercept there.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "z" || !(event.metaKey || event.ctrlKey) || event.altKey) return;
+      const redoAlias = isRedoAliasChord(event);
+      if (!redoAlias && (event.key.toLowerCase() !== "z" || !(event.metaKey || event.ctrlKey) || event.altKey)) return;
       const target = event.target as HTMLElement | null;
       if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
       event.preventDefault();
-      if (event.shiftKey) redo();
+      if (redoAlias || event.shiftKey) redo();
       else undo();
     };
     window.addEventListener("keydown", onKey);

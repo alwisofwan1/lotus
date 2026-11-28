@@ -17,7 +17,7 @@ import "@/styles/workspace-shell.css";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import { isTauri } from "@/lib/tauri-api";
+import { useMacOverlayChrome } from "@/lib/hooks/useMacOverlayChrome";
 import {
   ShellChrome,
   type ShellMode,
@@ -90,6 +90,7 @@ import { buildJumpItems, oldestNeedsYou, type JumpSources, type JumpTarget } fro
 import { readRecent } from "@/modules/workspace-shell/services/jump-recent";
 import { chatPaneThreads } from "@/modules/codespace/state/thread-activity-registry";
 import { SurfaceVisible } from "@/lib/surface-visible";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import {
   createModeSwitchClock,
   summarizeModeSwitches,
@@ -130,23 +131,6 @@ const markModeSwitch = createModeSwitchClock({
   },
 });
 
-function detectMacOverlayChrome(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return isTauri() && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
-}
-
-/**
- * macOS draws its window controls on top of the page, so the title bar has to leave a hole for
- * them. Read through `useSyncExternalStore` with a `false` server snapshot: deciding this during
- * render would disagree with the server and throw the hydration away.
- */
-function useMacOverlayChrome(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    detectMacOverlayChrome,
-    () => false,
-  );
-}
 
 /** Below this width two panes and a rail stop fitting, so the rail steps aside on its own. */
 const NARROW_SHELL_WIDTH = 980;
@@ -183,6 +167,7 @@ function WorkspaceShell({ shown = true }: WorkspaceShellPageProps) {
   const router = useRouter();
   const { layout, update } = useShellLayout();
   const macOverlayChrome = useMacOverlayChrome();
+  const shortcut = useFormatShortcut();
   const [shellRef, shell] = useElementSize<HTMLDivElement>();
   // A rail forced open in a narrow window is this session's business, not a stored preference:
   // the layout someone arranged on a wide screen must survive being opened on a small one.
@@ -753,7 +738,7 @@ function WorkspaceShell({ shown = true }: WorkspaceShellPageProps) {
               className="ws-pane-pill"
               data-attention={needsWaiting > 0 ? "true" : undefined}
               aria-live={needsWaiting > 0 ? "polite" : undefined}
-              title="Needs you (⌘J) · ⌘⇧J opens the one waiting longest"
+              title={`Needs you (${shortcut("⌘J")}) · ${shortcut("⌘⇧J")} opens the one waiting longest`}
               style={{ ["--ws-tone" as string]: needsWaiting > 0 ? "var(--ws-activity-ask)" : `var(--ws-kind-${status?.tone ?? "terminal"})` }}
               onClick={() => setJumpOpen(true)}
             >

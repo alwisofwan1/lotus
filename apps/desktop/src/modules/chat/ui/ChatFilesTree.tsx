@@ -5,6 +5,8 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNod
 import { createPortal } from "react-dom";
 
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { formatShortcut } from "@/lib/hotkeys/format-shortcut";
+import { isMacPlatform } from "@/lib/platform";
 import { resolveWorkbenchFileIcon } from "@/modules/codespace/services/file-icon-theme";
 
 import { absPath, treeIndex, type TreeEntry } from "../domain/files";
@@ -181,6 +183,9 @@ export function FilesTree({ cwd, files, changed, expanded, setExpanded, onOpen, 
       else focusRow(parentOf(path) || undefined);
     } else if (readOnly) return;
     else if (key === "Backspace" && event.metaKey) setTrash(entry);
+    // Windows Explorer's keys: Delete trashes, F2 renames. ⌘⌫ above needs a key Windows lacks.
+    else if (!isMacPlatform() && isBareKey(event, "Delete")) setTrash(entry);
+    else if (!isMacPlatform() && isBareKey(event, "F2")) setNaming({ kind: "rename", entry });
     else if (event.metaKey || event.ctrlKey || event.altKey) return;
     else if (key === "n") startNew("file", entry);
     else if (key === "N") startNew("folder", entry);
@@ -346,13 +351,18 @@ function FileMenu({
       <MenuItem label="Reveal in Finder" keycap="" onClick={() => onAct("reveal")} />
       <hr className="chat-files-menu-rule" />
       <MenuItem label="New file" keycap="N" onClick={() => onAct("file")} />
-      <MenuItem label="New folder" keycap="⇧N" onClick={() => onAct("folder")} />
-      <MenuItem label="Rename" keycap="R" onClick={() => onAct("rename")} />
+      <MenuItem label="New folder" keycap={formatShortcut("⇧N")} onClick={() => onAct("folder")} />
+      <MenuItem label="Rename" keycap={isMacPlatform() ? "R" : "F2"} onClick={() => onAct("rename")} />
       <hr className="chat-files-menu-rule" />
-      <MenuItem label="Move to Trash" keycap="⌘⌫" danger onClick={() => onAct("trash")} />
+      <MenuItem label="Move to Trash" keycap={isMacPlatform() ? "⌘⌫" : "Del"} danger onClick={() => onAct("trash")} />
     </div>,
     document.body,
   );
+}
+
+/** `key` pressed on its own, with no modifier held. */
+function isBareKey(event: KeyboardEvent<HTMLElement>, key: string): boolean {
+  return event.key === key && !event.metaKey && !event.ctrlKey && !event.altKey && !event.shiftKey;
 }
 
 /** The name before its extension: what a rename usually changes. */

@@ -1,6 +1,5 @@
 "use client";
 import { BrandMark } from "@/components/icons/BrandMark";
-import { useSyncExternalStore } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -11,7 +10,9 @@ import {
   SquarePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isTauri, openNewWindow } from "@/lib/tauri-api";
+import { openNewWindow } from "@/lib/tauri-api";
+import { useMacOverlayChrome } from "@/lib/hooks/useMacOverlayChrome";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import { navItems } from "@/modules/shell/config/navigation";
 import { useSidebar } from "@/modules/shell/containers/AppShell";
 import { useLotusSettings } from "@/modules/lotus-settings/lotus-settings-context";
@@ -19,24 +20,12 @@ import { useLotusSettings } from "@/modules/lotus-settings/lotus-settings-contex
 const mainItems = navItems.filter((item) => item.section === "main");
 const workflowItems = navItems.filter((item) => item.section === "workflows");
 
-function detectMacOverlayChrome(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return isTauri() && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
-}
-
-function useMacOverlayChrome(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    detectMacOverlayChrome,
-    () => false,
-  );
-}
-
 export function Sidebar() {
   const pathname = usePathname();
   const { collapsed, toggle } = useSidebar();
   const { openSettings } = useLotusSettings();
   const isMacOverlayChrome = useMacOverlayChrome();
+  const shortcut = useFormatShortcut();
   const handleNewWindow = () => {
     void openNewWindow(pathname);
   };
@@ -106,7 +95,7 @@ export function Sidebar() {
         </div>
         <button
           onClick={toggle}
-          title={collapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
+          title={`${collapsed ? "Expand" : "Collapse"} sidebar (${shortcut("⌘B")})`}
           className="flex items-center justify-center rounded-lg text-(--text-muted) hover:text-(--fg) hover:bg-(--bg-hover) transition-all duration-150 shrink-0 w-7 h-7"
         >
           {collapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}

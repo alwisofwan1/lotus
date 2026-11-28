@@ -33,6 +33,9 @@ import { safeTauriUnlisten } from "@/lib/tauri-listener-cleanup";
 import { VoiceHotkeyProvider } from "@/modules/voice-core/voice-hotkey-context";
 import { LotusSettingsProvider } from "@/modules/lotus-settings/lotus-settings-context";
 import { SurfaceVisible } from "@/lib/surface-visible";
+import { detectDesktopPlatform, type DesktopPlatform } from "@/lib/platform";
+import { useMacOverlayChrome } from "@/lib/hooks/useMacOverlayChrome";
+import { focusedSurfaceOwnsChord } from "@/lib/hotkeys/platform-chords";
 
 interface SidebarCtx {
   collapsed: boolean;
@@ -48,35 +51,10 @@ export function useSidebar() {
   return useContext(SidebarContext);
 }
 
-function detectMacOverlayChrome(): boolean {
-  if (typeof navigator === "undefined") return false;
-  return isTauri() && /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
-}
-
-type DesktopPlatform = "mac" | "windows" | "linux" | "unknown";
-
-function detectDesktopPlatform(): DesktopPlatform {
-  if (typeof navigator === "undefined") return "unknown";
-  const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
-  const platform = `${nav.userAgentData?.platform ?? navigator.platform ?? navigator.userAgent}`.toLowerCase();
-  if (platform.includes("mac") || platform.includes("iphone") || platform.includes("ipad") || platform.includes("ipod")) return "mac";
-  if (platform.includes("win")) return "windows";
-  if (platform.includes("linux") || platform.includes("x11")) return "linux";
-  return "unknown";
-}
-
-function useMacOverlayChrome(): boolean {
-  return useSyncExternalStore(
-    () => () => {},
-    detectMacOverlayChrome,
-    () => false,
-  );
-}
-
 function useDesktopPlatform(): DesktopPlatform {
   return useSyncExternalStore(
     () => () => {},
-    detectDesktopPlatform,
+    () => detectDesktopPlatform(),
     () => "unknown",
   );
 }
@@ -267,6 +245,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       // Only where there IS a sidebar to collapse. This listener is in the capture phase, so on
       // the routes that hide the sidebar — the unified shell at `/` among them — it used to
       // consume Cmd+B for something invisible, and the surface underneath never heard the key.
+      //
+      // Off macOS these are Ctrl+B and Ctrl+N, which a focused terminal spends on back-char (and
+      // tmux's prefix) and next-history: there the terminal keeps them. A Mac is unaffected.
+      if (focusedSurfaceOwnsChord(event)) return;
       if (!hideSidebar && (event.ctrlKey || event.metaKey) && event.key === "b") {
         event.preventDefault();
         toggle();

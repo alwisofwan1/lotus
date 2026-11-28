@@ -85,6 +85,17 @@ describe("getTerminalShortcutSequence", () => {
       }),
     ).toBeNull();
   });
+
+  it("deletes a word on Ctrl+Backspace and Ctrl+Delete off macOS, as every Windows field does", () => {
+    expect(getTerminalShortcutSequence({ key: "Backspace", ctrlKey: true }, "Win32")).toBe("\u0017");
+    expect(getTerminalShortcutSequence({ key: "Delete", ctrlKey: true }, "Win32")).toBe("\u001bd");
+    expect(getTerminalShortcutSequence({ key: "Backspace", ctrlKey: true, shiftKey: true }, "Win32")).toBeNull();
+  });
+
+  it("leaves Ctrl+Backspace to xterm on macOS", () => {
+    expect(getTerminalShortcutSequence({ key: "Backspace", ctrlKey: true }, "MacIntel")).toBeNull();
+    expect(getTerminalShortcutSequence({ key: "Delete", ctrlKey: true }, "MacIntel")).toBeNull();
+  });
 });
 
 describe("handleTerminalCustomKeyEvent", () => {

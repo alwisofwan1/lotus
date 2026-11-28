@@ -154,6 +154,17 @@ describe("shouldDispatchCanvasHotkey", () => {
 });
 
 describe("shouldDispatchCanvasHotkeyCommand", () => {
+  it("yields every command, global ones included, to a surface that owns the chord", () => {
+    // Off macOS a terminal owns Ctrl+K (kill-line) and Ctrl+Shift+V (paste); the caller reports it.
+    const terminal = { editable: true, terminal: true, surfaceOwnsChord: true };
+    expect(shouldDispatchCanvasHotkeyCommand("palette", "mod+k", terminal)).toBe(false);
+    expect(shouldDispatchCanvasHotkeyCommand("toggle-dock", "mod+b", terminal)).toBe(false);
+    expect(shouldDispatchCanvasHotkeyCommand("voice-command", "mod+shift+v", terminal)).toBe(false);
+    // Unchanged where the surface does not own it — always the case on macOS.
+    expect(shouldDispatchCanvasHotkeyCommand("palette", "mod+k", { ...terminal, surfaceOwnsChord: false })).toBe(true);
+    expect(shouldDispatchCanvasHotkeyCommand("voice-command", "mod+shift+v", { ...terminal, surfaceOwnsChord: false })).toBe(true);
+  });
+
   it("keeps destructive close-node shortcuts out of terminal and editable text contexts", () => {
     expect(shouldDispatchCanvasHotkeyCommand("close-node", "mod+backspace", { editable: true, terminal: true })).toBe(false);
     expect(shouldDispatchCanvasHotkeyCommand("close-node", "mod+delete", { editable: true, terminal: true })).toBe(false);

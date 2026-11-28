@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef } from "react";
+import { focusedSurfaceOwnsChord } from "@/lib/hotkeys/platform-chords";
 import { isCodeEditorKeyTarget, isEditableCanvasKeyTarget, isEditorWidgetOpen, isTerminalKeyTarget } from "../services/canvas-keyboard-guard";
 import {
   createModifierOnlyHotkeyTracker,
@@ -39,6 +40,7 @@ export function useCanvasHotkeys(handlers: CanvasHotkeyHandlers): void {
         terminal: isTerminalKeyTarget(event.target),
         codeEditor,
         editorWidgetOpen: codeEditor && isEditorWidgetOpen(),
+        surfaceOwnsChord: focusedSurfaceOwnsChord(event),
       };
       if (!shouldDispatchCanvasHotkeyCommand(command, chord, target)) return;
       event.preventDefault();

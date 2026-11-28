@@ -265,6 +265,23 @@ When developing Bridge: remember the sidecar is a **separate process** spawned b
 - No state management library — components call `tauri-api.ts` functions directly
 - API routes under `src/app/api/` use `.server.ts` extension so they are excluded from Tauri static export builds
 
+### Keyboard: macOS and Windows
+
+`mod` is ⌘ on macOS and **Ctrl** on Windows, and Ctrl is also what a terminal spends on control
+characters and a text field on editing. So a keyboard handler never asks the platform itself:
+
+- Platform: `src/lib/platform.ts` (`isMacPlatform`, `detectDesktopPlatform`) — no private regexes.
+- Before an app listener claims a `mod` chord, ask `focusedSurfaceOwnsChord(event)`
+  (`src/lib/hotkeys/platform-chords.ts`). Off macOS a focused terminal keeps plain Ctrl+letter and
+  Ctrl+Shift+C/V; a text field keeps Ctrl+A/C/V/X/Z/Y. It is always `false` on macOS.
+- Terminal copy/paste off macOS lives in `withTerminalClipboardKeys`
+  (`src/modules/codespace/services/terminal-clipboard-keys.ts`); wrap any new xterm
+  `attachCustomKeyEventHandler` with it.
+- Labels are written in Mac glyphs and printed through `formatShortcut` / `ariaKeyShortcuts`
+  (`src/lib/hotkeys/format-shortcut.ts`), or `formatChord` for registry chords.
+- A Windows-only behaviour is gated on `!isMacPlatform()` and tested with an explicit `"Win32"` and
+  `"MacIntel"`, so the Mac path is proven unchanged.
+
 ## Agent skills
 
 ### Issue tracker

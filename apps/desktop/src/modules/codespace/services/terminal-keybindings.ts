@@ -1,3 +1,5 @@
+import { isMacPlatform, readPlatformString } from "@/lib/platform";
+
 export interface TerminalShortcutEvent {
   type?: string;
   key: string;
@@ -42,7 +44,27 @@ export function isShiftEnterNewlineEvent(event: TerminalShortcutEvent): boolean 
   );
 }
 
-export function getTerminalShortcutSequence(event: TerminalShortcutEvent): string | null {
+/**
+ * Ctrl+Backspace / Ctrl+Delete delete a word in every Windows text surface. xterm sends `^H` for
+ * the first — one character in bash — and nothing useful for the second, so they are translated
+ * to the same bytes as the Alt pair below (VS Code's integrated terminal does the same). Off macOS
+ * only: on a Mac those chords are Ctrl chords the user did not mean as word deletes.
+ */
+function getWindowsWordDeleteSequence(event: TerminalShortcutEvent, platform: string): string | null {
+  if (isMacPlatform(platform)) return null;
+  if (!event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return null;
+  if (event.key === "Backspace") return "\u0017";
+  if (event.key === "Delete") return "\u001bd";
+  return null;
+}
+
+export function getTerminalShortcutSequence(
+  event: TerminalShortcutEvent,
+  platform: string = readPlatformString(),
+): string | null {
+  const wordDelete = getWindowsWordDeleteSequence(event, platform);
+  if (wordDelete) return wordDelete;
+
   if (event.altKey && event.key === "Backspace") {
     return "\u0017";
   }

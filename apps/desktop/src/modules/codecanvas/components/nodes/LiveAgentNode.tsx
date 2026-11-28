@@ -38,6 +38,7 @@ import {
   resolveCanvasTerminalFontFamily,
 } from "@/modules/codecanvas/services/canvas-terminal-typography";
 import { handleTerminalCustomKeyEvent } from "@/modules/codespace/services/terminal-keybindings";
+import { withTerminalClipboardKeys } from "@/modules/codespace/services/terminal-clipboard-keys";
 import { resolveLiveAgentShiftEnterSequence } from "@/modules/codecanvas/services/live-agent-newline";
 import { CanvasNodeFrame } from "./CanvasNodeFrame";
 import { useCanvasDropTarget } from "../../services/canvas-drop-target-store";
@@ -1154,11 +1155,13 @@ export const LiveAgentNode = memo(function LiveAgentNode({ id, data, selected }:
       ptyWriteRef.current?.(plan);
     };
     pasteHost.addEventListener("paste", handlePaste, true);
-    term.attachCustomKeyEventHandler((event: KeyboardEvent) =>
+    // Windows/Linux copy and paste keys first (Ctrl+C with a selection, Ctrl+V); paste then arrives
+    // as the native paste event `handlePaste` above already brackets.
+    term.attachCustomKeyEventHandler(withTerminalClipboardKeys(term, (event: KeyboardEvent) =>
       handleTerminalCustomKeyEvent(event, (d) => ptyWriteRef.current?.(d), undefined, {
         shiftEnterSequence: () => shiftEnterSequenceRef.current,
       }),
-    );
+    ));
     // Debounced + size-guarded refit (mirrors the codespace runtime's guards): fit() is an
     // expensive xterm reflow, and an auto-arrange resizes EVERY node in the same frame — N
     // simultaneous refits stall the main thread and eat the glide/enter animation frames.

@@ -3,6 +3,7 @@ import type { TerminalTheme } from "@/lib/design-system";
 import { detectMonoFontFamily } from "@/lib/fonts";
 import { resolveCodeSpaceTerminalRenderMetrics } from "@/modules/codespace/services/codespace-terminal-render-theme";
 import type { TerminalLinkContextMenuPayload } from "@/modules/codespace/services/terminal-addons";
+import { withTerminalClipboardKeys } from "@/modules/codespace/services/terminal-clipboard-keys";
 import {
   createTerminalLinkClickGuard,
   detectTerminalLinksInLine,
@@ -45,6 +46,8 @@ export type TerminalV2PooledXtermLike = TerminalV2XtermLike & {
   onRender?(listener: () => void): { dispose(): void };
   attachCustomKeyEventHandler?(handler: (event: KeyboardEvent) => boolean): void;
   hasSelection?(): boolean;
+  getSelection?(): string;
+  clearSelection?(): void;
   registerLinkProvider?(provider: {
     provideLinks(bufferLineNumber: number, callback: (links: unknown[] | undefined) => void): void;
   }): { dispose(): void };
@@ -119,14 +122,14 @@ function installPooledCustomKeyHandler(
   terminal: TerminalV2PooledXtermLike,
   slotElement: HTMLElement,
 ): void {
-  terminal.attachCustomKeyEventHandler?.((event) => {
+  terminal.attachCustomKeyEventHandler?.(withTerminalClipboardKeys(terminal, (event) => {
     const detail: TerminalV2PooledCustomKeyDetail = { event };
     slotElement.dispatchEvent(new CustomEvent(TERMINAL_V2_POOLED_CUSTOM_KEY_EVENT, {
       bubbles: true,
       detail,
     }));
     return detail.result ?? true;
-  });
+  }));
 }
 
 function dispatchPooledLinkContextMenu(
