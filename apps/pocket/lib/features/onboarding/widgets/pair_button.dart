@@ -23,10 +23,10 @@ class PairButton extends StatelessWidget {
       enabled: !busy,
       child: Material(
         color: busy ? t.raise : t.text,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: context.shape.radius(ShapeRole.button),
         child: InkWell(
           onTap: busy ? null : onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: context.shape.radius(ShapeRole.button),
           child: Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(vertical: 15),

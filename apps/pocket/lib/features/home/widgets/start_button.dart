@@ -126,7 +126,7 @@ class _StartButtonState extends State<StartButton> {
                     : _down
                         ? Color.alphaBlend(t.bg.withValues(alpha: _kPressWash), t.text)
                         : t.text,
-                borderRadius: BorderRadius.circular(999),
+                borderRadius: context.shape.radius(ShapeRole.pill),
                 // The edge that makes a light shape sit *in* the surface. A dead pill has no
                 // edge to press out of anything, so it has none.
                 border: Border.all(

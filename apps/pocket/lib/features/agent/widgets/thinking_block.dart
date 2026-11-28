@@ -91,7 +91,7 @@ class ThinkingBlock extends StatelessWidget {
             Tactile.chose();
             onToggle!();
           },
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: context.shape.radius(ShapeRole.tag),
           child: body,
         ),
       ),

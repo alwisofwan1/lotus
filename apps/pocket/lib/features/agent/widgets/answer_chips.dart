@@ -73,7 +73,7 @@ class AnswerChips extends StatelessWidget {
             children: [
               for (var i = 0; i < prompt.options.length; i++) ...[
                 if (i > 0) const SizedBox(width: 8),
-                Expanded(child: _chip(t, prompt.options[i])),
+                Expanded(child: _chip(context, t, prompt.options[i])),
               ],
             ],
           ),
@@ -82,7 +82,7 @@ class AnswerChips extends StatelessWidget {
     );
   }
 
-  Widget _chip(AppTokens t, PromptOption option) => Semantics(
+  Widget _chip(BuildContext context, AppTokens t, PromptOption option) => Semantics(
         button: true,
         // The digit first, so it is what a screen reader says before the words — the same
         // order the chip draws them in.
@@ -90,7 +90,7 @@ class AnswerChips extends StatelessWidget {
         excludeSemantics: true,
         child: Material(
           color: t.waiting.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: context.shape.radius(ShapeRole.block),
           child: InkWell(
             onTap: () {
               // Same weight as the card's own buttons: these are the same answer,
@@ -98,12 +98,12 @@ class AnswerChips extends StatelessWidget {
               Tactile.answered();
               onAnswer(option);
             },
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: context.shape.radius(ShapeRole.block),
             child: Container(
               height: height,
               padding: const EdgeInsets.symmetric(horizontal: 8),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: context.shape.radius(ShapeRole.block),
                 border: Border.all(color: t.waiting.withValues(alpha: 0.35)),
               ),
               child: Row(

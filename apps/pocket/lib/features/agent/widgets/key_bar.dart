@@ -221,14 +221,14 @@ class _KeyBarState extends State<KeyBar> {
         excludeSemantics: true,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: context.shape.radius(ShapeRole.key),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
             child: Container(
               key: const ValueKey('cap'),
               constraints: const BoxConstraints(minHeight: KeyBar.capHeight),
               alignment: Alignment.center,
-              decoration: BoxDecoration(color: fill, borderRadius: BorderRadius.circular(8)),
+              decoration: BoxDecoration(color: fill, borderRadius: context.shape.radius(ShapeRole.key)),
               child: child,
             ),
           ),

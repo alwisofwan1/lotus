@@ -193,12 +193,12 @@ class _OutlinedAction extends StatelessWidget {
       button: true,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: context.shape.radius(ShapeRole.block),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           decoration: BoxDecoration(
             border: Border.all(color: t.lineStrong),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: context.shape.radius(ShapeRole.block),
           ),
           child: Text(
             label,

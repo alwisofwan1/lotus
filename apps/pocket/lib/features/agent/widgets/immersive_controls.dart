@@ -113,7 +113,7 @@ class _ImmersiveControlsState extends State<ImmersiveControls> {
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     color: t.raise2.withValues(alpha: 0.92),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: context.shape.radius(ShapeRole.field),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(4),
@@ -151,9 +151,9 @@ class _ImmersiveControlsState extends State<ImmersiveControls> {
         excludeSemantics: true,
         child: Material(
           color: on ? t.keyHi : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: context.shape.radius(ShapeRole.chip),
           child: InkWell(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: context.shape.radius(ShapeRole.chip),
             onTap: () {
               Tactile.chose();
               onTap();

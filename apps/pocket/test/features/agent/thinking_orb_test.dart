@@ -3,11 +3,11 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lotus_pocket/app/theme/app_tokens.dart';
+import 'package:lotus_pocket/app/theme/app_theme.dart';
 import 'package:lotus_pocket/features/agent/widgets/thinking_orb.dart';
 
 Widget _host(Widget child, {bool still = false}) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
+      theme: buildAppTheme(),
       home: MediaQuery(
         data: MediaQueryData(disableAnimations: still),
         child: Scaffold(body: Center(child: child)),

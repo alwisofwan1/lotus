@@ -146,12 +146,12 @@ class JumpToLatest extends StatelessWidget {
       child: Material(
         color: Color.alphaBlend(t.raise, t.bg),
         shape: counted
-            ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(17))
+            ? RoundedRectangleBorder(borderRadius: context.shape.radius(ShapeRole.pill))
             : const CircleBorder(),
         child: InkWell(
           onTap: onTap,
           customBorder: counted
-              ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(17))
+              ? RoundedRectangleBorder(borderRadius: context.shape.radius(ShapeRole.pill))
               : const CircleBorder(),
           child: Container(
             height: 34,
@@ -160,7 +160,7 @@ class JumpToLatest extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               shape: counted ? BoxShape.rectangle : BoxShape.circle,
-              borderRadius: counted ? BorderRadius.circular(17) : null,
+              borderRadius: counted ? context.shape.radius(ShapeRole.pill) : null,
               border: Border.all(color: t.lineStrong),
             ),
             child: Row(

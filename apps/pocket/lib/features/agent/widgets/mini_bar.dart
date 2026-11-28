@@ -58,7 +58,7 @@ class MiniBar extends StatelessWidget {
       ),
       child: Row(
         children: [
-          _button(
+          _button(context, 
             label: 'Back',
             onTap: onBack,
             child: Chevron(color: t.text, direction: ChevronDirection.left, size: 11, stroke: 1.8),
@@ -86,7 +86,7 @@ class MiniBar extends StatelessWidget {
           ],
           const Spacer(),
           ViewSwitch(shown: AgentSurface.terminal, onShow: onShow, compact: true),
-          _button(
+          _button(context, 
             label: 'Hide keyboard',
             onTap: () {
               Tactile.chose();
@@ -99,14 +99,14 @@ class MiniBar extends StatelessWidget {
     );
   }
 
-  Widget _button({required String label, required VoidCallback onTap, required Widget child}) =>
+  Widget _button(BuildContext context, {required String label, required VoidCallback onTap, required Widget child}) =>
       Semantics(
         button: true,
         label: label,
         excludeSemantics: true,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: context.shape.radius(ShapeRole.key),
           child: SizedBox(width: kMinHitTarget, height: height, child: Center(child: child)),
         ),
       );

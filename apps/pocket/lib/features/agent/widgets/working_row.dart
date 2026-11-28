@@ -77,7 +77,7 @@ class _WorkingRowState extends State<WorkingRow> {
           padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
           decoration: BoxDecoration(
             color: t.raise,
-            borderRadius: BorderRadius.circular(13),
+            borderRadius: context.shape.radius(ShapeRole.row),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -144,12 +144,12 @@ class _WorkingRowState extends State<WorkingRow> {
           Tactile.chose();
           widget.onStop!();
         },
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: context.shape.radius(ShapeRole.pill),
         child: Container(
           constraints: const BoxConstraints(minHeight: 28),
           padding: const EdgeInsets.symmetric(horizontal: 10),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: context.shape.radius(ShapeRole.pill),
             border: Border.all(color: t.lineStrong),
           ),
           alignment: Alignment.center,

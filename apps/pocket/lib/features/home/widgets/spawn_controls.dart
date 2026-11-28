@@ -196,7 +196,7 @@ class SpawnControls extends StatelessWidget {
         label: 'Choose a runner',
         child: Material(
           color: t.raise,
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: context.shape.radius(ShapeRole.pill),
           child: InkWell(
             onTap: () async {
               Tactile.chose();
@@ -208,7 +208,7 @@ class SpawnControls extends StatelessWidget {
               );
               if (picked != null) onChoice(picked);
             },
-            borderRadius: BorderRadius.circular(999),
+            borderRadius: context.shape.radius(ShapeRole.pill),
             // Isinya dikecualikan dari semantik seluruhnya, dan itu diukur hari ini di
             // tempat lain: tanpa ini node tombolnya berlabel `Choose a runner\nclaude` —
             // pembaca layar mengumumkan pilihan yang berlaku sebagai bagian dari perintah,

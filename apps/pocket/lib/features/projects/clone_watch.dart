@@ -60,7 +60,7 @@ class CloneWatch extends StatelessWidget {
                 ),
               ),
             ),
-            Expanded(child: Center(child: job.isFailed ? _failed(t) : _working(t))),
+            Expanded(child: Center(child: job.isFailed ? _failed(context, t) : _working(context, t))),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 22),
               child: Text(
@@ -79,7 +79,7 @@ class CloneWatch extends StatelessWidget {
     );
   }
 
-  Widget _working(AppTokens t) => Padding(
+  Widget _working(BuildContext context, AppTokens t) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -112,7 +112,7 @@ class CloneWatch extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 26),
-            _steps(t),
+            _steps(context, t),
           ],
         ),
       );
@@ -121,7 +121,7 @@ class CloneWatch extends StatelessWidget {
   ///
   /// Green, never amber: a clone asks the operator for nothing, and amber on this screen
   /// means an agent needs you (`MVP.md`).
-  Widget _steps(AppTokens t) {
+  Widget _steps(BuildContext context, AppTokens t) {
     const order = ['resolving', 'cloning', 'registering'];
     final at = order.indexOf(job.step);
     return Column(
@@ -165,7 +165,7 @@ class CloneWatch extends StatelessWidget {
   /// A phone cannot tell a typo from a private repo from an unauthenticated `gh`, and a
   /// guess sends the operator the wrong way. The host appends the one fact it does know
   /// (`gh auth status`), and this prints both exactly as they arrived.
-  Widget _failed(AppTokens t) => Padding(
+  Widget _failed(BuildContext context, AppTokens t) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 28),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -185,7 +185,7 @@ class CloneWatch extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
               decoration: BoxDecoration(
                 color: t.raise,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: context.shape.radius(ShapeRole.block),
               ),
               child: Text(
                 job.error ?? 'The machine gave no reason.',

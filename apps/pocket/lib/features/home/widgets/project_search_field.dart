@@ -51,7 +51,7 @@ class _ProjectSearchFieldState extends State<ProjectSearchField> {
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
           color: t.raise,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: context.shape.radius(ShapeRole.button),
         ),
         child: Row(
           children: [

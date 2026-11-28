@@ -109,7 +109,7 @@ class SelectionMenu extends StatelessWidget {
       color: t.raise2,
       elevation: context.elevation[ElevationRole.menu],
       shadowColor: t.shadow,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: context.shape.radius(ShapeRole.pill),
       clipBehavior: Clip.antiAlias,
       child: Row(
         mainAxisSize: MainAxisSize.min,

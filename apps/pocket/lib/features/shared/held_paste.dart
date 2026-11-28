@@ -177,7 +177,7 @@ class HeldPaste extends StatelessWidget {
                 Tactile.chose();
                 onDrop();
               },
-              borderRadius: BorderRadius.circular(9),
+              borderRadius: context.shape.radius(ShapeRole.thumb),
               child: SizedBox(
                 width: kMinHitTarget,
                 height: kMinHitTarget,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lotus_pocket/app/theme/app_tokens.dart';
+import 'package:lotus_pocket/app/theme/app_theme.dart';
 import 'package:lotus_pocket/data/agent_outcome.dart';
 import 'package:lotus_pocket/features/agent/widgets/turn_tail.dart';
 import 'package:lotus_pocket/models/cell_result.dart';
@@ -28,7 +28,7 @@ CellResult _git(List<ChangedPath> files) => CellResult(
     );
 
 Widget _host(Widget child) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
+      theme: buildAppTheme(),
       home: Scaffold(body: Center(child: child)),
     );
 

@@ -68,7 +68,7 @@ class _ReaddressDialogState extends State<ReaddressDialog> {
               filled: true,
               fillColor: t.raise,
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: context.shape.radius(ShapeRole.field),
                 borderSide: BorderSide.none,
               ),
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),

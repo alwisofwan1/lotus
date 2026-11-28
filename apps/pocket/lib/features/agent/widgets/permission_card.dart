@@ -44,7 +44,7 @@ class PermissionCard extends StatelessWidget {
       margin: const EdgeInsets.only(top: 4),
       decoration: BoxDecoration(
         color: t.waiting.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: context.shape.radius(ShapeRole.card),
         // A ring, not a left stripe: the side-stripe shape is banned in this design.
         border: Border.all(color: t.waiting.withValues(alpha: 0.32)),
       ),
@@ -57,7 +57,7 @@ class PermissionCard extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: prompt == null ? _unreadable(t) : _readable(t, prompt),
+              children: prompt == null ? _unreadable(context, t) : _readable(context, t, prompt),
             ),
           ),
         ],
@@ -83,7 +83,7 @@ class PermissionCard extends StatelessWidget {
         ),
       );
 
-  List<Widget> _readable(AppTokens t, PermissionPrompt prompt) => [
+  List<Widget> _readable(BuildContext context, AppTokens t, PermissionPrompt prompt) => [
         Text(
           prompt.question,
           style: t.serif.copyWith(fontSize: 15, height: 1.4, color: t.text),
@@ -93,7 +93,7 @@ class PermissionCard extends StatelessWidget {
         // one of them is a sentence ("Yes, allow all edits during this session"). A row
         // would truncate the label that carries the consequence.
         for (final option in prompt.options) ...[
-          _answer(t, option),
+          _answer(context, t, option),
           const SizedBox(height: 9),
         ],
         // A2: what a tap does, said once. The digits are the printed ones, so a prompt
@@ -119,7 +119,7 @@ class PermissionCard extends StatelessWidget {
   /// the question the terminal printed is shown verbatim, so the operator can read what is
   /// being asked without leaving Chat. Still no buttons: the digits come from a successful
   /// parse alone, and reading is the half of this that is safe.
-  List<Widget> _unreadable(AppTokens t) {
+  List<Widget> _unreadable(BuildContext context, AppTokens t) {
     final tail = snapshot.tail;
     if (tail == null || tail.trim().isEmpty) {
       return [
@@ -144,7 +144,7 @@ class PermissionCard extends StatelessWidget {
         constraints: const BoxConstraints(maxHeight: 260),
         decoration: BoxDecoration(
           color: t.text.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(9),
+          borderRadius: context.shape.radius(ShapeRole.thumb),
         ),
         padding: const EdgeInsets.all(10),
         child: SingleChildScrollView(
@@ -162,9 +162,9 @@ class PermissionCard extends StatelessWidget {
     ];
   }
 
-  Widget _answer(AppTokens t, PromptOption option) => Material(
+  Widget _answer(BuildContext context, AppTokens t, PromptOption option) => Material(
         color: t.text.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(11),
+        borderRadius: context.shape.radius(ShapeRole.option),
         child: InkWell(
           onTap: () {
             // Before the dispatch, not after it: the answer is irreversible the
@@ -173,14 +173,14 @@ class PermissionCard extends StatelessWidget {
             Tactile.answered();
             onAnswer(option);
           },
-          borderRadius: BorderRadius.circular(11),
+          borderRadius: context.shape.radius(ShapeRole.option),
           child: Container(
             // A2: 48px at least, and taller when a label needs a second line — the label
             // that wraps is the one that carries the consequence.
             constraints: const BoxConstraints(minHeight: 48),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(11),
+              borderRadius: context.shape.radius(ShapeRole.option),
               border: Border.all(color: t.lineStrong),
             ),
             child: Row(
@@ -194,7 +194,7 @@ class PermissionCard extends StatelessWidget {
                   height: 24,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: context.shape.radius(ShapeRole.tag),
                     border: Border.all(color: t.lineStrong),
                   ),
                   child: Text(

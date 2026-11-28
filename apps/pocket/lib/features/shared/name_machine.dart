@@ -162,7 +162,7 @@ class _NameMachineState extends State<NameMachine> {
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: context.shape.radius(ShapeRole.field),
                   borderSide: BorderSide.none,
                 ),
               ),
@@ -209,10 +209,10 @@ class _SaveButton extends StatelessWidget {
       button: true,
       child: Material(
         color: t.text,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: context.shape.radius(ShapeRole.button),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: context.shape.radius(ShapeRole.button),
           child: Container(
             alignment: Alignment.center,
             padding: const EdgeInsets.symmetric(vertical: 15),

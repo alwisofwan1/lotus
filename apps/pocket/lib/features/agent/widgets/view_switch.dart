@@ -54,13 +54,13 @@ class ViewSwitch extends StatelessWidget {
           padding: const EdgeInsets.all(_track),
           decoration: BoxDecoration(
             color: t.raise2,
-            borderRadius: BorderRadius.circular(compact ? 8 : 10),
+            borderRadius: context.shape.radius(compact ? ShapeRole.key : ShapeRole.chip),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _segment(t, AgentSurface.chat, 'Chat'),
-              _segment(t, AgentSurface.terminal, compact ? 'Term' : 'Terminal'),
+              _segment(context, t, AgentSurface.chat, 'Chat'),
+              _segment(context, t, AgentSurface.terminal, compact ? 'Term' : 'Terminal'),
             ],
           ),
         ),
@@ -68,7 +68,7 @@ class ViewSwitch extends StatelessWidget {
     );
   }
 
-  Widget _segment(AppTokens t, AgentSurface surface, String label) {
+  Widget _segment(BuildContext context, AppTokens t, AgentSurface surface, String label) {
     final on = shown == surface;
 
     return Semantics(
@@ -85,7 +85,7 @@ class ViewSwitch extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: on ? t.keyHi : t.keyHi.withValues(alpha: 0),
-          borderRadius: BorderRadius.circular(compact ? 6 : 8),
+          borderRadius: context.shape.radius(compact ? ShapeRole.tag : ShapeRole.key),
           boxShadow: [
             BoxShadow(
               color: t.shadow.withValues(alpha: on ? 0.35 : 0),

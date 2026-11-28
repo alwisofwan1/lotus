@@ -28,11 +28,11 @@ Future<void> showChangesSheet(
     // opened — and a sheet that cannot scroll would hide the tail of it.
     isScrollControlled: true,
     // The route's tokens, not the opener's, so the sheet follows a theme change.
-    builder: (context) => _sheet(context.tokens, outcome, result, onShowDiff),
+    builder: (context) => _sheet(context, context.tokens, outcome, result, onShowDiff),
   );
 }
 
-Widget _sheet(AppTokens t, AgentOutcome? outcome, CellResult? result,
+Widget _sheet(BuildContext context, AppTokens t, AgentOutcome? outcome, CellResult? result,
         void Function(String path)? onShowDiff) =>
     SafeArea(
       top: false,
@@ -43,7 +43,7 @@ Widget _sheet(AppTokens t, AgentOutcome? outcome, CellResult? result,
           // border rather than drawing a second edge (`bare`).
           color: Color.alphaBlend(t.raise, t.bg),
           border: Border(top: BorderSide(color: t.lineStrong)),
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(context.shape[ShapeRole.sheetMedium])),
         ),
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
         child: Column(

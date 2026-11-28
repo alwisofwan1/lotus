@@ -34,13 +34,13 @@ class ChangesChip extends StatelessWidget {
                   Tactile.chose();
                   onTap!();
                 },
-          borderRadius: BorderRadius.circular(999),
+          borderRadius: context.shape.radius(ShapeRole.pill),
           child: Container(
             constraints: const BoxConstraints(minHeight: 28),
             margin: const EdgeInsets.only(left: 8),
             padding: const EdgeInsets.symmetric(horizontal: 9),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(999),
+              borderRadius: context.shape.radius(ShapeRole.pill),
               border: Border.all(color: t.lineStrong),
             ),
             alignment: Alignment.center,

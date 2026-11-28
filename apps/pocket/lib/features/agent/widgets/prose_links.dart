@@ -90,8 +90,8 @@ Future<void> showLinkActions(
 }) {
   return showModalBottomSheet<void>(
     context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(context.shape[ShapeRole.sheetSmall])),
     ),
     // The route's tokens, not the opener's, so the sheet follows a theme change.
     builder: (sheet) => _linkSheet(sheet, sheet.tokens, context, target, onQuote),

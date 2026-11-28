@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lotus_pocket/app/theme/app_theme.dart';
 import 'package:lotus_pocket/app/theme/app_tokens.dart';
 import 'package:lotus_pocket/features/agent/chat_transcript.dart';
 import 'package:lotus_pocket/features/agent/widgets/changes_chip.dart';
@@ -11,7 +12,7 @@ import 'package:lotus_pocket/models/conversation.dart';
 final _at = DateTime.fromMillisecondsSinceEpoch(1788820000000);
 
 Widget _host(Widget child) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
+      theme: buildAppTheme(),
       home: Scaffold(body: Center(child: child)),
     );
 

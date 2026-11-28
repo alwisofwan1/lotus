@@ -65,11 +65,11 @@ class MineBubble extends StatelessWidget {
                     // thing on the screen that is a *container*, so it has to survive
                     // being read at arm's length.
                     color: Color.alphaBlend(t.raise, Color.alphaBlend(t.raise, t.bg)),
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(17),
-                      topRight: Radius.circular(17),
-                      bottomLeft: Radius.circular(17),
-                      bottomRight: Radius.circular(5),
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(context.shape[ShapeRole.bubble]),
+                      topRight: Radius.circular(context.shape[ShapeRole.bubble]),
+                      bottomLeft: Radius.circular(context.shape[ShapeRole.bubble]),
+                      bottomRight: Radius.circular(context.shape[ShapeRole.tail]),
                     ),
                   ),
                   child: Column(

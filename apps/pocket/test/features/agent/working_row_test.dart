@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lotus_pocket/app/theme/app_tokens.dart';
+import 'package:lotus_pocket/app/theme/app_theme.dart';
 import 'package:lotus_pocket/features/agent/widgets/thinking_orb.dart';
 import 'package:lotus_pocket/features/agent/widgets/working_row.dart';
 import 'package:lotus_pocket/features/agent/work_state.dart';
@@ -8,7 +8,7 @@ import 'package:lotus_pocket/features/agent/work_state.dart';
 final _started = DateTime.fromMillisecondsSinceEpoch(1788820000000);
 
 Widget _host(Widget child) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
+      theme: buildAppTheme(),
       home: Scaffold(body: Center(child: child)),
     );
 

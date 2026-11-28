@@ -23,7 +23,7 @@ class ScanPrompt extends StatelessWidget {
 
     return Column(
       children: [
-        _button(t),
+        _button(context, t),
         const SizedBox(height: 20),
         _orTypeIt(t),
       ],
@@ -35,21 +35,21 @@ class ScanPrompt extends StatelessWidget {
   /// This app allows exactly two filled shapes and both are already spoken for. More to
   /// the point, `Pair` below is the button that *commits* — making the scan look
   /// heavier than the thing it feeds would misdescribe which one is the decision.
-  Widget _button(AppTokens t) => Semantics(
+  Widget _button(BuildContext context, AppTokens t) => Semantics(
         button: true,
         enabled: !busy,
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: context.shape.radius(ShapeRole.button),
           child: InkWell(
             onTap: busy ? null : onScan,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: context.shape.radius(ShapeRole.button),
             child: Container(
               alignment: Alignment.center,
               padding: const EdgeInsets.symmetric(vertical: 15),
               decoration: BoxDecoration(
                 border: Border.all(color: t.lineStrong),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: context.shape.radius(ShapeRole.button),
               ),
               child: Text(
                 'Scan the QR',

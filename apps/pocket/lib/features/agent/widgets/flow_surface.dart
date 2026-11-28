@@ -220,7 +220,7 @@ class NewLinesPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.tokens;
     final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: context.shape.radius(ShapeRole.pill),
       side: BorderSide(color: t.lineStrong),
     );
 

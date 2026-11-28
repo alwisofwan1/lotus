@@ -45,7 +45,7 @@ class NeedsYou extends StatelessWidget {
       decoration: BoxDecoration(
         color: t.waiting.withValues(alpha: 0.045),
         border: Border.all(color: t.waiting.withValues(alpha: 0.28)),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: context.shape.radius(ShapeRole.banner),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

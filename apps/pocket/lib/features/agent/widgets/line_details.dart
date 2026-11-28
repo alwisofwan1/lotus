@@ -46,8 +46,8 @@ Future<void> showLineDetails(
 
   return showModalBottomSheet<void>(
     context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(context.shape[ShapeRole.sheetSmall])),
     ),
     builder: (sheet) {
       // Read in the route, not the opener, so the sheet follows a theme change.

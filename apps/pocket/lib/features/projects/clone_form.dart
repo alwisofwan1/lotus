@@ -176,7 +176,7 @@ class _CloneFormState extends State<_CloneForm> {
         padding: const EdgeInsets.symmetric(horizontal: 13),
         decoration: BoxDecoration(
           color: t.raise,
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: context.shape.radius(ShapeRole.field),
         ),
         alignment: Alignment.centerLeft,
         child: TextField(

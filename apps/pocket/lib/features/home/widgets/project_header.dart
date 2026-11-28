@@ -56,7 +56,7 @@ class ProjectHeader extends StatelessWidget {
           if (!summary.isEmpty) ...[const SizedBox(height: 10), _summary(t)],
           if (project.isStale) ...[
             SizedBox(height: summary.isEmpty ? 9 : 6),
-            _unreachable(t),
+            _unreachable(context, t),
           ],
         ],
       ),
@@ -95,7 +95,7 @@ class ProjectHeader extends StatelessWidget {
   /// Not amber: the switcher settled this before it was retired — a machine that went
   /// quiet is not asking the operator for anything, and amber has exactly one meaning
   /// (`MVP.md`).
-  Widget _unreachable(AppTokens t) {
+  Widget _unreachable(BuildContext context, AppTokens t) {
     final age = ageLabel(project.silence?.inMilliseconds);
     final ask = onAskAgain;
 
@@ -126,7 +126,7 @@ class ProjectHeader extends StatelessWidget {
           label: 'Ask every machine again',
           child: InkWell(
             onTap: ask,
-            borderRadius: BorderRadius.circular(6),
+            borderRadius: context.shape.radius(ShapeRole.tag),
             child: Padding(
               // Tinggi 44 lewat padding vertikal alih-alih kotak: barisnya sebuah kalimat,
               // dan sebuah kotak 44px di sebelahnya akan mendorong judul di atasnya.

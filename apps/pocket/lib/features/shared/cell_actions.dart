@@ -162,10 +162,10 @@ class _Pill extends StatelessWidget {
 
     return Material(
       color: t.raise,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: context.shape.radius(ShapeRole.pill),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: context.shape.radius(ShapeRole.pill),
         splashColor: t.raise,
         highlightColor: t.raise,
         child: ConstrainedBox(
@@ -200,7 +200,7 @@ class _Quiet extends StatelessWidget {
 
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: context.shape.radius(ShapeRole.pill),
       splashColor: t.raise,
       highlightColor: t.raise,
       child: ConstrainedBox(

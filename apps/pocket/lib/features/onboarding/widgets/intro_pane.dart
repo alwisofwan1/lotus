@@ -199,10 +199,10 @@ class IntroButton extends StatelessWidget {
       button: true,
       child: Material(
         color: t.text,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: context.shape.radius(ShapeRole.button),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: context.shape.radius(ShapeRole.button),
           child: Container(
             height: 48,
             alignment: Alignment.center,

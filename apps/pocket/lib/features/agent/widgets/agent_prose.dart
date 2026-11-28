@@ -198,7 +198,7 @@ class _CodeBlock extends StatelessWidget {
         // One step off the app floor, the relationship `raise` already encodes — not a
         // second background colour, and not a border, which would fence it in.
         color: Color.alphaBlend(t.raise, t.bg),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: context.shape.radius(ShapeRole.chip),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

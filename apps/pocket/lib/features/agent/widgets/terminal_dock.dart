@@ -132,9 +132,9 @@ class _TerminalDockState extends State<TerminalDock> {
         excludeSemantics: true,
         child: Material(
           color: t.raise2,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: context.shape.radius(ShapeRole.block),
           child: InkWell(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: context.shape.radius(ShapeRole.block),
             onTap: () {
               Tactile.chose();
               onType();
@@ -196,9 +196,9 @@ class _TerminalDockState extends State<TerminalDock> {
         excludeSemantics: true,
         child: Material(
           color: on ? t.keyHi : t.raise,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: context.shape.radius(ShapeRole.block),
           child: InkWell(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: context.shape.radius(ShapeRole.block),
             onTap: () {
               Tactile.chose();
               onTap();

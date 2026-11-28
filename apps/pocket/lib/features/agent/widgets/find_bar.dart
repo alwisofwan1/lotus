@@ -55,7 +55,7 @@ class _FindBarState extends State<FindBar> {
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   decoration: BoxDecoration(
                     color: t.raise,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: context.shape.radius(ShapeRole.chip),
                     border: Border.all(color: t.lineStrong),
                   ),
                   child: Row(
@@ -112,7 +112,7 @@ class _FindBarState extends State<FindBar> {
                 excludeSemantics: true,
                 child: InkWell(
                   onTap: widget.onClose,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: context.shape.radius(ShapeRole.key),
                   child: Container(
                     height: kMinHitTarget,
                     alignment: Alignment.center,
@@ -155,7 +155,7 @@ class _FindBarState extends State<FindBar> {
     excludeSemantics: true,
     child: InkWell(
       onTap: enabled ? onTap : null,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: context.shape.radius(ShapeRole.key),
       child: SizedBox(
         width: 36,
         height: 40,

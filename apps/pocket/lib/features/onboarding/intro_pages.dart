@@ -104,10 +104,10 @@ class _IntroPagesState extends State<IntroPages> {
               if (!last)
                 Material(
                   color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: context.shape.radius(ShapeRole.chip),
                   child: InkWell(
                     onTap: widget.onDone,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: context.shape.radius(ShapeRole.chip),
                     child: Container(
                       height: kMinHitTarget,
                       alignment: Alignment.centerRight,

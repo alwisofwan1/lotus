@@ -74,7 +74,7 @@ class TopBarTitle extends StatelessWidget {
       label: open ? 'Hide actions' : 'Actions for ${cell.title}',
       child: InkWell(
         onTap: tap,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: context.shape.radius(ShapeRole.key),
         splashColor: t.raise,
         highlightColor: t.raise,
         child: ConstrainedBox(

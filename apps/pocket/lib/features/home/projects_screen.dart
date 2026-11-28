@@ -244,7 +244,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
     label: 'Ask every machine again',
     child: InkWell(
       onTap: widget.onRefresh,
-      borderRadius: BorderRadius.circular(6),
+      borderRadius: context.shape.radius(ShapeRole.tag),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 13),
         child: ExcludeSemantics(

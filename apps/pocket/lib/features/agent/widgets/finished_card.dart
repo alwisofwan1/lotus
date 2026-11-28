@@ -61,7 +61,7 @@ class FinishedCard extends StatelessWidget {
       decoration: bare
           ? null
           : BoxDecoration(
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: context.shape.radius(ShapeRole.card),
               border: Border.all(color: t.lineStrong),
             ),
       padding: bare

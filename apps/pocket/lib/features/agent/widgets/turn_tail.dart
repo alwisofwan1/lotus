@@ -82,7 +82,7 @@ class TurnTail extends StatelessWidget {
             Tactile.chose();
             onOpen!();
           },
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: context.shape.radius(ShapeRole.tag),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 32),
             child: line,

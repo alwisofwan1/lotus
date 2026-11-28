@@ -104,7 +104,7 @@ class _CloseActionState extends State<CloseAction>
                   clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
                     color: t.error.withValues(alpha: 0.09 + p * 0.09),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: context.shape.radius(ShapeRole.banner),
                   ),
                   child: Stack(
                     fit: StackFit.passthrough,

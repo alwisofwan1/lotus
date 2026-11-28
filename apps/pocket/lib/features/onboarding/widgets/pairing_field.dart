@@ -64,7 +64,7 @@ class PairingField extends StatelessWidget {
             filled: true,
             fillColor: t.raise,
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: context.shape.radius(ShapeRole.button),
               borderSide: BorderSide.none,
             ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),

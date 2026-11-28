@@ -49,14 +49,14 @@ class BarButton extends StatelessWidget {
       label: semantics,
       child: InkWell(
         onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: context.shape.radius(ShapeRole.key),
         child: Container(
           width: kMinHitTarget,
           height: kMinHitTarget,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: on ? t.text : null,
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: context.shape.radius(ShapeRole.key),
           ),
           // Dikecualikan dari semantik, dan angkanya diukur: tanpa ini node tombol ini
           // berlabel `Keys off — turn on\n⌨`, jadi pembaca layar membacakan hiasannya.

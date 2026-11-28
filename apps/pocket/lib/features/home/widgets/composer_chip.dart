@@ -44,10 +44,10 @@ class ComposerChip extends StatelessWidget {
 
     return Material(
       color: inverted ? t.text : t.raise,
-      borderRadius: BorderRadius.circular(999),
+      borderRadius: context.shape.radius(ShapeRole.pill),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: context.shape.radius(ShapeRole.pill),
         child: ConstrainedBox(
           constraints: const BoxConstraints(minHeight: kMinHitTarget),
           child: Padding(

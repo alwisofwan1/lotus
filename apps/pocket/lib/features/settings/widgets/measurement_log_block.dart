@@ -52,12 +52,12 @@ class MeasurementLogBlock extends StatelessWidget {
               // Disabled rather than hidden: an empty log is still the honest answer
               // to "is this wired up", and hiding the row would look like it is not.
               onTap: count == 0 ? null : () => _copy(context),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: context.shape.radius(ShapeRole.block),
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                 decoration: BoxDecoration(
                   border: Border.all(color: t.lineStrong),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: context.shape.radius(ShapeRole.block),
                 ),
                 child: Text(
                   'Copy log',

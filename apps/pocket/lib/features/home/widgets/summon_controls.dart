@@ -41,34 +41,34 @@ class ModelSegment extends StatelessWidget {
     final segments = [
       for (var i = 0; i < labels.length; i++)
         _scrolls
-            ? SizedBox(width: scrollingSegmentWidth, child: _segment(t, i))
-            : Expanded(child: _segment(t, i)),
+            ? SizedBox(width: scrollingSegmentWidth, child: _segment(context, t, i))
+            : Expanded(child: _segment(context, t, i)),
     ];
 
     return Container(
       height: 46,
       padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(color: t.raise, borderRadius: BorderRadius.circular(23)),
+      decoration: BoxDecoration(color: t.raise, borderRadius: context.shape.radius(ShapeRole.pill)),
       child: _scrolls
           ? _Scrolled(selected: selected, child: Row(mainAxisSize: MainAxisSize.min, children: segments))
           : Row(children: segments),
     );
   }
 
-  Widget _segment(AppTokens t, int i) => Semantics(
+  Widget _segment(BuildContext context, AppTokens t, int i) => Semantics(
                 button: true,
                 selected: i == selected,
                 label: 'Model ${labels[i]}',
                 child: Material(
                   color: i == selected ? t.raise : Colors.transparent,
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: context.shape.radius(ShapeRole.pill),
                   child: InkWell(
                     onTap: () {
                       if (i == selected) return;
                       Tactile.chose();
                       onSelect(i);
                     },
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: context.shape.radius(ShapeRole.pill),
                     child: Center(
                       child: ExcludeSemantics(
                         child: Text(

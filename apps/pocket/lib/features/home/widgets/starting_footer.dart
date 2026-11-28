@@ -54,7 +54,7 @@ class StartingFooter extends StatelessWidget {
                     Tactile.chose();
                     onChoose();
                   },
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: context.shape.radius(ShapeRole.key),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(minHeight: kMinHitTarget),
                     child: ExcludeSemantics(
@@ -80,7 +80,7 @@ class StartingFooter extends StatelessWidget {
               if (canCancel)
                 InkWell(
                   onTap: onCancel,
-                  borderRadius: BorderRadius.circular(999),
+                  borderRadius: context.shape.radius(ShapeRole.pill),
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(minHeight: kMinHitTarget),
                     child: Padding(

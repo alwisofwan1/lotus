@@ -139,7 +139,7 @@ class StepCapsule extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
               decoration: BoxDecoration(
                 color: t.raise,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: context.shape.radius(ShapeRole.chip),
               ),
               child: Row(
                 children: [

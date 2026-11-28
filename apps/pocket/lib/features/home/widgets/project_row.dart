@@ -37,7 +37,7 @@ class ProjectRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 13),
         child: Row(
           children: [
-            _letter(t),
+            _letter(context, t),
             const SizedBox(width: 14),
             Expanded(child: _name(t)),
             const SizedBox(width: 12),
@@ -54,13 +54,13 @@ class ProjectRow extends StatelessWidget {
     );
   }
 
-  Widget _letter(AppTokens t) => Container(
+  Widget _letter(BuildContext context, AppTokens t) => Container(
     width: 40,
     height: 40,
     alignment: Alignment.center,
     decoration: BoxDecoration(
       color: _waiting ? t.waiting.withValues(alpha: 0.12) : t.raise,
-      borderRadius: BorderRadius.circular(13),
+      borderRadius: context.shape.radius(ShapeRole.row),
     ),
     child: Text(
       // The project's own first letter, upper-cased. Empty names cannot reach here —

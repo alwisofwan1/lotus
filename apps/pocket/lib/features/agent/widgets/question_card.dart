@@ -58,7 +58,7 @@ class QuestionCard extends StatelessWidget {
       margin: const EdgeInsets.only(top: 8, bottom: 4),
       decoration: BoxDecoration(
         color: t.waiting.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(15),
+        borderRadius: context.shape.radius(ShapeRole.card),
         // A ring, not a left stripe — the same rule the permission card follows, so the two
         // read as one family of "this one is for you".
         border: Border.all(color: t.waiting.withValues(alpha: 0.32)),
@@ -75,11 +75,11 @@ class QuestionCard extends StatelessWidget {
               children: [
                 for (var i = 0; i < questions.length; i++) ...[
                   if (i > 0) const SizedBox(height: 18),
-                  _question(t, questions[i]),
+                  _question(context, t, questions[i]),
                 ],
                 for (final extra in extras) ...[
                   const SizedBox(height: 8),
-                  _option(t, 0, extra),
+                  _option(context, t, 0, extra),
                 ],
               ],
             ),
@@ -103,7 +103,7 @@ class QuestionCard extends StatelessWidget {
         ),
       );
 
-  Widget _question(AppTokens t, UserQuestion q) => Column(
+  Widget _question(BuildContext context, AppTokens t, UserQuestion q) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // The agent's own short word for this question, when it wrote one. Only earns its
@@ -131,7 +131,7 @@ class QuestionCard extends StatelessWidget {
           const SizedBox(height: 11),
           for (var i = 0; i < q.options.length; i++) ...[
             if (i > 0) const SizedBox(height: 8),
-            _option(t, i + 1, q.options[i]),
+            _option(context, t, i + 1, q.options[i]),
           ],
         ],
       );
@@ -140,10 +140,10 @@ class QuestionCard extends StatelessWidget {
   ///
   /// Equal weight on every option, exactly as the permission card requires — the agent may mark
   /// one "(Recommended)" in its own words, and that is the only recommendation the app repeats.
-  Widget _option(AppTokens t, int digit, UserQuestionOption option) {
+  Widget _option(BuildContext context, AppTokens t, int digit, UserQuestionOption option) {
     final answer = option.key ?? digits[option.label];
     final tap = answer == null || onAnswer == null ? null : () => onAnswer!(answer);
-    final radius = BorderRadius.circular(11);
+    final radius = context.shape.radius(ShapeRole.option);
     return Material(
       color: Colors.transparent,
       child: InkWell(

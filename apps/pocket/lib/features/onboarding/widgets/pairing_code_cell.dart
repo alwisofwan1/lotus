@@ -42,7 +42,7 @@ class PairingCodeCell extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: t.raise,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: context.shape.radius(ShapeRole.block),
           border: Border.all(color: border),
         ),
         child: AnimatedSwitcher(

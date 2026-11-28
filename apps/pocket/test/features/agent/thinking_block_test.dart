@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:lotus_pocket/app/theme/app_tokens.dart';
+import 'package:lotus_pocket/app/theme/app_theme.dart';
 import 'package:lotus_pocket/features/agent/chat_layout.dart';
 import 'package:lotus_pocket/features/agent/chat_transcript.dart';
 import 'package:lotus_pocket/features/agent/widgets/thinking_block.dart';
@@ -11,7 +11,7 @@ ChatItem _item(ChatLine kind, String text, {int plus = 0}) =>
     ChatItem(kind: kind, text: text, timestamp: _at.add(Duration(seconds: plus)));
 
 Widget _host(Widget child) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: [AppTokens.dark]),
+      theme: buildAppTheme(),
       home: Scaffold(body: Center(child: child)),
     );
 

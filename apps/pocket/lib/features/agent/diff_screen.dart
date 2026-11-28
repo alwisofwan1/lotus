@@ -124,7 +124,7 @@ class _DiffScreenState extends State<DiffScreen> {
         Container(
           decoration: BoxDecoration(
             color: Color.alphaBlend(t.raise, t.bg),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: context.shape.radius(ShapeRole.chip),
           ),
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: SingleChildScrollView(

@@ -105,7 +105,7 @@ class _RunnerSheetState extends State<_RunnerSheet> {
       decoration: BoxDecoration(
         color: t.bg,
         border: Border(top: BorderSide(color: t.lineStrong)),
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(22)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(context.shape[ShapeRole.sheetLarge])),
       ),
       constraints: BoxConstraints(
         maxHeight: MediaQuery.sizeOf(context).height * 0.82,

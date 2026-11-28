@@ -145,7 +145,7 @@ class SelectionPill extends StatelessWidget {
       ),
       child: Material(
         color: Color.alphaBlend(t.raise, Color.alphaBlend(t.raise, t.bg)),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: context.shape.radius(ShapeRole.block),
         clipBehavior: Clip.antiAlias,
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -279,7 +279,7 @@ class _Action extends StatelessWidget {
       label: label,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: context.shape.radius(ShapeRole.thumb),
         child: Container(
           height: kMinHitTarget,
           alignment: Alignment.center,

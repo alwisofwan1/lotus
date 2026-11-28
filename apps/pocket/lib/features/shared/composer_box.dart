@@ -40,7 +40,7 @@ class ComposerBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: t.raise,
         border: Border.all(color: t.line),
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: context.shape.radius(ShapeRole.composer),
       ),
       // The mockup's 6, less the 4 a 44px target carries around a 36px circle: the gap
       // the eye sees is the drawing's, the area the thumb gets is this app's.

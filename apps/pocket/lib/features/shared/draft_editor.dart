@@ -148,9 +148,9 @@ class _SendPill extends StatelessWidget {
       label: 'Send',
       child: Material(
         color: t.text,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: context.shape.radius(ShapeRole.chip),
         child: InkWell(
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: context.shape.radius(ShapeRole.chip),
           onTap: () async {
             final navigator = Navigator.of(context);
             await onSend();

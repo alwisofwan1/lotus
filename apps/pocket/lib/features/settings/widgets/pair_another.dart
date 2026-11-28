@@ -28,16 +28,16 @@ class PairAnother extends StatelessWidget {
         button: true,
         child: Material(
           color: Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: context.shape.radius(ShapeRole.button),
           child: InkWell(
             onTap: onTap,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: context.shape.radius(ShapeRole.button),
             child: Container(
               height: 48,
               alignment: Alignment.center,
               decoration: BoxDecoration(
                 border: Border.all(color: t.lineStrong),
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: context.shape.radius(ShapeRole.button),
               ),
               child: Text(
                 'Pair another machine',
