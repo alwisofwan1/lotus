@@ -51,6 +51,11 @@ No widget, builder or test changes. `ThemeController.select('<id>')` shows it.
   on it (black too: SGR 30 is text); `white` ≥ 4.5 on `black` (inverse video). The xterm
   view draws with `backgroundOpacity: 0` over a `termGround` box, so `TermRole.background`
   is never painted and is not the ground measured.
+- **Terminal chrome**: what is drawn on `termGround` (page header, keys, status bar) uses
+  `ThemeVariant.onTerminal` — the `terminalChrome` variant if set, else the variant itself.
+  Its `termGround` must equal this one's, its text / text2 / text3 ≥ 4.5 and ornament ≥ 3.0
+  on it. `buildAppTheme` exposes it as the `TerminalChrome` extension; the agent page wraps
+  its chrome in `context.terminalChrome` and sets the bars with `overlayFor(ground)`.
 - **Camera**: the scanner keeps its own dark ground in every theme (`camera`), and its text
   roles `onCamera`, `onCamera2`, `onCamera3` must clear 4.5 on it.
 - **Brand marks** ≥ 3.0 on `ground` and `raised`, using the table for the variant's
@@ -59,8 +64,8 @@ No widget, builder or test changes. `ThemeController.select('<id>')` shows it.
 
 **Waivers.** A variant may list subjects it knowingly fails in `ThemeVariant.waivers`, each
 with a reason. A test fails if a waiver no longer matches a real violation. Classic waives
-four, to keep its look: `ansi black on termGround` (black is a ground by convention),
-`ansi brightBlack on termGround` (2.96:1, ornament ink),
+five, to keep its look: `ansi black on termGround` (black is a ground by convention),
+`ansi brightBlack on termGround` and `chrome ornament on termGround` (2.96:1, ornament ink),
 `text3 on raised` (4.42:1 on sheets) and `onCamera3 on camera` (4.43:1, the scan hint).
 
 The matrix states what the app guarantees today. A palette that sits text3 on a raised
@@ -124,9 +129,11 @@ The mockup's reds sat 53° and 34° from amber; the status-hue rule wants 60°, 
 is the one that keeps its meaning, so red moved.
 
 **Roles the mockup left open.** `key` = s2, `keyActive` = s3 (pressed). Ornament `#65625B`
-dark / `#908B83` light (≥ 3.0). The terminal ground stays dark in light mode (`#111110`), so
-both variants share one terminal palette built from the dark roles; ANSI black is a
-readable grey `#66635C` (3.15 on the ground, white 4.99 on it) and bright black is text3.
+dark / `#908B83` light (≥ 3.0). The terminal ground stays dark in light mode: dark's `#0B0B0A`
+(the mockup's `#111110` would split header from pane). Both variants share one terminal
+palette built from the dark roles, and light's `terminalChrome` is the dark variant, so the
+terminal page's header, keys and bar icons use dark-theme ink. ANSI black is a
+readable grey `#66635C` (3.29 on the ground, white 4.99 on it) and bright black is text3.
 The camera is black with the dark text roles in both. Brand marks pass on both tables.
 
 ## Classic

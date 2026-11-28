@@ -15,6 +15,7 @@ class ThemeVariant {
     required this.shape,
     required this.elevation,
     this.waivers = const {},
+    this.terminalChrome,
   });
 
   final Brightness brightness;
@@ -25,6 +26,11 @@ class ThemeVariant {
 
   /// Invariant subjects this variant knowingly fails, each with its reason; tested for staleness.
   final Map<String, String> waivers;
+
+  /// The variant drawn over the terminal ground; null when this one already reads there.
+  final ThemeVariant? terminalChrome;
+
+  ThemeVariant get onTerminal => terminalChrome ?? this;
 
   List<ThemeExtension<dynamic>> get extensions => [tokens, terminal, shape, elevation];
 }

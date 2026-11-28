@@ -2,6 +2,11 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/services.dart';
+import 'package:lotus_pocket/app/theme/invariants/contrast.dart';
+import 'package:lotus_pocket/app/theme/registry.dart';
+import 'package:lotus_pocket/features/agent/widgets/agent_input.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/data/transcript_pager.dart';
 import 'package:lotus_pocket/app/theme/app_theme.dart';
@@ -89,7 +94,7 @@ void main() {
 
   var backs = 0;
 
-  Future<void> show(WidgetTester tester, Cell c, {String hostLabel = 'mac'}) async {
+  Future<void> show(WidgetTester tester, Cell c, {String hostLabel = 'mac', ThemeData? theme}) async {
     backs = 0;
     holdUpright(tester);
     // What `AgentScreen` does before it builds a page, and it has to be done here for
@@ -98,7 +103,7 @@ void main() {
     // page mounted without its pager has to be told, exactly as the pager tells it.
     harness.live.follow([c.ref]);
     await tester.pumpWidget(MaterialApp(
-      theme: buildAppTheme(),
+      theme: theme ?? buildAppTheme(),
       home: Scaffold(
         body: AgentPage(
           cell: c,
@@ -567,11 +572,11 @@ void main() {
   });
 
   group('Chat and Terminal are two equal views, one tap apart', () {
-    Future<void> showChatting(WidgetTester tester) async {
+    Future<void> showChatting(WidgetTester tester, {ThemeData? theme}) async {
       http
         ..enqueue(fixture('rest-transcript'))
         ..enqueue('{"paneId":"p-1","awaiting":false,"prompt":null}');
-      await show(tester, cell(turn: 'running'));
+      await show(tester, cell(turn: 'running'), theme: theme);
     }
 
     Finder segment(String label) =>
@@ -670,6 +675,35 @@ void main() {
       await showTerminal(tester);
       expect(ground(), AppTokens.dark.termBg);
     });
+
+    // A light theme keeps a dark terminal; what is drawn on that ground must read on it.
+    for (final def in themeRegistry) {
+      for (final v in def.variants) {
+        testWidgets('Terminal chrome reads on the terminal ground: ${def.id}/${v.brightness.name}',
+            (tester) async {
+          await showChatting(tester, theme: buildAppTheme(v));
+          await showTerminal(tester);
+          final ground = v.tokens.termBg;
+          Color ink(Finder f) => tester.renderObject<RenderParagraph>(f).text.style!.color!;
+
+          expect(contrast(ink(find.text('Atlas')), ground), greaterThanOrEqualTo(4.5));
+          for (final f in [find.byType(AgentTopBar), find.byType(AgentInput)]) {
+            final texts = find.descendant(of: f, matching: find.byType(RichText));
+            for (final e in texts.evaluate()) {
+              final p = e.renderObject! as RenderParagraph;
+              final c = p.text.style?.color;
+              if (c == null || p.text.toPlainText().trim().isEmpty) continue;
+              expect(contrast(c, ground), greaterThanOrEqualTo(3.0), reason: p.text.toPlainText());
+            }
+          }
+          final bars = tester.widget<AnnotatedRegion<SystemUiOverlayStyle>>(find
+              .descendant(of: find.byType(AgentPage), matching: find.byType(AnnotatedRegion<SystemUiOverlayStyle>))
+              .first);
+          expect(bars.value.statusBarIconBrightness, Brightness.light);
+          expect(bars.value.systemNavigationBarIconBrightness, Brightness.light);
+        });
+      }
+    }
 
     testWidgets('system back goes to Chat before it leaves the page', (tester) async {
       await showChatting(tester);

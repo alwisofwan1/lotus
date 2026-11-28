@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show SystemChrome, SystemUiMode;
+import 'package:flutter/services.dart' show SystemChrome, SystemUiMode, SystemUiOverlayStyle;
 
 import '../../app/theme/theme.dart';
 import '../../data/agent_repository.dart';
@@ -189,13 +189,18 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
   @override
   Widget build(BuildContext context) {
     final view = _view;
-    final t = context.tokens;
-    final ground = _mode.onTerminal ? t.termBg : t.bg;
+    // On Terminal every piece of chrome sits on termGround, so it reads that ground's theme
+    // (a light theme keeps a dark terminal). Always wrapped, so the tree never reshapes.
+    final chrome = _mode.onTerminal ? context.terminalChrome : Theme.of(context);
+    Widget onGround(Widget child) => Theme(data: chrome, child: child);
+    final ground = _mode.onTerminal ? context.tokens.termBg : context.tokens.bg;
     // `AgentScreen` leaves the status bar to the page, so Terminal's ground can reach the
     // top of the glass instead of stopping under a strip of the app's floor.
     final statusBar = MediaQuery.paddingOf(context).top;
 
-    return PopScope(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: overlayFor(ground),
+      child: PopScope(
       // System back gives back the keys first, then the immersion, then Chat, then the
       // page — the order every stacked surface on this platform uses (`PageMode.back`).
       canPop: _mode.back == null,
@@ -214,16 +219,16 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
           // screen too — it holds the only on-screen way to lower the keyboard.
           // Immersed, the floating ⌨ holds it instead (v4 tiket 10).
           if (_mode.live && !_mode.immersive)
-            MiniBar(
+            onGround(MiniBar(
               cell: widget.cell,
               hostLabel: widget.hostLabel,
               onBack: widget.onBack,
               onShow: _show,
               onKeysOff: _toggleLive,
-            )
+            ))
           // Find open in Terminal: its bar is the header for as long as it lasts (B4).
           else if (!_mode.immersive && !(_finding && _mode.onTerminal))
-            AgentTopBar(
+            onGround(AgentTopBar(
               cell: widget.cell,
               index: widget.index,
               total: widget.total,
@@ -249,7 +254,7 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
                         cell: widget.cell, repository: widget.repository, path: path)
                     : null,
               ),
-            ),
+            )),
           Expanded(
             child: AgentViews(
               shown: _mode.surface,
@@ -272,10 +277,10 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
                 // `/m/cell/:paneId/stop`, which only the raw terminal could reach before.
                 onStop: () => unawaited(_mutations.stop(context, widget.cell)),
               ),
-              terminal: ColoredBox(color: t.termBg, child: _terminal(view)),
+              terminal: onGround(ColoredBox(color: ground, child: _terminal(view))),
             ),
           ),
-          AgentInput(
+          onGround(AgentInput(
             cell: widget.cell,
             repository: widget.repository,
             controller: _composer,
@@ -288,8 +293,9 @@ class _AgentPageState extends State<AgentPage> with _AgentViews, _Speech {
             terminalLive: _mode.live,
             answerable: view?.answerable ?? false,
             onSend: _send,
-          ),
+          )),
         ],
+      ),
       ),
     );
   }

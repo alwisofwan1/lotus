@@ -82,6 +82,12 @@ List<Violation> checkTheme(ThemeVariant v, {bool applyWaivers = true}) {
   for (final r in ansiRoles) {
     need('ansi ${r.name} on termGround', 'contrast', contrast(term[r], termBg), 3.0);
   }
+  // Chrome over the terminal (header, keys, status bar) reads the terminal chrome's ink.
+  final chrome = v.onTerminal.tokens.colors;
+  need('terminal chrome ground', 'chrome', deltaEok(chrome[ColorRole.termGround], termBg), 0, atMost: true);
+  for (final (r, min) in [(ColorRole.text, 4.5), (ColorRole.text2, 4.5), (ColorRole.text3, 4.5), (ColorRole.ornament, 3.0)]) {
+    need('chrome ${r.name} on termGround', 'contrast', contrast(chrome[r], termBg), min);
+  }
   // Black is also a ground (inverse video), so white must read on it.
   need('ansi white on black', 'contrast', contrast(term[TermRole.white], term[TermRole.black]), 4.5);
   for (final b in _brands) {

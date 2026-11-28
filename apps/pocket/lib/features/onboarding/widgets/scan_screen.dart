@@ -36,6 +36,8 @@ class ScanScreen extends StatelessWidget {
           style: t.ui.copyWith(fontSize: 16, fontWeight: FontWeight.w500, color: t.onCamera),
         ),
         iconTheme: IconThemeData(color: t.onCamera2),
+        // The camera stays dark in a light theme; the bar icons follow the ground, not the theme.
+        systemOverlayStyle: overlayFor(t.camera),
       ),
       body: Stack(
         fit: StackFit.expand,

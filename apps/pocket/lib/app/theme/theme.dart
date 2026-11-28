@@ -7,4 +7,5 @@ export 'tokens/app_type.dart';
 export 'tokens/brand_marks.dart';
 export 'tokens/color_role.dart';
 export 'tokens/motion.dart';
+export 'tokens/terminal_chrome.dart';
 export 'tokens/terminal_palette.dart';

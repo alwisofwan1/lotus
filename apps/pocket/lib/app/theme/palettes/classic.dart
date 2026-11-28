@@ -106,6 +106,7 @@ final ThemeVariant _dark = ThemeVariant(
   waivers: {
     'ansi black on termGround': 'black is a ground in dark terminals; SGR 30 text is near-invisible by convention',
     'ansi brightBlack on termGround': '2.96:1; it is ornament ink, used for dim terminal chrome',
+    'chrome ornament on termGround': '2.96:1, the same ink as brightBlack; marks only',
     'text3 on raised': '4.42:1 on sheets; lifting text3 changes every quiet label',
     'onCamera3 on camera': '4.43:1 for the scan hint; kept to match the quiet text it was',
   },

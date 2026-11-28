@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'app_tokens.dart';
 import 'components/components.dart';
 import 'palettes/classic.dart';
+import 'tokens/terminal_chrome.dart';
 import 'theme_variant.dart';
 
 /// The one place `ThemeData` is built; a new theme is a new [ThemeVariant], never a builder.
@@ -36,7 +37,10 @@ ThemeData buildAppTheme([ThemeVariant? variant]) {
     brightness: v.brightness,
     colorScheme: colorScheme,
     scaffoldBackgroundColor: t.bg,
-    extensions: v.extensions,
+    extensions: [
+      ...v.extensions,
+      if (v.terminalChrome case final chrome?) TerminalChrome(buildAppTheme(chrome)),
+    ],
   );
 
   // Explicit, so Material text never drifts off `text` on a Flutter upgrade.

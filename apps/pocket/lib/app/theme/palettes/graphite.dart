@@ -41,7 +41,7 @@ final AppColors _lightColors = AppColors({
   ColorRole.ground: const Color(0xFFF5F3EF),
   ColorRole.raised: const Color(0xFFFFFFFF), // s1
   ColorRole.track: const Color(0xFFEEEBE5), // s2
-  ColorRole.termGround: const Color(0xFF111110), // the terminal stays dark
+  ColorRole.termGround: const Color(0xFF0B0B0A), // the terminal stays dark: dark's ground
   ColorRole.key: const Color(0xFFEEEBE5), // s2
   ColorRole.keyActive: const Color(0xFFE4E0D8), // s3, pressed
   ColorRole.text: const Color(0xFF1A1917),
@@ -78,7 +78,7 @@ final AppType _type = AppType({
 Color _d(ColorRole r) => _darkColors[r];
 
 // One palette for both: the terminal ground is dark in light mode too.
-// Black is a readable grey (no waivers): 3.15:1 on the ground, white 4.99:1 on it.
+// Black is a readable grey (no waivers): 3.3:1 on the ground, white 4.99:1 on it.
 final TerminalPalette _terminal = TerminalPalette({
   TermRole.foreground: _d(ColorRole.text2),
   TermRole.background: _d(ColorRole.termGround),
@@ -132,17 +132,21 @@ final AppShape _shape = AppShape({
 
 final AppElevation _elevation = AppElevation({ElevationRole.floating: 4, ElevationRole.menu: 8});
 
-ThemeVariant _variant(Brightness b, AppColors colors) => ThemeVariant(
+ThemeVariant _variant(Brightness b, AppColors colors, {ThemeVariant? chrome}) => ThemeVariant(
       brightness: b,
       tokens: AppTokens(colors: colors, fonts: _type),
       terminal: _terminal,
       shape: _shape,
       elevation: _elevation,
+      terminalChrome: chrome,
     );
+
+final ThemeVariant _dark = _variant(Brightness.dark, _darkColors);
 
 final AppThemeDef graphite = AppThemeDef(
   id: 'graphite',
   label: 'Graphite',
-  light: _variant(Brightness.light, _lightColors),
-  dark: _variant(Brightness.dark, _darkColors),
+  // Light mode's terminal page is a dark ground, so its chrome is the dark variant.
+  light: _variant(Brightness.light, _lightColors, chrome: _dark),
+  dark: _dark,
 );
