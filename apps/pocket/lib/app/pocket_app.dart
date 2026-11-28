@@ -49,7 +49,7 @@ class PocketApp extends StatefulWidget {
 
   final CompositionRoot root;
 
-  /// Which theme and mode; the app makes its own (classic, dark) when none is given.
+  /// Which theme and mode; by default the one saved in `root.themeChoice`.
   final ThemeController? themeController;
 
   @override
@@ -93,7 +93,7 @@ class _PocketAppState extends State<PocketApp> with WidgetsBindingObserver {
   late final WakeRouting _wakes;
   /// Read per build, so a replaced controller takes over; the fallback is made once, if needed.
   ThemeController? _ownTheme;
-  ThemeController get _theme => widget.themeController ?? (_ownTheme ??= ThemeController());
+  ThemeController get _theme => widget.themeController ?? (_ownTheme ??= ThemeController.restore(widget.root.themeChoice));
 
   @override
   void initState() {

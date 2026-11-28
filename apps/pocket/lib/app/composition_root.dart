@@ -25,6 +25,7 @@ import '../data/build_seen.dart';
 import '../data/draft_keeper.dart';
 import '../data/seen_marks.dart';
 import '../data/snippets.dart';
+import '../data/theme_choice.dart';
 import '../data/live_conversation.dart';
 import '../data/transcript_pager.dart';
 import '../data/measurement_log.dart';
@@ -78,6 +79,7 @@ class CompositionRoot {
     required this.drafts,
     required this.introSeen,
     required this.buildSeen,
+    required this.themeChoice,
     required this.measurements,
     required this.refreshKeys,
   });
@@ -121,6 +123,9 @@ class CompositionRoot {
   /// The running build, and whether this launch is the first of it. Diagnostics shows
   /// the first; `PocketApp` announces the second once.
   final BuildSeen buildSeen;
+
+  /// The saved theme and appearance, loaded before the first frame so it never flashes.
+  final ThemeChoice themeChoice;
 
   /// The camera behind the pairing QR (ADR-5 step 1), handed to onboarding as
   /// `scanner.view` — a bare function — because `features/` may not import `core/`.

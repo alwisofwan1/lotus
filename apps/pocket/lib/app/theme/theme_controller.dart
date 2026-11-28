@@ -1,17 +1,29 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../../data/theme_choice.dart';
 
 import 'app_theme.dart';
 import 'invariants/rules.dart';
 import 'registry.dart';
 import 'theme_variant.dart';
 
-/// Which registered theme is shown, and in which mode. In memory only for now.
+/// Which registered theme is shown, and in which mode; saved through [ThemeChoice] if given.
 class ThemeController extends ChangeNotifier {
-  ThemeController({String themeId = 'classic', this._mode = ThemeMode.dark})
+  ThemeController({String themeId = defaultThemeId, this._mode = ThemeMode.system, this._choice})
       : _theme = _registered(themeId);
+
+  /// The saved choice, or the default; an id no longer registered falls back to the default.
+  factory ThemeController.restore(ThemeChoice choice) => ThemeController(
+        themeId: themeById(choice.themeId ?? defaultThemeId).id,
+        mode: ThemeMode.values.byName((choice.appearance ?? Appearance.system).name),
+        choice: choice,
+      );
 
   AppThemeDef _theme;
   ThemeMode _mode;
+  final ThemeChoice? _choice;
 
   AppThemeDef get theme => _theme;
   ThemeMode get mode => _mode;
@@ -19,14 +31,19 @@ class ThemeController extends ChangeNotifier {
   set mode(ThemeMode value) {
     if (value == _mode) return;
     _mode = value;
-    notifyListeners();
+    _changed();
   }
 
   void select(String id) {
     final next = _registered(id);
     if (identical(next, _theme)) return;
     _theme = next;
+    _changed();
+  }
+
+  void _changed() {
     notifyListeners();
+    unawaited(_choice?.save(themeId: _theme.id, appearance: Appearance.values.byName(_mode.name)));
   }
 
   static AppThemeDef _registered(String id) {

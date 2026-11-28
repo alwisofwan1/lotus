@@ -65,6 +65,8 @@ Future<CompositionRoot> bootRoot({
   // After the intro bit, which is what tells an upgraded phone from a fresh install.
   final buildSeen = BuildSeen(store, current: build ?? await readAppBuild());
   await buildSeen.load(returning: introSeen.isSeen);
+  final themeChoice = ThemeChoice(store);
+  await themeChoice.load();
   // Shared with `liveTranscript` below and read from `TerminalFeed` off `output`
   // itself, so every Fase 0 counter this app produces lands in one log.
   final measurements = MeasurementLog(now: now);
@@ -110,6 +112,7 @@ Future<CompositionRoot> bootRoot({
     drafts: drafts,
     introSeen: introSeen,
     buildSeen: buildSeen,
+    themeChoice: themeChoice,
     pairing: PairingRepository(
       credentials: credentials,
       registry: registry,

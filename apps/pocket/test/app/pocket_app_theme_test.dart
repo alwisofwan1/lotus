@@ -3,8 +3,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/app/composition_root.dart';
 import 'package:lotus_pocket/app/pocket_app.dart';
 import 'package:lotus_pocket/app/theme/app_tokens.dart';
+import 'package:lotus_pocket/app/theme/registry.dart';
 import 'package:lotus_pocket/app/theme/theme_controller.dart';
 import 'package:lotus_pocket/data/intro_seen.dart';
+import 'package:lotus_pocket/data/theme_choice.dart';
 import 'package:lotus_pocket/models/app_build.dart';
 
 import '../support/fake_security.dart';
@@ -19,7 +21,7 @@ void main() {
       transport: FakeTransport(),
       build: const AppBuild(version: '1.0.0', buildNumber: 1),
     );
-    final controller = ThemeController();
+    final controller = ThemeController(themeId: 'classic', mode: ThemeMode.dark);
     await tester.pumpWidget(PocketApp(root: root, themeController: controller));
     await tester.pump();
 
@@ -40,5 +42,36 @@ void main() {
     controller.mode = ThemeMode.dark;
     await tester.pump();
     expect(app().themeMode, ThemeMode.light);
+  });
+
+  Future<CompositionRoot> boot(InMemorySecureStore store) => CompositionRoot.boot(
+        secureStore: store,
+        biometrics: FakeBiometrics(),
+        transport: FakeTransport(),
+        build: const AppBuild(version: '1.0.0', buildNumber: 1),
+      );
+
+  testWidgets('a fresh install opens on Graphite, following the system', (tester) async {
+    final root = await boot(InMemorySecureStore()..entries[IntroSeen.key] = '1');
+    await tester.pumpWidget(PocketApp(root: root));
+    await tester.pump();
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.system);
+    expect(app.theme!.extension<AppTokens>(), themeById('graphite').light.tokens);
+    expect(app.darkTheme!.extension<AppTokens>(), themeById('graphite').dark.tokens);
+  });
+
+  testWidgets('a saved choice is what the next launch opens on', (tester) async {
+    final store = InMemorySecureStore()
+      ..entries[IntroSeen.key] = '1'
+      ..entries[ThemeChoice.themeKey] = 'classic'
+      ..entries[ThemeChoice.appearanceKey] = 'dark';
+    await tester.pumpWidget(PocketApp(root: await boot(store)));
+    await tester.pump();
+
+    final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.themeMode, ThemeMode.dark);
+    expect(app.darkTheme!.extension<AppTokens>(), AppTokens.dark);
   });
 }

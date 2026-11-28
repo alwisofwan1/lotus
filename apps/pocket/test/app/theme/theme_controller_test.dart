@@ -3,22 +3,58 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:lotus_pocket/app/theme/registry.dart';
 import 'package:lotus_pocket/app/theme/theme.dart';
 import 'package:lotus_pocket/app/theme/theme_controller.dart';
+import 'package:lotus_pocket/data/theme_choice.dart';
+
+import '../../support/fake_security.dart';
 
 void main() {
-  test('starts on classic, dark, so nothing looks different yet', () {
+  test('starts on graphite, following the system', () {
     final c = ThemeController();
-    expect(c.theme.id, 'classic');
-    expect(c.mode, ThemeMode.dark);
-    expect(ThemeController(mode: ThemeMode.system).mode, ThemeMode.system);
+    expect(c.theme.id, 'graphite');
+    expect(c.mode, ThemeMode.system);
+    expect(ThemeController(mode: ThemeMode.dark).mode, ThemeMode.dark);
+  });
+
+  group('persistence', () {
+    late InMemorySecureStore store;
+    setUp(() => store = InMemorySecureStore());
+
+    Future<ThemeChoice> loaded() async {
+      final choice = ThemeChoice(store);
+      await choice.load();
+      return choice;
+    }
+
+    test('a fresh install restores the default', () async {
+      final c = ThemeController.restore(await loaded());
+      expect(c.theme.id, defaultThemeId);
+      expect(c.mode, ThemeMode.system);
+    });
+
+    test('every change is saved and comes back after a restart', () async {
+      final c = ThemeController.restore(await loaded());
+      c.select('classic');
+      c.mode = ThemeMode.light;
+      await pumpEventQueue();
+
+      final next = ThemeController.restore(await loaded());
+      expect(next.theme.id, 'classic');
+      expect(next.mode, ThemeMode.light);
+    });
+
+    test('a stored id no longer registered falls back to the default', () async {
+      await store.write(ThemeChoice.themeKey, 'retired-theme');
+      expect(ThemeController.restore(await loaded()).theme.id, defaultThemeId);
+    });
   });
 
   test('changing mode notifies; setting the same mode does not', () {
     final c = ThemeController();
     var calls = 0;
     c.addListener(() => calls++);
-    c.mode = ThemeMode.system;
-    c.mode = ThemeMode.system;
-    expect(c.mode, ThemeMode.system);
+    c.mode = ThemeMode.light;
+    c.mode = ThemeMode.light;
+    expect(c.mode, ThemeMode.light);
     expect(calls, 1);
   });
 
@@ -30,7 +66,7 @@ void main() {
   });
 
   testWidgets('MaterialApp gets light, dark and mode from the controller', (tester) async {
-    final c = ThemeController();
+    final c = ThemeController(mode: ThemeMode.dark);
     await tester.pumpWidget(ThemedApp(
       controller: c,
       builder: (theme, darkTheme, mode) => MaterialApp(
