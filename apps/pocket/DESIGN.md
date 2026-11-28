@@ -186,7 +186,8 @@ bordered card (*Calm* in the mockup) is kept only as a fallback.
 **Shipped 2026-11-28 (`features/home/widgets/needs_you.dart`), with three rules the mockup did not have:**
 
 - **Safe map** (`slip_answers.dart`, user's call): the slider appears only for a permission with exactly one
-  plain "Yes" option and exactly one option starting with "No". Right sends that Yes's printed digit, left
+  plain "Yes" option and exactly one option starting with "No" (the host bridge's own "Allow once" and
+  "Deny" count as the same; found on the phone 2026-11-28, `/permission` sends no option `kind`). Right sends that Yes's printed digit, left
   the No's. The ends show the prompt's own first words ("Yes", "No"); screen readers hear the whole labels.
   The middle "Yes, and don't ask again" stays in Chat. Any other shape gets View and "Answer in Chat".
 - **Words:** the host does not say whether a permission runs a command or edits a file, so the head says

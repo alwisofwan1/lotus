@@ -32,6 +32,14 @@ void main() {
     expect(a.no.label, startsWith('No, and tell'));
   });
 
+  test('the host bridge\'s own labels map too; the standing grant stays in Chat', () {
+    final a = slipAnswersFor(
+      snap([('1', 'Allow once'), ('2', 'Allow all Bash until this cell closes'), ('3', 'Deny')]),
+    )!;
+    expect((a.yes.key, a.no.key), ('1', '3'));
+    expect(slipAnswersFor(snap([('1', 'Allow all Bash until this cell closes'), ('2', 'Deny')])), isNull);
+  });
+
   test('a prompt that starts at 2 keeps its own digits', () {
     final a = slipAnswersFor(snap([('2', 'Yes'), ('3', 'No')]))!;
     expect((a.yes.key, a.no.key), ('2', '3'));

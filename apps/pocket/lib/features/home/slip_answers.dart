@@ -5,9 +5,9 @@ typedef SlipAnswers = ({PromptOption yes, PromptOption no});
 
 /// Maps a prompt onto a two-ended slider, or null when that cannot be done safely.
 ///
-/// Safe means: a permission (not a question), exactly one option that is a plain "Yes",
-/// and exactly one that starts with "No". Anything else, such as two plain yeses or a
-/// "Yes, and don't ask again" with no plain one, is answered in Chat, never guessed here.
+/// Safe means: a permission (not a question), exactly one plain "Yes" (or the host bridge's
+/// "Allow once") and exactly one "No…" (or "Deny"). A standing grant such as "Allow all Bash
+/// until this cell closes" never maps; it is answered in Chat, never guessed here.
 SlipAnswers? slipAnswersFor(PermissionSnapshot? snapshot) {
   if (snapshot == null || !snapshot.answerable) return null;
   final prompt = snapshot.prompt!;
@@ -20,6 +20,7 @@ SlipAnswers? slipAnswersFor(PermissionSnapshot? snapshot) {
 
 String _norm(String label) => label.trim().toLowerCase();
 
-bool _plainYes(String label) => RegExp(r'^yes[.!]?$').hasMatch(_norm(label));
+// "Allow once" and "Deny" are the host bridge's own fixed labels (`claude/pending.ts`).
+bool _plainYes(String label) => RegExp(r'^(yes|allow once)[.!]?$').hasMatch(_norm(label));
 
-bool _startsNo(String label) => RegExp(r'^no\b').hasMatch(_norm(label));
+bool _startsNo(String label) => RegExp(r'^(no|deny)\b').hasMatch(_norm(label));
