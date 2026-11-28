@@ -28,6 +28,7 @@ class NeedsYou extends StatelessWidget {
     required this.where,
     this.loadAsk,
     this.onAnswer,
+    this.offline,
     super.key,
   });
 
@@ -41,6 +42,10 @@ class NeedsYou extends StatelessWidget {
   /// Both null (tests, an older wiring) means every slip opens Chat instead of answering.
   final LoadAsk? loadAsk;
   final AnswerAsk? onAnswer;
+
+  /// True while this cell's machine is not answering: an approval needs a live link, and
+  /// is never queued, so the stub says so instead of offering a slider that cannot land.
+  final bool Function(Cell cell)? offline;
 
   /// The share of the screen the slips may take; past it they scroll, so three waiting
   /// agents never push the project index (or the dock) off a small phone.
@@ -63,6 +68,7 @@ class NeedsYou extends StatelessWidget {
               onOpen: () => onOpen(cell),
               loadAsk: loadAsk,
               onAnswer: onAnswer,
+              offline: offline?.call(cell) ?? false,
             ),
           ],
         ],
@@ -78,9 +84,11 @@ class _Slip extends StatefulWidget {
     required this.onOpen,
     required this.loadAsk,
     required this.onAnswer,
+    required this.offline,
     super.key,
   });
 
+  final bool offline;
   final Cell cell;
   final String where;
   final VoidCallback onOpen;
@@ -150,7 +158,7 @@ class _SlipState extends State<_Slip> {
           const _Tear(),
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            child: answers == null ? _pills(t) : _slider(answers),
+            child: widget.offline ? _needsConnection(t) : (answers == null ? _pills(t) : _slider(answers)),
           ),
         ],
       ),
@@ -233,6 +241,18 @@ class _SlipState extends State<_Slip> {
     noHint: a.no.label,
     onYes: () => _send(a.yes),
     onNo: () => _send(a.no),
+  );
+
+  Widget _needsConnection(AppTokens t) => SizedBox(
+    height: SlideToAnswer.height,
+    child: Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(Icons.cloud_off_outlined, size: 18, color: t.muted),
+        const SizedBox(width: 8),
+        Text('Needs connection', style: t.ui.copyWith(fontSize: 15, color: t.dim)),
+      ],
+    ),
   );
 
   Widget _pills(AppTokens t) => Row(

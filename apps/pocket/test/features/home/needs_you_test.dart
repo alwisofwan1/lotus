@@ -48,13 +48,14 @@ void main() {
     land = true;
   });
 
-  Widget app({PermissionSnapshot? snapshot, bool wired = true}) => MaterialApp(
+  Widget app({PermissionSnapshot? snapshot, bool wired = true, bool offline = false}) => MaterialApp(
     theme: buildAppTheme(),
     home: Scaffold(
       body: NeedsYou(
         waiting: const [kai],
         onOpen: opened.add,
         where: (_) => 'Orbit',
+        offline: (_) => offline,
         loadAsk: wired ? (_) async => snapshot : null,
         onAnswer: wired
             ? (_, _, option) async {
@@ -157,5 +158,13 @@ void main() {
     expect(find.byType(SlideToAnswer), findsNothing);
     await tester.tap(find.text('Kai'));
     expect(opened, [kai]);
+  });
+
+  testWidgets('offline, the slider becomes Needs connection and nothing can be sent', (tester) async {
+    await tester.pumpWidget(app(snapshot: threeWay, offline: true));
+    await tester.pumpAndSettle();
+    expect(find.byType(SlideToAnswer), findsNothing);
+    expect(find.text('Needs connection'), findsOneWidget);
+    expect(sent, isEmpty);
   });
 }

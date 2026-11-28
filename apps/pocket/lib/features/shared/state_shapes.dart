@@ -45,10 +45,14 @@ class OrbHero extends StatelessWidget {
     this.body,
     this.primary,
     this.secondary,
+    this.tone = StateTone.quiet,
     super.key,
   });
 
   final IconData? icon;
+
+  /// [StateTone.act] draws the orb's icon in red ink; the tile itself is never red.
+  final StateTone tone;
 
   /// Drawn instead of the orb; a search with no match shows its own query here.
   final Widget? picture;
@@ -110,7 +114,7 @@ class OrbHero extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(color: t.raise, shape: BoxShape.circle),
-            child: Icon(icon ?? Icons.inbox_outlined, size: 26, color: t.dim),
+            child: Icon(icon ?? Icons.inbox_outlined, size: 26, color: tone == StateTone.act ? t.error : t.dim),
           ),
         ),
       );

@@ -92,7 +92,7 @@ void _noticeLine() {
   Color? inkOf(WidgetTester tester) =>
       tester.widget<Text>(find.text(find.byType(NoticeLine).evaluate().isEmpty
               ? 'Interrupted'
-              : 'five_hour plan limit: allowed_warning.'))
+              : 'Close to the 5-hour limit')) // the host line, in plain words (plan_notice.dart)
           .style
           ?.color;
 

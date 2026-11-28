@@ -237,6 +237,13 @@ a start failure is an inverted snackbar with one action; a Mac is a device tile 
 | Cannot start | Setup, toast | "Sign in on your Mac" / "Could not start Kai" | Pick folder |
 | More than one Mac | Mac pill sheet | per Mac: "2 need you", "Asleep", "Key expired" | All Macs · Pair another Mac |
 
+**Shipped so far** (`features/shared/state_shapes.dart`): Home empty (orb), search no match (the query is the
+picture, Clear search), machine not answering (one capsule, "seen 10:42", Try again), Chat cannot load (orb,
+red ink only for an expired or revoked key), the slip's "Needs connection" while its machine is stale, and the
+plan-window line in plain words with a local reset time (the host sends epoch seconds on purpose).
+**Waiting on the host:** "Agent stopped · exit code" and "Allowed on Studio Mac" need fields the wire does not
+carry yet (no exit status on a cell, no record of where an approval was answered).
+
 ## 9. Icons and logos
 
 - **UI icons:** one outline set, 1.5 px stroke, 20 px in rows and 24 px in the app bar. No emoji or Unicode glyphs

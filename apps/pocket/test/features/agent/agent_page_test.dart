@@ -1191,7 +1191,7 @@ void main() {
 
     await show(tester, cell(turn: 'running'));
 
-    expect(find.text('That machine is asleep.'), findsOne);
-    expect(find.text('TRY AGAIN'), findsOne);
+    expect(find.text('Your Mac is asleep'), findsOne);
+    expect(find.text('Try again'), findsOne);
   });
 }

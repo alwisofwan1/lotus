@@ -5,6 +5,7 @@ import '../../../data/agent_repository.dart';
 import '../../../hosts/host_failure.dart';
 import '../../../models/cell.dart';
 import '../../shared/host_label.dart';
+import '../../shared/state_shapes.dart';
 
 /// The read could not complete.
 ///
@@ -18,40 +19,54 @@ class AgentFailure extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.tokens;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              copyFor(failure?.code),
-              textAlign: TextAlign.center,
-              style: t.ui.copyWith(fontSize: 13, color: t.muted, height: 1.5),
-            ),
-            const SizedBox(height: 14),
-            TextButton(
-              onPressed: onRetry,
-              child: Text(
-                'TRY AGAIN',
-                style: t.mono.copyWith(fontSize: 11, letterSpacing: 1.47, color: t.dim),
-              ),
-            ),
-          ],
-        ),
-      ),
+    final (:icon, :title, :body, :tone) = stateFor(failure?.code);
+    return OrbHero(
+      icon: icon,
+      title: title,
+      body: body,
+      tone: tone,
+      primary: (label: 'Try again', onTap: onRetry),
     );
   }
 
-  static String copyFor(String? code) => switch (code) {
-        'host_asleep' => 'That machine is asleep.',
-        'lotus_not_running' => 'The machine answered, but Lotus is not running on it.',
-        'tailnet_down' => 'No route to that machine — check Tailscale.',
-        'credential_expired' => 'Access expired while you were away.',
-        'credential_revoked' => 'This device was revoked from the desktop.',
-        _ => 'Could not read this agent right now.',
+  /// Grey when it fixes itself or waits on the world; red ink when the operator must act.
+  static ({IconData icon, String title, String body, StateTone tone}) stateFor(String? code) => switch (code) {
+        'host_asleep' => (
+            icon: Icons.bedtime_outlined,
+            title: 'Your Mac is asleep',
+            body: 'This agent shows up again when it wakes.',
+            tone: StateTone.quiet,
+          ),
+        'lotus_not_running' => (
+            icon: Icons.power_settings_new,
+            title: 'Lotus is not running',
+            body: 'The machine answered, but Lotus is closed on it.',
+            tone: StateTone.quiet,
+          ),
+        'tailnet_down' => (
+            icon: Icons.cloud_off_outlined,
+            title: 'No route to your Mac',
+            body: 'Check Tailscale on this phone and on the Mac.',
+            tone: StateTone.quiet,
+          ),
+        'credential_expired' => (
+            icon: Icons.key_off_outlined,
+            title: 'Access expired',
+            body: 'Pair this phone again from your Mac.',
+            tone: StateTone.act,
+          ),
+        'credential_revoked' => (
+            icon: Icons.phonelink_erase_outlined,
+            title: 'This phone was removed',
+            body: 'It was revoked on the desktop. Pair it again to come back.',
+            tone: StateTone.act,
+          ),
+        _ => (
+            icon: Icons.error_outline,
+            title: 'Could not read this agent',
+            body: 'Try again in a moment.',
+            tone: StateTone.quiet,
+          ),
       };
 }
 

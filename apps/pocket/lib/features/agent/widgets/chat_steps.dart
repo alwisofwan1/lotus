@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/theme.dart';
 import '../chat_transcript.dart';
+import '../plan_notice.dart';
 import 'line_details.dart';
 
 /// Something the runner said that did not go wrong.
@@ -43,7 +44,7 @@ class NoticeLine extends StatelessWidget {
             const SizedBox(width: 7),
             Expanded(
               child: Text(
-                item.text,
+                planNoticeWords(item.text) ?? item.text,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: t.mono.copyWith(fontSize: 12, height: 1.45, color: t.muted),

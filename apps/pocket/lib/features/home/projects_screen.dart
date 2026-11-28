@@ -182,6 +182,7 @@ class _ProjectsScreenState extends State<ProjectsScreen> {
             where: _where,
             loadAsk: widget.loadAsk,
             onAnswer: widget.onAnswer,
+            offline: (c) => fleet.isStale(c.host),
           ),
         if (projects.isEmpty)
           Expanded(
