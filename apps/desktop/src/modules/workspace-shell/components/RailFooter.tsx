@@ -5,8 +5,10 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { themeRevealOrigin } from "@/lib/design-system/theme-transition";
 import { BugReportButton } from "@/modules/bug-report/components/BugReportButton";
 import { UsageChip } from "./UsageChip";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
-// Modes are rows of the Jump palette now; its key is the one hint worth the space.
+// Modes are rows of the Jump palette now; its key is the one hint worth the space. Authored in
+// macOS glyphs and formatted at render, where the platform is known.
 const MODE_KEYS = [["⌘J", "Jump"]] as const;
 
 /**
@@ -19,6 +21,7 @@ const MODE_KEYS = [["⌘J", "Jump"]] as const;
  */
 export function RailFooter({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { resolvedThemeMode, setThemePreference } = useTheme();
+  const shortcut = useFormatShortcut();
 
   return (
     <>
@@ -27,7 +30,7 @@ export function RailFooter({ onOpenSettings }: { onOpenSettings: () => void }) {
       <span className="ws-rail-hints">
         {MODE_KEYS.map(([key, label]) => (
           <span key={key} className="ws-rail-hint">
-            <kbd>{key}</kbd>
+            <kbd>{shortcut(key)}</kbd>
             {label}
           </span>
         ))}

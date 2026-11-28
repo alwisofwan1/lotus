@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { Factory, Folder, LayoutGrid, ListChecks, Search, Zap } from "lucide-react";
 import { highlight } from "@/modules/workspace-shell/components/CommandSheet";
 import { KindIcon } from "@/modules/workspace-shell/components/kind-glyph";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import {
   buildJumpItems,
   emptyJumpList,
@@ -56,6 +57,7 @@ export function JumpPalette({
   const [active, setActive] = useState(0);
   const listId = useId();
   const listRef = useRef<HTMLDivElement>(null);
+  const shortcut = useFormatShortcut();
 
   const rows = query.trim() ? searchJumpList(items, query) : empty;
   const searching = Boolean(query.trim());
@@ -188,7 +190,7 @@ export function JumpPalette({
           <span><kbd>↑↓</kbd>move</span>
           <span><kbd>↵</kbd>jump</span>
           {doneCount > 0 && onMarkSeen ? <span><kbd>⌫</kbd>mark seen</span> : null}
-          <span className="jp-foot-end"><kbd>⌘⇧J</kbd>oldest waiting</span>
+          <span className="jp-foot-end"><kbd>{shortcut("⌘⇧J")}</kbd>oldest waiting</span>
         </div>
       </div>
     </div>,

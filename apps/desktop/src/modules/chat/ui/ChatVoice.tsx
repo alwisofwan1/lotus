@@ -6,6 +6,7 @@ import { useEffect, useRef, type MutableRefObject } from "react";
 import { VoiceTimer } from "@/modules/workspace-shell/components/composer-voice-parts";
 
 import type { ChatVoice } from "../view-model/useChatVoice";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 // Mockup: mockups/chat-dictation.html. Styles: chat.css "Dictation".
 
@@ -101,7 +102,7 @@ export function ChatVoicePolished({ voice }: { voice: ChatVoice }) {
 
 /** One quiet line under the card: how to finish while listening, or what went wrong. */
 export function ChatVoiceUnder({ voice }: { voice: ChatVoice }) {
-  const send = typeof navigator !== "undefined" && /Mac/.test(navigator.platform) ? "⌘↵" : "Ctrl+↵";
+  const send = useFormatShortcut()("⌘↵");
   if (voice.phase === "recording") {
     return (
       <p className="chat-voice-under">

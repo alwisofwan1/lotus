@@ -1,4 +1,5 @@
 "use client";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import { describeMemoryKind } from "../../services/memory/codecanvas-memory-presentation";
 
 interface Props {
@@ -18,6 +19,7 @@ const EXAMPLES: { kind: string; text: string }[] = [
  * not the same thing as Claude's or Codex's private memory.
  */
 export function CanvasMemoryEmptyState({ onSeed, showAction = true }: Props) {
+  const shortcut = useFormatShortcut();
   return (
     <div className="canvas-memory-empty">
       <h3>Shared memory for this project</h3>
@@ -41,7 +43,7 @@ export function CanvasMemoryEmptyState({ onSeed, showAction = true }: Props) {
         <div className="canvas-memory-empty-action">
           <button type="button" className="canvas-memory-btn-primary" onClick={() => onSeed("constraint")}>
             Write the first rule
-            <span className="canvas-memory-kbd">⌘⏎</span>
+            <span className="canvas-memory-kbd">{shortcut("⌘⏎")}</span>
           </button>
         </div>
       ) : null}

@@ -4,6 +4,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { GROUP_LABEL, type SheetItem } from "../services/commands/command-sheet-items";
 import { useCanvasOcclusionLock } from "../hooks/useCanvasOcclusionLock";
 import { LaunchAccountTag } from "@/modules/chat/ui/ChatAccount";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /**
  * The ⌘K results sheet, rendered as a child of the NL command bar directly above its input row.
@@ -59,6 +60,7 @@ interface Props {
 
 export function CanvasCommandSheet({ items, activeIndex, query, grouped, onHover, onRun }: Props) {
   const listRef = useRef<HTMLDivElement | null>(null);
+  const shortcut = useFormatShortcut();
   // A native Canvas Browser Node WebView paints above the whole DOM, so it clipped the palette this
   // replaces and would clip these rows too. The component only exists while the sheet is open, so
   // its mere presence IS the lock condition.
@@ -121,7 +123,7 @@ export function CanvasCommandSheet({ items, activeIndex, query, grouped, onHover
                     {item.detail ? <span className="canvas-sheet-row-detail">{item.detail}</span> : null}
                   </span>
                   {active && item.action.kind === "custom" && item.action.alt ? (
-                    <span className="canvas-sheet-row-alt" aria-hidden>⌘↵ {item.action.alt.hint}</span>
+                    <span className="canvas-sheet-row-alt" aria-hidden>{shortcut("⌘↵")} {item.action.alt.hint}</span>
                   ) : null}
                   {item.cycle ? <LaunchAccountTag account={item.account ?? null} onCycle={item.cycle} /> : null}
                   <span className="canvas-sheet-row-tag" aria-hidden>{item.tag}</span>

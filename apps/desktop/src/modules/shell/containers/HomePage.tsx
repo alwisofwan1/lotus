@@ -14,6 +14,7 @@ import type { CSSProperties } from "react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { homeModeCards } from "@/modules/shell/config/home-modes";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import { useLotusSettings } from "@/modules/lotus-settings/lotus-settings-context";
 
 const homeModeIcons = {
@@ -24,10 +25,11 @@ const homeModeIcons = {
 } as const;
 
 function ShortcutHint({ kbd, label }: { kbd: string; label: string }) {
+  const shortcut = useFormatShortcut();
   return (
     <span className="home-launchpad-shortcut-item">
       <kbd className="home-launchpad-shortcut-kbd">
-        {kbd}
+        {shortcut(kbd)}
       </kbd>
       <span className="home-launchpad-shortcut-label">
         {label}
@@ -39,6 +41,7 @@ function ShortcutHint({ kbd, label }: { kbd: string; label: string }) {
 export function HomePage() {
   const router = useRouter();
   const { openSettings } = useLotusSettings();
+  const shortcut = useFormatShortcut();
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -71,7 +74,7 @@ export function HomePage() {
           <button type="button" onClick={() => openSettings()} className="home-launchpad-settings-pill">
             <Settings className="h-3.5 w-3.5" aria-hidden="true" />
             <span>Settings</span>
-            <kbd>⌘,</kbd>
+            <kbd>{shortcut("⌘,")}</kbd>
           </button>
         </header>
 
@@ -130,6 +133,7 @@ function StatusLine({ label, value }: { label: string; value: string }) {
 
 function HomeModeCardContent({ card }: { card: (typeof homeModeCards)[number] }) {
   const Icon = homeModeIcons[card.id as keyof typeof homeModeIcons] ?? TerminalSquare;
+  const shortcut = useFormatShortcut();
 
   return (
     <>
@@ -137,7 +141,7 @@ function HomeModeCardContent({ card }: { card: (typeof homeModeCards)[number] })
         <span className="home-launchpad-card-icon">
           <Icon className="h-4.5 w-4.5" aria-hidden="true" />
         </span>
-        <kbd className="home-launchpad-card-kbd">{card.kbd}</kbd>
+        <kbd className="home-launchpad-card-kbd">{shortcut(card.kbd)}</kbd>
       </div>
       <div className="home-launchpad-card-copy">
         <p className="home-launchpad-card-subtitle">{card.subtitle}</p>

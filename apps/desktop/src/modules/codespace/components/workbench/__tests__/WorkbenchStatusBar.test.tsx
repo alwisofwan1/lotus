@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { WorkbenchStatusBar } from "../WorkbenchStatusBar";
 
 const status = { line: 18, column: 32, insertSpaces: true, tabSize: 4, eol: "LF" as const };
@@ -7,8 +7,16 @@ const git = { branch: "main", head: "abc", upstream: "origin/main", ahead: 1, be
 
 const text = () => screen.getByRole("group", { name: "Editor status" }).textContent ?? "";
 
+/** The save key is printed for this machine's keyboard; jsdom names no platform. */
+function onPlatform(platform: string) {
+  vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+}
+
 describe("WorkbenchStatusBar", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it("shows the file's real state, as the mockup lays it out", () => {
+    onPlatform("MacIntel");
     render(<WorkbenchStatusBar dirty status={status} git={git} language="php" />);
     expect(screen.getByText("Unsaved · ⌘S")).toBeInTheDocument();
     expect(screen.getByText("main")).toBeInTheDocument();
@@ -17,6 +25,12 @@ describe("WorkbenchStatusBar", () => {
     expect(screen.getByText("Spaces: 4")).toBeInTheDocument();
     expect(screen.getByText("UTF-8")).toBeInTheDocument();
     expect(screen.getByText("PHP")).toBeInTheDocument();
+  });
+
+  it("names the save key as a Windows keyboard does", () => {
+    onPlatform("Win32");
+    render(<WorkbenchStatusBar dirty status={status} git={git} language="php" />);
+    expect(screen.getByText("Unsaved · Ctrl+S")).toBeInTheDocument();
   });
 
   it("says nothing it does not know", () => {

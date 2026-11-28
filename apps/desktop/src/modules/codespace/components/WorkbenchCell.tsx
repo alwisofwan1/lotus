@@ -114,6 +114,8 @@ import type { EditorLineSelection, SelectionAction } from "./workbench/Selection
 import type { DiffEditorSelection } from "./workbench/WorkbenchDiffPreview";
 import { useInlineBlame } from "@/modules/codespace/hooks/useInlineBlame";
 import { blameAt, blameStatus } from "@/modules/codespace/services/inline-blame";
+import { hasPrimaryModifier } from "@/lib/hotkeys/platform-chords";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 interface WorkbenchCellProps {
   cell: WorkbenchCellData;
@@ -153,11 +155,13 @@ const EDITOR_TOGGLE_COMMANDS = [
   { preference: "inlineBlame", name: "inline blame" },
 ] as const;
 
-/** ⌘ on a Mac, Ctrl elsewhere; either one alone when the platform is unknown. */
+/**
+ * ⌘ on a Mac, Ctrl elsewhere; either one alone when the webview names no platform at all
+ * (`navigator.platform` empty, as under jsdom).
+ */
 function isPrimaryChord(event: KeyboardEvent): boolean {
-  const platform = navigator.platform;
-  if (!platform) return event.metaKey !== event.ctrlKey;
-  return /Mac|iPhone|iPad/.test(platform) ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+  if (!navigator.platform) return event.metaKey !== event.ctrlKey;
+  return hasPrimaryModifier(event);
 }
 
 function getInitialTabs(cell: WorkbenchCellData, allowUrlTabs: boolean): WorkbenchTab[] {
@@ -174,6 +178,7 @@ export function WorkbenchCell({
   location,
 }: WorkbenchCellProps) {
   const initialTabs = useMemo(() => getInitialTabs(cell, allowUrlTabs), [allowUrlTabs, cell]);
+  const shortcut = useFormatShortcut();
   const initialActiveTab = useMemo(() => {
     if (initialTabs.some((tab) => tab.id === cell.activeTabId)) return cell.activeTabId;
     return initialTabs[0]?.id ?? null;
@@ -980,13 +985,11 @@ export function WorkbenchCell({
     if (!enabled) return;
     const handler = (event: KeyboardEvent) => {
       if (!rootRef.current?.contains(document.activeElement)) return;
-      const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+      const primary = hasPrimaryModifier(event);
       // `code`, not `key`: with ⌥ held a Mac keyboard types "˜" for N.
-      const newFile = event.code === "KeyN" && event.altKey && !event.shiftKey
-        && (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey);
+      const newFile = event.code === "KeyN" && event.altKey && !event.shiftKey && primary;
       const source = event.code === "KeyG" && event.ctrlKey && event.shiftKey && !event.metaKey && !event.altKey;
-      const search = event.code === "KeyF" && event.shiftKey && !event.altKey
-        && (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey);
+      const search = event.code === "KeyF" && event.shiftKey && !event.altKey && primary;
       if (!newFile && !source && !search) return;
       event.preventDefault();
       if (newFile) startNewFile();
@@ -1202,7 +1205,7 @@ export function WorkbenchCell({
                     aria-pressed={sidebarMode === "search"}
                     onClick={showSearch}
                     className={cn("scm-sidebar-tab", sidebarMode === "search" && "is-active")}
-                    title="Find in files (⇧⌘F)"
+                    title={`Find in files (${shortcut("⇧⌘F")})`}
                   >
                     <Search className="h-3 w-3 shrink-0" aria-hidden="true" />
                     <span className="truncate">Search</span>
@@ -1212,7 +1215,7 @@ export function WorkbenchCell({
                     aria-pressed={sidebarMode === "source"}
                     onClick={() => setSidebarMode("source")}
                     className={cn("scm-sidebar-tab", sidebarMode === "source" && "is-active")}
-                    title="Source control (⌃⇧G)"
+                    title={`Source control (${shortcut("⌃⇧G")})`}
                   >
                     <GitBranch className="h-3 w-3 shrink-0" aria-hidden="true" />
                     <span className="truncate">Source</span>
@@ -1423,11 +1426,11 @@ export function WorkbenchCell({
                   type="button"
                   onClick={() => openGoToFile()}
                   className="flex items-center gap-2 rounded-[6px] border border-[color:var(--codespace-panel-border)] px-2 py-1 text-[11.5px] text-[color:var(--codespace-panel-text-muted)] hover:bg-[color:var(--codespace-panel-surface-hover)]"
-                  title="Go to file (⌘P)"
+                  title={`Go to file (${shortcut("⌘P")})`}
                 >
                   <Search className="h-3 w-3" aria-hidden="true" />
                   Go to file
-                  <kbd className="rounded-[4px] bg-[color:var(--codespace-panel-surface-active)] px-1 font-mono text-[11px]">⌘P</kbd>
+                  <kbd className="rounded-[4px] bg-[color:var(--codespace-panel-surface-active)] px-1 font-mono text-[11px]">{shortcut("⌘P")}</kbd>
                 </button>
               )}
             />

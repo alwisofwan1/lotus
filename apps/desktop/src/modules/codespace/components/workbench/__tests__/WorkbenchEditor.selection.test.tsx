@@ -95,6 +95,8 @@ describe("WorkbenchEditor — hand a selection on (⌘L)", () => {
   beforeEach(() => {
     actions.length = 0;
     for (const key of Object.keys(listeners)) delete listeners[key];
+    // Keycaps are printed for this machine's keyboard; jsdom names no platform, so pin macOS.
+    vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
     vi.useFakeTimers();
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(
       { top: 0, left: 0, width: 800, height: 600, right: 800, bottom: 600, x: 0, y: 0, toJSON: () => ({}) } as DOMRect,

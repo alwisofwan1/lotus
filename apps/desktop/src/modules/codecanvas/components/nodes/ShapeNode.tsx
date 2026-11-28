@@ -12,6 +12,7 @@ import { rotationFromPointer } from "../../services/canvas-rotation";
 import { parseNoteAssetUri } from "../../services/note-assets";
 import { codecanvasReadNoteAsset } from "@/lib/tauri/codecanvas";
 import { ShapePointHandles } from "./ShapePointHandles";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /**
  * Hidden connection handles for diagram connectors. Container/text shapes need real ReactFlow
@@ -162,6 +163,7 @@ export const ShapeNode = memo(function ShapeNode({ id, data, selected, width = 0
   const { shape, text, angle, areaLabel, points, style, dispatchCommand, imageAssetUri, imageAlt, editRequestId } = data as CanvasShapeNodeData;
   const isImageShape = shape === "image";
   const resolvedImage = useResolvedShapeImage(isImageShape ? imageAssetUri : undefined);
+  const shortcut = useFormatShortcut();
   const showOwnHandles = !!selected;
   // Key the rough geometry on stroke/fill fields only — NOT the whole style object — so a
   // high-frequency opacity drag (applied via CSS below) never regenerates the hand-drawn paths.
@@ -486,7 +488,7 @@ export const ShapeNode = memo(function ShapeNode({ id, data, selected, width = 0
       {/* occlusion-exempt: a tiny transient edit hint, not a canvas-covering overlay — no need to park browser nodes. */}
       {editing && typeof document !== "undefined"
         ? createPortal(
-            <div className="canvas-edit-hint">Press <kbd>Esc</kbd> or <kbd>⌘ Enter</kbd> to finish editing</div>,
+            <div className="canvas-edit-hint">Press <kbd>Esc</kbd> or <kbd>{shortcut("⌘ Enter")}</kbd> to finish editing</div>,
             document.body,
           )
         : null}

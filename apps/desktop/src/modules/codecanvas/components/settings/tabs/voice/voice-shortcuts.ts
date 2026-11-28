@@ -1,11 +1,16 @@
 "use client";
 import { useSyncExternalStore } from "react";
-import { formatChord, UNBOUND_CHORD, type CanvasHotkeyPlatform } from "@/modules/codecanvas/services/canvas-hotkeys";
+import {
+  detectCanvasHotkeyPlatform,
+  formatChord,
+  UNBOUND_CHORD,
+  type CanvasHotkeyPlatform,
+} from "@/modules/codecanvas/services/canvas-hotkeys";
 import { getVoiceHotkeyBindings, subscribeVoiceHotkeys, VOICE_HOTKEY_DEFAULTS, type VoiceHotkeyBindings } from "@/modules/voice-core/voice-hotkeys";
 
+/** "mac" or "other" for the keycap glyphs; "mac" during prerender. Kept for its importers. */
 export function detectPlatform(): CanvasHotkeyPlatform {
-  if (typeof navigator === "undefined") return "mac";
-  return /mac|iphone|ipad|ipod/i.test(navigator.platform) ? "mac" : "other";
+  return detectCanvasHotkeyPlatform();
 }
 
 /** "⌥Space", or "Unassigned" for a cleared binding. */

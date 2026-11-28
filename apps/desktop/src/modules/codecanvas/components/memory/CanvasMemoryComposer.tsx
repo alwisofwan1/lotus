@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { Plus } from "lucide-react";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import {
   MEMORY_COMPOSE_KINDS,
   describeMemoryKind,
@@ -40,6 +41,7 @@ export function CanvasMemoryComposer({ open, initialKind, onOpen, onCancel, onSu
   const [body, setBody] = useState("");
   const [tags, setTags] = useState("");
   const bodyRef = useRef<HTMLTextAreaElement | null>(null);
+  const shortcut = useFormatShortcut();
 
   // The panel remounts this component when it seeds a different kind, so `kind` needs no sync effect.
   useEffect(() => {
@@ -51,7 +53,7 @@ export function CanvasMemoryComposer({ open, initialKind, onOpen, onCancel, onSu
       <button type="button" className="canvas-memory-add" onClick={() => onOpen()}>
         <Plus size={13} aria-hidden />
         Add memory
-        <span className="canvas-memory-kbd">⌘⏎</span>
+        <span className="canvas-memory-kbd">{shortcut("⌘⏎")}</span>
       </button>
     );
   }
@@ -143,7 +145,7 @@ export function CanvasMemoryComposer({ open, initialKind, onOpen, onCancel, onSu
         <button type="button" className="canvas-memory-btn-ghost" onClick={onCancel}>Cancel</button>
         <button type="submit" className="canvas-memory-btn-primary" aria-label="Save memory">
           Save
-          <span className="canvas-memory-kbd">⌘⏎</span>
+          <span className="canvas-memory-kbd">{shortcut("⌘⏎")}</span>
         </button>
       </div>
     </form>

@@ -13,6 +13,7 @@ import {
 import { TASK_GOAL_CAP, TASK_TITLE_CAP, type TaskDraft } from "@/modules/tasks/services/task-draft";
 import type { BridgePriority, BridgeTaskStatus } from "@/modules/codespace/services/bridge/task-store";
 import type { TrackerProject } from "@/modules/tasks/types";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /**
  * New task, as a modal — the shape `bb` uses.
@@ -49,6 +50,7 @@ export function TaskComposerModal({
   onCreate,
   onClose,
 }: TaskComposerModalProps) {
+  const shortcut = useFormatShortcut();
   const headingId = useId();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -191,7 +193,7 @@ export function TaskComposerModal({
           Create more
         </label>
         <span className="tk-compose-hint" aria-hidden>
-          ⌘↵
+          {shortcut("⌘↵")}
         </span>
         <button
           type="button"

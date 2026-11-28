@@ -3,6 +3,7 @@
 import { Check, Copy, MessageSquarePlus, TextQuote } from "lucide-react";
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { useAriaKeyShortcuts, useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /** The composer text for selected lines: a `path:L3-5` reference and the lines themselves. */
 export function selectionMention(path: string, from: number, to: number, text: string): string {
@@ -50,6 +51,8 @@ export function SelectionToChat({
 }) {
   const [picked, setPicked] = useState<Picked | null>(null);
   const [done, setDone] = useState<"add" | "copy" | null>(null);
+  const shortcut = useFormatShortcut();
+  const ariaShortcut = useAriaKeyShortcuts();
   const pickedRef = useRef(picked);
   const noteRef = useRef(onReviewNote);
   useEffect(() => {
@@ -153,14 +156,14 @@ export function SelectionToChat({
           Review note
         </button>
       )}
-      {(path === undefined || picked.from > 0) && <button type="button" aria-keyshortcuts="Meta+L" title={`${label}  ⌘L`} data-done={done === "add" || undefined} onMouseDown={(event) => event.preventDefault()} onClick={add}>
+      {(path === undefined || picked.from > 0) && <button type="button" aria-keyshortcuts={ariaShortcut("⌘L")} title={`${label}  ${shortcut("⌘L")}`} data-done={done === "add" || undefined} onMouseDown={(event) => event.preventDefault()} onClick={add}>
         <span className="chat-selection-glyph" aria-hidden>
           <TextQuote size={13} />
           <Check size={13} strokeWidth={2.4} />
         </span>
         {label}
       </button>}
-      <button type="button" title="Copy  ⌘C" data-done={done === "copy" || undefined} onMouseDown={(event) => event.preventDefault()} onClick={copy}>
+      <button type="button" title={`Copy  ${shortcut("⌘C")}`} data-done={done === "copy" || undefined} onMouseDown={(event) => event.preventDefault()} onClick={copy}>
         <span className="chat-selection-glyph" aria-hidden>
           <Copy size={13} />
           <Check size={13} strokeWidth={2.4} />

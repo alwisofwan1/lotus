@@ -41,6 +41,7 @@ import { isBusy, RunningNow, runSubject } from "./RunningNow";
 import { RunThread } from "./RunThread";
 import { AgentField } from "./AgentField";
 import { SlackTriggerEditor } from "./SlackTriggerEditor";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /** Delivered results shown before "Show all": the latest few say what it has been saying. */
 const RECENT_STEP = 3;
@@ -394,6 +395,7 @@ function PromptSection({
   client: AutomationClient;
   projects: AutomationProject[];
 }) {
+  const shortcut = useFormatShortcut();
   const isPrompt = a.actionKind === "agent_prompt";
   const text = isPrompt ? (a.prompt?.prompt ?? "") : (a.config?.instructions ?? "");
   const [editing, setEditing] = useState(false);
@@ -498,7 +500,7 @@ function PromptSection({
           {isPrompt ? null : <ReplyStyleHint value={draft} onChange={setDraft} />}
           {isPrompt ? null : <SlackReplyPreview instructions={draft} />}
           <div className="au-prompt-actions">
-            <span className="au-hint">⌘↵ to save · Esc to cancel</span>
+            <span className="au-hint">{shortcut("⌘↵")} to save · Esc to cancel</span>
             <span className="au-draft-actions">
               <button type="button" className="rs-button rs-button--ghost" onClick={() => setEditing(false)}>
                 Cancel

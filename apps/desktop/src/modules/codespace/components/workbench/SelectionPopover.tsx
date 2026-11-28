@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, type RefObject } from "react";
 import { Copy, MessageSquareText, SendHorizontal } from "lucide-react";
 import type { editor as MonacoEditorNS } from "monaco-editor";
 import { selectedLineRange } from "@/modules/codespace/services/selection-payload";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /*
  * The three things a selection in the Editor (or the diff) can be handed to — ⌘L's popover.
@@ -148,6 +149,7 @@ export function SelectionPopover({
   lineLabel: string;
   onAction: (action: SelectionAction) => void;
 }) {
+  const shortcut = useFormatShortcut();
   return (
     <div
       role="toolbar"
@@ -160,7 +162,7 @@ export function SelectionPopover({
       <button type="button" onClick={() => onAction("send")} title="Put the selection in a Thread's composer">
         <SendHorizontal className="h-3 w-3" aria-hidden="true" />
         Send to Thread
-        <kbd>⌘L</kbd>
+        <kbd>{shortcut("⌘L")}</kbd>
       </button>
       <button type="button" onClick={() => onAction("ask")} title="Send with “Explain these lines”">
         <MessageSquareText className="h-3 w-3" aria-hidden="true" />

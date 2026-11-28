@@ -16,6 +16,7 @@ import {
 import type { SkillEntry } from "@/lib/tauri/skills";
 import { WorkbenchMarkdownPreview } from "@/modules/codespace/components/workbench/WorkbenchMarkdownPreview";
 import { CanvasNodeFrame } from "./CanvasNodeFrame";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import type { CanvasSkillPreview, CanvasSkillsNodeData } from "../../types/canvas";
 
 const SOURCE_FILTERS: { id: SkillSourceFilter; label: string }[] = [
@@ -336,6 +337,7 @@ function SkillDetail({
   onPopOut: () => void;
   onReEnable: () => void;
 }) {
+  const shortcut = useFormatShortcut();
   if (!skill) {
     return (
       <div className="canvas-skills-detail canvas-skills-detail--empty">
@@ -380,7 +382,7 @@ function SkillDetail({
             type="button"
             className="canvas-panel-icon-btn"
             aria-label={`Pop out ${skillDisplayToken(invocation, skill.name)}`}
-            title="Open as its own node (⌘⏎)"
+            title={`Open as its own node (${shortcut("⌘⏎")})`}
             onClick={onPopOut}
           >
             <Maximize2 size={11} aria-hidden />

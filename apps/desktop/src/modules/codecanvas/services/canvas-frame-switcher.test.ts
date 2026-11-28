@@ -55,7 +55,12 @@ describe("frameChipTooltip", () => {
   it("says needs you in words, with the hotkey", () => {
     const nodes = [frame("f1", "Bug triage"), member("a", "f1")];
     const [chip] = buildFrameSwitcher(nodes, [snap("a", "needs-you")]).chips;
-    expect(frameChipTooltip(chip)).toBe("Bug triage · needs you · ⌥1");
+    expect(frameChipTooltip(chip, "MacIntel")).toBe("Bug triage · needs you · ⌥1");
+  });
+  it("names the hotkey as Windows writes it off macOS", () => {
+    const nodes = [frame("f1", "Bug triage"), member("a", "f1")];
+    const [chip] = buildFrameSwitcher(nodes, [snap("a", "needs-you")]).chips;
+    expect(frameChipTooltip(chip, "Win32")).toBe("Bug triage · needs you · Alt+1");
   });
   it("omits the hotkey for overflow chips", () => {
     const nodes = Array.from({ length: 6 }, (_, i) => frame(`f${i + 1}`, `F${i + 1}`));

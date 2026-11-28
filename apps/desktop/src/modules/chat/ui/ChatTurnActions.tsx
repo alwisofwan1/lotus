@@ -4,6 +4,7 @@ import { Check, Copy, GitBranch, GitFork, LoaderCircle, Pencil, TextQuote } from
 import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type { TurnEnd } from "../domain/timeline";
+import { useAriaKeyShortcuts, useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 // Mockup: mockups/chat-turn-actions.html, option A. Under a finished turn's reply: Copy, Quote in
 // reply and Fork as plain icons, then one quiet line with the time, duration and cost. No menu,
@@ -154,6 +155,8 @@ export function MessageEditor({ initial, onCancel, onSend }: { initial: string; 
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const box = useRef<HTMLTextAreaElement>(null);
+  const shortcut = useFormatShortcut();
+  const ariaShortcut = useAriaKeyShortcuts();
   useLayoutEffect(() => {
     const el = box.current;
     if (!el) return;
@@ -204,9 +207,9 @@ export function MessageEditor({ initial, onCancel, onSend }: { initial: string; 
         <button type="button" className="chat-edit-btn" onClick={onCancel} disabled={sending}>
           Cancel
         </button>
-        <button type="button" className="chat-edit-btn" data-primary="" onClick={send} disabled={!changed || sending} aria-keyshortcuts="Meta+Enter">
+        <button type="button" className="chat-edit-btn" data-primary="" onClick={send} disabled={!changed || sending} aria-keyshortcuts={ariaShortcut("⌘↵")}>
           {sending ? <LoaderCircle size={13} className="chat-turn-spin" aria-hidden /> : "Send"}
-          {!sending && <kbd aria-hidden>⌘↵</kbd>}
+          {!sending && <kbd aria-hidden>{shortcut("⌘↵")}</kbd>}
         </button>
       </div>
     </div>

@@ -1,4 +1,6 @@
 import type { Node } from "@xyflow/react";
+import { formatShortcut } from "@/lib/hotkeys/format-shortcut";
+import { readPlatformString } from "@/lib/platform";
 import type { AgentStatusSnapshot } from "./agent-status-registry";
 import { frameNode } from "./canvas-node-factory";
 import { DEFAULT_FRAME_SIZE } from "./canvas-node-placement";
@@ -77,10 +79,13 @@ export function frameSwitcherSlotCount(chipCount: number, overflowCount: number)
   return chipCount + (overflowCount > 0 ? 1 : 0) + (total < MAX_FRAMES ? 1 : 0);
 }
 
-/** "Name · status · ⌥N": words as well as colour, so the ring is never the only cue. */
-export function frameChipTooltip(chip: FrameChip): string {
+/**
+ * "Name · status · ⌥N" ("Alt+N" off macOS): words as well as colour, so the ring is never the only
+ * cue.
+ */
+export function frameChipTooltip(chip: FrameChip, platform: string = readPlatformString()): string {
   const parts = [chip.name, chip.needsYou ? "needs you" : chip.status];
-  if (chip.index <= MAX_FRAME_CHIPS) parts.push(`⌥${chip.index}`);
+  if (chip.index <= MAX_FRAME_CHIPS) parts.push(formatShortcut(`⌥${chip.index}`, platform));
   return parts.join(" · ");
 }
 

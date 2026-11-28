@@ -28,6 +28,7 @@ import { LinesSkeleton, LoadError } from "./ChatChanges";
 import { FilesTree, TreeRow } from "./ChatFilesTree";
 import { SelectionToChat } from "./SelectionToChat";
 import { MenuItem } from "./ThreadActions";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import { highlightLines, languageOf } from "./code-highlight";
 
 // Mockup: mockups/lotus-chat.fig, page "05b Files" (#282). Files sits beside Changes in the same
@@ -260,6 +261,7 @@ interface FilesPaneProps {
 export function FilesPane({ shown, cwd, folder, changed, target, find, version, agentName, onMention, onFilesChanged, remote = null }: FilesPaneProps) {
   // `edit`: a file just made in the tree opens ready to type in.
   const [current, setCurrent] = useState<(FileRef & { edit?: boolean }) | null>(null);
+  const shortcut = useFormatShortcut();
   const [query, setQuery] = useState("");
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set());
   const input = useRef<HTMLInputElement>(null);
@@ -323,7 +325,7 @@ export function FilesPane({ shown, cwd, folder, changed, target, find, version, 
             }
           }}
         />
-        <kbd>⌘P</kbd>
+        <kbd>{shortcut("⌘P")}</kbd>
       </label>
       {folder.error && <p className="chat-changes-error">{folder.error}</p>}
       {query ? (
@@ -424,6 +426,7 @@ interface FileViewProps {
 function FileView({ shown, cwd, file, changed, version, agentName, startEditing = false, onBack, onOpen, onMention }: FileViewProps) {
   const root = cwd.replace(/\/+$/, "");
   const abs = absPath(root, file.path);
+  const shortcut = useFormatShortcut();
   // SVG is text: it stays in the text view, where it can be edited.
   const viewer = editorMediaType(file.path);
   const media = viewer && !viewer.textual ? viewer : null;
@@ -749,7 +752,7 @@ function FileView({ shown, cwd, file, changed, version, agentName, startEditing 
             </button>
             <button type="button" className="chat-changes-commit" disabled={saving || draft === base?.content} onClick={() => void save()}>
               Save
-              <kbd>⌘S</kbd>
+              <kbd>{shortcut("⌘S")}</kbd>
             </button>
           </>
         ) : reach === "tail" && readable ? (

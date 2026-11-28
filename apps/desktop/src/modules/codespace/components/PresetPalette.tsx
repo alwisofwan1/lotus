@@ -4,6 +4,7 @@ import { Pencil, Pin, Search, SlidersHorizontal, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LAYOUT_TEMPLATES } from "./constants";
 import type { LayoutTemplate, Preset } from "./types";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 const DAY = 86_400_000;
 const lastUsed = (p: Preset) => p.lastOpenedAt ?? p.updatedAt;
@@ -58,6 +59,7 @@ interface Props {
 export function PresetPalette({ presets, agentNames, onOpen, onEdit, onRename, onDelete, onTogglePin, onClose, undo }: Props) {
   const [query, setQuery] = useState("");
   const [hl, setHl] = useState(0);
+  const shortcut = useFormatShortcut();
   const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const q = query.trim().toLowerCase();
@@ -148,7 +150,7 @@ export function PresetPalette({ presets, agentNames, onOpen, onEdit, onRename, o
                         <button type="button" className={cn("cl-icon-btn", p.pinned && "is-on")} onClick={() => onTogglePin(p.id)}
                           title={p.pinned ? "Unpin" : "Pin to Jump back in"} aria-label={`${p.pinned ? "Unpin" : "Pin"} ${p.name}`}><Pin size={14} /></button>
                         <button type="button" className="cl-icon-btn" onClick={() => onEdit(p)}
-                          title="Edit in form (⌘E)" aria-label={`Edit ${p.name}`}><SlidersHorizontal size={14} /></button>
+                          title={`Edit in form (${shortcut("⌘E")})`} aria-label={`Edit ${p.name}`}><SlidersHorizontal size={14} /></button>
                         <button type="button" className="cl-icon-btn" onClick={() => setRenaming({ id: p.id, name: p.name })}
                           title="Rename" aria-label={`Rename ${p.name}`}><Pencil size={14} /></button>
                         <button type="button" className="cl-icon-btn is-danger" onClick={() => onDelete(p.id)}
@@ -169,8 +171,8 @@ export function PresetPalette({ presets, agentNames, onOpen, onEdit, onRename, o
             <>
               <span><span className="cl-kbd">↑↓</span> move</span>
               <span><span className="cl-kbd">↵</span> open</span>
-              <span><span className="cl-kbd">⌘E</span> edit in form</span>
-              <span><span className="cl-kbd">⌘.</span> pin</span>
+              <span><span className="cl-kbd">{shortcut("⌘E")}</span> edit in form</span>
+              <span><span className="cl-kbd">{shortcut("⌘.")}</span> pin</span>
             </>
           )}
           <span className="cl-pfoot-grow" />

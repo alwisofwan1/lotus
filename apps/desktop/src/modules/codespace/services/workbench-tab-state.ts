@@ -1,4 +1,5 @@
 import { isPathTab, type DiffTabTarget, type WorkbenchTab } from "@/modules/codespace/components/types";
+import { isMacPlatform, readPlatformString } from "@/lib/platform";
 
 /**
  * The Editor pane's tab list as plain functions: one file = one tab, closing one or many, and
@@ -242,8 +243,8 @@ export function tabFolderHints(tabs: readonly WorkbenchTab[]): Map<string, strin
  * Which tab a digit chord jumps to, 0-based, or `"last"` for 9. VS Code's: ⌃1–9 on a Mac, Alt+1–9
  * elsewhere; ⌘1–9 (Ctrl elsewhere) already jumps to a pane. `code`, as ⌥ changes the typed key.
  */
-export function tabIndexShortcut(event: KeyboardEvent, platform = navigator.platform): number | "last" | null {
-  const mac = /Mac|iPhone|iPad/.test(platform);
+export function tabIndexShortcut(event: KeyboardEvent, platform: string = readPlatformString()): number | "last" | null {
+  const mac = isMacPlatform(platform);
   const chord = mac
     ? event.ctrlKey && !event.metaKey && !event.altKey
     : event.altKey && !event.ctrlKey && !event.metaKey;

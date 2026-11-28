@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 
 import { inspectTerminalFileDropPaths } from "@/lib/tauri/terminal-file-drop";
 import { isTauri } from "@/lib/tauri/runtime";
+import { formatShortcut } from "@/lib/hotkeys/format-shortcut";
 import { listenWebviewDragDrop, safeTauriUnlisten, type TauriUnlisten } from "@/lib/tauri-listener-cleanup";
 import { dragDropHitTestPoints } from "@/modules/codespace/services/terminal-file-drop";
 
@@ -111,7 +112,7 @@ export function useChatAttachments({ threadId, anchor, refuse = null, onDropAcce
   const attachPaths = async (paths: string[]) => {
     if (!allowed()) return;
     // A screenshot thumbnail or a picture dragged out of a browser can arrive as image data with no file.
-    if (paths.length === 0) return setError("That drop had no file to attach · paste it with ⌘V, or save it and drop the file");
+    if (paths.length === 0) return setError(`That drop had no file to attach · paste it with ${formatShortcut("⌘V")}, or save it and drop the file`);
     setError(null);
     try {
       const inspected = await inspectTerminalFileDropPaths(paths);

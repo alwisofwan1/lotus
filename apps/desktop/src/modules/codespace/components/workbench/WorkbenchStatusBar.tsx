@@ -5,6 +5,7 @@ import type { CodespaceGitRepoSummary } from "@/lib/tauri-api";
 import { editorLanguageLabel } from "@/modules/codespace/services/editor-languages";
 import { formatIndent, type EditorStatus } from "@/modules/codespace/services/editor-status";
 import type { LspFileStatus } from "@/modules/codespace/services/lsp/lsp-manager";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 interface WorkbenchStatusBarProps {
   dirty: boolean;
@@ -89,9 +90,10 @@ export function WorkbenchStatusBar({
   onBlameClick,
   onEndOfLineClick,
 }: WorkbenchStatusBarProps) {
+  const shortcut = useFormatShortcut();
   return (
     <div role="group" aria-label="Editor status" className="codespace-workbench-statusbar">
-      {dirty ? <span className="codespace-workbench-statusbar-unsaved">Unsaved · ⌘S</span> : null}
+      {dirty ? <span className="codespace-workbench-statusbar-unsaved">Unsaved · {shortcut("⌘S")}</span> : null}
       {git?.branch ? (
         <span className="flex min-w-0 items-center gap-1" title={git.upstream ? `${git.branch} → ${git.upstream}` : git.branch}>
           <GitBranch className="h-3 w-3 shrink-0" aria-hidden="true" />

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { CodeCanvasMemoryWriteInput } from "@/lib/tauri/codecanvas";
+import { formatShortcut } from "@/lib/hotkeys/format-shortcut";
 import {
-  CODE_LIVE_VOICE_CLOSE_REPLY,
+  codeLiveVoiceCloseReply,
   codeLiveVoiceContextKey,
   createCodeLiveVoiceTools,
   type CodeLiveVoiceDeps,
@@ -123,8 +124,13 @@ describe("Code Live Voice tools", () => {
     expect(names.some((name) => name.startsWith("close"))).toBe(false);
   });
 
+  it("names the close chord the way this platform writes it", () => {
+    expect(codeLiveVoiceCloseReply("MacIntel")).toBe("I can't close panes by voice — use ⌘W.");
+    expect(codeLiveVoiceCloseReply("Win32")).toBe("I can't close panes by voice — use Ctrl+W.");
+  });
+
   it("tells the model to answer a close with the ⌘W hint", () => {
-    expect(makeCode().live.instructions).toContain(CODE_LIVE_VOICE_CLOSE_REPLY);
+    expect(makeCode().live.instructions).toContain(codeLiveVoiceCloseReply());
   });
 
   it("moves focus to the pane named", async () => {
@@ -252,7 +258,7 @@ describe("Code Live Voice tools", () => {
     for (const name of ["close", "close_all"]) {
       const result = await run(name, { target: "Rowan" });
       expect(result.ok).toBe(false);
-      expect(result.speak).toBe(CODE_LIVE_VOICE_CLOSE_REPLY);
+      expect(result.speak).toBe(codeLiveVoiceCloseReply());
     }
     expect({ sent, focused, spawned }).toEqual({ sent: [], focused: [], spawned: [] });
   });
@@ -271,7 +277,7 @@ describe("Code Live Voice tools", () => {
       const { live } = makeCode({ canClose: true });
       expect(live.tools.map((tool) => tool.name)).toContain("close_pane");
       expect(live.instructions).toMatch(/confirm/);
-      expect(live.instructions).not.toContain(CODE_LIVE_VOICE_CLOSE_REPLY);
+      expect(live.instructions).not.toContain(codeLiveVoiceCloseReply());
     });
 
     it("asks first, and closes only when the yes comes back", async () => {
@@ -312,7 +318,7 @@ describe("Code Live Voice tools", () => {
       });
       const asked = await run("close_pane", { target: "Rowan" });
       expect(asked.ok).toBe(false);
-      expect(asked.speak).toBe("Rowan is still working — wait until it finishes, or use ⌘W.");
+      expect(asked.speak).toBe(`Rowan is still working — wait until it finishes, or use ${formatShortcut("⌘W")}.`);
       expect((await run("close_pane", { target: "Remy" })).ok).toBe(false);
       expect(closed).toEqual([]);
     });

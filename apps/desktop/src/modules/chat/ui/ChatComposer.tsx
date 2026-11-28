@@ -23,6 +23,7 @@ import type { ChatFolderFiles } from "../view-model/useChatFiles";
 import { useChatVoice } from "../view-model/useChatVoice";
 import { readComposerDraft, writeComposerDraft } from "../domain/composer-draft";
 import { ChatMicButton, ChatVoiceBar, ChatVoiceHeard, ChatVoicePolished, ChatVoiceUnder, micTitle } from "./ChatVoice";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 const NO_FILES: readonly string[] = [];
 
@@ -99,6 +100,7 @@ interface ChatComposerProps {
 export function ChatComposer({ threadId, runner = "claude", status, unread, model, details, onSend, onStop, waiting, cwd, onDecide, fill, onFilled, picks = [], onRemovePick, quotes = [], onRemoveQuote, onEditQuote, plan, agentName = "Claude", folder, changed, chats, voiceLive = false, offline = false, refuse = null, remote = false }: ChatComposerProps) {
   // What was typed here before another chat was opened (or the app reloaded); read once per mount.
   const [saved] = useState(() => readComposerDraft(threadId));
+  const shortcut = useFormatShortcut();
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -466,7 +468,7 @@ export function ChatComposer({ threadId, runner = "claude", status, unread, mode
               <ChatVoicePolished voice={voice} />
             </span>
           ) : (
-            <span className="chat-composer-details" title="⏎ send · ⇧⏎ new line">
+            <span className="chat-composer-details" title={`${shortcut("⏎")} send · ${shortcut("⇧⏎")} new line`}>
               {details.map((detail) => (
                 <span key={detail}>{detail}</span>
               ))}

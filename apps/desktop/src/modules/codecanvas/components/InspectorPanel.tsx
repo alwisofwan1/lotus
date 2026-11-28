@@ -1,6 +1,7 @@
 "use client";
 import { memo, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { SendToBack, BringToFront, Copy, Trash2, Group, Ungroup } from "lucide-react";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import type { CanvasArrowhead, CanvasShapeKind, CanvasShapeStyle, CanvasStrokeStyle, ShapeNodePatch } from "../types/canvas";
 import { SHAPE_DEFAULTS, SHAPE_STROKE_WIDTHS, STROKE_COLORS, FILL_COLORS, FONT_FAMILIES, TEXT_ALIGNS, VERTICAL_ALIGNS, ARROW_TYPES, ARROWHEADS, contrastInk, colorName } from "../services/shape-defaults";
 import { inspectorSectionsFor, type InspectorSection } from "../services/inspector-schema";
@@ -54,6 +55,7 @@ const fillStyleLabel: Record<NonNullable<CanvasShapeStyle["fillStyle"]>, string>
  */
 export const InspectorPanel = memo(function InspectorPanel({ shape, text, areaLabel, style, sections: sectionsProp, mixed, onPatch, onArrange, canGroup, canUngroup, onGroup, onUngroup }: InspectorPanelProps) {
   const s = style ?? {};
+  const shortcut = useFormatShortcut();
   // Emit style *deltas* (only the changed fields), so the same patch applies cleanly to every
   // shape in a multi-selection without clobbering each shape's other values (the consumer merges).
   const patchStyle = (partial: CanvasShapeStyle) => onPatch({ style: partial });
@@ -410,8 +412,8 @@ export const InspectorPanel = memo(function InspectorPanel({ shape, text, areaLa
             </div>
             {(canGroup || canUngroup) && (
               <div className="insp-seg" style={{ marginTop: 6 }}>
-                <button type="button" className="insp-opt" aria-label="Group selection" title="Group (⌘G)" disabled={!canGroup} onClick={onGroup}><Group size={17} /></button>
-                <button type="button" className="insp-opt" aria-label="Ungroup selection" title="Ungroup (⇧⌘G)" disabled={!canUngroup} onClick={onUngroup}><Ungroup size={17} /></button>
+                <button type="button" className="insp-opt" aria-label="Group selection" title={`Group (${shortcut("⌘G")})`}disabled={!canGroup} onClick={onGroup}><Group size={17} /></button>
+                <button type="button" className="insp-opt" aria-label="Ungroup selection" title={`Ungroup (${shortcut("⇧⌘G")})`}disabled={!canUngroup} onClick={onUngroup}><Ungroup size={17} /></button>
               </div>
             )}
           </div>

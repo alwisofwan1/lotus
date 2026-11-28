@@ -6,11 +6,15 @@ import { Search, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveWorkbenchFileIcon } from "@/modules/codespace/services/file-icon-theme";
 import { formatRecentAge, type RecentFile } from "@/modules/codespace/services/recent-files";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 export type LauncherAction = {
   id: string;
   label: string;
-  /** Its shortcut, shown on the button so the mouse is optional. */
+  /**
+   * Its shortcut, shown on the button so the mouse is optional. Written in macOS glyphs; the
+   * launcher prints it the way this platform's keyboard does.
+   */
   keys: string;
   icon: LucideIcon;
   run: () => void;
@@ -41,6 +45,7 @@ function splitFolder(rootDir: string, path: string): { name: string; folder: str
 /** EDITOR 02: an Editor pane with nothing open is a launcher, not a dead card. */
 export function WorkbenchLauncher({ rootDir, recent, now, actions, onGoToFile, onOpen }: WorkbenchLauncherProps) {
   const listId = useId();
+  const shortcut = useFormatShortcut();
   // -1: nothing highlighted, so Enter opens the palette.
   const [active, setActive] = useState(-1);
   const shown = recent.slice(0, RECENT_LIMIT);
@@ -89,7 +94,7 @@ export function WorkbenchLauncher({ rootDir, recent, now, actions, onGoToFile, o
             }}
             className="codespace-launcher-input"
           />
-          <kbd className="codespace-launcher-kbd">⌘P</kbd>
+          <kbd className="codespace-launcher-kbd">{shortcut("⌘P")}</kbd>
         </div>
 
         {shown.length > 0 ? (
@@ -141,7 +146,7 @@ export function WorkbenchLauncher({ rootDir, recent, now, actions, onGoToFile, o
                 <button key={action.id} type="button" className="codespace-launcher-action" onClick={action.run}>
                   <Icon className="h-[13px] w-[13px] shrink-0" aria-hidden="true" />
                   <span>{action.label}</span>
-                  <kbd className="codespace-launcher-keys">{action.keys}</kbd>
+                  <kbd className="codespace-launcher-keys">{shortcut(action.keys)}</kbd>
                 </button>
               );
             })}

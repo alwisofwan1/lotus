@@ -9,6 +9,7 @@ import { SMART_CONVERT_RUNNERS, parseSmartConvertDraft, runSmartConvert } from "
 import type { SmartConvertRunner } from "../services/smart-convert-runner";
 import type { SmartConvertDraft, TaskClass, TaskWhen } from "../types/canvas";
 import { useCanvasOcclusionLock } from "../hooks/useCanvasOcclusionLock";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 // Mockup: mockups/lotus-chat.fig, page "07h Smart Convert".
 
@@ -81,6 +82,7 @@ function SmartConvertModalInner({ noteContent, onConfirm, onCancel }: SmartConve
   const [elapsed, setElapsed] = useState(0);
   const requestSeq = useRef(0);
   const modalRef = useRef<HTMLDivElement>(null);
+  const shortcut = useFormatShortcut();
   const agent = AGENT_NAMES[runner];
 
   const runConvert = useCallback(async (withRunner: SmartConvertRunner, withModel: string | null) => {
@@ -300,7 +302,7 @@ function SmartConvertModalInner({ noteContent, onConfirm, onCancel }: SmartConve
         </div>
 
         <footer className="sc-foot">
-          <span className="sc-keys">⌘R regenerate · Esc close</span>
+          <span className="sc-keys">{shortcut("⌘R")} regenerate · Esc close</span>
           {draft && (
             <button type="button" className="sc-btn" disabled={loading} onClick={regenerate}>
               <RefreshCw size={12} />
@@ -309,7 +311,7 @@ function SmartConvertModalInner({ noteContent, onConfirm, onCancel }: SmartConve
           )}
           <button type="button" className="sc-btn sc-btn-primary" disabled={!ready} onClick={() => draft && onConfirm(draft)}>
             Create task
-            <kbd>⌘↵</kbd>
+            <kbd>{shortcut("⌘↵")}</kbd>
           </button>
         </footer>
       </div>

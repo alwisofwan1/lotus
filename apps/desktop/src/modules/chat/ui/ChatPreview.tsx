@@ -25,6 +25,7 @@ import {
 import { safeTauriUnlisten } from "@/lib/tauri-listener-cleanup";
 import { useSurfaceVisible } from "@/lib/surface-visible";
 import { openExternalLink, openPathReference } from "@/lib/tauri-api";
+import { useAriaKeyShortcuts, useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import { addressOf, externalTarget, pickPlace, touchBrowser, type Pick, type SentPick } from "../domain/preview";
 
 // Mockup: mockups/lotus-chat.fig, pages "05d Preview" and "05e Preview · Compare", option C (#284).
@@ -101,6 +102,8 @@ export function BrowserSurface({ slot, url, root, detected, onNavigate, onPick, 
   // A hidden mode or parked shell keeps this mounted at opacity 0; the native browser must park too.
   const surfaceVisible = useSurfaceVisible();
   const active = asked && surfaceVisible;
+  const keyLabel = useFormatShortcut();
+  const ariaKeys = useAriaKeyShortcuts();
   const page = useRef<HTMLDivElement>(null);
   const [typed, setTyped] = useState(url ?? "");
   const [seenUrl, setSeenUrl] = useState(url);
@@ -404,8 +407,8 @@ export function BrowserSurface({ slot, url, root, detected, onNavigate, onPick, 
           className="chat-stage-nav chat-stage-pick"
           aria-label={picking ? "Stop picking" : "Pick an element"}
           aria-pressed={picking}
-          aria-keyshortcuts="Meta+Shift+C"
-          title={picking ? "Picking · Esc to stop" : "Pick an element · ⌘⇧C"}
+          aria-keyshortcuts={ariaKeys("⌘⇧C")}
+          title={picking ? "Picking · Esc to stop" : `Pick an element · ${keyLabel("⌘⇧C")}`}
           data-on={picking || undefined}
           disabled={!url}
           onClick={() => setPicking(!picking)}

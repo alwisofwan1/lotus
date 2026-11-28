@@ -15,6 +15,8 @@ import type {
 } from "@/lib/tauri/codecanvas";
 import type { CodeVoicePane, CodeVoiceSendOutcome } from "./code-voice-adapter";
 import type { PaneActivity } from "../types";
+import { formatShortcut } from "@/lib/hotkeys/format-shortcut";
+import { readPlatformString } from "@/lib/platform";
 
 /**
  * Live Voice in Code (plans/composer-voice-ux ticket 10): the tools Lotus may call on the panes of
@@ -34,7 +36,15 @@ import type { PaneActivity } from "../types";
  * re-worded one.
  */
 
-export const CODE_LIVE_VOICE_CLOSE_REPLY = "I can't close panes by voice — use ⌘W.";
+/** The pane-close chord as this machine names it, for spoken text: ⌘W on macOS, Ctrl+W elsewhere. */
+function closePaneChord(platform: string = readPlatformString()): string {
+  return formatShortcut("⌘W", platform);
+}
+
+/** What Lotus says when a spoken close is not available: points at the keyboard close instead. */
+export function codeLiveVoiceCloseReply(platform: string = readPlatformString()): string {
+  return `I can't close panes by voice — use ${closePaneChord(platform)}.`;
+}
 
 export interface CodeLiveVoiceDeps {
   /** The panes of the folder on screen. */
@@ -175,7 +185,7 @@ function instructionsFor(panes: CodeVoicePane[], focused: CodeVoicePane | undefi
     "Always set risky on a message: high when it leaves this computer or is hard to undo (push, merge, upload, deploy, delete, clean up, send, open or close a PR), local when it only changes local files (edit, commit), none otherwise. A risky message may first return a question: say it, and only when the user answers yes, call the same tool again with confirm: true.",
     canClose
       ? "To close a pane, call close_pane with its name, and say what it returns. A busy agent cannot be closed by voice. Only when the user answers yes, call close_pane again with the same name and confirm: true. One pane at a time; you cannot close everything at once."
-      : `You cannot close panes. When asked to close one, say exactly: "${CODE_LIVE_VOICE_CLOSE_REPLY}"`,
+      : `You cannot close panes. When asked to close one, say exactly: "${codeLiveVoiceCloseReply()}"`,
     S2S_END_CONVERSATION_INSTRUCTION,
   ].join("\n\n");
 }
@@ -284,7 +294,7 @@ function spawn(call: Call, deps: CodeLiveVoiceDeps): Result {
 
 function closePane(call: Call, deps: CodeLiveVoiceDeps): Result {
   const { close, pendingClose } = deps;
-  if (!close || !pendingClose) return { ok: false, error: "Closing panes by voice is off in Code.", speak: CODE_LIVE_VOICE_CLOSE_REPLY };
+  if (!close || !pendingClose) return { ok: false, error: "Closing panes by voice is off in Code.", speak: codeLiveVoiceCloseReply() };
   const target = trimmed(call.args.target);
   if (!target) return { ok: false, error: "No pane named.", speak: "Which pane?" };
   const pane = resolvePane(target, deps.getPanes(), "pane");
@@ -294,7 +304,7 @@ function closePane(call: Call, deps: CodeLiveVoiceDeps): Result {
   // from killing an agent mid-task. Checked on the yes too: it may have started since the question.
   if (pane.activity === "working" || pane.activity === "needs-you") {
     pendingClose.current = null;
-    return { ok: false, error: `${name} is busy.`, speak: `${name} is still working — wait until it finishes, or use ⌘W.` };
+    return { ok: false, error: `${name} is busy.`, speak: `${name} is still working — wait until it finishes, or use ${closePaneChord()}.` };
   }
   if (call.args.confirm !== true || pendingClose.current !== pane.id) {
     pendingClose.current = pane.id;
@@ -334,7 +344,7 @@ async function runTool(call: Call, deps: CodeLiveVoiceDeps): Promise<Result> {
     case "close_all":
       return canClose(deps)
         ? { ok: false, error: "Closes one pane at a time.", speak: "I close one pane at a time — which one?" }
-        : { ok: false, error: "Closing panes by voice is off in Code.", speak: CODE_LIVE_VOICE_CLOSE_REPLY };
+        : { ok: false, error: "Closing panes by voice is off in Code.", speak: codeLiveVoiceCloseReply() };
   }
   if (isS2sInfoTool(call.name)) {
     return executeS2sInfoToolCall(

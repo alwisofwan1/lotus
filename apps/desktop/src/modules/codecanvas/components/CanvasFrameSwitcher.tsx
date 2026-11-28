@@ -5,6 +5,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import { frameChipTooltip, type FrameChip } from "../services/canvas-frame-switcher";
 import { MAX_FRAMES } from "../services/canvas-frames";
 import { useCanvasOcclusionLock } from "../hooks/useCanvasOcclusionLock";
+import { useShortcutPlatform } from "@/lib/hooks/useShortcutLabel";
 
 interface Props {
   chips: FrameChip[];
@@ -35,6 +36,8 @@ function worstTone(list: readonly FrameChip[]): FrameChip["tone"] {
 export function CanvasFrameSwitcher({ chips, overflow, onGoToFrame, onCreateFrame, activeFrameId = null, compact = false }: Props) {
   const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const platform = useShortcutPlatform();
+  const tooltip = (chip: FrameChip) => frameChipTooltip(chip, platform);
   // The overflow menu floats over the canvas; park browser WebViews beneath it while it is open.
   useCanvasOcclusionLock(menuOpen, "frame-overflow-menu");
 
@@ -118,7 +121,7 @@ export function CanvasFrameSwitcher({ chips, overflow, onGoToFrame, onCreateFram
             aria-haspopup="menu"
             aria-expanded={menuOpen}
             aria-label={`Frames${active ? `, Frame ${active.label} active` : ""}${needsYou ? " · needs you" : ""}`}
-            title={active ? `${frameChipTooltip(active)} · active` : `${all.length} Frames`}
+            title={active ? `${tooltip(active)} · active` : `${all.length} Frames`}
             onClick={() => setMenuOpen((o) => !o)}
           >
             {tone !== "idle" ? <i className="canvas-frame-chip-dot" style={{ background: `var(--canvas-status-${tone})` }} aria-hidden="true" /> : null}
@@ -167,8 +170,8 @@ export function CanvasFrameSwitcher({ chips, overflow, onGoToFrame, onCreateFram
           data-frame-chip
           data-needs-you={chip.needsYou ? "true" : undefined}
           aria-current={chip.frameId === activeFrameId ? "true" : undefined}
-          title={chip.frameId === activeFrameId ? `${frameChipTooltip(chip)} · active` : frameChipTooltip(chip)}
-          aria-label={chip.frameId === activeFrameId ? `${frameChipTooltip(chip)} · active` : frameChipTooltip(chip)}
+          title={chip.frameId === activeFrameId ? `${tooltip(chip)} · active` : tooltip(chip)}
+          aria-label={chip.frameId === activeFrameId ? `${tooltip(chip)} · active` : tooltip(chip)}
           onClick={() => onGoToFrame(chip.frameId)}
         >
           {chip.tone !== "idle" ? <i className="canvas-frame-chip-dot" style={{ background: `var(--canvas-status-${chip.tone})` }} aria-hidden="true" /> : null}

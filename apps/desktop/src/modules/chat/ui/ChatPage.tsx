@@ -69,6 +69,7 @@ import { Dither } from "./Dither";
 import { ConversationTitle } from "@/modules/conversation-title/ConversationTitle";
 import { useThreadActions, type ThreadActions } from "./ThreadActions";
 import { ChatTimeline } from "./timeline/ChatTimeline";
+import { useAriaKeyShortcuts, useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 
 function message(reason: unknown): string {
@@ -170,6 +171,8 @@ const REMOTE_TABS: readonly WorkbenchTab[] = ["changes", "files"];
 
 export function ChatPage({ rail, shown = true, pane: inPane }: { rail?: ChatRail; shown?: boolean; pane?: ChatPaneMode } = {}) {
   const own = useChatRail(!rail);
+  const shortcut = useFormatShortcut();
+  const ariaShortcut = useAriaKeyShortcuts();
   const { threads, setThreads, activeId, setActiveId, now, error: listError } = rail ?? own;
   const [error, setError] = useState<string | null>(null);
   const font = useChatFont();
@@ -618,7 +621,7 @@ export function ChatPage({ rail, shown = true, pane: inPane }: { rail?: ChatRail
       data-armed={armed || undefined}
       aria-label={armed ? "Delete chat?" : "Done"}
       onClick={done}
-      title={armed ? "Press again to delete this chat. Its folder is not touched." : "Done · delete this chat (⌘⇧E)"}
+      title={armed ? "Press again to delete this chat. Its folder is not touched." : `Done · delete this chat (${shortcut("⌘⇧E")})`}
     >
       {armed ? "Delete chat?" : <Check size={inPane ? 13 : 15} strokeWidth={inPane ? 1.75 : 2} aria-hidden />}
     </button>
@@ -748,8 +751,8 @@ export function ChatPage({ rail, shown = true, pane: inPane }: { rail?: ChatRail
                     className="chat-panel-toggle"
                     aria-pressed={review}
                     aria-label={review ? "Close workbench" : "Open workbench"}
-                    aria-keyshortcuts="Meta+R"
-                    title={review ? "Close workbench · ⌘R" : "Workbench · ⌘R"}
+                    aria-keyshortcuts={ariaShortcut("⌘R")}
+                    title={review ? `Close workbench · ${shortcut("⌘R")}` : `Workbench · ${shortcut("⌘R")}`}
                     onClick={toggleWorkbench}
                   >
                     <PanelRight size={15} strokeWidth={2} aria-hidden />
@@ -841,7 +844,7 @@ export function ChatPage({ rail, shown = true, pane: inPane }: { rail?: ChatRail
               />
             )}
             {reviewOpen && wide && (
-              <button type="button" className="chat-wide-last" title="Show the chat · ⇧⌘↩" onClick={() => workbench.patch({ wide: false })}>
+              <button type="button" className="chat-wide-last" title={`Show the chat · ${shortcut("⇧⌘↩")}`} onClick={() => workbench.patch({ wide: false })}>
                 <span className="chat-wide-last-text">{status.activity ? `${agentName} · ${status.activity}` : lastLine(rows)}</span>
                 <span className="chat-wide-last-show">Show chat</span>
               </button>

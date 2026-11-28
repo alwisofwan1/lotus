@@ -7,6 +7,7 @@ import type { Automation, AutomationClient } from "../services/automation-api";
 import { savedBy, sentAgo, watchSteps, type AgentWatchHost, type Watch } from "../services/agent-watch";
 import { agentPromptFor, TEMPLATES } from "../services/templates";
 import { TemplateIconView } from "./BrowseTab";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /** A template's request, as the person would say it: "Every weekday at 09:00 sends me …". */
 function asSaid(request: string): string {
@@ -39,6 +40,7 @@ export function DockNew({
   onBack: () => void;
   onOpen: (automationId: string) => void;
 }) {
+  const shortcut = useFormatShortcut();
   const [text, setText] = useState("");
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -196,7 +198,7 @@ export function DockNew({
               </span>
               <button type="button" className="rs-button rs-button--primary" disabled={!canCreate || !text.trim() || opening} onClick={() => void send()}>
                 {opening ? "Opening agent…" : "Create with agent"}
-                <kbd className="au-kbd">⌘↵</kbd>
+                <kbd className="au-kbd">{shortcut("⌘↵")}</kbd>
               </button>
             </div>
           </div>

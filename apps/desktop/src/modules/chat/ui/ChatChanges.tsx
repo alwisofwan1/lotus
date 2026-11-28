@@ -23,6 +23,7 @@ import { WORKBENCH_TABS, type WorkbenchTab } from "../domain/workbench";
 import { commitChatChanges, discardChildChat, getChatChangeDiff, mergeChildChat, undoChatChanges } from "../runtime/chat-runtime-client";
 import { highlightRows, languageOf } from "./code-highlight";
 import { SelectionToChat } from "./SelectionToChat";
+import { useAriaKeyShortcuts, useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 // Mockup: mockups/lotus-chat.fig, page "05a Changes", board B (#281). A bar docked above the
 // composer opens a drawer where every changed file stacks in one column: the agent's ticked, the
 // user's own unticked. Undo puts the agent's files back as they were before its first edit.
@@ -56,6 +57,7 @@ interface ChangesBarProps {
 }
 
 export function ChangesBar({ changes, agentName, touched, receipt, receiptHint = "Push in Code", open, onToggle, run }: ChangesBarProps) {
+  const shortcut = useFormatShortcut();
   if (receipt) {
     return (
       <div key="done" className="chat-changes-bar" data-tone="done" role="status">
@@ -90,7 +92,7 @@ export function ChangesBar({ changes, agentName, touched, receipt, receiptHint =
       {run && <span className="chat-changes-bar-run">{run}</span>}
       <button type="button" className="chat-changes-review" aria-expanded={open} onClick={onToggle}>
         {open ? "Hide" : "Review"}
-        <kbd>⌘R</kbd>
+        <kbd>{shortcut("⌘R")}</kbd>
       </button>
     </div>
   );
@@ -128,6 +130,8 @@ interface ChatDrawerProps {
 /** The Workbench drawer: Changes (#281), Files (#282) and Runs (#283) behind one switch. */
 export function ChatDrawer({ open, pane, onPane, counts, onClose, wide = false, onWide, onResize, onResetWidth, tabs = PANES, ...content }: ChatDrawerProps) {
   const panes = useRef<Record<DrawerPane, HTMLDivElement | null>>({ changes: null, files: null, runs: null, preview: null, context: null });
+  const shortcut = useFormatShortcut();
+  const ariaShortcut = useAriaKeyShortcuts();
 
   // Focus moves into the pane on open and on a switch, so its keys work at once. Not when the
   // pane already took it: an opened file focuses itself first (child effects run before this).
@@ -155,7 +159,7 @@ export function ChatDrawer({ open, pane, onPane, counts, onClose, wide = false, 
                 role="tab"
                 aria-selected={pane === id}
                 className="chat-drawer-tab"
-                title={id === "preview" ? "Preview · ⇧⌘B" : id === "files" ? "Files · ⌘P" : undefined}
+                title={id === "preview" ? `Preview · ${shortcut("⇧⌘B")}` : id === "files" ? `Files · ${shortcut("⌘P")}` : undefined}
                 onClick={() => onPane(id)}
               >
                 {PANE_LABEL[id]}
@@ -166,8 +170,8 @@ export function ChatDrawer({ open, pane, onPane, counts, onClose, wide = false, 
           {/* The Preview's address bar draws itself here: one row with the tabs when there is room (mockups/chat-preview-layout.html, A). */}
           <div className="chat-drawer-slot" />
           {pane === "files" && (
-            <span className="chat-changes-keys" title="⌘P: go to file" aria-hidden>
-              <kbd>⌘P</kbd>
+            <span className="chat-changes-keys" title={`${shortcut("⌘P")}: go to file`} aria-hidden>
+              <kbd>{shortcut("⌘P")}</kbd>
             </span>
           )}
           {onWide && (
@@ -176,14 +180,14 @@ export function ChatDrawer({ open, pane, onPane, counts, onClose, wide = false, 
               className="chat-changes-close chat-drawer-wide"
               aria-label={wide ? "Narrow workbench" : "Widen workbench"}
               aria-pressed={wide}
-              aria-keyshortcuts="Shift+Meta+Enter"
-              title={wide ? "Narrow · ⇧⌘↩" : "Widen · ⇧⌘↩"}
+              aria-keyshortcuts={ariaShortcut("⇧⌘↩")}
+              title={wide ? `Narrow · ${shortcut("⇧⌘↩")}` : `Widen · ${shortcut("⇧⌘↩")}`}
               onClick={onWide}
             >
               {wide ? <Minimize2 size={13} aria-hidden /> : <Maximize2 size={13} aria-hidden />}
             </button>
           )}
-          <button type="button" className="chat-changes-close" aria-label="Close workbench" aria-keyshortcuts="Meta+R" title="Close · ⌘R" onClick={onClose}>
+          <button type="button" className="chat-changes-close" aria-label="Close workbench" aria-keyshortcuts={ariaShortcut("⌘R")} title={`Close · ${shortcut("⌘R")}`} onClick={onClose}>
             <X size={14} aria-hidden />
           </button>
         </header>
@@ -352,6 +356,7 @@ function RemoteChanges({ host, files, onOpen }: { host: string; files: Changes["
 function ChangesList({ shown, threadId, changes, agentName, onChanged, onCommitted, onMention, target, working = false, onDiscarded, reviewNotes, onReviewNote, editNote }: ChangesPaneProps & { changes: Changes }) {
   const files = changes.files;
   const [picks, setPicks] = useState(() => defaultPicks(files));
+  const shortcut = useFormatShortcut();
   const [open, setOpen] = useState<string | null>(() => files.find((f) => f.agent)?.path ?? files[0]?.path ?? null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -609,7 +614,7 @@ function ChangesList({ shown, threadId, changes, agentName, onChanged, onCommitt
               onClick={() => void commit()}
             >
               {picked.length === 0 ? "Select files to commit" : `Commit ${picked.length} ${picked.length === 1 ? "file" : "files"}`}
-              <kbd>⌘↵</kbd>
+              <kbd>{shortcut("⌘↵")}</kbd>
             </button>
           </div>
         </div>
@@ -1250,6 +1255,7 @@ function ReviewNoteEditor({ cite, text, editing, onText, onSave, onCancel, onDel
   onCancel: () => void;
   onDelete: () => void;
 }) {
+  const shortcut = useFormatShortcut();
   return (
     <div className="chat-review-editor" role="group" aria-label={`Review note on ${cite}`}>
       <div className="chat-review-cite">
@@ -1273,7 +1279,7 @@ function ReviewNoteEditor({ cite, text, editing, onText, onSave, onCancel, onDel
         }}
       />
       <div className="chat-review-bar">
-        <span className="chat-review-hint">⌘↵ save · Esc cancel · shift-click a line to widen</span>
+        <span className="chat-review-hint">{shortcut("⌘↵")} save · Esc cancel · shift-click a line to widen</span>
         {editing && (
           <button type="button" className="chat-btn chat-btn--ghost chat-review-delete" onClick={onDelete}>
             Delete

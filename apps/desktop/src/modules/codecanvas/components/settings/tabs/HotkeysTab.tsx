@@ -7,6 +7,7 @@ import {
   acquireCanvasHotkeyRecordingLease,
   CANVAS_HOTKEY_COMMANDS,
   createModifierOnlyHotkeyTracker,
+  detectCanvasHotkeyPlatform,
   doesGlobalChordReplaceTyping,
   effectiveBindings,
   findChordConflict,
@@ -50,13 +51,8 @@ interface PendingToolConflict {
   tool: string;
 }
 
-function detectPlatform(): CanvasHotkeyPlatform {
-  if (typeof navigator === "undefined") return "mac";
-  return /mac|iphone|ipad|ipod/i.test(navigator.platform) ? "mac" : "other";
-}
-
 export function HotkeysTab({ platform: platformProp }: { platform?: CanvasHotkeyPlatform } = {}) {
-  const [platform] = useState<CanvasHotkeyPlatform>(platformProp ?? detectPlatform);
+  const [platform] = useState<CanvasHotkeyPlatform>(platformProp ?? detectCanvasHotkeyPlatform);
   const { overrides, setOverride, clearOverride, resetAll } = useCanvasHotkeyOverrides();
   const [recordingId, setRecordingId] = useState<CanvasHotkeyCommandId | null>(null);
   const [pending, setPending] = useState<PendingConflict | null>(null);

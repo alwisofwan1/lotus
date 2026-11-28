@@ -19,6 +19,7 @@ import { AGENT_TYPES, LAYOUT_TEMPLATES } from "./constants";
 import type { LayoutTemplate, Preset, PresetRemote } from "./types";
 import { validatePreset } from "./types";
 import { MiniGrid, PresetPalette, leafName, presetOrder, templateOf } from "./PresetPalette";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 interface DirEntry { name: string; path: string; isGitRepo: boolean; hasPackageJson: boolean; }
 
@@ -388,6 +389,7 @@ export async function markPresetOpened(id: string): Promise<void> {
  */
 export function ConfigureLayoutView({ onCancel, onPickRemote, onLaunch }: ConfigureLayoutViewProps) {
   const [cwd, setCwd] = useState("");
+  const shortcut = useFormatShortcut();
   const [remote, setRemote] = useState<PresetRemote | null>(null);
   const [homedir, setHomedir] = useState("");
   const [selected, setSelected] = useState<LayoutTemplate>(LAYOUT_TEMPLATES[0]);
@@ -685,7 +687,7 @@ export function ConfigureLayoutView({ onCancel, onPickRemote, onLaunch }: Config
                 <div className="cl-label">
                   Jump back in
                   <button type="button" className="cl-seeall" onClick={() => setPaletteOpen(true)}>
-                    All presets · {presets.length} <span className="cl-kbd">⌘P</span>
+                    All presets · {presets.length} <span className="cl-kbd">{shortcut("⌘P")}</span>
                   </button>
                 </div>
                 <div className="cl-recents">
@@ -879,7 +881,7 @@ export function ConfigureLayoutView({ onCancel, onPickRemote, onLaunch }: Config
             {nameError && <span className="cl-error" role="alert">{nameError}</span>}
             <span className="cl-pfoot-grow" />
             <button type="button" className="cl-btn is-primary" onClick={launch}>
-              Launch {plural(total, "pane")}{remote && <>{" "}<span className="cl-btn-dest">on {remote.host}</span></>} <span className="cl-kbd">⌘↵</span>
+              Launch {plural(total, "pane")}{remote && <>{" "}<span className="cl-btn-dest">on {remote.host}</span></>} <span className="cl-kbd">{shortcut("⌘↵")}</span>
             </button>
           </div>
         </div>

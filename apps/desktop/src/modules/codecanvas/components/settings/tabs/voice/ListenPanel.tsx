@@ -2,28 +2,14 @@
 import type { ComponentProps } from "react";
 import { useVoiceInputSettings } from "@/modules/codecanvas/hooks/useVoiceInputSettings";
 import { useCanvasHotkeyOverrides } from "@/modules/codecanvas/hooks/useCanvasHotkeySettings";
-import {
-  effectiveBindings,
-  formatChord,
-  UNBOUND_CHORD,
-  type CanvasHotkeyPlatform,
-} from "@/modules/codecanvas/services/canvas-hotkeys";
+import { detectCanvasHotkeyPlatform, effectiveBindings } from "@/modules/codecanvas/services/canvas-hotkeys";
 import { Kbd } from "@/components/ui/status";
 import { SettingToggleRow } from "@/modules/lotus-settings/components/SettingToggleRow";
 import { VoiceProviderList } from "../VoiceProviderList";
+import { shortcutLabel } from "./voice-shortcuts";
 
 interface Props {
   list: ComponentProps<typeof VoiceProviderList>;
-}
-
-function detectPlatform(): CanvasHotkeyPlatform {
-  if (typeof navigator === "undefined") return "mac";
-  return /mac|iphone|ipad|ipod/i.test(navigator.platform) ? "mac" : "other";
-}
-
-function shortcutLabel(chord: string, platform: CanvasHotkeyPlatform): string {
-  if (chord === UNBOUND_CHORD) return "Unassigned";
-  return formatChord(chord, platform).join(platform === "mac" ? "" : "+");
 }
 
 /**
@@ -35,7 +21,7 @@ export function ListenPanel({ list }: Props) {
   const { autoSubmit, setAutoSubmit } = useVoiceInputSettings();
   const { overrides } = useCanvasHotkeyOverrides();
   const bindings = effectiveBindings(overrides);
-  const platform = detectPlatform();
+  const platform = detectCanvasHotkeyPlatform();
 
   return (
     <>

@@ -6,6 +6,7 @@ import { getUiZoom, setUiZoom, subscribeUiZoom, UI_ZOOM_STEPS } from "@/lib/ui-z
 import { SettingSelectRow } from "@/modules/lotus-settings/components/SettingSelectRow";
 import { SettingRow, SettingsGroup } from "@/modules/lotus-settings/components/SettingsGroup";
 import { ThemeModeGroup } from "@/modules/settings/components/ThemeModeCard";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 const MODE_NAMES = { dark: "Dark", light: "Light" } as const;
 const ZOOM_OPTIONS = UI_ZOOM_STEPS.map((step) => ({
@@ -14,6 +15,7 @@ const ZOOM_OPTIONS = UI_ZOOM_STEPS.map((step) => ({
 }));
 
 export function AppearanceSettingsSection() {
+  const shortcut = useFormatShortcut();
   const { themePreference, systemThemeMode, setThemePreference } = useTheme();
   const [zoom, setZoom] = useState(getUiZoom);
   useEffect(() => subscribeUiZoom(setZoom), []);
@@ -32,7 +34,7 @@ export function AppearanceSettingsSection() {
       />
       <SettingSelectRow
         title="Interface size"
-        description="Scales all text and controls in every Lotus window. ⌘+ and ⌘− step it, ⌘0 resets."
+        description={`Scales all text and controls in every Lotus window. ${shortcut("⌘+")} and ${shortcut("⌘−")} step it, ${shortcut("⌘0")} resets.`}
         selectLabel="Interface size"
         options={ZOOM_OPTIONS}
         value={String(zoom)}

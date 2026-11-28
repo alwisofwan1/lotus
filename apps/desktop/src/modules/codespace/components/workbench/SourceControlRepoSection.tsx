@@ -14,6 +14,7 @@ import {
   suggestConventionalCommitHeuristic,
   type ConventionalCommitType,
 } from "@/modules/codespace/services/conventional-commit";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /*
  * One repository in Source.
@@ -265,6 +266,7 @@ export function SourceControlRepoSection({
   onStageFile, onUnstageFile, onStageAll, onUnstageAll, onDiscardAllChanges, onDiscardFile, onViewDiff,
 }: SourceControlRepoSectionProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const shortcut = useFormatShortcut();
   const [branchPopover, setBranchPopover] = useState<{ branch: string; style: CSSProperties } | null>(null);
   const { staged, unstaged } = groupStatuses(statuses);
   const canCommit = staged.length > 0 && commitMessage.trim().length > 0 && !busy && !committing;
@@ -281,7 +283,7 @@ export function SourceControlRepoSection({
   const pushLabel = pushing ? "Pushing" : hasUpstream ? `Push (${aheadCount})` : "Publish";
   const commitTitle = staged.length === 0
     ? "Stage changes to commit them"
-    : commitMessage.trim() ? `Commit to ${summary?.branch ?? "this branch"} (⌘Enter)` : "Write a message first";
+    : commitMessage.trim() ? `Commit to ${summary?.branch ?? "this branch"} (${shortcut("⌘Enter")})` : "Write a message first";
 
   const handleSelectType = (type: ConventionalCommitType) => onCommitMessageChange(applyConventionalType(commitMessage, type));
   const showBranchPopover = useCallback((target: HTMLElement, branch: string) => {

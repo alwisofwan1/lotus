@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import { FolderOpen } from "lucide-react";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 import type { RecentProject } from "../services/recent-projects";
 
@@ -13,9 +14,6 @@ interface CanvasProjectEmptyStateProps {
   onSelectRecent?: (projectId: string) => void;
 }
 
-const IS_MAC = typeof navigator !== "undefined" && /mac|iphone|ipad|ipod/i.test(navigator.platform);
-const MOD = IS_MAC ? "⌘" : "Ctrl";
-
 /**
  * "No project open" portal. One self-contained glass surface — carrying its own contrast so it
  * stays legible over any wallpaper — with the primary "open a folder" action plus a short project
@@ -23,6 +21,7 @@ const MOD = IS_MAC ? "⌘" : "Ctrl";
  * to a single action; the ⌘K hint points at the command palette. Native picker is wired by the parent.
  */
 export function CanvasProjectEmptyState({ onOpen, recents = [], onSelectRecent }: CanvasProjectEmptyStateProps) {
+  const shortcut = useFormatShortcut();
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.metaKey || event.ctrlKey) || event.altKey || event.shiftKey) return;
@@ -50,7 +49,7 @@ export function CanvasProjectEmptyState({ onOpen, recents = [], onSelectRecent }
           <button type="button" onClick={onOpen} className="canvas-empty-row canvas-empty-row--primary">
             <FolderOpen size={15} aria-hidden className="canvas-empty-row-icon" />
             <span className="canvas-empty-row-label">Open a project</span>
-            <kbd className="canvas-empty-kbd" aria-hidden>{MOD}O</kbd>
+            <kbd className="canvas-empty-kbd" aria-hidden>{shortcut("⌘O")}</kbd>
           </button>
           {hasRecents && (
             <>
@@ -65,13 +64,13 @@ export function CanvasProjectEmptyState({ onOpen, recents = [], onSelectRecent }
                 >
                   <span className="canvas-empty-recent-name">{recent.name}</span>
                   <span className="canvas-empty-recent-path">{recent.path}</span>
-                  {index < 9 && <kbd className="canvas-empty-kbd" aria-hidden>{MOD}{index + 1}</kbd>}
+                  {index < 9 && <kbd className="canvas-empty-kbd" aria-hidden>{shortcut(`⌘${index + 1}`)}</kbd>}
                 </button>
               ))}
             </>
           )}
         </div>
-        <p className="canvas-empty-hint">or press {MOD}K</p>
+        <p className="canvas-empty-hint">or press {shortcut("⌘K")}</p>
       </div>
     </section>
   );

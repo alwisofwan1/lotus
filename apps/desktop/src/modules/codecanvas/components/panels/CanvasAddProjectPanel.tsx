@@ -19,6 +19,7 @@ import {
   type SshConfigHost,
 } from "@/lib/tauri-api";
 import type { CodeCanvasProjectLocation, CodeCanvasProjectMeta } from "@/lib/tauri/codecanvas";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import {
   addProjectChoices,
   machineFromQuery,
@@ -521,6 +522,7 @@ function RemoteFolderBrowser({
   /** A click only selects; going in is Enter, → or a double click. */
   const [selected, setSelected] = useState<string | null>(null);
   const [hl, setHl] = useState(0);
+  const shortcut = useFormatShortcut();
 
   useEffect(() => {
     let live = true;
@@ -737,7 +739,7 @@ function RemoteFolderBrowser({
         </button>
         {selectedEntry && canUse ? (
           <button type="button" className="canvas-addproject-primary" onClick={() => onUse(selectedEntry.path)}>
-            Use {selectedEntry.name} <Kbd>⌘↵</Kbd>
+            Use {selectedEntry.name} <Kbd>{shortcut("⌘↵")}</Kbd>
           </button>
         ) : null}
       </div>
@@ -745,7 +747,7 @@ function RemoteFolderBrowser({
         keys={[
           { k: "↵", label: "go in" },
           { k: "←", label: "up" },
-          { k: "⌘↵", label: "use" },
+          { k: shortcut("⌘↵"), label: "use" },
           { k: "Esc", label: "back" },
         ]}
       />

@@ -37,6 +37,7 @@ import type { AgentStatusRegistry } from "../services/agent-status-registry";
 import { machineKey, type Machine } from "../services/machine";
 import { changedByBoard } from "../services/changed-by-board";
 import { agentStateRegistry } from "../services/narration/agent-state-registry";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /** Names this editing session to the shared buffer store: a file open here and in CodeSpace is one buffer. */
 export const CODE_DOCK_HOLDER_ID = "canvas-code-dock";
@@ -112,6 +113,7 @@ function CodeWorkbench({
   const [editorPreferences, updateEditorPreferences] = useEditorPreferences();
   const { wordWrap, fontSize } = editorPreferences;
   const rootRef = useRef<HTMLDivElement>(null);
+  const shortcut = useFormatShortcut();
   const [editorStatus, setEditorStatus] = useState<EditorStatus | null>(null);
   const [openedFrom, setOpenedFrom] = useState<string | null>(null);
   const [revealRequest, setRevealRequest] = useState<{ path: string; startLine: number; endLine: number; nonce: number } | null>(null);
@@ -333,11 +335,11 @@ function CodeWorkbench({
             type="button"
             onClick={openGoToFile}
             className="flex items-center gap-2 rounded-[6px] border border-[color:var(--codespace-panel-border)] px-2 py-1 text-[11.5px] text-[color:var(--codespace-panel-text-muted)] hover:bg-[color:var(--codespace-panel-surface-hover)]"
-            title="Go to file (⌘P)"
+            title={`Go to file (${shortcut("⌘P")})`}
           >
             <Search className="h-3 w-3" aria-hidden="true" />
             Go to file
-            <kbd className="ml-auto rounded-[4px] bg-[color:var(--codespace-panel-surface-active)] px-1 font-mono text-[11px]">⌘P</kbd>
+            <kbd className="ml-auto rounded-[4px] bg-[color:var(--codespace-panel-surface-active)] px-1 font-mono text-[11px]">{shortcut("⌘P")}</kbd>
           </button>
           <h3 className="m-0 mt-2 px-1 text-[10.5px] font-semibold uppercase tracking-wide text-[color:var(--codespace-panel-text-muted)]">Changed by this board</h3>
           {changed.length === 0 ? (
@@ -428,7 +430,7 @@ function CodeWorkbench({
             />
           ) : !activeTab ? (
             <div className="flex flex-1 flex-col items-center justify-center gap-2 text-[12px] text-[color:var(--codespace-panel-text-muted)]">
-              <p className="m-0">Pick a file from the list, or press ⌘P.</p>
+              <p className="m-0">Pick a file from the list, or press {shortcut("⌘P")}.</p>
               <button
                 type="button"
                 onClick={openGoToFile}

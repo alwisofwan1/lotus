@@ -1,3 +1,5 @@
+import { isWindowsPlatform } from "@/lib/platform";
+
 /**
  * How to install each known agent CLI, for the "Available" rows in Settings › Agents.
  *
@@ -14,8 +16,7 @@ export interface CliInstall {
 
 /** The install command for this OS. */
 export function installCommand(install: CliInstall): string {
-  const win = typeof navigator !== "undefined" && /Win/.test(navigator.userAgent);
-  return (win && install.windows) || install.command;
+  return (isWindowsPlatform() && install.windows) || install.command;
 }
 
 export const CLI_INSTALL: Record<string, CliInstall> = {

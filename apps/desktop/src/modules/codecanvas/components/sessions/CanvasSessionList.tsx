@@ -2,6 +2,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { MoreHorizontal, Pin, Plus, Search, Trash2 } from "lucide-react";
 import { useCanvasOcclusionLock } from "../../hooks/useCanvasOcclusionLock";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 import type { CanvasSessionRecord } from "../../services/session-record";
 import {
   filterSessions,
@@ -97,6 +98,7 @@ export function CanvasSessionList({
   // A native Browser Node WebView paints above the whole DOM; an overlay that does not park it gets
   // covered by a web page. The list only exists while it is open, so the lock is held for its life.
   useCanvasOcclusionLock(true, "session-list");
+  const shortcut = useFormatShortcut();
   // Mounted when it opens, so "now" is the moment it was opened — ages need not tick in a popover.
   const [openedAt] = useState(() => Date.now());
   const timestamp = now ?? openedAt;
@@ -221,7 +223,7 @@ export function CanvasSessionList({
         <button type="button" className="canvas-session-list-new" onClick={onNewConversation}>
           <Plus size={14} aria-hidden />
           <span>New conversation</span>
-          <kbd>⌘N</kbd>
+          <kbd>{shortcut("⌘N")}</kbd>
         </button>
       ) : null}
 

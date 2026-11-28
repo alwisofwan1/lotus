@@ -11,6 +11,7 @@ import {
   type StatusVocabulary,
 } from "@/modules/tasks/services/task-vocabulary";
 import type { BridgePriority, BridgeTaskStatus } from "@/modules/codespace/services/bridge/task-store";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /**
  * The bar that floats over the list while rows are ticked (Tasks revamp D8): how many, and the
@@ -40,6 +41,7 @@ export function TaskBulkBar({
   onSelectAll,
   onClear,
 }: TaskBulkBarProps) {
+  const shortcut = useFormatShortcut();
   useCloseMenusOnOutsidePress();
   return (
     <div className="tk-bulk" role="toolbar" aria-label="Bulk actions">
@@ -82,7 +84,7 @@ export function TaskBulkBar({
         />
       ) : null}
       <span className="tk-bulk-sep" aria-hidden />
-      <button type="button" className="tk-bulk-button" onClick={onSelectAll} title="Select all (⌘A)">
+      <button type="button" className="tk-bulk-button" onClick={onSelectAll} title={`Select all (${shortcut("⌘A")})`}>
         Select all
       </button>
       <button type="button" className="ws-chrome-button" onClick={onClear} aria-label="Clear selection" title="Clear (Esc)">

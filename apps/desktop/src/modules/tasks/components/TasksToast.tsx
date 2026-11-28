@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 /**
  * One short-lived line at the foot of Tasks, with one action (mockup `SOURCES 08`: "TKT-1000 moved
@@ -22,6 +23,7 @@ export function TasksToast({
   onDismiss: () => void;
   ms?: number;
 }) {
+  const shortcut = useFormatShortcut();
   // Read through a ref: a caller's inline callback is new every render, and as a dependency it
   // restarted the timer each time, so a busy screen never let the toast leave.
   const latest = useRef({ onAction, onDismiss });
@@ -49,7 +51,7 @@ export function TasksToast({
       <span className="tk-toast-text">{message}</span>
       <button type="button" className="tk-toast-action" onClick={onAction}>
         {action}
-        <kbd className="tk-toast-key">⌘Z</kbd>
+        <kbd className="tk-toast-key">{shortcut("⌘Z")}</kbd>
       </button>
     </div>
   );

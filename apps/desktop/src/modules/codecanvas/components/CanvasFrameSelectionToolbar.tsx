@@ -1,6 +1,7 @@
 "use client";
 import { NodeToolbar, Position } from "@xyflow/react";
 import { SquareDashed } from "lucide-react";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 interface Props {
   /** The selected nodes the toolbar floats above (Frames excluded by the caller). */
@@ -18,15 +19,16 @@ interface Props {
  * over the canvas; it may sit above a Canvas Browser Node it belongs to.
  */
 export function CanvasFrameSelectionToolbar({ nodeIds, onCreateFrame }: Props) {
+  const shortcut = useFormatShortcut();
   if (nodeIds.length < 2) return null;
   return (
     <NodeToolbar nodeId={nodeIds} isVisible position={Position.Top} offset={14} className="nodrag nopan">
       <div className="canvas-frame-selbar" role="toolbar" aria-label="Selection" data-testid="frame-selection-toolbar">
         <span className="canvas-frame-selbar-count">{`${nodeIds.length} selected`}</span>
-        <button type="button" className="canvas-frame-selbar-btn" onClick={onCreateFrame} title="Group the selection into a Frame (⌘G)">
+        <button type="button" className="canvas-frame-selbar-btn" onClick={onCreateFrame} title={`Group the selection into a Frame (${shortcut("⌘G")})`}>
           <SquareDashed size={14} aria-hidden="true" />
           Frame
-          <kbd>⌘G</kbd>
+          <kbd>{shortcut("⌘G")}</kbd>
         </button>
       </div>
     </NodeToolbar>

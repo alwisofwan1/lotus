@@ -32,6 +32,7 @@ import {
   type SelectionAction,
   sendSelectionKeybinding,
 } from "./SelectionPopover";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 export interface WorkbenchEditorApi {
   focus(): void;
@@ -312,6 +313,7 @@ export function WorkbenchEditor({
   blame = null,
 }: WorkbenchEditorProps) {
   const { theme } = useTheme();
+  const shortcut = useFormatShortcut();
   const monaco = useMonaco();
   const [{ editorDarkTheme, editorLightTheme }] = useEditorPreferences();
   const editorThemeOverrides = useMemo(() => ({ editorDarkTheme, editorLightTheme }), [editorDarkTheme, editorLightTheme]);
@@ -639,7 +641,7 @@ export function WorkbenchEditor({
       <EditorState
         icon={<FileCode2 className="h-4 w-4" />}
         title="Open a file"
-        description="Pick one in the file tree, or press ⌘P to go to any file."
+        description={`Pick one in the file tree, or press ${shortcut("⌘P")} to go to any file.`}
       />
     );
   }

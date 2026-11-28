@@ -21,6 +21,7 @@ import {
 } from "./file-tree-nodes";
 import { PATH_QUERY_DEBOUNCE_MS } from "@/modules/codespace/services/fuzzy-path";
 import { FileTreeContextMenu, type FileTreeMenuCloseReason, type FileTreeMenuItem } from "./FileTreeContextMenu";
+import { useFormatShortcut } from "@/lib/hooks/useShortcutLabel";
 
 interface FileTreeProps {
   rootDir: string;
@@ -161,6 +162,7 @@ export function FileTree({
   onOpenFile,
 }: FileTreeProps) {
   const [query, setQuery] = useState("");
+  const shortcut = useFormatShortcut();
   // What the rows show: `query` once typing pauses.
   const [settledQuery, setSettledQuery] = useState("");
   const settleTimerRef = useRef<number | null>(null);
@@ -1060,7 +1062,7 @@ export function FileTree({
           aria-hidden="true"
           className="codespace-workbench-tree-row codespace-workbench-tree-row-muted text-[11px] text-[color:var(--codespace-panel-text-quiet)]"
           style={{ position: "absolute", left: 0, right: 0, top: offsets[index], paddingLeft: 8 + row.depth * 12 + 16 }}
-          title="Very large folder: Go to file (⌘P) searches the full index."
+          title={`Very large folder: Go to file (${shortcut("⌘P")}) searches the full index.`}
         >
           Showing the first 10,000 entries
         </div>

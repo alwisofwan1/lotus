@@ -1,4 +1,5 @@
 import { getUiZoom } from "@/lib/ui-zoom";
+import { isWindowsPlatform, readPlatformString } from "@/lib/platform";
 
 export const SSH_CONFIRM_THRESHOLD_BYTES = 25 * 1024 * 1024;
 export const SSH_HARD_LIMIT_BYTES = 250 * 1024 * 1024;
@@ -40,8 +41,8 @@ export function quoteDroppedPath(path: string, mode: TerminalDropQuoteMode): str
   return path.replace(/([\s'"`$\\&;()|<>*?![\]{}])/g, "\\$1");
 }
 
-export function quoteModeForPlatform(platform: string = typeof navigator === "undefined" ? "" : navigator.platform): TerminalDropQuoteMode {
-  return /win/i.test(platform) ? "powershell" : "posix";
+export function quoteModeForPlatform(platform: string = readPlatformString()): TerminalDropQuoteMode {
+  return isWindowsPlatform(platform) ? "powershell" : "posix";
 }
 
 export function assembleDroppedPathPrompt(paths: readonly string[], mode: TerminalDropQuoteMode): string {

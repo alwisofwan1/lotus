@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { FilePlus, GitBranch } from "lucide-react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkbenchLauncher, type LauncherAction } from "../WorkbenchLauncher";
 
 const now = new Date("2026-09-29T15:00:00").getTime();
@@ -27,7 +27,15 @@ function setup(props: Partial<Parameters<typeof WorkbenchLauncher>[0]> = {}) {
 
 const rows = () => within(screen.getByRole("listbox", { name: "Recent files" })).getAllByRole("option");
 
+/** Labels are written in Mac glyphs and printed for this machine; jsdom names no platform. */
+function onPlatform(platform: string) {
+  vi.spyOn(navigator, "platform", "get").mockReturnValue(platform);
+}
+
 describe("WorkbenchLauncher (EDITOR 02)", () => {
+  beforeEach(() => onPlatform("MacIntel"));
+  afterEach(() => vi.restoreAllMocks());
+
   it("leads with the Go to file field and its key", () => {
     const { field } = setup();
     expect(field).toHaveAttribute("placeholder", "Go to file…");
@@ -94,6 +102,14 @@ describe("WorkbenchLauncher (EDITOR 02)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Source/ }));
     expect(newFile).toHaveBeenCalled();
     expect(source).toHaveBeenCalled();
+  });
+
+  it("prints the keys as a Windows keyboard names them", () => {
+    onPlatform("Win32");
+    setup();
+    expect(screen.getByText("Ctrl+P")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /New file/ })).toHaveTextContent("Ctrl+Alt+N");
+    expect(screen.getByRole("button", { name: /Source/ })).toHaveTextContent("Ctrl+Shift+G");
   });
 
   it("says an age once for a run of rows with the same one", () => {
