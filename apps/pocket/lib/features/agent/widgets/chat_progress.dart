@@ -99,13 +99,16 @@ class _StepRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(width: 22, height: 20, child: Align(alignment: Alignment.centerLeft, child: mark)),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(step.label, style: style),
-                if (now) const Padding(padding: EdgeInsets.only(top: 4), child: _Sweep()),
-              ],
+          // Sized to the word, so the line moves under it instead of across the card.
+          Flexible(
+            child: IntrinsicWidth(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(step.label, style: style),
+                  if (now) const Padding(padding: EdgeInsets.only(top: 4), child: _Sweep()),
+                ],
+              ),
             ),
           ),
         ],
@@ -146,13 +149,17 @@ class _SweepState extends State<_Sweep> with SingleTickerProviderStateMixin {
   Widget build(BuildContext context) {
     final t = context.tokens;
     return SizedBox(
+      key: const ValueKey('progress-sweep'),
       height: 2,
-      child: AnimatedBuilder(
-        animation: _run,
-        builder: (context, _) => FractionallySizedBox(
-          widthFactor: 0.3,
-          alignment: Alignment(-1 + 2 * Curves.easeInOut.transform(_run.value), 0),
-          child: ColoredBox(color: t.dim),
+      child: ColoredBox(
+        color: t.line,
+        child: AnimatedBuilder(
+          animation: _run,
+          builder: (context, _) => FractionallySizedBox(
+            widthFactor: 0.4,
+            alignment: Alignment(-1 + 2 * Curves.easeInOut.transform(_run.value), 0),
+            child: ColoredBox(color: t.dim),
+          ),
         ),
       ),
     );
