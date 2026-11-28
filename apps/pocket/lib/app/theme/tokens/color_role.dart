@@ -18,6 +18,8 @@ enum ColorRole {
   hairline,
   hairlineStrong,
   waiting,
+  waitingRule,
+  waitingTint,
   onWaiting,
   live,
   error,
@@ -33,6 +35,8 @@ enum ColorRole {
 /// Roles a palette may not tune by eye: they carry the app's only meanings.
 const Set<ColorRole> statusRoles = {
   ColorRole.waiting,
+  ColorRole.waitingRule,
+  ColorRole.waitingTint,
   ColorRole.onWaiting,
   ColorRole.live,
   ColorRole.error,

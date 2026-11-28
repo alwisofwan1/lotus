@@ -44,7 +44,7 @@ Rules:
 5. **Pairing is tested,** not eyeballed: see the matrix in `docs/theme.md` (text ≥ 4.5 on every surface, ornament
    ≥ 3.0 and never a sentence, status hues ≥ 60° apart).
 
-### Status colours (proposed, 2026-11-28)
+### Status colours (shipped 2026-11-28)
 
 The earlier mockup's warmer amber, with lightness re-solved for AA. Amber is split into two jobs: `waiting` is
 text and icons (≥ 4.5), the new `waitingRule` is borders and dots (non-text, ≥ 3.0). "Worst" is the lowest
@@ -62,8 +62,9 @@ contrast over `ground`, `raised`, `track`, `keyActive` and the amber-tinted card
 - Red moved pinker in both themes to stay 60° of hue away from amber. The earlier orange-red `#C2410C` sat 11°
   from it and read as a second amber.
 - `onWaiting` still passes: white on light `waiting` 5.66, `#1A1300` on dark `waiting` 10.1.
-- Not in code yet. Shipping it means updating `palettes/graphite.dart`, adding the two roles to `ColorRole`,
-  and running `flutter test test/app/theme` (the invariant suite checks every number above).
+- In code: `palettes/graphite.dart`, `ColorRole.waitingRule` / `waitingTint`, and the invariant suite in
+  `invariants/rules.dart` checks every number above (`flutter test test/app/theme`). Light amber's hue moved
+  from 49° to 55°: `#B45309` sat just outside the 50–95° amber band.
 
 ## 3. Typography
 

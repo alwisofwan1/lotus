@@ -42,9 +42,12 @@ No widget, builder or test changes. `ThemeController.select('<id>')` shows it.
 - **Pairing matrix** (WCAG 2.1, translucent roles composited over `ground` the way
   `Color.alphaBlend` does): `text`, `text2`, `waiting` ≥ 4.5 on every surface; `text3` ≥ 4.5
   on `ground` and `raised` (sheets); `ornament` ≥ 3.0 (non-text only); `error` ≥ 4.5 on ground/raised/track;
-  `live` ≥ 3.0 (a dot); `onWaiting` on `waiting` and `onError` on `error` ≥ 4.5.
+  `live` ≥ 3.0 (a dot); `onWaiting` on `waiting` and `onError` on `error` ≥ 4.5;
+  `waitingRule` ≥ 3.0 on every surface (borders and dots, non-text). A needs-you card head is
+  `waitingTint` over `raised`: `waiting` ≥ 4.5 and `waitingRule` ≥ 3.0 on that blend too.
 - **Order**: text > text2 > text3 > ornament by contrast.
-- **Amber is the only meaningful hue** (OKLCH): `waiting` hue 50–95°, chroma ≥ 0.10;
+- **Amber is the only meaningful hue** (OKLCH): `waiting` hue 50–95°, chroma ≥ 0.10
+  (`waitingRule` and `waitingTint` hue in the same band);
   every neutral role chroma ≤ 0.03 and ≥ 0.10 ΔE_ok from `waiting`; `live` and `error` at
   least 60° of hue away from it.
 - **Terminal**: foreground ≥ 4.5 and cursor ≥ 3.0 on `termGround`; every ANSI colour ≥ 3.0
@@ -121,9 +124,15 @@ from vercel/geist-font 1.9.2 (`assets/fonts/`, OFL). The terminal keeps its own 
 |---|---|---|---|
 | dark text3 | `#7C786F` 3.96 | `#868279` | 4.55 on s1 |
 | light text3 | `#85807A` 3.53 | `#736E69` | 4.55 on ground |
-| light waiting | `#9A5A06` 4.16 | `#8E5205` | 4.75 on s3 (pressed) |
-| dark error | `#F2837A` | `#F28188` | hue 17°, 61° from amber |
-| light error | `#C2362B` | `#BD3266` | hue 3°, 60° from amber |
+| light waiting | `#B45309` 3.81 | `#9B4F04` | 4.52 worst; hue 49° → 55° to enter the amber band |
+| light waitingRule | `#D97706` 2.42 | `#C26904` | 3.01 worst (non-text) |
+| dark waiting | `#F0B347` | `#F5B451` | 7.69 worst |
+| dark error | `#F2837A` | `#E7768A` | hue 10°, 65° from amber |
+| light error | `#C2362B` | `#BD3379` | hue 354°, 61° from amber |
+
+**Amber has three jobs since 2026-11-28** (apps/pocket/DESIGN.md §2): `waiting` is text and
+icons, `waitingRule` is borders and dots, `waitingTint` (8% light, 10% dark) is the fill behind a
+needs-you card head. Classic maps all three to its one desktop amber.
 
 The mockup's reds sat 53° and 34° from amber; the status-hue rule wants 60°, and amber's hue
 is the one that keeps its meaning, so red moved.

@@ -35,6 +35,10 @@ class AppTokens extends ThemeExtension<AppTokens> {
   Color get line => colors[ColorRole.hairline];
   Color get lineStrong => colors[ColorRole.hairlineStrong];
   Color get waiting => colors[ColorRole.waiting];
+  /// Amber borders and dots (non-text, ≥ 3.0); text and icons use [waiting].
+  Color get waitingRule => colors[ColorRole.waitingRule];
+  /// Translucent amber fill behind a needs-you card head; [waiting] text must still read on it.
+  Color get waitingTint => colors[ColorRole.waitingTint];
   Color get onWaiting => colors[ColorRole.onWaiting];
   Color get live => colors[ColorRole.live];
   Color get error => colors[ColorRole.error];

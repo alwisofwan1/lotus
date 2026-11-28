@@ -25,6 +25,8 @@ final AppColors _colors = AppColors({
   ColorRole.hairline: const Color(0x16F5F2EF), // rgba(245,242,239,0.085)
   ColorRole.hairlineStrong: const Color(0x29F5F2EF), // rgba(245,242,239,0.16)
   ColorRole.waiting: const Color(0xFFFBBF24), // desktop --canvas-status-connecting
+  ColorRole.waitingRule: const Color(0xFFFBBF24),
+  ColorRole.waitingTint: const Color(0x1AFBBF24), // 10%
   ColorRole.onWaiting: const Color(0xFF17130A), // dark ink on amber; ground is too dark at w600
   ColorRole.live: const Color(0xFF3FBF8F),
   ColorRole.error: const Color(0xFFF87171), // desktop --canvas-status-error

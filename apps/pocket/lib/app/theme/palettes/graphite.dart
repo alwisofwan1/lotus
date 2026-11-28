@@ -24,10 +24,12 @@ final AppColors _darkColors = AppColors({
   ColorRole.ornament: const Color(0xFF65625B), // 3.08:1, non-text only
   ColorRole.hairline: const Color(0x12FFFFFF), // rgba(255,255,255,.07)
   ColorRole.hairlineStrong: const Color(0x24FFFFFF), // .14
-  ColorRole.waiting: const Color(0xFFF0B347),
+  ColorRole.waiting: const Color(0xFFF5B451), // oklch(0.813 0.137 75), the earlier mockup's amber
+  ColorRole.waitingRule: const Color(0xFFF59E0B),
+  ColorRole.waitingTint: const Color(0x1AF59E0B), // 10%
   ColorRole.onWaiting: const Color(0xFF1A1300),
   ColorRole.live: const Color(0xFF5FBF95),
-  ColorRole.error: const Color(0xFFF28188), // hue 17°: mockup #F2837A sat 53° from amber
+  ColorRole.error: const Color(0xFFE7768A), // hue 10°: 65° from amber
   ColorRole.onError: const Color(0xFF121211),
   ColorRole.scrim: const Color(0x99000000),
   ColorRole.shadow: const Color(0xFF000000),
@@ -50,10 +52,12 @@ final AppColors _lightColors = AppColors({
   ColorRole.ornament: const Color(0xFF908B83), // 3.05:1, non-text only
   ColorRole.hairline: const Color(0x141A1917), // rgba(26,25,23,.08)
   ColorRole.hairlineStrong: const Color(0x291A1917), // .16
-  ColorRole.waiting: const Color(0xFF8E5205), // 4.75:1 on s3; mockup #9A5A06 was 4.16
+  ColorRole.waiting: const Color(0xFF9B4F04), // 4.52:1 worst; the earlier mockup's #B45309 was 3.81
+  ColorRole.waitingRule: const Color(0xFFC26904), // 3.01:1 worst; mockup #D97706 was 2.42
+  ColorRole.waitingTint: const Color(0x14D97706), // 8%
   ColorRole.onWaiting: const Color(0xFFFFFFFF),
   ColorRole.live: const Color(0xFF1E7A55),
-  ColorRole.error: const Color(0xFFBD3266), // hue 3°: mockup #C2362B sat 34° from amber
+  ColorRole.error: const Color(0xFFBD3379), // hue 354°: 61° from amber
   ColorRole.onError: const Color(0xFFFFFFFF),
   ColorRole.scrim: const Color(0x521A1917),
   ColorRole.shadow: const Color(0xFF1A1917),

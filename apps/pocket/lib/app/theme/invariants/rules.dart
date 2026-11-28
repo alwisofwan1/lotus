@@ -18,6 +18,7 @@ const Map<ColorRole, (double, List<ColorRole>)> pairingMatrix = {
   ColorRole.text3: (4.5, [ColorRole.ground, ColorRole.raised]), // raised = sheets
   ColorRole.ornament: (3.0, [ColorRole.ground]), // non-text only (WCAG 1.4.11)
   ColorRole.waiting: (4.5, _surfaces),
+  ColorRole.waitingRule: (3.0, _surfaces), // borders and dots, non-text (WCAG 1.4.11)
   ColorRole.error: (4.5, [ColorRole.ground, ColorRole.raised, ColorRole.track]),
   ColorRole.live: (3.0, [ColorRole.ground, ColorRole.raised]), // a dot, not text
   ColorRole.onWaiting: (4.5, [ColorRole.waiting]),
@@ -63,12 +64,21 @@ List<Violation> checkTheme(ThemeVariant v, {bool applyWaivers = true}) {
     need('${levels[i].name} below ${levels[i - 1].name}', 'order', louder - contrast(c[levels[i]], ground), 0.01);
   }
 
+  // A needs-you card head is waitingTint over raised; its amber words and rule must still read.
+  final tinted = Color.alphaBlend(c[ColorRole.waitingTint], solid(ColorRole.raised));
+  need('waiting on waitingTint', 'contrast', contrast(c[ColorRole.waiting], tinted), 4.5);
+  need('waitingRule on waitingTint', 'contrast', contrast(c[ColorRole.waitingRule], tinted), 3.0);
+
   final amber = oklch(c[ColorRole.waiting]);
   need('waiting hue', 'amber-hue', 22.5 - hueGap(amber.h, 72.5), 0); // 50–95°
   need('waiting chroma', 'amber-hue', amber.c, 0.10);
   for (final r in neutralRoles) {
     need('${r.name} chroma', 'neutral', oklch(solid(r)).c, 0.03, atMost: true);
     need('${r.name} vs waiting', 'neutral', deltaEok(solid(r), c[ColorRole.waiting]), 0.10);
+  }
+  for (final r in [ColorRole.waitingRule, ColorRole.waitingTint]) {
+    final o = oklch(c[r].withValues(alpha: 1)); // hue of the ink, not of the blend
+    need('${r.name} hue', 'amber-hue', 22.5 - hueGap(o.h, 72.5), 0);
   }
   for (final r in [ColorRole.live, ColorRole.error]) {
     need('${r.name} hue', 'status-hue', hueGap(oklch(c[r]).h, amber.h), 60);

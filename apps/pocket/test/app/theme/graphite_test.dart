@@ -41,8 +41,17 @@ void main() {
 
   test('light amber is re-solved to AA on every surface, hue kept', () {
     final amber = graphite.light.tokens.waiting;
-    expect(amber, const Color(0xFF8E5205)); // was #9A5A06, 4.16:1 on the pressed surface
-    expect((oklch(amber).h - oklch(const Color(0xFF9A5A06)).h).abs(), lessThan(1.0));
+    expect(amber, const Color(0xFF9B4F04)); // the earlier mockup's #B45309 was 3.81:1 on the pressed surface
+    // #B45309 sits at hue 49°, just outside the 50–95° amber band; the re-solve moves it to 55°.
+    expect(oklch(amber).h, inInclusiveRange(50, 60));
+  });
+
+  test('amber is split: text and icons, borders and dots, a fill', () {
+    for (final v in graphite.variants) {
+      final t = v.tokens;
+      expect(t.waitingRule, isNot(t.waiting));
+      expect(t.waitingTint.a, lessThan(0.15)); // a fill, never a solid amber card
+    }
   });
 
   test('UI is Geist and code is Geist Mono', () {
